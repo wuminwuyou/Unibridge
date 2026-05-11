@@ -1,0 +1,1045 @@
+/* 01）页面通用：头部区域（page-header） */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  color: #1f2937;
+  margin: 0;
+}
+
+.page-header p {
+  color: #6b7280;
+  margin: 4px 0 0 0;
+  font-size: 14px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 02）页面通用：按钮（btn-primary / btn-secondary / btn-icon / btn-text） */
+.btn-primary {
+  background: #03c9d7;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.btn-secondary {
+  background: white;
+  border: 1px solid #e5e7eb;
+  padding: 10px 20px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #9ca3af;
+  transition: 0.2s;
+}
+
+.btn-icon:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.btn-icon.edit:hover {
+  background: #f3f4f6;
+  color: #2563eb;
+}
+
+.btn-icon.insert:hover {
+  background: #f3f4f6;
+  color: #03c9d7;
+}
+
+.btn-icon.delete:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: #03c9d7;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-text.delete {
+  color: #9ca3af;
+}
+
+/* 03）页面通用：表格容器与工具栏（table-container / table-toolbar / search-bar） */
+.table-container {
+  padding: 0;
+  overflow: hidden;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.table-toolbar {
+  padding: 20px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f9fafb;
+  padding: 8px 16px;
+  border-radius: 8px;
+  width: 300px;
+  border: 1px solid #e5e7eb;
+}
+
+.search-bar input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 14px;
+}
+
+/* 04）页面通用：标准表格（standard-table） */
+.standard-table,
+.entity-table,
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.standard-table th,
+.entity-table th,
+.user-table th {
+  background: #f9fafb;
+  padding: 16px;
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.standard-table td,
+.entity-table td,
+.user-table td {
+  padding: 16px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+  color: #374151;
+}
+
+/* 05）页面通用：单元格组合（name-cell / info-with-icon / unassigned 等） */
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #111827;
+}
+
+.name-cell svg {
+  color: #03c9d7;
+}
+
+.info-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #4b5563;
+}
+
+.unassigned {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 13px;
+}
+
+.action-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.project-id-tag {
+  color: #6366f1;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+/* 06）实体页面（Entities）：类型标签与余额样式 */
+.entity-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.entity-name-cell svg {
+  color: #03c9d7;
+}
+
+.type-tag {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.type-tag.university {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.type-tag.enterprise {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.balance-cell {
+  color: #059669;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 06.1）实体页面（Entities）：审核人员与审核时间垂直信息 */
+.audit-info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.audit-name {
+  color: #111827;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.audit-time {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.2;
+}
+
+/* 07）用户页面（Users）：用户信息与标签 */
+.user-info-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  background: #e0f2fe;
+  color: #03c9d7;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.unnamed {
+  color: #9ca3af;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.user-phone {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.verified-icon {
+  color: #10b981;
+}
+
+.entity-tag {
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 200px;
+}
+
+.bio-tag {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.no-tags {
+  color: #d1d5db;
+}
+
+/* 08）商业项目页面（CommercialProjects）：预算/等级/状态标签 */
+.main-text {
+  font-weight: 600;
+  color: #111827;
+}
+
+.sub-text {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.budget-cell {
+  color: #059669;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.level-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.lv-ur {
+  background: #fee2e2;
+  color: #ef4444;
+  border: 1px solid #fca5a5;
+}
+
+.lv-ssr {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fcd34d;
+}
+
+.lv-sr {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.st-developing {
+  background: #ecfdf5;
+  color: #10b981;
+}
+
+.st-recruiting {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.st-pending {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+/* 08.1）里程碑/任务：审核状态标签（approved / rejected） */
+.st-approved {
+  background: #ecfdf5;
+  color: #10b981;
+}
+
+.st-rejected {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+/* 09）招募与实践项目页面（RecruitmentProjects）：状态标签 */
+.st-open {
+  background: #ecfdf5;
+  color: #10b981;
+}
+
+.st-closed {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+/* 09.1）招募与实践项目页面：名称单元格图标配色 */
+.name-cell--recruitment svg {
+  color: #f43f5e;
+}
+
+/* 10）团队页面（Teams）：成员规模与项目链接 */
+.member-badge {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.project-link {
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.project-link:hover {
+  text-decoration: underline;
+}
+
+.ext-icon {
+  opacity: 0.5;
+}
+
+/* 10.1）详情弹窗：实验室/团队点击名称后展示 */
+.detail-name-btn {
+  border: none;
+  background: transparent;
+  color: #111827;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.detail-name-btn:hover {
+  color: #2563eb;
+}
+
+.detail-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 20px;
+}
+
+.detail-modal {
+  width: min(912px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(17, 24, 39, 0.25);
+  padding: 22px 22px 18px;
+}
+
+.detail-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.detail-modal__header h3 {
+  font-size: 18px;
+  color: #111827;
+  margin: 0;
+}
+
+.detail-modal__close {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #6b7280;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.detail-modal__close:hover {
+  background: #f9fafb;
+  color: #111827;
+}
+
+/* 10.0）新增表单弹窗：表单容器与字段布局 */
+.create-form-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+  padding: 20px;
+}
+
+.create-form-modal {
+  width: min(560px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(17, 24, 39, 0.25);
+  padding: 22px;
+}
+
+.create-form-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.create-form-modal__header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #111827;
+}
+
+.create-form-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.create-form-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.create-form-modal__field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.create-form-modal__field input,
+.create-form-modal__field select,
+.create-form-modal__field textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #111827;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.create-form-modal__field input:focus,
+.create-form-modal__field select:focus,
+.create-form-modal__field textarea:focus {
+  border-color: #03c9d7;
+  box-shadow: 0 0 0 3px rgba(3, 201, 215, 0.12);
+}
+
+.create-form-modal__field textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.create-form-modal__error {
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.create-form-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.detail-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-form-item {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.detail-form-item label {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.detail-form-value {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.detail-form-item--full {
+  grid-column: 1 / -1;
+}
+
+.detail-tag-list {
+  max-width: 100%;
+}
+
+.detail-modal__empty {
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.detail-intro-box {
+  line-height: 1.7;
+  color: #374151;
+  background: #ffffff;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 84px;
+}
+
+/* 10.2）详情弹窗成员表格：置于简介下方 */
+.detail-member-section {
+  margin-top: 18px;
+}
+
+.detail-member-section h4 {
+  margin: 0 0 10px 0;
+  color: #111827;
+  font-size: 15px;
+}
+
+.detail-table-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.detail-table-section-header h4 {
+  margin: 0;
+}
+
+.detail-member-table {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.detail-member-empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 16px 0;
+}
+
+/* 10.3）详情弹窗里程碑表格：折叠展开与任务卡片子表 */
+.detail-milestone-table .status-badge {
+  text-transform: uppercase;
+}
+
+.detail-milestone-table th:nth-child(4) {
+  color: #3b82f6;
+}
+
+.detail-expand-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #111827;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.detail-expand-btn:hover {
+  color: #2563eb;
+}
+
+.detail-collapse-cell {
+  background: #f9fafb;
+  padding: 12px 16px !important;
+}
+
+.detail-task-table {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.detail-task-table th {
+  background: #f3f4f6;
+}
+
+/* 11）通用卡片（card）：页面内统一容器外观 */
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* 12）概览页（Dashboard）：栅格与统计卡片 */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.banner-card {
+  grid-column: span 2;
+  background: #fff url('path-to-your-bg') no-repeat right;
+}
+
+.banner-text h3 {
+  color: #9ca3af;
+  font-size: 16px;
+}
+
+.banner-text .price {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.download-btn {
+  background: #03c9d7;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+}
+
+.stat-val {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.stat-label {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.revenue-card {
+  grid-column: span 4;
+  min-height: 300px;
+}
+
+.placeholder-chart {
+  height: 200px;
+  background: #f9fafb;
+  border: 2px dashed #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  margin-top: 20px;
+}
+
+/* 13）登录页（Login）：仅作用于登录容器范围 */
+.login-container {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f6;
+}
+
+.login-box {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-box h2 {
+  text-align: center;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.login-box p {
+  text-align: center;
+  color: #6b7280;
+  margin-bottom: 2rem;
+}
+
+.login-box .input-group {
+  margin-bottom: 1.5rem;
+}
+
+.login-box label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.login-box input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.login-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.dev-toggle {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 14）待办页（TODO）：网格与审核卡片 */
+.todo-header {
+  margin-bottom: 24px;
+}
+
+.todo-header h1 {
+  font-size: 24px;
+  color: #1f2937;
+}
+
+.todo-header p {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.todo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.todo-section {
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title-wrapper .icon {
+  color: #03c9d7;
+}
+
+.badge {
+  background: #fee2e2;
+  color: #ef4444;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.request-item {
+  border: 1px solid #f3f4f6;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.request-item:hover {
+  background: #fafafa;
+}
+
+.req-user {
+  font-size: 14px;
+  color: #374151;
+  margin: 0 0 4px 0;
+}
+
+.req-detail {
+  font-size: 15px;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.req-detail span {
+  color: #03c9d7;
+  font-weight: 600;
+}
+
+.req-time {
+  font-size: 12px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.req-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-pass {
+  background: #03c9d7;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-reject {
+  background: white;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.empty-state {
+  text-align: center;
+  color: #9ca3af;
+  padding-top: 50px;
+}
+
+.disabled {
+  opacity: 0.6;
+}
+
+.placeholder-text {
+  text-align: center;
+  margin-top: 40px;
+  color: #9ca3af;
+}
+
+/* 15）管理员页（Admins）：徽章与头像 */
+.admin-avatar {
+  width: 32px;
+  height: 32px;
+  background: #e5e7eb;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #4b5563;
+}
+
+.auth-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-badge.super {
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fee2e2;
+}
+
+.auth-badge.senior {
+  background: #f0fdfa;
+  color: #0d9488;
+  border: 1px solid #ccfbf1;
+}
+
+.auth-badge.staff {
+  background: #f9fafb;
+  color: #6b7280;
+  border: 1px solid #f3f4f6;
+}
