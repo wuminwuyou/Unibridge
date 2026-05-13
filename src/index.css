@@ -1,0 +1,23 @@
+/* 01）全局盒模型与基础排版 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 02）根节点与页面背景 */
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+/* 03）全局字体与渲染优化 */
+body {
+  font-family: 'Inter', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #182233;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
