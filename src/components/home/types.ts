@@ -1,12 +1,9 @@
-// 01）主题模式类型定义（ThemeMode）
-export type ThemeMode = 'light' | 'dark'
-
-// 02）项目标签类型定义（ProjectTag）
+// 01）项目标签类型定义（ProjectTag）
 export interface ProjectTag {
   label: string
 }
 
-// 03）项目数据类型定义（ProjectItem）
+// 02）项目数据类型定义（ProjectItem）
 export interface ProjectItem {
   title: string
   summary: string
@@ -18,13 +15,13 @@ export interface ProjectItem {
   amount: string
 }
 
-// 04）推荐企业类型定义（RecommendedCompany）
+// 03）推荐企业类型定义（RecommendedCompany）
 export interface RecommendedCompany {
   name: string
   projects: string
 }
 
-// 05）平台公告类型定义（Announcement）
+// 04）平台公告类型定义（Announcement）
 export interface Announcement {
   title: string
   date: string

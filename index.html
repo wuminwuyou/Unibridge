@@ -4,6 +4,30 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // 01）首屏主题预设脚本（Preload Theme）
+      ;(() => {
+        const themeStorageKey = 'web-client-theme-preference'
+        const rootElement = document.documentElement
+
+        try {
+          const storedTheme = window.localStorage.getItem(themeStorageKey)
+          const resolvedTheme =
+            storedTheme === 'light' || storedTheme === 'dark'
+              ? storedTheme
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+
+          rootElement.dataset.theme = resolvedTheme
+          rootElement.style.colorScheme = resolvedTheme
+        } catch {
+          const fallbackTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+          rootElement.dataset.theme = fallbackTheme
+          rootElement.style.colorScheme = fallbackTheme
+        }
+      })()
+    </script>
     <title>web</title>
   </head>
   <body>

@@ -1,17 +1,6 @@
-import { useState } from 'react'
-import ProjectCard from '../components/home/ProjectCard'
-import {
-  AnnouncementsCard,
-  RecommendedCompaniesCard,
-  RecommendedTypesCard,
-  SearchSidebarCard,
-} from '../components/home/SidebarCards'
-import TopNavbar from '../components/home/TopNavbar'
-import type { Announcement, ProjectItem, RecommendedCompany, ThemeMode } from '../components/home/types'
+import ProjectZonePageLayout from '../components/home/ProjectZonePageLayout'
+import type { Announcement, ProjectItem, RecommendedCompany } from '../components/home/types'
 import '../styles/HomePage.css'
-
-// 01）导航菜单数据（navItems）
-const navItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']
 
 // 02）项目卡片数据（projectItems）
 const projectItems: ProjectItem[] = [
@@ -86,25 +75,14 @@ const announcements: Announcement[] = [
   { title: '平台功能升级公告', date: '05-12' },
 ]
 
-// 06）难度等级颜色映射（levelColorMap）
-const levelColorMap: Record<ProjectItem['level'], string> = {
-  N: '#3a8edb',
-  R: '#46b357',
-  SR: '#d09a2f',
-  SSR: '#db5a7d',
-  UR: '#a44ad3',
-}
-
-// 07）首页主组件（HomePage）
+// 06）首页主组件（HomePage）
 /**
  * 函数名：HomePage
  * 功能：渲染项目众包平台首页，负责组合顶部导航、项目流与侧边栏复用组件。
  * 实现方法：
- * - 维护 light/dark 主题状态，并通过按钮切换页面配色
- * - 调用 TopNavbar 组件渲染粘性毛玻璃导航栏
- * - 调用 ProjectCard 组件渲染项目列表并透传等级颜色映射
- * - 调用 SidebarCards 中的四类侧边栏卡片实现模块化复用
- * - 通过 data-theme 与 CSS 变量联动主题样式
+ * - 调用 ProjectZonePageLayout 复用项目专区通用双栏结构
+ * - 传入首页项目、推荐类型、推荐企业与公告数据
+ * - 通过参数控制页面标题与搜索输入框标识
  * 输入：
  * - 无（当前版本使用本地静态数据）
  * 输出：
@@ -112,49 +90,18 @@ const levelColorMap: Record<ProjectItem['level'], string> = {
  * - 副作用：无
  */
 function HomePage() {
-  // 08）主题状态管理（theme）
-  const [theme, setTheme] = useState<ThemeMode>('light')
-
-  // 09）主题切换处理函数（handleToggleTheme）
-  /**
-   * 函数名：handleToggleTheme
-   * 功能：在浅色与深色主题之间切换，用于动态调整首页整体配色。
-   * 实现方法：
-   * - 读取当前 theme 状态
-   * - 根据当前值切换到另一个主题
-   * - 触发组件重新渲染，使 data-theme 驱动对应 CSS 变量生效
-   * 输入：
-   * - 无
-   * 输出：
-   * - 返回值：void
-   * - 副作用：更新 React 组件状态
-   */
-  const handleToggleTheme = (): void => {
-    setTheme((previousTheme) => (previousTheme === 'light' ? 'dark' : 'light'))
-  }
-
   return (
-    <div className="home-page" data-theme={theme}>
-      <TopNavbar navItems={navItems} activeNavItem="首页" theme={theme} onToggleTheme={handleToggleTheme} />
-
-      <main className="home-main">
-        <section className="project-section" aria-label="项目专区">
-          <h2 className="section-title">项目专区</h2>
-          <div className="project-list">
-            {projectItems.map((project) => (
-              <ProjectCard key={`${project.title}-${project.publisher}`} project={project} levelColorMap={levelColorMap} />
-            ))}
-          </div>
-        </section>
-
-        <aside className="sidebar" aria-label="右侧信息栏">
-          <SearchSidebarCard inputId="project-search-input" />
-          <RecommendedTypesCard types={recommendedTypes} />
-          <RecommendedCompaniesCard companies={recommendedCompanies} />
-          <AnnouncementsCard announcements={announcements} />
-        </aside>
-      </main>
-    </div>
+    <ProjectZonePageLayout
+      sectionTitle="项目专区"
+      searchInputId="home-project-search-input"
+      projects={projectItems}
+      recommendedTypes={recommendedTypes}
+      recommendedOrganizations={recommendedCompanies}
+      announcements={announcements}
+      organizationCardTitle="推荐企业"
+      organizationActionText="查看更多"
+      organizationAvatarText="企"
+    />
   )
 }
 

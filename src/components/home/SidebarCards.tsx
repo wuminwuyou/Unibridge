@@ -21,6 +21,9 @@ interface RecommendedTypesCardProps {
 // 04）推荐企业卡片参数类型（RecommendedCompaniesCardProps）
 interface RecommendedCompaniesCardProps {
   companies: RecommendedCompany[]
+  title?: string
+  actionText?: string
+  avatarText?: string
 }
 
 // 05）公告卡片参数类型（AnnouncementsCardProps）
@@ -121,15 +124,20 @@ export function RecommendedTypesCard({ types }: RecommendedTypesCardProps) {
  * - 返回值：JSX.Element，推荐企业卡片结构
  * - 副作用：无
  */
-export function RecommendedCompaniesCard({ companies }: RecommendedCompaniesCardProps) {
+export function RecommendedCompaniesCard({
+  companies,
+  title = '推荐企业',
+  actionText = '查看更多',
+  avatarText = '企',
+}: RecommendedCompaniesCardProps) {
   return (
-    <SidebarCard title="推荐企业" actionText="查看更多">
+    <SidebarCard title={title} actionText={actionText}>
       <ul className="company-list">
         {companies.map((company) => (
           <li key={company.name}>
             <div className="company-item">
               <span className="company-avatar" aria-hidden="true">
-                企
+                {avatarText}
               </span>
               <div>
                 <strong>{company.name}</strong>
