@@ -47,8 +47,10 @@
 .top-header__inner {
   position: relative;
   z-index: 1;
-  width: min(1400px, 70vw);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
+  padding: 0 16px;
+  box-sizing: border-box;
   height: 76px;
   display: flex;
   align-items: center;
@@ -240,8 +242,9 @@
 .user-panel {
   position: absolute;
   top: calc(100% + 12px);
-  left: 50%;
+  right: 0;
   width: 260px;
+  max-width: calc(100vw - 20px);
   min-height: 336px;
   border-radius: 16px;
   border: 1px solid var(--user-panel-border);
@@ -251,9 +254,9 @@
   box-shadow: var(--user-panel-shadow);
   padding: 20px;
   opacity: 0;
-  transform: translateX(-50%) translateY(-8px) scale(0.98);
+  transform: translateY(-8px) scale(0.98);
   pointer-events: none;
-  transform-origin: top center;
+  transform-origin: top right;
   will-change: transform, opacity;
   transition:
     opacity 200ms cubic-bezier(0.2, 0, 0, 1),
@@ -263,7 +266,7 @@
 
 .user-menu.is-open .user-panel {
   opacity: 1;
-  transform: translateX(-50%) translateY(0) scale(1);
+  transform: translateY(0) scale(1);
   pointer-events: auto;
 }
 
@@ -382,7 +385,7 @@
   background: rgba(70, 179, 87, 0.15);
 }
 
-.user-stat-item > span:last-child {
+.user-stat-item>span:last-child {
   color: var(--user-panel-muted);
   font-size: 14px;
   font-weight: 500;
@@ -514,10 +517,59 @@
   min-width: 0;
 }
 
+/* 09-1）首页经验推荐区（复用 GridNoteCard） */
+.home-experience-recommendation {
+  margin-bottom: 16px;
+}
+
+.home-experience-recommendation__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.home-experience-recommendation__grid .profile-note-card-compact {
+  min-height: 148px;
+}
+
+/* 09-2）标题行与换一换按钮 */
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .section-title {
   margin: 0 0 12px;
   font-size: 20px;
   color: var(--text-main);
+}
+
+.section-title-row .section-title {
+  margin-bottom: 0;
+}
+
+.section-refresh-button {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.section-refresh-button:hover {
+  border-color: color-mix(in srgb, var(--primary-text) 48%, var(--button-border));
+  color: var(--primary-text);
+}
+
+.section-title-row + .project-list,
+.section-title-row + .home-experience-recommendation__grid {
+  margin-top: 12px;
 }
 
 .project-list {
@@ -843,6 +895,10 @@
   .home-main {
     grid-template-columns: 1fr;
   }
+
+  .home-experience-recommendation__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -864,9 +920,12 @@
     font-size: 26px;
   }
 
+  .home-experience-recommendation__grid {
+    grid-template-columns: 1fr;
+  }
+
   .user-panel {
     width: min(260px, calc(100vw - 20px));
-    left: 50%;
-    right: auto;
+    right: 0;
   }
 }

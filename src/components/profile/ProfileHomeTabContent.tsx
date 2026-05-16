@@ -1,5 +1,5 @@
-import { CalendarClock, Eye, Star } from 'lucide-react'
-import ProjectCard from '../home/ProjectCard'
+import RowNoteCard from '../common/RowNoteCard'
+import ProjectCard from '../common/ProjectCard'
 import type { ProjectItem } from '../home/types'
 import type { ProfileNoteItem } from './types'
 
@@ -7,6 +7,8 @@ import type { ProfileNoteItem } from './types'
 interface ProfileHomeTabContentProps {
   projects: ProjectItem[]
   notes: ProfileNoteItem[]
+  onViewAllProjects: () => void
+  onViewAllNotes: () => void
 }
 
 // 02）个人空间主页内容组件（ProfileHomeTabContent）
@@ -20,17 +22,21 @@ interface ProfileHomeTabContentProps {
  * 输入：
  * - projects：项目列表数据
  * - notes：笔记列表数据
+ * - onViewAllProjects：点击“我的项目-查看全部”时的跳转处理函数
+ * - onViewAllNotes：点击“我的笔记-查看全部”时的跳转处理函数
  * 输出：
  * - 返回值：JSX.Element，主页 Tab 内容结构
  * - 副作用：无
  */
-function ProfileHomeTabContent({ projects, notes }: ProfileHomeTabContentProps) {
+function ProfileHomeTabContent({ projects, notes, onViewAllProjects, onViewAllNotes }: ProfileHomeTabContentProps) {
   return (
     <>
       <article className="profile-section-card">
         <header className="profile-section-card__head">
           <h2>我的项目</h2>
-          <button type="button">查看全部</button>
+          <button type="button" onClick={onViewAllProjects}>
+            查看全部
+          </button>
         </header>
         <div className="profile-project-grid">
           {projects.map((project) => (
@@ -42,40 +48,13 @@ function ProfileHomeTabContent({ projects, notes }: ProfileHomeTabContentProps) 
       <article className="profile-section-card">
         <header className="profile-section-card__head">
           <h2>我的笔记</h2>
-          <button type="button">查看全部</button>
+          <button type="button" onClick={onViewAllNotes}>
+            查看全部
+          </button>
         </header>
         <div className="profile-note-list">
           {notes.map((note) => (
-            <article key={note.title} className="profile-note-card">
-              <img src={note.cover} alt="" />
-              <div className="profile-note-card__body">
-                <h3>{note.title}</h3>
-                <p>{note.summary}</p>
-                <div className="profile-note-tags">
-                  {note.tags.map((tag) => (
-                    <span key={`${note.title}-${tag}`}>{tag}</span>
-                  ))}
-                </div>
-                <div className="profile-note-meta">
-                  <span>
-                    <CalendarClock size={13} />
-                    {note.publishTime}
-                  </span>
-                  <span>
-                    <CalendarClock size={13} />
-                    {note.updateTime}
-                  </span>
-                  <span>
-                    <Eye size={13} />
-                    {note.views}
-                  </span>
-                  <span>
-                    <Star size={13} />
-                    {note.favorites}
-                  </span>
-                </div>
-              </div>
-            </article>
+            <RowNoteCard key={note.title} note={note} />
           ))}
         </div>
       </article>

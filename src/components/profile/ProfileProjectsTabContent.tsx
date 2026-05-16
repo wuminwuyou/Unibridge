@@ -1,4 +1,4 @@
-import ProjectCard from '../home/ProjectCard'
+import ProjectCard from '../common/ProjectCard'
 import type { ProjectItem } from '../home/types'
 
 // 01）项目Tab内容组件参数类型（ProfileProjectsTabContentProps）
@@ -27,7 +27,6 @@ function ProfileProjectsTabContent({ isLoading, projects }: ProfileProjectsTabCo
     <article className="profile-section-card">
       <header className="profile-section-card__head">
         <h2>项目</h2>
-        <button type="button">查看全部</button>
       </header>
       {isLoading ? (
         <div className="profile-project-loading" aria-live="polite">

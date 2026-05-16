@@ -1,5 +1,6 @@
 import ProjectZonePageLayout from '../components/home/ProjectZonePageLayout'
 import type { Announcement, ProjectItem, RecommendedCompany } from '../components/home/types'
+import type { ProfileNoteItem } from '../components/profile/types'
 import '../styles/HomePage.css'
 
 // 02）项目卡片数据（projectItems）
@@ -75,7 +76,83 @@ const announcements: Announcement[] = [
   { title: '平台功能升级公告', date: '05-12' },
 ]
 
-// 06）首页主组件（HomePage）
+// 06）经验推荐笔记数据（experienceRecommendedNotes）
+const experienceRecommendedNotes: ProfileNoteItem[] = [
+  {
+    title: '大模型应用从 Demo 到上线实战',
+    summary: '梳理从原型验证到可运营上线的全流程关键点，包含评测、灰度与监控经验。',
+    contentType: '图文',
+    tags: ['人工智能', '工程实践', '上线流程'],
+    publishTime: '2026-05-10 10:20',
+    updateTime: '2026-05-10',
+    views: 1268,
+    comments: 88,
+    favorites: 203,
+    cover: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    title: '前端性能优化 Checklist（校园项目版）',
+    summary: '覆盖首屏优化、资源加载、缓存策略与监控埋点，适合课程与竞赛项目快速落地。',
+    contentType: '图文',
+    tags: ['前端开发', '性能优化', 'Checklist'],
+    publishTime: '2026-05-08 15:35',
+    updateTime: '2026-05-08',
+    views: 942,
+    comments: 57,
+    favorites: 146,
+    cover: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    title: '高质量项目汇报 PPT 设计模板',
+    summary: '从结构、叙事与视觉规范三个层面拆解项目汇报模板，提升表达效率与专业度。',
+    contentType: '图文',
+    tags: ['平面设计', '汇报表达', '模板'],
+    publishTime: '2026-05-06 20:10',
+    updateTime: '2026-05-06',
+    views: 713,
+    comments: 31,
+    favorites: 109,
+    cover: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    title: '校企项目沟通术：需求确认到结项复盘',
+    summary: '总结校企协作中常见沟通误区，提供从需求对齐到验收复盘的可执行方法。',
+    contentType: '视频',
+    tags: ['项目管理', '沟通协作', '结项复盘'],
+    publishTime: '2026-05-04 18:05',
+    updateTime: '2026-05-04',
+    views: 856,
+    comments: 49,
+    favorites: 121,
+    cover: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    title: '高校开发团队协作规范落地手册',
+    summary: '从 Git 分支策略到 Code Review 清单，建立适合学生团队的协作规范体系。',
+    contentType: '图文',
+    tags: ['团队协作', '工程规范', 'Git'],
+    publishTime: '2026-05-02 16:30',
+    updateTime: '2026-05-02',
+    views: 798,
+    comments: 41,
+    favorites: 132,
+    cover: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    title: '从竞赛到商业化：项目成果转化经验',
+    summary: '分享竞赛项目商业化过程中需求重构、用户验证与持续迭代的关键方法。',
+    contentType: '图文',
+    tags: ['项目孵化', '用户验证', '商业化'],
+    publishTime: '2026-04-30 12:45',
+    updateTime: '2026-04-30',
+    views: 667,
+    comments: 35,
+    favorites: 118,
+    cover: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
+  },
+]
+
+// 07）首页主组件（HomePage）
 /**
  * 函数名：HomePage
  * 功能：渲染项目众包平台首页，负责组合顶部导航、项目流与侧边栏复用组件。
@@ -95,6 +172,7 @@ function HomePage() {
       sectionTitle="项目专区"
       searchInputId="home-project-search-input"
       projects={projectItems}
+      experienceRecommendedNotes={experienceRecommendedNotes}
       recommendedTypes={recommendedTypes}
       recommendedOrganizations={recommendedCompanies}
       announcements={announcements}

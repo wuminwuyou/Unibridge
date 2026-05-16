@@ -1,5 +1,5 @@
-import type { ProjectItem } from './types'
-import LevelBadge from '../common/LevelBadge'
+import type { ProjectItem } from '../home/types'
+import LevelBadge from './LevelBadge'
 
 // 01）项目卡片组件参数类型（ProjectCardProps）
 interface ProjectCardProps {

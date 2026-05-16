@@ -11,7 +11,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import LevelBadge from '../common/LevelBadge'
 
 // 02）用户统计项类型定义（UserStatItem）
@@ -65,7 +65,6 @@ const userMenuItems: UserMenuItem[] = [
 function UserProfileMenu() {
   const [isUserPanelOpen, setIsUserPanelOpen] = useState<boolean>(false)
   const closeTimerRef = useRef<number | null>(null)
-  const navigate = useNavigate()
   const location = useLocation()
 
   // 08）清理关闭定时器函数（clearCloseTimer）
@@ -141,7 +140,7 @@ function UserProfileMenu() {
    * 功能：处理头像按钮点击行为，优先跳转到个人空间页面。
    * 实现方法：
    * - 清理延迟关闭定时器，避免与点击动作冲突
-   * - 若当前不在个人空间页则直接跳转到 /profile
+ * - 若当前不在个人空间页则以新标签页打开 /profile
    * - 若已在个人空间页，保留弹窗开关行为便于继续使用菜单
    * 输入：
    * - 无
@@ -152,7 +151,7 @@ function UserProfileMenu() {
   const handleUserButtonClick = (): void => {
     clearCloseTimer()
     if (location.pathname !== '/profile') {
-      navigate('/profile')
+      window.open('/profile', '_blank', 'noopener,noreferrer')
       return
     }
 
@@ -162,18 +161,28 @@ function UserProfileMenu() {
   // 13）快捷入口点击处理函数（handleQuickEntryClick）
   /**
    * 函数名：handleQuickEntryClick
-   * 功能：处理“动态/项目/笔记”快捷入口点击事件，为后续接入路由跳转预留统一入口。
+ * 功能：处理“动态/项目/笔记”快捷入口点击事件，并跳转到个人空间对应 Tab。
    * 实现方法：
-   * - 接收快捷入口名称参数
-   * - 当前阶段不跳转，仅保留函数作为交互锚点
-   * - 后续可在此接入 navigate 或埋点逻辑
+ * - 接收快捷入口名称参数并映射到 tab 查询参数
+ * - 使用 window.open 在新标签页打开 /profile?tab=目标Tab
+ * - 跳转后关闭面板，避免遮挡目标页面内容
    * 输入：
    * - entryLabel：快捷入口名称
    * 输出：
    * - 返回值：void
-   * - 副作用：无
+ * - 副作用：更新路由、关闭用户面板
    */
-  const handleQuickEntryClick = (_entryLabel: string): void => {}
+  const handleQuickEntryClick = (entryLabel: string): void => {
+    const tabMap: Record<string, string> = {
+      动态: '主页',
+      项目: '项目',
+      笔记: '笔记',
+    }
+    const targetTab = tabMap[entryLabel] ?? '主页'
+
+    window.open(`/profile?tab=${encodeURIComponent(targetTab)}`, '_blank', 'noopener,noreferrer')
+    setIsUserPanelOpen(false)
+  }
 
   return (
     <div

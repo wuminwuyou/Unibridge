@@ -18,6 +18,7 @@ const navRouteItems: NavRouteItem[] = [
   { label: '首页', path: '/' },
   { label: '企业实战', path: '/enterprise' },
   { label: '高校招募', path: '/campus-recruit' },
+  { label: '经验分享', path: '/experience-share' },
 ]
 
 // 04）路径激活项解析函数（resolveActiveNavByPathname）
@@ -45,6 +46,10 @@ function resolveActiveNavByPathname(pathname: string): string {
 
   if (pathname === '/campus-recruit') {
     return '高校招募'
+  }
+
+  if (pathname === '/experience-share') {
+    return '经验分享'
   }
 
   return ''
