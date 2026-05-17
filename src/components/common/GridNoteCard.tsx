@@ -1,5 +1,7 @@
 import { CalendarClock } from 'lucide-react'
 import type { ProfileNoteItem } from '../profile/types'
+import { Link } from 'react-router-dom'
+import { memo } from 'react'
 
 // 01）网格笔记卡片组件参数类型（GridNoteCardProps）
 interface GridNoteCardProps {
@@ -46,9 +48,16 @@ function formatPublishTime(publishTime: string): string {
  * - 副作用：无
  */
 function GridNoteCard({ note }: GridNoteCardProps) {
+  const noteDetailPath = `/note-detail?title=${encodeURIComponent(note.title)}`
+
   return (
-    <article className="profile-note-card-compact">
-      <img className="profile-note-card-compact__cover" src={note.cover} alt="" />
+    <Link
+      className="profile-note-card-compact profile-note-card-compact--link"
+      to={noteDetailPath}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <img className="profile-note-card-compact__cover" src={note.cover} alt="" loading="lazy" decoding="async" />
       <h3 className="profile-note-card-compact__title">{note.title}</h3>
       <div className="profile-note-card-compact__tags">
         {note.tags.map((tag) => (
@@ -61,8 +70,8 @@ function GridNoteCard({ note }: GridNoteCardProps) {
           {formatPublishTime(note.publishTime)}
         </span>
       </div>
-    </article>
+    </Link>
   )
 }
 
-export default GridNoteCard
+export default memo(GridNoteCard)

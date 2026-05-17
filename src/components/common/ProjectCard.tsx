@@ -1,5 +1,7 @@
 import type { ProjectItem } from '../home/types'
 import LevelBadge from './LevelBadge'
+import { Link } from 'react-router-dom'
+import { memo } from 'react'
 
 // 01）项目卡片组件参数类型（ProjectCardProps）
 interface ProjectCardProps {
@@ -22,9 +24,10 @@ interface ProjectCardProps {
  */
 function ProjectCard({ project }: ProjectCardProps) {
   const hasAmount: boolean = project.amount.trim().length > 0
+  const projectDetailPath = `/project-detail?title=${encodeURIComponent(project.title)}`
 
   return (
-    <article className="project-card">
+    <Link className="project-card project-card--link" to={projectDetailPath} target="_blank" rel="noopener noreferrer">
       <div className="project-card__head">
         <div className="project-card__meta">
           <h3>{project.title}</h3>
@@ -50,12 +53,12 @@ function ProjectCard({ project }: ProjectCardProps) {
           <span>{project.publisher}</span>
           <span>{project.publishTime}</span>
         </div>
-        <button type="button" className="interest-button">
+        <span className="interest-button" aria-hidden="true">
           感兴趣
-        </button>
+        </span>
       </div>
-    </article>
+    </Link>
   )
 }
 
-export default ProjectCard
+export default memo(ProjectCard)

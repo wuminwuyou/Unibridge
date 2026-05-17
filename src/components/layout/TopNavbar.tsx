@@ -1,6 +1,8 @@
-import UserProfileMenu from '../home/UserProfileMenu'
 import { useTheme } from '../../contexts/ThemeContext'
-import { NavLink, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import AuthModal from '../AuthModal'
+import type { AuthStatus, AuthUserRole } from '../AuthModal'
 
 // 01）顶部导航组件参数类型（TopNavbarProps）
 interface TopNavbarProps {
@@ -73,7 +75,51 @@ function resolveActiveNavByPathname(pathname: string): string {
 function TopNavbar({ navItems }: TopNavbarProps) {
   const { theme, toggleTheme } = useTheme()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const activeNavItem = resolveActiveNavByPathname(pathname)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
+
+  // 06）打开登录弹窗处理函数（handleOpenAuthModal）
+  const handleOpenAuthModal = (): void => {
+    setIsAuthModalOpen(true)
+  }
+
+  // 07）关闭登录弹窗处理函数（handleCloseAuthModal）
+  const handleCloseAuthModal = (): void => {
+    setIsAuthModalOpen(false)
+  }
+
+  // 08）登录成功处理函数（handleAuthSuccess）
+  const handleAuthSuccess = (_userRole: AuthUserRole, _authStatus: AuthStatus): void => {
+    setIsAuthenticated(true)
+    setIsAuthModalOpen(false)
+  }
+
+  // 09）右上角认证入口点击处理函数（handleAuthEntryClick）
+  /**
+   * 函数名：handleAuthEntryClick
+   * 功能：处理未登录与已登录两种状态下的入口点击逻辑。
+   * 实现方法：
+   * - 未登录时打开登录弹窗
+   * - 已登录时跳转到个人空间页面
+   * - 若当前已在个人空间，避免重复跳转
+   * 输入：
+   * - 无
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新弹窗状态或触发路由跳转
+   */
+  const handleAuthEntryClick = (): void => {
+    if (!isAuthenticated) {
+      handleOpenAuthModal()
+      return
+    }
+
+    if (pathname !== '/profile') {
+      navigate('/profile')
+    }
+  }
 
   return (
     <header className="top-header">
@@ -125,9 +171,21 @@ function TopNavbar({ navItems }: TopNavbarProps) {
           <button className="notify-button" type="button" aria-label="消息通知">
             <span aria-hidden="true">🔔</span>
           </button>
-          <UserProfileMenu />
+          <button
+            className={`login-entry-button ${isAuthenticated ? 'login-entry-button--authenticated' : ''}`}
+            type="button"
+            onClick={handleAuthEntryClick}
+          >
+            {isAuthenticated ? '个人空间' : '登录 / 注册'}
+          </button>
         </div>
       </div>
+
+      <AuthModal
+        open={isAuthModalOpen}
+        onClose={handleCloseAuthModal}
+        onSuccess={handleAuthSuccess}
+      />
     </header>
   )
 }

@@ -3,6 +3,8 @@ import EnterprisePracticePage from './pages/EnterprisePracticePage.tsx'
 import CampusRecruitPage from './pages/CampusRecruitPage.tsx'
 import ProfileSpacePage from './pages/ProfileSpacePage.tsx'
 import ExperienceSharePage from './pages/ExperienceSharePage.tsx'
+import ProjectDetailPage from './pages/ProjectDetailPage.tsx'
+import NoteDetailPage from './pages/NoteDetailPage.tsx'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 // 01）应用入口组件（App）
@@ -27,6 +29,8 @@ function App() {
       <Route path="/campus-recruit" element={<CampusRecruitPage />} />
       <Route path="/experience-share" element={<ExperienceSharePage />} />
       <Route path="/profile" element={<ProfileSpacePage />} />
+      <Route path="/project-detail" element={<ProjectDetailPage />} />
+      <Route path="/note-detail" element={<NoteDetailPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

@@ -1,4 +1,6 @@
 import { CalendarClock, Eye, MessageCircleMore, Star } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { memo } from 'react'
 
 // 01）行卡片笔记数据类型定义（RowNoteCardItem）
 export interface RowNoteCardItem {
@@ -39,10 +41,16 @@ interface RowNoteCardProps {
  */
 function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
   const isVerticalLayout: boolean = layout === 'vertical'
+  const noteDetailPath = `/note-detail?title=${encodeURIComponent(note.title)}`
 
   return (
-    <article className={`profile-note-card ${isVerticalLayout ? 'profile-note-card--vertical' : ''}`}>
-      <img src={note.cover} alt="" />
+    <Link
+      className={`profile-note-card profile-note-card--link ${isVerticalLayout ? 'profile-note-card--vertical' : ''}`}
+      to={noteDetailPath}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <img src={note.cover} alt="" loading="lazy" decoding="async" />
       <div className="profile-note-card__body">
         <h3>{note.title}</h3>
         {!isVerticalLayout ? <p>{note.summary}</p> : null}
@@ -91,8 +99,8 @@ function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
           </div>
         )}
       </div>
-    </article>
+    </Link>
   )
 }
 
-export default RowNoteCard
+export default memo(RowNoteCard)

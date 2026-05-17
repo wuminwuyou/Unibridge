@@ -1,0 +1,1037 @@
+/* 01）登录弹窗遮罩层 */
+.auth-modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1200;
+  background: rgba(9, 16, 29, 0.58);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* 02）登录弹窗容器 */
+.auth-modal {
+  width: min(100%, 900px);
+  height: 640px;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid #e8edf8;
+  background: #ffffff;
+  box-shadow: 0 22px 46px rgba(13, 33, 72, 0.24);
+  display: grid;
+  grid-template-columns: 4fr 6fr;
+  position: relative;
+}
+
+/* 03）左侧视觉区 */
+.auth-modal-visual {
+  position: relative;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #0f182a 0%, #172948 52%, #1d3a69 100%);
+  overflow: hidden;
+}
+
+.auth-modal-visual::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 24% 22%, rgba(125, 183, 255, 0.28) 0%, rgba(125, 183, 255, 0) 62%);
+}
+
+.auth-modal-visual__glass {
+  position: absolute;
+  inset: 20px;
+  z-index: 1;
+  border-radius: 16px;
+  border: 1px solid rgba(176, 212, 255, 0.2);
+  background: rgba(17, 31, 56, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 24px;
+  color: #f1f7ff;
+}
+
+.auth-modal-visual__logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #78a9ff, #9bd2ff);
+  color: #0c1a33;
+}
+
+.auth-brand-logo-motion {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #78a9ff, #9bd2ff);
+  color: #0c1a33;
+  z-index: 3;
+  display: none;
+}
+
+.auth-modal-visual__glass h2 {
+  margin: 20px 0 8px;
+  font-size: 26px;
+  letter-spacing: 0.5px;
+}
+
+.auth-modal-visual__glass p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(229, 241, 255, 0.86);
+}
+
+/* 04）右侧主面板滑动区 */
+.auth-modal-panel {
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.auth-modal-panel__slider {
+  width: 200%;
+  height: 100%;
+  display: flex;
+  transform: translateX(0);
+  transition: transform 360ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.auth-modal-panel--verification .auth-modal-panel__slider {
+  transform: translateX(-50%);
+}
+
+.auth-modal-auth-view,
+.auth-modal-verification-view {
+  width: 50%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-modal-auth-view {
+  padding: 24px 52px 10px;
+}
+
+.auth-modal-verification-view {
+  padding: 30px 40px 28px;
+}
+
+/* 05）顶部栏与 Tabs */
+.auth-modal-auth-view__header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.auth-modal-auth-view__header--verification {
+  margin-bottom: 12px;
+}
+
+.auth-modal-auth-view__header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #102046;
+}
+
+/* 05-0）个人 / 主体通道 Tab 内容横向滑动（auth-channel-slide） */
+.auth-channel-slide {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.auth-channel-slide__track {
+  display: flex;
+  flex-direction: row;
+  width: 200%;
+  align-items: stretch;
+  transform: translateX(0);
+  transition: transform 380ms cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+
+.auth-channel-slide__track--organization {
+  /* 主体内容在右侧栏，向左平移半轨使主体进入视口（个人→主体：从右往左） */
+  transform: translateX(-50%);
+}
+
+.auth-channel-slide__pane {
+  flex: 0 0 50%;
+  min-width: 0;
+  box-sizing: border-box;
+  /* 作为 flex 列容器，才能撑开内层 .auth-personal-form-stage（flex:1 + 绝对定位表单卡片） */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 非当前通道侧不可交互（双栏同时挂载时避免点到屏外表单） */
+.auth-channel-slide__track:not(.auth-channel-slide__track--organization) .auth-channel-slide__pane:last-child {
+  pointer-events: none;
+  user-select: none;
+}
+
+.auth-channel-slide__track--organization .auth-channel-slide__pane:first-child {
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-channel-slide__track {
+    transition: none;
+  }
+}
+
+.auth-modal-close {
+  width: 24px;
+  height: 24px;
+}
+
+.auth-modal-close-floating {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 8;
+}
+
+/* 05-1）通用关闭按钮动效样式 */
+.close-icon-button {
+  border: none;
+  background: transparent;
+  color: #8f9ab4;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.close-icon-button__glyph {
+  display: inline-block;
+  font-size: 28px;
+  line-height: 1;
+  transform: scale(1) rotate(0deg);
+  transition: color 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.close-icon-button--animating .close-icon-button__glyph {
+  animation: closeIconHoverBounceSpin 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  color: #2a67f8;
+}
+
+@keyframes closeIconHoverBounceSpin {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+
+  35% {
+    transform: translateY(-7px) scale(1.14) rotate(52deg);
+  }
+
+  68% {
+    transform: translateY(2px) scale(1.03) rotate(96deg);
+  }
+
+  84% {
+    transform: translateY(-1px) scale(1.01) rotate(88deg);
+  }
+
+  100% {
+    transform: translateY(0) scale(1.16) rotate(90deg);
+  }
+}
+
+.close-icon-button--hovered .close-icon-button__glyph {
+  color: #2a67f8;
+  transform: translateY(0) scale(1.16) rotate(90deg);
+}
+
+.auth-tabs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  border-bottom: 1px solid #e9eef8;
+  width: 100%;
+}
+
+.auth-tabs--verification {
+  margin-bottom: 14px;
+}
+
+.auth-tab {
+  height: 44px;
+  flex: 1;
+  text-align: center;
+  padding: 0 8px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: #7a879f;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.auth-tab.active {
+  color: #2a67f8;
+  border-bottom-color: #2a67f8;
+}
+
+/* 06）欢迎文案区 */
+.auth-auth-intro {
+  margin-bottom: 20px;
+}
+
+.auth-auth-intro--compact {
+  margin-bottom: 12px;
+}
+
+.auth-auth-intro--compact h3 {
+  font-size: 30px;
+}
+
+.auth-auth-intro--compact p {
+  font-size: 14px;
+}
+
+.auth-auth-intro h3 {
+  margin: 0;
+  font-size: 36px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: #0f2249;
+}
+
+.auth-auth-intro p {
+  margin: 10px 0 0;
+  font-size: 15px;
+  color: #97a3ba;
+}
+
+/* 07）表单样式 */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-personal-form-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.auth-personal-form-card {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  transition: transform 360ms cubic-bezier(0.2, 0, 0, 1), opacity 300ms ease;
+  will-change: transform, opacity;
+}
+
+.auth-personal-form-card--login {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.auth-personal-form-card--register {
+  transform: translateY(110%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auth-personal-form-stage.is-register-view .auth-personal-form-card--login {
+  transform: translateY(-110%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auth-personal-form-stage.is-register-view .auth-personal-form-card--register {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 07-1）个人注册子表单局部样式（PersonalRegisterFields，原 PersonalRegisterForm.css 合并） */
+.auth-personal-register {
+  gap: 10px;
+}
+
+.auth-personal-register__intro {
+  margin-bottom: 0;
+}
+
+.auth-personal-register__intro p {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.auth-personal-register__row-head {
+  margin-bottom: -13px;
+}
+
+.auth-personal-register__field {
+  height: 50px;
+}
+
+.auth-personal-register__submit {
+  margin-top: 0;
+}
+
+.auth-personal-register__hint {
+  margin-top: -6px;
+}
+
+.auth-personal-register__footer {
+  margin-top: -4px;
+  margin-bottom: 0;
+}
+
+.auth-personal-register .auth-signup-entry {
+  margin-bottom: 0;
+}
+
+:root[data-theme='dark'] .auth-personal-register__intro p {
+  color: #9db0cb;
+}
+
+.auth-input-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #243862;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.auth-floating-field {
+  position: relative;
+  height: 52px;
+}
+
+.auth-floating-field__icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #97a6bf;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-floating-field input {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  border: 1px solid #dbe3f3;
+  background: #ffffff;
+  color: #18264a;
+  padding: 20px 44px 8px 42px;
+  outline: none;
+  font-size: 14px;
+  transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.auth-floating-field label {
+  position: absolute;
+  left: 42px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #97a3ba;
+  pointer-events: none;
+  transition: all 180ms ease;
+}
+
+.auth-floating-field:focus-within label {
+  top: 8px;
+  transform: translateY(0);
+  font-size: 9px;
+  color: #6f85ad;
+}
+
+.auth-floating-field.has-value label {
+  top: 8px;
+  transform: translateY(0);
+  font-size: 9px;
+  color: #6f85ad;
+}
+
+.auth-floating-field:focus-within input {
+  border-color: #2a67f8;
+  box-shadow: 0 0 0 3px rgba(42, 103, 248, 0.12);
+}
+
+.auth-floating-field--password input {
+  padding-right: 84px;
+}
+
+.auth-code-send-button {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #2b6af8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.auth-password-row-head {
+  margin-bottom: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #243862;
+  font-weight: 600;
+}
+
+.auth-password-visibility-button {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #8798b6;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-password-visibility-button:hover {
+  color: #2a67f8;
+}
+
+.auth-input-shell {
+  position: relative;
+}
+
+.auth-input-shell__icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 700;
+  color: #97a6bf;
+}
+
+.auth-form>label input,
+.auth-edu-input-wrap input {
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid #dbe3f3;
+  background: #ffffff;
+  color: #18264a;
+  padding: 0 14px 0 38px;
+  outline: none;
+  font-size: 14px;
+  transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.auth-form>label input:focus,
+.auth-edu-input-wrap input:focus {
+  border-color: #2a67f8;
+  box-shadow: 0 0 0 3px rgba(42, 103, 248, 0.12);
+}
+
+.auth-inline-link-button {
+  border: none;
+  background: transparent;
+  color: #2b6af8;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.auth-input-shell .auth-inline-link-button {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.auth-quick-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -6px;
+}
+
+.auth-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #7f8eaa;
+}
+
+.auth-checkbox-label input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+}
+
+.auth-submit-button {
+  height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #103083, #163d98);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.auth-submit-button:disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+}
+
+.auth-submit-button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(16, 48, 131, 0.3);
+}
+
+/* 08）第三方登录区 */
+.auth-third-party {
+  margin-top: 4px;
+}
+
+.auth-third-party span {
+  display: block;
+  text-align: center;
+  font-size: 12px;
+  color: #9aa7be;
+  position: relative;
+}
+
+.auth-third-party span::before,
+.auth-third-party span::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 28%;
+  height: 1px;
+  background: #e5ebf7;
+}
+
+.auth-third-party span::before {
+  left: 0;
+}
+
+.auth-third-party span::after {
+  right: 0;
+}
+
+.auth-third-party div {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.auth-third-party__icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid #dbe3f2;
+  background: #ffffff;
+  color: #5678b2;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-signup-entry {
+  margin: 2px 0 0;
+  text-align: center;
+  color: #7f8ea7;
+  font-size: 14px;
+}
+
+.auth-signup-entry button {
+  border: none;
+  background: transparent;
+  color: #2b6af8;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* 09）辅助文本与验证区 */
+.auth-helper-tip {
+  margin: 0;
+  font-size: 12px;
+  color: #8d9db9;
+  line-height: 1.5;
+}
+
+.auth-helper-tip--success {
+  color: #22a06b;
+}
+
+.auth-helper-tip--error {
+  color: #d14343;
+}
+
+.auth-back-button {
+  border: none;
+  background: transparent;
+  color: #2b6af8;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.auth-edu-input-wrap {
+  position: relative;
+}
+
+.auth-edu-input-wrap__ok {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: #ffffff;
+  background: #22a06b;
+}
+
+/* 10）品牌栏入场动画 */
+@keyframes authBrandLogoMove {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+
+  55% {
+    transform: translate3d(34px, 34px, 0) scale(1.02);
+    opacity: 1;
+  }
+
+  84% {
+    transform: translate3d(22px, 24px, 0) scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate3d(24px, 24px, 0) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes authBrandFrameOpen {
+  0% {
+    clip-path: inset(0 calc(100% - 76px) calc(100% - 76px) 0 round 16px);
+    opacity: 0;
+  }
+
+  16% {
+    opacity: 1;
+  }
+
+  100% {
+    clip-path: inset(0 0 0 0 round 16px);
+    opacity: 1;
+  }
+}
+
+@keyframes authBrandTextReveal {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.auth-modal--full .auth-brand-logo-motion {
+  display: grid;
+  animation: authBrandLogoMove 860ms cubic-bezier(0.22, 0.65, 0.26, 1) 80ms forwards;
+}
+
+.auth-modal--full .auth-modal-visual__glass {
+  clip-path: inset(0 calc(100% - 76px) calc(100% - 76px) 0 round 16px);
+  opacity: 0;
+  animation: authBrandFrameOpen 720ms cubic-bezier(0.23, 1, 0.32, 1) 860ms forwards;
+}
+
+.auth-modal--full .auth-modal-visual__logo {
+  opacity: 0;
+  transform: translateX(-12px);
+  animation: authBrandTextReveal 480ms cubic-bezier(0.2, 0, 0, 1) 1540ms forwards;
+}
+
+.auth-modal--full .auth-modal-visual__glass h2 {
+  opacity: 0;
+  transform: translateX(-24px);
+  clip-path: inset(0 100% 0 0);
+  animation: authBrandTextReveal 560ms cubic-bezier(0.2, 0, 0, 1) 1540ms forwards;
+}
+
+.auth-modal--full .auth-modal-visual__glass p {
+  opacity: 0;
+  transform: translateX(-24px);
+  clip-path: inset(0 100% 0 0);
+  animation: authBrandTextReveal 560ms cubic-bezier(0.2, 0, 0, 1) 1660ms forwards;
+}
+
+/* 11）移动端响应式 */
+@media (max-width: 1180px) {
+  .auth-modal {
+    grid-template-columns: 1fr;
+    height: min(96vh, 860px);
+  }
+
+  .auth-modal-visual {
+    display: none;
+  }
+}
+
+@media (max-width: 960px) {
+  .auth-modal {
+    width: 100%;
+    border-radius: 16px;
+  }
+
+  .auth-modal-auth-view {
+    padding: 16px 18px 8px;
+  }
+
+  .auth-modal-verification-view {
+    padding: 18px 16px 16px;
+  }
+
+  .auth-personal-form-stage {
+    min-height: 0;
+  }
+
+  .auth-auth-intro h3 {
+    font-size: 30px;
+  }
+
+  .auth-auth-intro p {
+    font-size: 14px;
+  }
+
+  .auth-modal-close-floating {
+    top: 8px;
+    right: 8px;
+  }
+}
+
+/* 12）登录弹窗深色主题兼容 */
+:root[data-theme='dark'] .auth-modal {
+  border-color: #2a3347;
+  background: #111823;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.48);
+}
+
+:root[data-theme='dark'] .auth-modal-panel {
+  background: #111823;
+}
+
+:root[data-theme='dark'] .auth-modal-close {
+  color: #92a0b8;
+}
+
+:root[data-theme='dark'] .close-icon-button:hover .close-icon-button__glyph {
+  color: #8cb2ff;
+}
+
+:root[data-theme='dark'] .close-icon-button--animating .close-icon-button__glyph,
+:root[data-theme='dark'] .close-icon-button--hovered .close-icon-button__glyph {
+  color: #8cb2ff;
+}
+
+:root[data-theme='dark'] .auth-tabs {
+  border-bottom-color: #27344b;
+}
+
+:root[data-theme='dark'] .auth-tab {
+  color: #8fa1bf;
+}
+
+:root[data-theme='dark'] .auth-tab.active {
+  color: #8cb2ff;
+  border-bottom-color: #8cb2ff;
+}
+
+:root[data-theme='dark'] .auth-auth-intro h3 {
+  color: #e8eef8;
+}
+
+:root[data-theme='dark'] .auth-auth-intro p {
+  color: #95a5be;
+}
+
+:root[data-theme='dark'] .auth-input-label {
+  color: #c7d4ea;
+}
+
+:root[data-theme='dark'] .auth-floating-field input {
+  border-color: #2f3b54;
+  background: #151e2c;
+  color: #e6edf8;
+}
+
+:root[data-theme='dark'] .auth-floating-field label {
+  color: #8a9dbb;
+}
+
+:root[data-theme='dark'] .auth-floating-field:focus-within label,
+:root[data-theme='dark'] .auth-floating-field.has-value label {
+  color: #a8c0eb;
+}
+
+:root[data-theme='dark'] .auth-input-shell__icon {
+  color: #7f91af;
+}
+
+:root[data-theme='dark'] .auth-floating-field__icon {
+  color: #7f91af;
+}
+
+:root[data-theme='dark'] .auth-form input {
+  border-color: #2f3b54;
+  background: #151e2c;
+  color: #e6edf8;
+}
+
+:root[data-theme='dark'] .auth-form input::placeholder {
+  color: #798aa8;
+}
+
+:root[data-theme='dark'] .auth-form input:focus {
+  border-color: #8cb2ff;
+  box-shadow: 0 0 0 3px rgba(140, 178, 255, 0.18);
+}
+
+:root[data-theme='dark'] .auth-inline-link-button {
+  color: #8cb2ff;
+}
+
+:root[data-theme='dark'] .auth-code-send-button {
+  color: #8cb2ff;
+}
+
+:root[data-theme='dark'] .auth-password-row-head {
+  color: #c7d4ea;
+}
+
+:root[data-theme='dark'] .auth-password-visibility-button {
+  color: #8fa1bf;
+}
+
+:root[data-theme='dark'] .auth-password-visibility-button:hover {
+  color: #8cb2ff;
+}
+
+:root[data-theme='dark'] .auth-checkbox-label {
+  color: #93a4c1;
+}
+
+:root[data-theme='dark'] .auth-submit-button {
+  background: linear-gradient(135deg, #24489e, #2f5fc1);
+}
+
+:root[data-theme='dark'] .auth-third-party span {
+  color: #8f9fba;
+}
+
+:root[data-theme='dark'] .auth-third-party span::before,
+:root[data-theme='dark'] .auth-third-party span::after {
+  background: #27344b;
+}
+
+:root[data-theme='dark'] .auth-third-party__icon-button {
+  border-color: #32425f;
+  background: #162032;
+  color: #9cb8ec;
+}
+
+:root[data-theme='dark'] .auth-signup-entry {
+  color: #90a1bd;
+}
+
+:root[data-theme='dark'] .auth-signup-entry button {
+  color: #8cb2ff;
+}
+
+:root[data-theme='dark'] .auth-helper-tip {
+  color: #92a3bf;
+}
+
+:root[data-theme='dark'] .auth-helper-tip--success {
+  color: #39b37b;
+}
+
+:root[data-theme='dark'] .auth-helper-tip--error {
+  color: #ff7a7a;
+}
+
+/* 13）减少动画模式兼容 */
+@media (prefers-reduced-motion: reduce) {
+  .auth-brand-logo-motion {
+    display: none;
+  }
+
+  .auth-modal-visual__glass,
+  .auth-modal-visual__logo,
+  .auth-modal-visual__glass h2,
+  .auth-modal-visual__glass p {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    clip-path: none;
+  }
+}

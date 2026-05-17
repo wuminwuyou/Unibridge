@@ -1,0 +1,42 @@
+/* 01）详情页根容器 */
+.detail-page {
+  min-height: 100vh;
+  background: var(--page-bg);
+  color: var(--text-main);
+}
+
+/* 02）详情页主体容器 */
+.detail-page-main {
+  width: min(1400px, 70vw);
+  margin: 24px auto 0;
+  padding-bottom: 36px;
+}
+
+/* 03）详情页信息卡片 */
+.detail-card {
+  border-radius: 18px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--panel-shadow);
+  padding: 22px 24px;
+}
+
+.detail-card__label {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.detail-card h1 {
+  margin: 8px 0 10px;
+  font-size: 24px;
+  line-height: 1.4;
+  color: var(--text-main);
+}
+
+.detail-card p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-soft);
+  line-height: 1.7;
+}

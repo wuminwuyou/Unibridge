@@ -10,11 +10,11 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  backdrop-filter: blur(18px) saturate(1.25);
-  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
   background: var(--header-bg);
   border-bottom: 1px solid var(--line-color);
-  box-shadow: 0 8px 26px var(--header-shadow);
+  box-shadow: 0 4px 14px var(--header-shadow);
   overflow: visible;
   isolation: isolate;
 }
@@ -76,7 +76,7 @@
   font-weight: 700;
   font-size: 14px;
   background: linear-gradient(130deg, #4e8cff, #6ca8ff);
-  box-shadow: 0 10px 24px rgba(78, 140, 255, 0.32);
+  box-shadow: 0 6px 14px rgba(78, 140, 255, 0.24);
 }
 
 .brand-text {
@@ -136,6 +136,7 @@
 
 .theme-button,
 .notify-button,
+.login-entry-button,
 .user-button {
   border: 1px solid var(--line-color);
   background: var(--card-bg);
@@ -153,6 +154,29 @@
   width: 38px;
 }
 
+.login-entry-button {
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+  color: var(--button-text);
+  padding: 0 14px;
+  min-width: 92px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.login-entry-button:hover {
+  border-color: color-mix(in srgb, var(--primary-text) 52%, var(--button-border));
+  color: var(--primary-text);
+}
+
+.login-entry-button--authenticated {
+  min-width: 86px;
+}
+
 .theme-button {
   position: relative;
   overflow: hidden;
@@ -161,7 +185,7 @@
 
 .theme-button:hover {
   transform: translateY(-1px) scale(1.04);
-  box-shadow: 0 8px 20px rgba(84, 127, 212, 0.28);
+  box-shadow: 0 5px 14px rgba(84, 127, 212, 0.22);
 }
 
 .theme-button:active {
@@ -205,7 +229,7 @@
 }
 
 :root[data-theme='dark'] .theme-button:hover {
-  box-shadow: 0 8px 22px rgba(37, 80, 170, 0.42);
+  box-shadow: 0 6px 15px rgba(37, 80, 170, 0.3);
 }
 
 .user-button {
@@ -249,8 +273,8 @@
   border-radius: 16px;
   border: 1px solid var(--user-panel-border);
   background: var(--user-panel-bg);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--user-panel-shadow);
   padding: 20px;
   opacity: 0;
@@ -587,13 +611,19 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.project-card--link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
 .project-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 14px 32px rgba(17, 40, 85, 0.14);
+  box-shadow: 0 8px 18px rgba(17, 40, 85, 0.1);
 }
 
 :root[data-theme='dark'] .project-card:hover {
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
 }
 
 .project-card__head {
@@ -690,6 +720,11 @@
   background: var(--button-bg);
   color: var(--button-text);
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
 }
 

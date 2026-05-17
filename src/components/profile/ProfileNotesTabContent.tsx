@@ -101,6 +101,13 @@ function ProfileNotesTabContent({ notes }: ProfileNotesTabContentProps) {
   }
 
   const isGridMode: boolean = layoutMode === 'grid'
+  const renderedGridNoteCards = useMemo(() => {
+    return filteredNotes.map((note) => <GridNoteCard key={note.title} note={note} />)
+  }, [filteredNotes])
+
+  const renderedRowNoteCards = useMemo(() => {
+    return filteredNotes.map((note) => <RowNoteCard key={note.title} note={note} />)
+  }, [filteredNotes])
 
   return (
     <article className="profile-section-card">
@@ -143,15 +150,11 @@ function ProfileNotesTabContent({ notes }: ProfileNotesTabContentProps) {
 
         {isGridMode ? (
           <div className="profile-note-grid profile-note-grid--five-columns">
-            {filteredNotes.map((note) => (
-              <GridNoteCard key={note.title} note={note} />
-            ))}
+            {renderedGridNoteCards}
           </div>
         ) : (
           <div className="profile-note-row-list">
-            {filteredNotes.map((note) => (
-              <RowNoteCard key={note.title} note={note} />
-            ))}
+            {renderedRowNoteCards}
           </div>
         )}
       </div>

@@ -456,6 +456,11 @@
   min-height: 148px;
 }
 
+.profile-note-card-compact--link {
+  text-decoration: none;
+  color: inherit;
+}
+
 .profile-note-card-compact__cover {
   width: 100%;
   /* 行业常用内容卡片封面比例（16:9） */
@@ -525,6 +530,11 @@
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.profile-note-card--link {
+  text-decoration: none;
+  color: inherit;
 }
 
 .profile-note-card--vertical {

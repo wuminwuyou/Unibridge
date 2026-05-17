@@ -208,6 +208,13 @@ function ExperienceSharePage() {
   }
 
   const isGridLayout: boolean = layoutMode === 'grid'
+  const renderedGridNoteCards = useMemo(() => {
+    return experienceNotes.map((note) => <GridNoteCard key={note.title} note={note} />)
+  }, [])
+
+  const renderedRowNoteCards = useMemo(() => {
+    return experienceNotes.map((note) => <RowNoteCard key={note.title} note={note} />)
+  }, [])
 
   return (
     <div className="experience-share-page">
@@ -228,15 +235,11 @@ function ExperienceSharePage() {
           <div className="experience-note-panel">
             {isGridLayout ? (
               <div className="experience-note-grid">
-                {experienceNotes.map((note) => (
-                  <GridNoteCard key={note.title} note={note} />
-                ))}
+                {renderedGridNoteCards}
               </div>
             ) : (
               <div className="experience-note-row-list">
-                {experienceNotes.map((note) => (
-                  <RowNoteCard key={note.title} note={note} />
-                ))}
+                {renderedRowNoteCards}
               </div>
             )}
           </div>

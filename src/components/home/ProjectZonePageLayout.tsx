@@ -162,6 +162,18 @@ function ProjectZonePageLayout({
     setRecommendedNoteBatch(pickRecommendationBatch(experienceRecommendedNotes, experienceNoteBatchSize))
   }
 
+  // 10）经验推荐卡片列表渲染缓存（renderedExperienceNoteCards）
+  const renderedExperienceNoteCards = useMemo(() => {
+    return recommendedNoteBatch.map((note) => <GridNoteCard key={`home-experience-${note.title}`} note={note} />)
+  }, [recommendedNoteBatch])
+
+  // 11）项目卡片列表渲染缓存（renderedProjectCards）
+  const renderedProjectCards = useMemo(() => {
+    return recommendedProjectBatch.map((project) => (
+      <ProjectCard key={`${project.title}-${project.publisher}`} project={project} />
+    ))
+  }, [recommendedProjectBatch])
+
   return (
     <div className="home-page">
       <TopNavbar navItems={navItems} />
@@ -177,9 +189,7 @@ function ProjectZonePageLayout({
                 </button>
               </div>
               <div className="home-experience-recommendation__grid">
-                {recommendedNoteBatch.map((note) => (
-                  <GridNoteCard key={`home-experience-${note.title}`} note={note} />
-                ))}
+                {renderedExperienceNoteCards}
               </div>
             </article>
           ) : null}
@@ -190,9 +200,7 @@ function ProjectZonePageLayout({
             </button>
           </div>
           <div className="project-list">
-            {recommendedProjectBatch.map((project) => (
-              <ProjectCard key={`${project.title}-${project.publisher}`} project={project} />
-            ))}
+            {renderedProjectCards}
           </div>
         </section>
 
