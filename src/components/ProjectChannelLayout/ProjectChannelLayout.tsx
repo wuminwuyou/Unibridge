@@ -5,7 +5,6 @@ import AnnouncementsCard from './components/AnnouncementsCard'
 import ExperienceRecommendationSection from './components/ExperienceRecommendationSection'
 import RecommendedCompaniesCard from './components/RecommendedCompaniesCard'
 import RecommendedTypesCard from './components/RecommendedTypesCard'
-import SearchSidebarCard from './components/SearchSidebarCard'
 import { projectChannelNavItems } from './constants'
 import type { ProjectChannelLayoutModel } from './useProjectChannelLayout'
 import type { ProjectChannelLayoutProps } from './types'
@@ -22,7 +21,7 @@ interface ProjectChannelLayoutViewProps extends ProjectChannelLayoutProps {
  * 实现方法：
  * - 顶部渲染 TopNavbar
  * - 左栏：可选「经验推荐」区 + 「项目列表」区（含「换一换」按钮）
- * - 右栏：搜索 / 推荐类型 / 推荐企业-实验室 / 平台公告 四个侧栏卡
+ * - 右栏：推荐类型 / 推荐企业-实验室 / 平台公告 三个侧栏卡
  * 输入：
  * - 见 ProjectChannelLayoutViewProps（合并业务参数与 model）
  * 输出：
@@ -31,7 +30,6 @@ interface ProjectChannelLayoutViewProps extends ProjectChannelLayoutProps {
  */
 export function ProjectChannelLayoutView({
   sectionTitle,
-  searchInputId,
   recommendedTypes,
   recommendedOrganizations,
   announcements,
@@ -68,7 +66,6 @@ export function ProjectChannelLayoutView({
         </section>
 
         <aside className="sidebar" aria-label="右侧信息栏">
-          <SearchSidebarCard inputId={searchInputId} />
           <RecommendedTypesCard types={recommendedTypes} />
           <RecommendedCompaniesCard
             companies={recommendedOrganizations}

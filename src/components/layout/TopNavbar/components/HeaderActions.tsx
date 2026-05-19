@@ -32,6 +32,19 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
 
   return (
     <div className="header-actions">
+      {/* 03）顶部导航搜索区（top-header-search） */}
+      <label className="top-header-search" htmlFor="top-header-search-input">
+        <span className="top-header-search__icon" aria-hidden="true">
+          🔍
+        </span>
+        <input
+          id="top-header-search-input"
+          type="text"
+          placeholder="搜索项目名称 / 企业名称 / 技术关键词"
+          aria-label="搜索项目"
+        />
+      </label>
+
       <button
         className={`theme-button theme-button--${theme}`}
         type="button"

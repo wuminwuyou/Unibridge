@@ -20,10 +20,13 @@ interface AnnouncementsCardProps {
  * - 副作用：无
  */
 function AnnouncementsCard({ announcements }: AnnouncementsCardProps) {
+  // 03）公告显示数量限制（visibleAnnouncements）
+  const visibleAnnouncements = announcements.slice(0, 4)
+
   return (
     <SidebarCard title="平台公告" actionText="查看更多">
       <ul className="notice-list">
-        {announcements.map((notice) => (
+        {visibleAnnouncements.map((notice) => (
           <li key={`${notice.title}-${notice.date}`}>
             <a href="#!">{notice.title}</a>
             <span>{notice.date}</span>

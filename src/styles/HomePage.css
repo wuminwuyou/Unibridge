@@ -134,6 +134,38 @@
   flex-shrink: 0;
 }
 
+/* 05-1）顶部导航搜索框 */
+.top-header-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  width: clamp(220px, 24vw, 360px);
+  border: 1px solid var(--button-border);
+  border-radius: 12px;
+  background: var(--button-bg);
+  color: var(--text-soft);
+  padding: 0 12px;
+}
+
+.top-header-search__icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.top-header-search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 13px;
+}
+
+.top-header-search input::placeholder {
+  color: var(--text-soft);
+}
+
 .theme-button,
 .notify-button,
 .login-entry-button,
@@ -591,8 +623,8 @@
   color: var(--primary-text);
 }
 
-.section-title-row + .project-list,
-.section-title-row + .home-experience-recommendation__grid {
+.section-title-row+.project-list,
+.section-title-row+.home-experience-recommendation__grid {
   margin-top: 12px;
 }
 
@@ -734,6 +766,10 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  position: sticky;
+  top: 96px;
+  align-self: start;
+  height: fit-content;
 }
 
 .sidebar-card {
@@ -793,6 +829,11 @@
   gap: 8px;
 }
 
+.chip-list--max-three-rows {
+  max-height: 106px;
+  overflow: hidden;
+}
+
 .type-chip {
   border: 1px solid var(--chip-border);
   background: var(--chip-bg);
@@ -825,6 +866,12 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex: 1;
+}
+
+.company-item > div {
+  min-width: 0;
+  flex: 1;
 }
 
 .company-avatar {
@@ -845,6 +892,11 @@
 }
 
 .company-item strong {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
   color: var(--text-main);
 }
@@ -927,8 +979,16 @@
     padding-bottom: 4px;
   }
 
+  .top-header-search {
+    width: min(340px, 48vw);
+  }
+
   .home-main {
     grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
   }
 
   .home-experience-recommendation__grid {
@@ -941,6 +1001,10 @@
   .top-header__inner,
   .home-main {
     width: min(1400px, 94vw);
+  }
+
+  .top-header-search {
+    display: none;
   }
 
   .project-card__head {

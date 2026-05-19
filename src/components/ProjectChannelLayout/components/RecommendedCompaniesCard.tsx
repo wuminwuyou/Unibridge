@@ -31,10 +31,13 @@ function RecommendedCompaniesCard({
   actionText = '查看更多',
   avatarText = '企',
 }: RecommendedCompaniesCardProps) {
+  // 03）推荐企业/实验室显示数量限制（visibleCompanies）
+  const visibleCompanies = companies.slice(0, 4)
+
   return (
     <SidebarCard title={title} actionText={actionText}>
       <ul className="company-list">
-        {companies.map((company) => (
+        {visibleCompanies.map((company) => (
           <li key={company.name}>
             <div className="company-item">
               <span className="company-avatar" aria-hidden="true">

@@ -21,7 +21,7 @@ interface RecommendedTypesCardProps {
 function RecommendedTypesCard({ types }: RecommendedTypesCardProps) {
   return (
     <SidebarCard title="推荐项目类型" actionText="查看全部">
-      <div className="chip-list">
+      <div className="chip-list chip-list--max-three-rows">
         {types.map((type) => (
           <button key={type} type="button" className="type-chip">
             {type}
