@@ -1,6 +1,6 @@
 import RowNoteCard from '../common/RowNoteCard'
 import ProjectCard from '../common/ProjectCard'
-import type { ProjectItem } from '../home/types'
+import type { ProjectItem } from '../../types/project'
 import type { ProfileNoteItem } from './types'
 
 // 01）主页内容组件参数类型（ProfileHomeTabContentProps）

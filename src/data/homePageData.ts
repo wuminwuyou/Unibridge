@@ -1,10 +1,15 @@
-import ProjectChannelLayout from '../components/ProjectChannelLayout'
 import type { Announcement, ProjectItem, RecommendedCompany } from '../types/project'
 import type { ProfileNoteItem } from '../components/profile/types'
-import '../styles/HomePage.css'
 
-// 02）项目卡片数据（projectItems）
-const projectItems: ProjectItem[] = [
+// 01）使用方说明
+/**
+ * 该文件集中维护首页（HomePage）的静态展示数据。
+ * 使用方：apps/web-client/src/pages/HomePage.tsx
+ * 数据范围：项目列表 / 推荐类型 / 推荐企业 / 平台公告 / 经验推荐笔记
+ */
+
+// 02）首页项目数据（homeProjectItems）
+export const homeProjectItems: ProjectItem[] = [
   {
     title: '基于大模型的智能问答系统开发',
     summary: '构建企业级智能问答平台，支持多知识库接入与权限管理，提升内部知识检索效率。',
@@ -57,27 +62,36 @@ const projectItems: ProjectItem[] = [
   },
 ]
 
-// 03）推荐项目类型数据（recommendedTypes）
-const recommendedTypes: string[] = ['AI', 'Web开发', '小程序', '数据分析', 'UI设计', 'Python', '移动开发', '游戏开发']
+// 03）首页推荐项目类型（homeRecommendedTypes）
+export const homeRecommendedTypes: string[] = [
+  'AI',
+  'Web开发',
+  '小程序',
+  '数据分析',
+  'UI设计',
+  'Python',
+  '移动开发',
+  '游戏开发',
+]
 
-// 04）推荐企业数据（recommendedCompanies）
-const recommendedCompanies: RecommendedCompany[] = [
+// 04）首页推荐企业数据（homeRecommendedCompanies）
+export const homeRecommendedCompanies: RecommendedCompany[] = [
   { name: '智源科技有限公司', projects: '156 个项目在招' },
   { name: '数智未来科技', projects: '128 个项目在招' },
   { name: '跃新互联有限公司', projects: '98 个项目在招' },
   { name: '云创未来科技', projects: '86 个项目在招' },
 ]
 
-// 05）公告数据（announcements）
-const announcements: Announcement[] = [
+// 05）首页平台公告数据（homeAnnouncements）
+export const homeAnnouncements: Announcement[] = [
   { title: '2024 年度优秀项目评选活动正式启动', date: '05-20' },
   { title: '第六期企业实战项目征集进行中', date: '05-18' },
   { title: '高校合作计划新增 10 所合作院校', date: '05-15' },
   { title: '平台功能升级公告', date: '05-12' },
 ]
 
-// 06）经验推荐笔记数据（experienceRecommendedNotes）
-const experienceRecommendedNotes: ProfileNoteItem[] = [
+// 06）首页经验推荐笔记数据（homeExperienceRecommendedNotes）
+export const homeExperienceRecommendedNotes: ProfileNoteItem[] = [
   {
     title: '大模型应用从 Demo 到上线实战',
     summary: '梳理从原型验证到可运营上线的全流程关键点，包含评测、灰度与监控经验。',
@@ -151,36 +165,3 @@ const experienceRecommendedNotes: ProfileNoteItem[] = [
     cover: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
   },
 ]
-
-// 07）首页主组件（HomePage）
-/**
- * 函数名：HomePage
- * 功能：渲染项目众包平台首页，负责组合顶部导航、项目流与侧边栏复用组件。
- * 实现方法：
- * - 调用 ProjectChannelLayout 复用项目专区通用双栏结构
- * - 传入首页项目、推荐类型、推荐企业与公告数据
- * - 通过参数控制页面标题与搜索输入框标识
- * 输入：
- * - 无（当前版本使用本地静态数据）
- * 输出：
- * - 返回值：JSX.Element，平台首页结构
- * - 副作用：无
- */
-function HomePage() {
-  return (
-    <ProjectChannelLayout
-      sectionTitle="项目专区"
-      searchInputId="home-project-search-input"
-      projects={projectItems}
-      experienceRecommendedNotes={experienceRecommendedNotes}
-      recommendedTypes={recommendedTypes}
-      recommendedOrganizations={recommendedCompanies}
-      announcements={announcements}
-      organizationCardTitle="推荐企业"
-      organizationActionText="查看更多"
-      organizationAvatarText="企"
-    />
-  )
-}
-
-export default HomePage

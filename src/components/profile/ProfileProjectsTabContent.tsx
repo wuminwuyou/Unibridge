@@ -1,5 +1,5 @@
 import ProjectCard from '../common/ProjectCard'
-import type { ProjectItem } from '../home/types'
+import type { ProjectItem } from '../../types/project'
 
 // 01）项目Tab内容组件参数类型（ProfileProjectsTabContentProps）
 interface ProfileProjectsTabContentProps {

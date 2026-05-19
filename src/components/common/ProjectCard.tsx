@@ -1,4 +1,4 @@
-import type { ProjectItem } from '../home/types'
+import type { ProjectItem } from '../../types/project'
 import LevelBadge from './LevelBadge'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
