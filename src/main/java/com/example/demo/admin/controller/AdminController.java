@@ -1,10 +1,11 @@
-package com.example.demo.controller;
+package com.example.demo.admin.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.demo.common.Result;
-import com.example.demo.dto.*;
+import com.example.demo.dto.EntityCreateRequest;
+import com.example.demo.dto.UserRegisterRequest;
 import com.example.demo.entity.Entity;
 import com.example.demo.entity.UserProfile;
 import com.example.demo.mapper.EntityMapper;
@@ -50,11 +51,11 @@ public class AdminController {
 
     @GetMapping("/entities/list")
     public Result getEntitiesList(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                     @RequestParam(required = false) String type,
-                                     @RequestParam(required = false) String auditStatus,
-                                     @RequestParam(required = false) String q,
-                                     @RequestParam(defaultValue = "1") Integer page,
-                                     @RequestParam(defaultValue = "20") Integer pageSize) {
+                                  @RequestParam(required = false) String type,
+                                  @RequestParam(required = false) String auditStatus,
+                                  @RequestParam(required = false) String q,
+                                  @RequestParam(defaultValue = "1") Integer page,
+                                  @RequestParam(defaultValue = "20") Integer pageSize) {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
@@ -77,7 +78,7 @@ public class AdminController {
 
     @GetMapping("/entities/{id}")
     public Result getEntityDetail(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                     @PathVariable Long id) {
+                                  @PathVariable Long id) {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
@@ -90,7 +91,7 @@ public class AdminController {
 
     @PostMapping("/entities")
     public Result createEntity(@RequestHeader(value = "Authorization", required = false) String authorization,
-                             @RequestBody EntityCreateRequest request) {
+                               @RequestBody EntityCreateRequest request) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
@@ -107,8 +108,8 @@ public class AdminController {
 
     @PutMapping("/entities/{id}")
     public Result updateEntity(@RequestHeader(value = "Authorization", required = false) String authorization,
-                             @PathVariable Long id,
-                             @RequestBody EntityCreateRequest request) {
+                               @PathVariable Long id,
+                               @RequestBody EntityCreateRequest request) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
@@ -126,7 +127,7 @@ public class AdminController {
 
     @DeleteMapping("/entities/{id}")
     public Result deleteEntity(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                @PathVariable Long id) {
+                               @PathVariable Long id) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
@@ -141,11 +142,11 @@ public class AdminController {
 
     @GetMapping("/users/list")
     public Result getUsersList(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                @RequestParam(required = false) String q,
-                                @RequestParam(defaultValue = "1") Integer page,
-                                @RequestParam(defaultValue = "20") Integer pageSize,
-                                @RequestParam(required = false) String sort,
-                                @RequestParam(required = false) String order) {
+                               @RequestParam(required = false) String q,
+                               @RequestParam(defaultValue = "1") Integer page,
+                               @RequestParam(defaultValue = "20") Integer pageSize,
+                               @RequestParam(required = false) String sort,
+                               @RequestParam(required = false) String order) {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
@@ -153,9 +154,8 @@ public class AdminController {
         LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
 
         if (q != null && !q.isEmpty()) {
-    wrapper.like(UserProfile::getPhone, q);
-}
-
+            wrapper.like(UserProfile::getPhone, q);
+        }
 
         if (sort != null && !sort.isEmpty()) {
             if ("last_login_at".equals(sort)) {
@@ -186,7 +186,7 @@ public class AdminController {
 
     @PostMapping("/users")
     public Result createUser(@RequestHeader(value = "Authorization", required = false) String authorization,
-                          @RequestBody UserRegisterRequest request) {
+                             @RequestBody UserRegisterRequest request) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
@@ -208,8 +208,8 @@ public class AdminController {
 
     @PutMapping("/users/{id}")
     public Result updateUser(@RequestHeader(value = "Authorization", required = false) String authorization,
-                          @PathVariable Long id,
-                          @RequestBody UserRegisterRequest request) {
+                             @PathVariable Long id,
+                             @RequestBody UserRegisterRequest request) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
@@ -228,7 +228,7 @@ public class AdminController {
 
     @DeleteMapping("/users/{id}")
     public Result deleteUser(@RequestHeader(value = "Authorization", required = false) String authorization,
-                          @PathVariable Long id) {
+                             @PathVariable Long id) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 

@@ -1,17 +1,17 @@
 package com.example.demo.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.example.demo.dto.*;
+import com.example.demo.admin.service.AdminAuthService;
+import com.example.demo.dto.EntityLoginRequest;
+import com.example.demo.dto.LoginResponse;
+import com.example.demo.dto.UserLoginRequest;
 import com.example.demo.entity.Entity;
-import com.example.demo.entity.SystemAdmin;
 import com.example.demo.entity.UserProfile;
 import com.example.demo.mapper.EntityMapper;
-import com.example.demo.mapper.SystemAdminMapper;
 import com.example.demo.mapper.UserProfileMapper;
 import com.example.demo.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 public class AuthService {
 
     @Autowired
-    private SystemAdminMapper systemAdminMapper;
+    private AdminAuthService adminAuthService;
 
     @Autowired
     private UserProfileMapper userProfileMapper;
@@ -29,26 +29,6 @@ public class AuthService {
 
     @Autowired
     private JwtUtil jwtUtil;
-
-    public LoginResponse adminLogin(AdminLoginRequest request) {
-        LambdaQueryWrapper<SystemAdmin> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SystemAdmin::getId, request.getAdminId());
-        SystemAdmin admin = systemAdminMapper.selectOne(wrapper);
-
-        if (admin == null) {
-            throw new RuntimeException("管理员不存在");
-        }
-
-        if (!admin.getPasswordHash().equals(request.getPasswordHash())) {
-            throw new RuntimeException("密码错误");
-        }
-
-        admin.setLastLoginAt(LocalDateTime.now());
-        systemAdminMapper.updateById(admin);
-
-        String token = jwtUtil.generateToken(admin.getId(), "ADMIN", admin.getAuthLevel());
-        return new LoginResponse(token, admin.getAuthLevel(), admin.getId(), "ADMIN");
-    }
 
     public LoginResponse userLogin(UserLoginRequest request) {
         LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
@@ -96,11 +76,7 @@ public class AuthService {
         String userType = jwtUtil.getUserType(token);
 
         if ("ADMIN".equals(userType)) {
-            SystemAdmin admin = systemAdminMapper.selectById(userId);
-            if (admin != null) {
-                admin.setLastLoginAt(null);
-                systemAdminMapper.updateById(admin);
-            }
+            adminAuthService.clearAdminLastLogin(userId);
         } else if ("USER".equals(userType)) {
             UserProfile userProfile = userProfileMapper.selectById(Long.parseLong(userId));
             if (userProfile != null) {

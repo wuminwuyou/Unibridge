@@ -1,7 +1,9 @@
 package com.example.demo.controller;
 
 import com.example.demo.common.Result;
-import com.example.demo.dto.*;
+import com.example.demo.dto.EntityLoginRequest;
+import com.example.demo.dto.LoginResponse;
+import com.example.demo.dto.UserLoginRequest;
 import com.example.demo.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -12,16 +14,6 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
-
-    @PostMapping("/admin/login")
-    public Result adminLogin(@RequestBody AdminLoginRequest request) {
-        try {
-            LoginResponse response = authService.adminLogin(request);
-            return Result.success(response);
-        } catch (Exception e) {
-            return Result.error(401, e.getMessage());
-        }
-    }
 
     @PostMapping("/user/login")
     public Result userLogin(@RequestBody UserLoginRequest request) {

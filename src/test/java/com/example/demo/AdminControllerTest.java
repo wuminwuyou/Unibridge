@@ -1,8 +1,10 @@
 package com.example.demo;
 
-import com.example.demo.dto.*;
-import com.example.demo.entity.SystemAdmin;
-import com.example.demo.mapper.SystemAdminMapper;
+import com.example.demo.admin.dto.AdminLoginRequest;
+import com.example.demo.admin.entity.SystemAdmin;
+import com.example.demo.admin.mapper.SystemAdminMapper;
+import com.example.demo.dto.EntityCreateRequest;
+import com.example.demo.dto.UserRegisterRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -17,74 +17,98 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- DROP TABLE IF EXISTS laboratory;
 -- DROP TABLE IF EXISTS user_auth_link;
 -- DROP TABLE IF EXISTS user_profile;
--- DROP TABLE IF EXISTS userProfile;
+-- DROP TABLE IF EXISTS user;
+-- DROP TABLE IF EXISTS entity_profile;
 -- DROP TABLE IF EXISTS entity;
 -- DROP TABLE IF EXISTS system_admin;
 
--- =========================
--- 03）主体（entity）
--- =========================
+-- =========================================================================
+-- 03）主体核心表 (entity) -> 只负责主体（高校/企业）的 Root 账号鉴权与资金控制
+-- =========================================================================
 CREATE TABLE IF NOT EXISTS entity (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  entity_code VARCHAR(32) NOT NULL COMMENT '主体代码',
-  name VARCHAR(255) NOT NULL COMMENT '主体全称',
-  type VARCHAR(32) NOT NULL COMMENT 'ENTERPRISE | UNIVERSITY',
+  entity_code VARCHAR(32) NOT NULL COMMENT '主体代码（高校代码或社会统一信用代码，唯一）',
+  password_hash VARCHAR(255) NOT NULL COMMENT '主体根账号密码哈希',
+  totp_secret VARCHAR(255) NULL COMMENT 'TOTP 二次验证密钥（AES对称加密密文）',
   balance DECIMAL(18,2) NOT NULL DEFAULT 0.00 COMMENT '数字钱包余额',
-  intro VARCHAR(50) NULL COMMENT '主体职能简介（最多50字）',
-  last_login_at DATETIME NULL COMMENT '账号上次登录时间',
   audit_status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '管理员审核状态：PENDING | APPROVED | REJECTED',
   audit_admin_id VARCHAR(32) NULL COMMENT '审核管理员ID（编号+实名）',
-  audited_at DATETIME NULL COMMENT '审核时间',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_entity_type (type),
-  KEY idx_entity_last_login_at (last_login_at),
-  KEY idx_entity_audit_status (audit_status),
-  KEY idx_entity_audit_admin_id (audit_admin_id),
-  KEY idx_entity_audited_at (audited_at),
-  KEY idx_entity_entity_code (entity_code),
-  CONSTRAINT chk_entity_audit_status CHECK (audit_status IN ('PENDING', 'APPROVED', 'REJECTED')),
-  CONSTRAINT chk_entity_type CHECK (type IN ('ENTERPRISE', 'UNIVERSITY'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- =========================
--- 04）用户（userProfile）
--- =========================
-CREATE TABLE IF NOT EXISTS userProfile (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  phone VARCHAR(32) NOT NULL COMMENT '登录凭证',
-  email VARCHAR(255) NULL COMMENT '登录邮箱',
-  password_hash VARCHAR(255) NOT NULL,
+  audited_at DATETIME NULL COMMENT '审核通过时间',
   last_login_at DATETIME NULL COMMENT '账号上次登录时间',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_user_last_login_at (last_login_at),
-  UNIQUE KEY uk_user_phone (phone)
+  UNIQUE KEY uk_entity_code (entity_code), -- 🔒 确保机构代码全站唯一
+  KEY idx_entity_audit_status (audit_status),
+  KEY idx_entity_last_login_at (last_login_at),
+  CONSTRAINT chk_entity_audit_status CHECK (audit_status IN ('PENDING', 'APPROVED', 'REJECTED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- =========================
--- 05）用户档案（user_profile，与 userProfile 1:1）
--- =========================
-CREATE TABLE IF NOT EXISTS user_profile (
+
+-- =========================================================================
+-- 04）主体档案表 (entity_profile) -> 负责学校/企业的官方主页展示（与 entity 1:1）
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS entity_profile (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id BIGINT UNSIGNED NOT NULL,
-  real_name VARCHAR(128) NULL COMMENT '实名信息',
-  current_entity_name VARCHAR(255) NULL COMMENT '当前所属主体名',
-  bio_data JSON NULL COMMENT '技术栈/兴趣标签',
-  career_data JSON NULL COMMENT '职业/学籍背景',
-  intro VARCHAR(50) NULL COMMENT '用户简介（最多50字）',
+  entity_id BIGINT UNSIGNED NOT NULL COMMENT '关联的主体ID',
+  name VARCHAR(255) NOT NULL COMMENT '主体官方全称',
+  type VARCHAR(32) NOT NULL COMMENT '主体类型：ENTERPRISE | UNIVERSITY',
+  logo_url VARCHAR(255) NULL COMMENT '主体 LOGO 访问 URL',
+  banner_url VARCHAR(255) NULL COMMENT '主体主页顶部背景大图 URL',
+  intro VARCHAR(50) NULL COMMENT '主体简介（最多50字）',
+  announcement VARCHAR(200) NULL COMMENT '机构/学校/企业公告（最多200字）',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_user_profile_user_id (user_id),
-  CONSTRAINT fk_user_profile_user FOREIGN KEY (user_id) REFERENCES userProfile(id)
+  UNIQUE KEY uk_entity_profile_entity_id (entity_id), -- 🔒 强约束 1:1 关系
+  KEY idx_entity_profile_type (type),
+  CONSTRAINT fk_entity_profile_entity FOREIGN KEY (entity_id) REFERENCES entity(id) 
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT chk_entity_profile_type CHECK (type IN ('ENTERPRISE', 'UNIVERSITY'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- =========================================================================
+-- 05）用户核心表 (user) -> 只负责个人账号（手机/邮箱）的登录鉴权
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS user (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  phone VARCHAR(32) NOT NULL COMMENT '登录手机号',
+  email VARCHAR(255) NULL COMMENT '登录邮箱',
+  password_hash VARCHAR(255) NOT NULL COMMENT '个人密码哈希',
+  last_login_at DATETIME NULL COMMENT '个人账号上次登录时间',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_phone (phone), -- 🔒 手机号全站唯一
+  UNIQUE KEY uk_user_email (email), -- 🔒 邮箱全站唯一（允许为 NULL，但不允许重复）
+  KEY idx_user_last_login_at (last_login_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- =========================================================================
+-- 06）用户档案表 (user_profile) -> 负责学生/导师的个人主页与技术背景（与 user 1:1）
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS user_profile (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '关联的用户ID',
+  real_name VARCHAR(128) NULL COMMENT '用户实名信息',
+  avatar_url VARCHAR(255) NULL COMMENT '头像访问 URL',
+  current_entity_name VARCHAR(255) NULL COMMENT '当前所属主体名称',
+  bio_data JSON NULL COMMENT '技术栈/兴趣标签（JSON 格式：["Java", "React"]）',
+  career_data JSON NULL COMMENT '职业/学籍背景数据结构',
+  intro VARCHAR(50) NULL COMMENT '个人一句话简介（最多50字）',
+  announcement VARCHAR(200) NULL COMMENT '个人公告（最多200字）',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_profile_user_id (user_id), -- 🔒 强约束 1:1 关系
+  CONSTRAINT fk_user_profile_user FOREIGN KEY (user_id) REFERENCES user(id) 
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 06）实验室（laboratory，entity 1:N laboratory）
+-- 07）实验室（laboratory，entity 1:N laboratory）
 -- =========================
 CREATE TABLE laboratory (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -104,8 +128,24 @@ CREATE TABLE laboratory (
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE IF NOT EXISTS laboratory_profile (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  laboratory_id BIGINT UNSIGNED NOT NULL COMMENT '关联的实验室ID',
+  name VARCHAR(255) NOT NULL COMMENT '实验室名称',
+  intro VARCHAR(50) NULL COMMENT '主体简介（最多50字）',
+  announcement VARCHAR(200) NULL COMMENT '机构/学校/企业公告（最多200字）'
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_entity_profile_entity_id (entity_id), -- 🔒 强约束 1:1 关系
+  KEY idx_entity_profile_type (type),
+  CONSTRAINT fk_entity_profile_entity FOREIGN KEY (entity_id) REFERENCES entity(id) 
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT chk_entity_profile_type CHECK (type IN ('ENTERPRISE', 'UNIVERSITY'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- =========================
--- 07）用户认证关联（user_auth_link：userProfile <-> entity，可选 lab）
+-- 08）用户认证关联（user_auth_link：userProfile <-> entity，可选 lab）
 -- =========================
 CREATE TABLE user_auth_link (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -131,7 +171,7 @@ CREATE TABLE user_auth_link (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 08）团队（team）
+-- 09）团队（team）
 -- =========================
 CREATE TABLE team (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -151,7 +191,7 @@ CREATE TABLE team (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 09）团队成员（team_member：team 1:N 成员，userProfile 唯一归属）
+-- 10）团队成员（team_member：team 1:N 成员，userProfile 唯一归属）
 -- =========================
 CREATE TABLE team_member (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -174,7 +214,7 @@ CREATE TABLE team_member (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 10）正式商业项目（commercial_project）
+-- 11）正式商业项目（commercial_project）
 -- =========================
 CREATE TABLE commercial_project (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -206,7 +246,7 @@ CREATE TABLE commercial_project (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 11）招募与实践项目（recruitment_project）
+-- 12）招募与实践项目（recruitment_project）
 -- =========================
 CREATE TABLE recruitment_project (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -238,7 +278,7 @@ CREATE TABLE recruitment_project (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 12）里程碑（milestone：commercial_project 1:N milestones）
+-- 13）里程碑（milestone：commercial_project 1:N milestones）
 -- =========================
 CREATE TABLE milestone (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -256,7 +296,7 @@ CREATE TABLE milestone (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 13）任务卡片（task_card：milestone 1:N task cards）
+-- 14）任务卡片（task_card：milestone 1:N task cards）
 -- =========================
 CREATE TABLE task_card (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -279,7 +319,7 @@ CREATE TABLE task_card (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 14）成就归档（achievement_archive：userProfile 1:N achievements）
+-- 15）成就归档（achievement_archive：userProfile 1:N achievements）
 -- =========================
 CREATE TABLE achievement_archive (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -299,7 +339,7 @@ CREATE TABLE achievement_archive (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 15）系统管理员表：完全独立于业务用户体系
+-- 16）系统管理员表：完全独立于业务用户体系
 -- =========================
 CREATE TABLE IF NOT EXISTS system_admin (
   id VARCHAR(32) NOT NULL COMMENT '登录凭证 (管理员账号)',
@@ -318,7 +358,7 @@ INSERT IGNORE INTO system_admin (id, password_hash, auth_level) VALUES
 ('admin_manager', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 2);
 
 -- =========================
--- 16）补充外键：主体审核管理员（entity.audit_admin_id -> system_admin.id）
+-- 17）补充外键：主体审核管理员（entity.audit_admin_id -> system_admin.id）
 -- =========================
 -- ALTER TABLE entity
 --   ADD CONSTRAINT fk_entity_audit_admin FOREIGN KEY (audit_admin_id) REFERENCES system_admin(id)
