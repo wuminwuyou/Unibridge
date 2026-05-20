@@ -26,6 +26,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- =========================
 CREATE TABLE IF NOT EXISTS entity (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  entity_code VARCHAR(32) NOT NULL COMMENT '主体代码',
   name VARCHAR(255) NOT NULL COMMENT '主体全称',
   type VARCHAR(32) NOT NULL COMMENT 'ENTERPRISE | UNIVERSITY',
   balance DECIMAL(18,2) NOT NULL DEFAULT 0.00 COMMENT '数字钱包余额',
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS entity (
   KEY idx_entity_audit_status (audit_status),
   KEY idx_entity_audit_admin_id (audit_admin_id),
   KEY idx_entity_audited_at (audited_at),
+  KEY idx_entity_entity_code (entity_code),
   CONSTRAINT chk_entity_audit_status CHECK (audit_status IN ('PENDING', 'APPROVED', 'REJECTED')),
   CONSTRAINT chk_entity_type CHECK (type IN ('ENTERPRISE', 'UNIVERSITY'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -52,6 +54,7 @@ CREATE TABLE IF NOT EXISTS entity (
 CREATE TABLE IF NOT EXISTS userProfile (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   phone VARCHAR(32) NOT NULL COMMENT '登录凭证',
+  email VARCHAR(255) NULL COMMENT '登录邮箱',
   password_hash VARCHAR(255) NOT NULL,
   last_login_at DATETIME NULL COMMENT '账号上次登录时间',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
