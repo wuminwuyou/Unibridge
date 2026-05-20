@@ -77,6 +77,28 @@ export function useTopNavbar() {
     }
   }
 
+  // 06）消息通知点击处理函数（handleNotifyClick）
+  /**
+   * 函数名：handleNotifyClick
+   * 功能：点击顶部导航“消息通知”后，以新标签页打开即时通讯页面。
+   * 实现方法：
+   * - 固定目标路由为 /messages
+   * - 使用 window.open 新开标签页，避免打断当前页面浏览
+   * - 启用 noopener,noreferrer 减少新窗口权限与来源暴露
+   * 输入：
+   * - 无
+   * 输出：
+   * - 返回值：void
+   * - 副作用：浏览器打开新标签页
+   */
+  const handleNotifyClick = (): void => {
+    if (pathname.startsWith('/messages')) {
+      return
+    }
+
+    window.open('/messages', '_blank', 'noopener,noreferrer')
+  }
+
   return {
     theme,
     toggleTheme,
@@ -87,8 +109,9 @@ export function useTopNavbar() {
     handleCloseAuthModal,
     handleAuthSuccess,
     handleAuthEntryClick,
+    handleNotifyClick,
   }
 }
 
-// 06）顶部导航业务模型类型（TopNavbarModel）
+// 07）顶部导航业务模型类型（TopNavbarModel）
 export type TopNavbarModel = ReturnType<typeof useTopNavbar>

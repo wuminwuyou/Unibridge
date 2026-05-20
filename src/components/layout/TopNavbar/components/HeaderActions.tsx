@@ -7,6 +7,7 @@ interface HeaderActionsProps {
   isAuthenticated: boolean
   onToggleTheme: () => void
   onAuthEntryClick: () => void
+  onNotifyClick: () => void
 }
 
 // 02）右侧操作区视图（HeaderActions）
@@ -27,7 +28,7 @@ interface HeaderActionsProps {
  * - 返回值：JSX.Element，右侧操作区结构
  * - 副作用：无（事件由父级处理器承担）
  */
-function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick }: HeaderActionsProps) {
+function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick, onNotifyClick }: HeaderActionsProps) {
   const themeButtonLabel = `切换到${theme === 'light' ? '深色' : '浅色'}主题`
 
   return (
@@ -57,8 +58,11 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
           {theme === 'light' ? '☀️' : '🌙'}
         </span>
       </button>
-      <button className="notify-button" type="button" aria-label="消息通知">
-        <span aria-hidden="true">🔔</span>
+      <button className="notify-button" type="button" aria-label="消息通知" onClick={onNotifyClick} title="打开即时通讯">
+        <span className="notify-button__glow" aria-hidden="true" />
+        <span className="notify-button__icon" aria-hidden="true">
+          🔔
+        </span>
       </button>
 
       {isAuthenticated ? (

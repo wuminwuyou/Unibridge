@@ -37,6 +37,7 @@ export function TopNavbarView({ navItems, model }: TopNavbarViewProps) {
           isAuthenticated={model.isAuthenticated}
           onToggleTheme={model.toggleTheme}
           onAuthEntryClick={model.handleAuthEntryClick}
+          onNotifyClick={model.handleNotifyClick}
         />
       </div>
 

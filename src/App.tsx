@@ -5,6 +5,7 @@ import ProfileSpacePage from './pages/ProfileSpacePage.tsx'
 import ExperienceSharePage from './pages/ExperienceSharePage.tsx'
 import ProjectDetailPage from './pages/ProjectDetailPage.tsx'
 import NoteDetailPage from './pages/NoteDetailPage.tsx'
+import InstantMessagePage from './pages/InstantMessagePage.tsx'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 // 01）应用入口组件（App）
@@ -31,6 +32,7 @@ function App() {
       <Route path="/profile" element={<ProfileSpacePage />} />
       <Route path="/project-detail" element={<ProjectDetailPage />} />
       <Route path="/note-detail" element={<NoteDetailPage />} />
+      <Route path="/messages" element={<InstantMessagePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
