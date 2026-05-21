@@ -48,7 +48,6 @@ export interface PersonalEmailLoginRequest {
 // 09）主体凭证登录请求参数定义（OrganizationCredentialsLoginRequest）
 export interface OrganizationCredentialsLoginRequest {
   institutionCode: string
-  account: string
   password: string
 }
 
@@ -58,7 +57,13 @@ export interface OrganizationOtpLoginRequest {
   otpCode: string
 }
 
-// 11）令牌登录响应数据定义（TokenAuthData）
+// 11）退出登录请求参数定义（LogoutRequest）
+export interface LogoutRequest {
+  accessToken: string
+  refreshToken: string
+}
+
+// 12）令牌登录响应数据定义（TokenAuthData）
 export interface TokenAuthData {
   userId: number
   userRole: AuthUserRole
@@ -68,12 +73,12 @@ export interface TokenAuthData {
   expiresIn?: number
 }
 
-// 12）个人注册响应数据定义（PersonalRegisterData）
+// 13）个人注册响应数据定义（PersonalRegisterData）
 export interface PersonalRegisterData extends TokenAuthData {
   needVerificationGuide: boolean
 }
 
-// 13）主体凭证校验响应数据定义（OrganizationCredentialChallengeData）
+// 14）主体凭证校验响应数据定义（OrganizationCredentialChallengeData）
 export interface OrganizationCredentialChallengeData {
   challengeId: string
   passwordDigestPreview: string

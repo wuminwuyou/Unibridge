@@ -136,13 +136,11 @@ export function AuthModalView({ onClose, model }: AuthModalViewProps) {
                     {model.organizationStep === 'credentials' ? (
                       <InstitutionForm
                         organizationCode={model.organizationCode}
-                        organizationAccount={model.organizationAccount}
                         organizationPassword={model.organizationPassword}
                         isOrganizationPasswordVisible={model.isOrganizationPasswordVisible}
                         isSubmitting={model.isSubmitting}
                         authErrorMessage={model.authErrorMessage}
                         onOrganizationCodeChange={model.setOrganizationCode}
-                        onOrganizationAccountChange={model.setOrganizationAccount}
                         onOrganizationPasswordChange={model.setOrganizationPassword}
                         onToggleOrganizationPasswordVisibility={model.handleToggleOrganizationPasswordVisibility}
                         onSubmit={model.handleOrganizationCredentialsSubmit}

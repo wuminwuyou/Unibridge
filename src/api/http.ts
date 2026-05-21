@@ -5,6 +5,8 @@ import axios, {
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from 'axios'
+import { dispatchAuthForceLogout, dispatchAuthTokensUpdated } from '../auth/authEvents'
+import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from '../auth/tokenStorage'
 
 // 01）后端统一响应结构类型定义（ApiEnvelope）
 export interface ApiEnvelope<TData> {
@@ -43,22 +45,76 @@ interface RefreshTokenData {
   refreshToken: string
 }
 
-// 07）创建 Axios 实例（httpClient）
+// 07）401 重试排队项类型定义（QueuedRetryRequest）
+interface QueuedRetryRequest {
+  resolve: (accessToken: string) => void
+  reject: (error: unknown) => void
+}
+
+// 08）创建 Axios 实例（httpClient）
 const httpClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
 })
 
-// 08）创建刷新令牌专用 Axios 实例（refreshClient）
+// 09）创建刷新令牌专用 Axios 实例（refreshClient）
 const refreshClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
 })
 
-// 09）刷新请求单飞 Promise（refreshTokenPromise）
-let refreshTokenPromise: Promise<string> | null = null
+// 10）刷新锁与请求队列（isRefreshing / requestsQueue）
+let isRefreshing = false
+let requestsQueue: QueuedRetryRequest[] = []
 
-// 10）判断是否刷新接口（isRefreshRequest）
+// 11）处理队列中的挂起请求（processRequestsQueue）
+/**
+ * 函数名：processRequestsQueue
+ * 功能：在 refresh 完成后统一恢复或拒绝所有排队请求。
+ * 实现方法：
+ * - 刷新成功：将新 accessToken 传给队列中每个请求并 resolve
+ * - 刷新失败：将同一错误传给队列中每个请求并 reject
+ * - 最后清空队列，避免重复消费
+ * 输入：
+ * - error：刷新失败时的错误对象，可为空
+ * - renewedAccessToken：刷新成功后的 accessToken，可为空
+ * 输出：
+ * - 返回值：void
+ * - 副作用：变更队列中 Promise 的状态
+ */
+function processRequestsQueue(error: unknown, renewedAccessToken: string | null): void {
+  requestsQueue.forEach((queuedRequest) => {
+    if (error) {
+      queuedRequest.reject(error)
+      return
+    }
+
+    if (renewedAccessToken) {
+      queuedRequest.resolve(renewedAccessToken)
+    }
+  })
+  requestsQueue = []
+}
+
+// 12）队列挂起等待刷新结果（enqueueRetryRequest）
+/**
+ * 函数名：enqueueRetryRequest
+ * 功能：将 401 失败请求挂起到队列，等待刷新完成后继续执行。
+ * 实现方法：
+ * - 返回一个 Promise，并将其 resolve/reject 注册到 requestsQueue
+ * - 由 processRequestsQueue 在刷新完成时统一触发
+ * 输入：无
+ * 输出：
+ * - 返回值：Promise<string>（刷新后的 accessToken）
+ * - 副作用：向 requestsQueue 追加待处理项
+ */
+function enqueueRetryRequest(): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    requestsQueue.push({ resolve, reject })
+  })
+}
+
+// 13）判断是否刷新接口（isRefreshRequest）
 /**
  * 函数名：isRefreshRequest
  * 功能：判断当前请求是否为刷新令牌接口，避免拦截器递归刷新。
@@ -75,10 +131,10 @@ function isRefreshRequest(requestConfig?: InternalAxiosRequestConfig): boolean {
   if (!requestConfig?.url) {
     return false
   }
-  return requestConfig.url.endsWith(REFRESH_API_PATH)
+  return requestConfig.url.includes(REFRESH_API_PATH)
 }
 
-// 11）判断是否为 accessToken 失效错误（isAccessTokenExpiredError）
+// 14）判断是否为 accessToken 失效错误（isAccessTokenExpiredError）
 /**
  * 函数名：isAccessTokenExpiredError
  * 功能：根据错误码或错误消息判断是否属于 accessToken 失效场景。
@@ -107,7 +163,24 @@ function isAccessTokenExpiredError(code: number, message: string): boolean {
   return tokenExpiredMessages.has(message)
 }
 
-// 12）持久化刷新后的令牌（persistRefreshedTokens）
+// 15）会话失效兜底处理（handleSessionExpired）
+/**
+ * 函数名：handleSessionExpired
+ * 功能：当 refresh 失败时清理会话并广播全局强制登出事件。
+ * 实现方法：
+ * - 清理本地 token
+ * - 派发全局强制登出事件，重置 React 认证状态
+ * 输入：无
+ * 输出：
+ * - 返回值：void
+ * - 副作用：清空 localStorage、触发全局事件
+ */
+function handleSessionExpired(): void {
+  clearAuthTokens()
+  dispatchAuthForceLogout()
+}
+
+// 16）持久化刷新后的令牌（persistRefreshedTokens）
 /**
  * 函数名：persistRefreshedTokens
  * 功能：将刷新接口返回的新 token 写入 localStorage。
@@ -124,11 +197,17 @@ function persistRefreshedTokens(refreshedTokens: RefreshTokenData): void {
   if (!refreshedTokens.accessToken || !refreshedTokens.refreshToken) {
     throw new HttpApiError(401, '登录状态已失效，请重新登录')
   }
-  window.localStorage.setItem('accessToken', refreshedTokens.accessToken)
-  window.localStorage.setItem('refreshToken', refreshedTokens.refreshToken)
+  setAuthTokens({
+    accessToken: refreshedTokens.accessToken,
+    refreshToken: refreshedTokens.refreshToken,
+  })
+  dispatchAuthTokensUpdated({
+    accessToken: refreshedTokens.accessToken,
+    refreshToken: refreshedTokens.refreshToken,
+  })
 }
 
-// 13）执行刷新令牌请求（requestTokenRefresh）
+// 17）执行刷新令牌请求（requestTokenRefresh）
 /**
  * 函数名：requestTokenRefresh
  * 功能：调用 /auth/refresh 接口换取新的 accessToken 与 refreshToken。
@@ -143,7 +222,7 @@ function persistRefreshedTokens(refreshedTokens: RefreshTokenData): void {
  * - 副作用：发起网络请求并写入 localStorage
  */
 async function requestTokenRefresh(): Promise<string> {
-  const refreshToken = window.localStorage.getItem('refreshToken')
+  const refreshToken = getRefreshToken()
   if (!refreshToken) {
     throw new HttpApiError(401, '登录状态已失效，请重新登录')
   }
@@ -173,28 +252,39 @@ async function requestTokenRefresh(): Promise<string> {
   }
 }
 
-// 14）获取刷新后的 accessToken（getRefreshedAccessToken）
+// 18）获取刷新后的 accessToken（getRefreshedAccessToken）
 /**
  * 函数名：getRefreshedAccessToken
- * 功能：提供 refresh 请求单飞机制，避免并发请求重复刷新 token。
+ * 功能：在刷新期间对后续 401 请求进行排队等待，防止并发重复刷新。
  * 实现方法：
- * - 若已有刷新中的 Promise，复用该 Promise
- * - 否则发起刷新请求并在结束后重置状态
+ * - 当 isRefreshing=true 时，将请求加入 requestsQueue 挂起等待
+ * - 当 isRefreshing=false 时获取刷新锁并发起单次 refresh 请求
+ * - refresh 成功后广播新 token 并恢复队列；失败则拒绝队列并清会话
  * 输入：无
  * 输出：
  * - 返回值：新的 accessToken
- * - 副作用：可能发起网络请求
+ * - 副作用：发起 refresh 请求并处理队列
  */
 async function getRefreshedAccessToken(): Promise<string> {
-  if (!refreshTokenPromise) {
-    refreshTokenPromise = requestTokenRefresh().finally(() => {
-      refreshTokenPromise = null
-    })
+  if (isRefreshing) {
+    return enqueueRetryRequest()
   }
-  return refreshTokenPromise
+
+  isRefreshing = true
+  try {
+    const renewedAccessToken = await requestTokenRefresh()
+    processRequestsQueue(null, renewedAccessToken)
+    return renewedAccessToken
+  } catch (error) {
+    processRequestsQueue(error, null)
+    handleSessionExpired()
+    throw error
+  } finally {
+    isRefreshing = false
+  }
 }
 
-// 15）使用新 token 重试原请求（retryRequestWithRefreshedToken）
+// 19）使用新 token 重试原请求（retryRequestWithRefreshedToken）
 /**
  * 函数名：retryRequestWithRefreshedToken
  * 功能：当 accessToken 失效时刷新 token 并自动重试原请求。
@@ -215,12 +305,13 @@ async function retryRequestWithRefreshedToken<TData>(requestConfig: RetryableReq
 
   requestConfig._retry = true
   const renewedAccessToken = await getRefreshedAccessToken()
+  const latestAccessToken = getAccessToken() ?? renewedAccessToken
   requestConfig.headers = new AxiosHeaders(requestConfig.headers)
-  requestConfig.headers.Authorization = `Bearer ${renewedAccessToken}`
+  requestConfig.headers.Authorization = `Bearer ${latestAccessToken}`
   return httpClient.request<unknown, TData>(requestConfig)
 }
 
-// 16）请求拦截器（requestInterceptor）
+// 20）请求拦截器（requestInterceptor）
 /**
  * 函数名：requestInterceptor
  * 功能：统一处理请求发起前的配置，例如注入认证头等。
@@ -239,15 +330,17 @@ function requestInterceptor(config: InternalAxiosRequestConfig): InternalAxiosRe
     config.headers = new AxiosHeaders()
   }
 
-  const token = window.localStorage.getItem('accessToken')
+  const token = getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  } else if (config.headers.Authorization) {
+    delete config.headers.Authorization
   }
 
   return config
 }
 
-// 17）响应成功拦截器（responseSuccessInterceptor）
+// 21）响应成功拦截器（responseSuccessInterceptor）
 /**
  * 函数名：responseSuccessInterceptor
  * 功能：统一解包后端响应并校验业务 code 字段。
@@ -273,7 +366,7 @@ async function responseSuccessInterceptor<TData>(response: AxiosResponse<ApiEnve
   return responseBody.data
 }
 
-// 18）响应失败拦截器（responseErrorInterceptor）
+// 22）响应失败拦截器（responseErrorInterceptor）
 /**
  * 函数名：responseErrorInterceptor
  * 功能：统一归一化网络层异常，转换为 HttpApiError。
@@ -302,17 +395,16 @@ async function responseErrorInterceptor(error: unknown): Promise<unknown> {
 
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ApiEnvelope<unknown>>
-    if (
-      axiosError.config &&
-      !isRefreshRequest(axiosError.config) &&
-      isAccessTokenExpiredError(axiosError.response?.status ?? -1, axiosError.response?.data?.message ?? '')
-    ) {
+    const responseStatusCode = axiosError.response?.status ?? -1
+    const responseMessage = axiosError.response?.data?.message ?? ''
+
+    if (axiosError.config && !isRefreshRequest(axiosError.config) && isAccessTokenExpiredError(responseStatusCode, responseMessage)) {
       return retryRequestWithRefreshedToken(axiosError.config)
     }
 
-    const responseCode = axiosError.response?.data?.code ?? axiosError.response?.status ?? -1
-    const responseMessage = axiosError.response?.data?.message ?? '请求失败，请稍后重试'
-    return Promise.reject(new HttpApiError(responseCode, responseMessage, axiosError.config))
+    const responseCode = axiosError.response?.data?.code ?? responseStatusCode
+    const normalizedMessage = axiosError.response?.data?.message ?? '请求失败，请稍后重试'
+    return Promise.reject(new HttpApiError(responseCode, normalizedMessage, axiosError.config))
   }
 
   return Promise.reject(new HttpApiError(-1, '网络异常，请稍后重试'))
@@ -321,7 +413,7 @@ async function responseErrorInterceptor(error: unknown): Promise<unknown> {
 httpClient.interceptors.request.use(requestInterceptor)
 httpClient.interceptors.response.use(responseSuccessInterceptor, responseErrorInterceptor)
 
-// 19）通用 POST 请求方法（postApi）
+// 23）通用 POST 请求方法（postApi）
 /**
  * 函数名：postApi
  * 功能：基于统一 axios 实例发送 POST 请求，并返回业务数据。

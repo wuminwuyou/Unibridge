@@ -4,13 +4,11 @@ import type { FormEvent } from 'react'
 // 01）机构主体凭证登录表单参数（InstitutionFormProps）
 interface InstitutionFormProps {
   organizationCode: string
-  organizationAccount: string
   organizationPassword: string
   isOrganizationPasswordVisible: boolean
   isSubmitting: boolean
   authErrorMessage: string
   onOrganizationCodeChange: (value: string) => void
-  onOrganizationAccountChange: (value: string) => void
   onOrganizationPasswordChange: (value: string) => void
   onToggleOrganizationPasswordVisibility: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
@@ -19,7 +17,7 @@ interface InstitutionFormProps {
 // 02）机构主体凭证登录表单（InstitutionForm）
 /**
  * 函数名：InstitutionForm
- * 功能：渲染主体通道第一步——机构代码、账号与登录凭证。
+ * 功能：渲染主体通道第一步——机构代码与登录凭证。
  * 实现方法：
  * - 浮动标签输入与密码可见切换
  * - 提交交由上层校验（SHA256 等在 hook 内）
@@ -28,13 +26,11 @@ interface InstitutionFormProps {
  */
 function InstitutionForm({
   organizationCode,
-  organizationAccount,
   organizationPassword,
   isOrganizationPasswordVisible,
   isSubmitting,
   authErrorMessage,
   onOrganizationCodeChange,
-  onOrganizationAccountChange,
   onOrganizationPasswordChange,
   onToggleOrganizationPasswordVisibility,
   onSubmit,
@@ -60,23 +56,6 @@ function InstitutionForm({
           placeholder=" "
         />
         <label htmlFor="auth-organization-code">请输入机构代码</label>
-      </div>
-
-      <div className="auth-password-row-head">
-        <span>主体账号</span>
-      </div>
-      <div className={`auth-floating-field ${organizationAccount.trim().length > 0 ? 'has-value' : ''}`}>
-        <span className="auth-floating-field__icon" aria-hidden="true">
-          <Building2 size={16} />
-        </span>
-        <input
-          id="auth-organization-account"
-          value={organizationAccount}
-          onChange={(event) => onOrganizationAccountChange(event.target.value)}
-          placeholder=" "
-          autoComplete="username"
-        />
-        <label htmlFor="auth-organization-account">请输入主体账号</label>
       </div>
 
       <div className="auth-password-row-head">

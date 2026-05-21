@@ -37,6 +37,7 @@ interface UserProfileMenuProps {
  */
 function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
   const [isUserPanelOpen, setIsUserPanelOpen] = useState<boolean>(false)
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false)
   const closeTimerRef = useRef<number | null>(null)
   const location = useLocation()
 
@@ -64,9 +65,12 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
   // 06）鼠标移出处理（handleUserMenuMouseLeave）
   /**
    * 函数名：handleUserMenuMouseLeave
-   * 功能：移出区域时延迟关闭面板，避免跨区域移动直接收起。
+   * 功能：移出区域时延迟关闭面板，避免跨区域移动直接收起；退出登录加载中保持面板展开。
    */
   const handleUserMenuMouseLeave = (): void => {
+    if (isLoggingOut) {
+      return
+    }
     clearCloseTimer()
     closeTimerRef.current = window.setTimeout(() => {
       setIsUserPanelOpen(false)
@@ -109,21 +113,29 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
   // 09）退出登录点击处理（handleLogoutClick）
   /**
    * 函数名：handleLogoutClick
-   * 功能：点击“退出登录”后关闭用户面板并触发父级退出登录逻辑。
+   * 功能：点击"退出登录"后进入加载态、保持面板展开并触发父级退出登录逻辑。
+   * 实现方法：
+   * - 防止重复点击：加载中直接忽略
+   * - 清理面板自动关闭计时器，保持展开以便用户看到"正在退出登录…"
+   * - 标记 isLoggingOut 进入加载态，由按钮文案与禁用状态体现
+   * - 调用父级 onLogout 执行登出与刷新逻辑；页面刷新后组件销毁，无需重置状态
    * 输入：无
    * 输出：
    * - 返回值：void
-   * - 副作用：更新面板开关状态并执行 onLogout
+   * - 副作用：更新面板/加载状态并执行 onLogout
    */
   const handleLogoutClick = (): void => {
+    if (isLoggingOut) {
+      return
+    }
     clearCloseTimer()
-    setIsUserPanelOpen(false)
+    setIsLoggingOut(true)
     onLogout()
   }
 
   return (
     <div
-      className={`user-menu ${isUserPanelOpen ? 'is-open' : ''}`}
+      className={`user-menu ${isUserPanelOpen || isLoggingOut ? 'is-open' : ''}`}
       onMouseEnter={handleUserMenuMouseEnter}
       onMouseLeave={handleUserMenuMouseLeave}
     >
@@ -181,11 +193,17 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
           ))}
         </ul>
 
-        <button type="button" className="user-logout-button" onClick={handleLogoutClick}>
+        <button
+          type="button"
+          className="user-logout-button"
+          onClick={handleLogoutClick}
+          disabled={isLoggingOut}
+          aria-busy={isLoggingOut}
+        >
           <span className="user-logout-button__icon" aria-hidden="true">
             <LogOut size={24} strokeWidth={2} />
           </span>
-          <span>退出登录</span>
+          <span>{isLoggingOut ? '正在退出登录…' : '退出登录'}</span>
         </button>
       </div>
     </div>

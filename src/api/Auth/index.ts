@@ -1,5 +1,6 @@
 import { HttpApiError, postApi } from '../http'
 import type {
+  LogoutRequest,
   OrganizationCredentialsLoginRequest,
   OrganizationCredentialChallengeData,
   OrganizationOtpLoginRequest,
@@ -12,7 +13,7 @@ import type {
 } from './types'
 
 // 01）认证服务异常类型定义（AuthApiError）
-export class AuthApiError extends HttpApiError {}
+export class AuthApiError extends HttpApiError { }
 
 // 02）通用认证 POST 请求封装（postAuthApi）
 /**
@@ -111,9 +112,9 @@ export async function loginPersonalByEmail(payload: PersonalEmailLoginRequest): 
 // 08）主体凭证登录接口（loginOrganizationByCredentials）
 /**
  * 函数名：loginOrganizationByCredentials
- * 功能：执行主体登录第一步，校验机构代码、主体账号与密码。
+ * 功能：执行主体登录第一步，校验机构代码与登录凭证。
  * 实现方法：
- * - 透传机构代码、账号、密码摘要
+ * - 透传机构代码与密码摘要
  * - 调用 /auth/organization/login/credentials 接口获取 challengeId
  * 输入：
  * - payload：主体凭证登录参数
@@ -147,10 +148,29 @@ export async function loginOrganizationByOtp(payload: OrganizationOtpLoginReques
   return postAuthApi<OrganizationOtpLoginRequest, TokenAuthData>('/auth/organization/login/otp', payload)
 }
 
+// 10）退出登录接口（logoutByTokens）
+/**
+ * 函数名：logoutByTokens
+ * 功能：提交当前 accessToken 与 refreshToken，通知后端销毁登录会话。
+ * 实现方法：
+ * - 透传 accessToken、refreshToken 作为请求体
+ * - 调用 /auth/logout 接口执行服务端登出
+ * - 成功时返回后端 data（通常为空对象）
+ * 输入：
+ * - payload：退出登录参数
+ * 输出：
+ * - 返回值：后端返回 data（unknown）
+ * - 副作用：发起网络请求
+ */
+export async function logoutByTokens(payload: LogoutRequest): Promise<unknown> {
+  return postAuthApi<LogoutRequest, unknown>('/auth/logout', payload)
+}
+
 export type {
   AuthChannel,
   AuthStatus,
   AuthUserRole,
+  LogoutRequest,
   OrganizationCredentialsLoginRequest,
   OrganizationCredentialChallengeData,
   OrganizationOtpLoginRequest,

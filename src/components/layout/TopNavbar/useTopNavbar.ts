@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { logoutByTokens } from '../../../api/Auth'
+import { getAccessToken, getRefreshToken } from '../../../auth/tokenStorage'
+import { useAuth } from '../../../contexts/AuthContext'
 import { useTheme } from '../../../contexts/ThemeContext'
 import type { AuthStatus, AuthUserRole } from '../../AuthModal'
 import { resolveActiveNavByPathname } from './navRoutes'
@@ -21,11 +24,11 @@ import { resolveActiveNavByPathname } from './navRoutes'
  */
 export function useTopNavbar() {
   const { theme, toggleTheme } = useTheme()
+  const { isLoggedIn, logout } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const activeNavItem = resolveActiveNavByPathname(pathname)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false)
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
 
   // 02）打开登录弹窗（handleOpenAuthModal）
   const handleOpenAuthModal = (): void => {
@@ -49,7 +52,6 @@ export function useTopNavbar() {
    * - 副作用：更新 isAuthenticated 与 isAuthModalOpen
    */
   const handleAuthSuccess = (_userRole: AuthUserRole, _authStatus: AuthStatus): void => {
-    setIsAuthenticated(true)
     setIsAuthModalOpen(false)
   }
 
@@ -67,7 +69,7 @@ export function useTopNavbar() {
    * - 副作用：更新弹窗状态或触发路由跳转
    */
   const handleAuthEntryClick = (): void => {
-    if (!isAuthenticated) {
+    if (!isLoggedIn) {
       handleOpenAuthModal()
       return
     }
@@ -102,24 +104,36 @@ export function useTopNavbar() {
   // 07）退出登录处理（handleLogout）
   /**
    * 函数名：handleLogout
-   * 功能：执行用户退出登录，清理本地登录态并返回未登录入口。
+   * 功能：执行用户退出登录，调用后端登出接口并在结束后清理本地状态、刷新页面。
    * 实现方法：
-   * - 删除 localStorage 中 accessToken 与 refreshToken
-   * - 重置顶部导航本地认证状态
-   * - 若当前位于 /profile，则回到首页避免停留在个人空间页
+   * - 动态读取本地 access_token / refresh_token 组装登出请求体
+   * - 当双 token 齐全时调用后端 /auth/logout 接口销毁服务端会话
+   * - 接口成功视为正常登出；接口异常仅记录日志，避免按钮“无响应”假象
+   * - 不论后端成功失败，最终都清理本地登录态并执行浏览器刷新（清空内存）
    * 输入：无
    * 输出：
    * - 返回值：void
-   * - 副作用：更新 isAuthenticated、写 localStorage、触发路由跳转
+   * - 副作用：网络请求、清理 localStorage、触发页面刷新
    */
   const handleLogout = (): void => {
-    window.localStorage.removeItem('accessToken')
-    window.localStorage.removeItem('refreshToken')
-    setIsAuthenticated(false)
+    void (async () => {
+      const currentAccessToken = getAccessToken()
+      const currentRefreshToken = getRefreshToken()
 
-    if (pathname === '/profile') {
-      navigate('/')
-    }
+      try {
+        if (currentAccessToken && currentRefreshToken) {
+          await logoutByTokens({
+            accessToken: currentAccessToken,
+            refreshToken: currentRefreshToken,
+          })
+        }
+      } catch (logoutError) {
+        console.warn('退出登录接口调用失败，将继续清理本地登录态：', logoutError)
+      } finally {
+        logout()
+        window.location.reload()
+      }
+    })()
   }
 
   return {
@@ -128,7 +142,7 @@ export function useTopNavbar() {
     pathname,
     activeNavItem,
     isAuthModalOpen,
-    isAuthenticated,
+    isAuthenticated: isLoggedIn,
     handleCloseAuthModal,
     handleAuthSuccess,
     handleAuthEntryClick,

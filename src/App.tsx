@@ -6,6 +6,9 @@ import ExperienceSharePage from './pages/ExperienceSharePage.tsx'
 import ProjectDetailPage from './pages/ProjectDetailPage.tsx'
 import NoteDetailPage from './pages/NoteDetailPage.tsx'
 import InstantMessagePage from './pages/InstantMessagePage.tsx'
+import LoginPage from './pages/LoginPage.tsx'
+import LabManagePage from './pages/LabManagePage.tsx'
+import ProtectedRoute from './components/routes/ProtectedRoute.tsx'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 // 01）应用入口组件（App）
@@ -29,7 +32,16 @@ function App() {
       <Route path="/enterprise" element={<EnterprisePracticePage />} />
       <Route path="/campus-recruit" element={<CampusRecruitPage />} />
       <Route path="/experience-share" element={<ExperienceSharePage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/profile" element={<ProfileSpacePage />} />
+      <Route
+        path="/lab/manage"
+        element={
+          <ProtectedRoute>
+            <LabManagePage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/project-detail" element={<ProjectDetailPage />} />
       <Route path="/note-detail" element={<NoteDetailPage />} />
       <Route path="/messages" element={<InstantMessagePage />} />

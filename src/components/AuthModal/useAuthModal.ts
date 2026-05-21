@@ -9,6 +9,7 @@ import {
   type AuthChannel,
 } from '../../api/Auth'
 import { CommonApiError, sendVerificationCode } from '../../api/common'
+import { useAuth } from '../../contexts/AuthContext'
 import { hashPassword } from '../../utils/crypto'
 import type {
   AuthModalProps,
@@ -22,7 +23,49 @@ import type {
 // 01）Hook 参数类型定义（UseAuthModalParams）
 interface UseAuthModalParams extends AuthModalProps {}
 
-// 02）邮箱后缀校验（isEduCnMailbox）
+// 02）个人账号缓存键常量（PERSONAL_ACCOUNT_CACHE_KEY）
+const PERSONAL_ACCOUNT_CACHE_KEY = 'rememberedPersonalAccount'
+
+// 03）读取缓存的个人账号（getCachedPersonalAccount）
+/**
+ * 函数名：getCachedPersonalAccount
+ * 功能：从本地存储读取“记住我”缓存的个人登录账号。
+ * 实现方法：
+ * - 从 localStorage 固定键读取账号
+ * - 若不存在则返回空字符串
+ * 输入：无
+ * 输出：
+ * - 返回值：缓存账号字符串
+ * - 副作用：读取 localStorage
+ */
+function getCachedPersonalAccount(): string {
+  return window.localStorage.getItem(PERSONAL_ACCOUNT_CACHE_KEY) ?? ''
+}
+
+// 04）根据记住我设置同步个人账号缓存（syncPersonalAccountCache）
+/**
+ * 函数名：syncPersonalAccountCache
+ * 功能：根据“记住我”状态同步个人账号缓存（仅账号，不保存密码）。
+ * 实现方法：
+ * - rememberMe=true 且账号非空：写入缓存
+ * - 其他情况：移除缓存键
+ * 输入：
+ * - account：当前账号输入值
+ * - rememberMe：是否勾选记住我
+ * 输出：
+ * - 返回值：void
+ * - 副作用：写入或删除 localStorage
+ */
+function syncPersonalAccountCache(account: string, rememberMe: boolean): void {
+  const normalizedAccount = account.trim()
+  if (rememberMe && normalizedAccount) {
+    window.localStorage.setItem(PERSONAL_ACCOUNT_CACHE_KEY, normalizedAccount)
+    return
+  }
+  window.localStorage.removeItem(PERSONAL_ACCOUNT_CACHE_KEY)
+}
+
+// 05）邮箱后缀校验（isEduCnMailbox）
 /**
  * 函数名：isEduCnMailbox
  * 功能：校验输入邮箱是否为 .edu.cn 后缀。
@@ -40,7 +83,7 @@ function isEduCnMailbox(email: string): boolean {
   return normalizedEmail.endsWith('.edu.cn')
 }
 
-// 03）账号通道推断（resolveChannelByAccount）
+// 06）账号通道推断（resolveChannelByAccount）
 /**
  * 函数名：resolveChannelByAccount
  * 功能：根据个人账号内容推断验证码/登录通道类型。
@@ -57,7 +100,7 @@ function resolveChannelByAccount(account: string): AuthChannel {
   return account.includes('@') ? 'email' : 'sms'
 }
 
-// 04）认证错误文案映射（mapAuthApiErrorMessage）
+// 07）认证错误文案映射（mapAuthApiErrorMessage）
 /**
  * 函数名：mapAuthApiErrorMessage
  * 功能：将后端认证错误码映射为前端可读文案。
@@ -87,7 +130,7 @@ function mapAuthApiErrorMessage(error: unknown, fallbackMessage: string): string
     case 'OTP_FORMAT_INVALID':
       return '请输入 6 位数字动态验证码'
     case 'ORGANIZATION_FIELDS_REQUIRED':
-      return '请完整输入机构代码、账号和密码'
+      return '服务端校验未通过：缺少机构代码或登录凭证字段（请联系后端核对请求体字段名）'
     case 'ACCOUNT_ALREADY_EXISTS':
       return '该账号已注册，请直接登录'
     case 'INVALID_VERIFY_CODE':
@@ -102,30 +145,7 @@ function mapAuthApiErrorMessage(error: unknown, fallbackMessage: string): string
   }
 }
 
-// 05）登录态令牌持久化（persistAuthTokens）
-/**
- * 函数名：persistAuthTokens
- * 功能：将认证成功后返回的 accessToken 与 refreshToken 写入浏览器本地存储。
- * 实现方法：
- * - 对 accessToken / refreshToken 做非空判断
- * - 使用 localStorage 固定键名写入两个 token
- * - 保证请求拦截器能够直接读取 accessToken 发起鉴权请求
- * 输入：
- * - accessToken：访问令牌字符串
- * - refreshToken：刷新令牌字符串
- * 输出：
- * - 返回值：void
- * - 副作用：写入 localStorage（键名：accessToken、refreshToken）
- */
-function persistAuthTokens(accessToken: string, refreshToken: string): void {
-  if (!accessToken || !refreshToken) {
-    return
-  }
-  window.localStorage.setItem('accessToken', accessToken)
-  window.localStorage.setItem('refreshToken', refreshToken)
-}
-
-// 06）验证码重发冷却时间归一化（normalizeRetryAfterSec）
+// 08）验证码重发冷却时间归一化（normalizeRetryAfterSec）
 /**
  * 函数名：normalizeRetryAfterSec
  * 功能：将验证码接口返回的重试秒数转换为可用的倒计时秒数。
@@ -142,7 +162,7 @@ function normalizeRetryAfterSec(retryAfterSec: number): number {
   return Number.isFinite(retryAfterSec) && retryAfterSec > 0 ? Math.floor(retryAfterSec) : 60
 }
 
-// 07）认证弹窗业务状态 Hook（useAuthModal）
+// 09）认证弹窗业务状态 Hook（useAuthModal）
 /**
  * 函数名：useAuthModal
  * 功能：聚合 AuthModal 的切换、校验、重置等状态与行为。
@@ -157,6 +177,8 @@ function normalizeRetryAfterSec(retryAfterSec: number): number {
  * - 副作用：锁定 body 滚动并监听 ESC
  */
 export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
+  const { login: commitAuthLogin } = useAuth()
+  const cachedPersonalAccount = getCachedPersonalAccount()
   const [activeTab, setActiveTab] = useState<AuthTabType>('personal')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [showVerificationGuide, setShowVerificationGuide] = useState<boolean>(false)
@@ -165,14 +187,13 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
   const [organizationStep, setOrganizationStep] = useState<OrganizationLoginStep>('credentials')
   const [authErrorMessage, setAuthErrorMessage] = useState<string>('')
 
-  const [personalPhone, setPersonalPhone] = useState<string>('')
+  const [personalPhone, setPersonalPhone] = useState<string>(cachedPersonalAccount)
   const [personalCode, setPersonalCode] = useState<string>('')
   const [organizationCode, setOrganizationCode] = useState<string>('')
-  const [organizationAccount, setOrganizationAccount] = useState<string>('')
   const [organizationPassword, setOrganizationPassword] = useState<string>('')
   const [organizationOtpCode, setOrganizationOtpCode] = useState<string>('')
   const [organizationChallengeId, setOrganizationChallengeId] = useState<string>('')
-  const [rememberMe, setRememberMe] = useState<boolean>(true)
+  const [rememberMe, setRememberMe] = useState<boolean>(cachedPersonalAccount.length > 0)
   const [personalLoginMode, setPersonalLoginMode] = useState<PersonalLoginMode>('password')
   const [personalPanelView, setPersonalPanelView] = useState<PersonalPanelView>('login')
   const [shouldRenderPersonalLoginForm, setShouldRenderPersonalLoginForm] = useState<boolean>(true)
@@ -193,7 +214,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
   const PERSONAL_PANEL_TRANSITION_MS = 360
   const eduMailboxMatched = useMemo<boolean>(() => isEduCnMailbox(eduMailbox), [eduMailbox])
 
-  // 08）页面副作用：锁滚动和 ESC 监听
+  // 10）页面副作用：锁滚动和 ESC 监听
   useEffect(() => {
     if (!open) {
       return undefined
@@ -212,7 +233,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     }
   }, [open, onClose])
 
-  // 09）页面副作用：关闭时重置
+  // 11）页面副作用：关闭时重置
   useEffect(() => {
     if (open) {
       return
@@ -224,7 +245,12 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setPersonalPanelView('login')
     setShouldRenderPersonalLoginForm(true)
     setShouldRenderPersonalRegisterForm(false)
+    setShowVerificationGuide(false)
+    setVerificationTab('edu-mail')
+    setEduMailbox('')
     setPersonalLoginMode('password')
+    setPersonalPhone(rememberMe ? getCachedPersonalAccount() : '')
+    setPersonalCode('')
     setRegisterAccount('')
     setRegisterPassword('')
     setRegisterConfirmPassword('')
@@ -238,7 +264,12 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setOrganizationChallengeId('')
   }, [open])
 
-  // 10）页面副作用：登录验证码倒计时
+  // 12）页面副作用：个人账号缓存同步
+  useEffect(() => {
+    syncPersonalAccountCache(personalPhone, rememberMe)
+  }, [personalPhone, rememberMe])
+
+  // 13）页面副作用：登录验证码倒计时
   useEffect(() => {
     if (personalLoginCodeCooldownSec <= 0) {
       return undefined
@@ -251,7 +282,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     }
   }, [personalLoginCodeCooldownSec])
 
-  // 11）页面副作用：注册验证码倒计时
+  // 14）页面副作用：注册验证码倒计时
   useEffect(() => {
     if (registerCodeCooldownSec <= 0) {
       return undefined
@@ -264,7 +295,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     }
   }, [registerCodeCooldownSec])
 
-  // 12）页面副作用：卸载清理
+  // 15）页面副作用：卸载清理
   useEffect(() => {
     return () => {
       if (registerTransitionTimerRef.current !== null) {
@@ -273,7 +304,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     }
   }, [])
 
-  // 13）登录验证码发送（handleSendPersonalLoginCode）
+  // 16）登录验证码发送（handleSendPersonalLoginCode）
   /**
    * 函数名：handleSendPersonalLoginCode
    * 功能：处理个人登录场景“获取验证码”点击并调用验证码接口。
@@ -314,7 +345,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     })()
   }
 
-  // 14）注册验证码发送（handleSendRegisterCode）
+  // 17）注册验证码发送（handleSendRegisterCode）
   /**
    * 函数名：handleSendRegisterCode
    * 功能：处理个人注册场景“获取验证码”点击并调用验证码接口。
@@ -356,7 +387,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     })()
   }
 
-  // 15）个人登录提交（handlePersonalSubmit）
+  // 18）个人登录提交（handlePersonalSubmit）
   /**
    * 函数名：handlePersonalSubmit
    * 功能：处理个人通道登录提交，并按密码/短信模式调用对应接口。
@@ -399,13 +430,16 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
                 rememberMe,
               })
 
-        persistAuthTokens(loginData.accessToken, loginData.refreshToken)
+        commitAuthLogin({
+          accessToken: loginData.accessToken,
+          refreshToken: loginData.refreshToken,
+          userProfile: {
+            userId: loginData.userId,
+            userRole: loginData.userRole,
+            authStatus: loginData.authStatus,
+          },
+        })
         onSuccess?.(loginData.userRole, loginData.authStatus)
-        if (loginData.authStatus === 'unverified') {
-          setShowVerificationGuide(true)
-          return
-        }
-
         onClose()
       } catch (error) {
         setAuthErrorMessage(mapAuthApiErrorMessage(error, '登录失败，请稍后重试'))
@@ -415,12 +449,12 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     })()
   }
 
-  // 16）主体第一步提交（handleOrganizationCredentialsSubmit）
+  // 19）主体第一步提交（handleOrganizationCredentialsSubmit）
   /**
    * 函数名：handleOrganizationCredentialsSubmit
-   * 功能：处理主体登录第一步，校验并提交机构代码、账号、密码。
+   * 功能：处理主体登录第一步，校验并提交机构代码与登录凭证。
    * 实现方法：
-   * - 校验机构代码、账号、密码必填
+   * - 校验机构代码与密码必填
    * - 密码做 SHA256 后调用主体凭证登录接口
    * - 保存 challengeId 并进入 OTP 阶段
    * 输入：
@@ -432,11 +466,10 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
   const handleOrganizationCredentialsSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
     const normalizedInstitutionCode = organizationCode.trim()
-    const normalizedAccount = organizationAccount.trim()
     const normalizedPassword = organizationPassword.trim()
 
-    if (!normalizedInstitutionCode || !normalizedAccount || !normalizedPassword) {
-      setAuthErrorMessage('请完整输入机构代码、账号和密码')
+    if (!normalizedInstitutionCode || !normalizedPassword) {
+      setAuthErrorMessage('请完整输入机构代码和密码')
       return
     }
 
@@ -447,12 +480,18 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
 
         const challengeData = await loginOrganizationByCredentials({
           institutionCode: normalizedInstitutionCode,
-          account: normalizedAccount,
           password: hashPassword(normalizedPassword),
         })
         setOrganizationChallengeId(challengeData.challengeId)
         setOrganizationStep('otp')
       } catch (error) {
+        if (error instanceof AuthApiError) {
+          console.warn('[OrganizationLogin] 后端返回错误：', {
+            code: error.code,
+            message: error.message,
+            requestPayload: { institutionCode: normalizedInstitutionCode, passwordLength: normalizedPassword.length },
+          })
+        }
         setAuthErrorMessage(mapAuthApiErrorMessage(error, '主体登录失败，请稍后重试'))
       } finally {
         setIsSubmitting(false)
@@ -460,7 +499,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     })()
   }
 
-  // 17）主体 TOTP 校验（handleOrganizationOtpSubmit）
+  // 20）主体 TOTP 校验（handleOrganizationOtpSubmit）
   /**
    * 函数名：handleOrganizationOtpSubmit
    * 功能：处理主体登录第二步 OTP 校验并完成登录。
@@ -493,7 +532,15 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
           challengeId: organizationChallengeId,
           otpCode: organizationOtpCode.trim(),
         })
-        persistAuthTokens(loginData.accessToken, loginData.refreshToken)
+        commitAuthLogin({
+          accessToken: loginData.accessToken,
+          refreshToken: loginData.refreshToken,
+          userProfile: {
+            userId: loginData.userId,
+            userRole: loginData.userRole,
+            authStatus: loginData.authStatus,
+          },
+        })
         onSuccess?.(loginData.userRole, loginData.authStatus)
         setOrganizationStep('credentials')
         setOrganizationOtpCode('')
@@ -507,7 +554,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     })()
   }
 
-  // 18）主体 OTP 表单回退处理函数（handleBackToOrganizationCredentials）
+  // 21）主体 OTP 表单回退处理函数（handleBackToOrganizationCredentials）
   /**
    * 函数名：handleBackToOrganizationCredentials
    * 功能：从 TOTP 验证表单返回主体凭证输入表单。
@@ -526,7 +573,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setAuthErrorMessage('')
   }
 
-  // 19）个人通道模式切换
+  // 22）个人通道模式切换
   const handleSwitchToSmsLoginMode = (): void => {
     setPersonalLoginMode('sms')
     setAuthErrorMessage('')
@@ -538,7 +585,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setPersonalCode('')
   }
 
-  // 20）登录/注册视图切换
+  // 23）登录/注册视图切换
   const handleSwitchToRegisterForm = (): void => {
     if (personalPanelView === 'register') {
       return
@@ -572,7 +619,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     }, PERSONAL_PANEL_TRANSITION_MS)
   }
 
-  // 21）个人注册提交（handlePersonalRegisterSubmit）
+  // 24）个人注册提交（handlePersonalRegisterSubmit）
   /**
    * 函数名：handlePersonalRegisterSubmit
    * 功能：处理个人注册提交，调用注册接口并反馈注册结果。
@@ -619,12 +666,16 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
           verifyCode: normalizedVerifyCode,
           channel: resolveChannelByAccount(normalizedAccount),
         })
-        persistAuthTokens(registerData.accessToken, registerData.refreshToken)
+        commitAuthLogin({
+          accessToken: registerData.accessToken,
+          refreshToken: registerData.refreshToken,
+          userProfile: {
+            userId: registerData.userId,
+            userRole: registerData.userRole,
+            authStatus: registerData.authStatus,
+          },
+        })
         onSuccess?.(registerData.userRole, registerData.authStatus)
-        if (registerData.needVerificationGuide || registerData.authStatus === 'unverified') {
-          setShowVerificationGuide(true)
-          return
-        }
         onClose()
       } catch (error) {
         setRegisterHintMessage(mapAuthApiErrorMessage(error, '注册失败，请稍后重试'))
@@ -634,7 +685,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     })()
   }
 
-  // 22）密码可见切换
+  // 25）密码可见切换
   const handleTogglePersonalPasswordVisibility = (): void => {
     setIsPersonalPasswordVisible((previousValue) => !previousValue)
   }
@@ -642,7 +693,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setIsOrganizationPasswordVisible((previousValue) => !previousValue)
   }
 
-  // 23）认证引导返回
+  // 26）认证引导返回
   const handleBackToAuthForm = (): void => {
     setShowVerificationGuide(false)
   }
@@ -666,8 +717,6 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setPersonalCode,
     organizationCode,
     setOrganizationCode,
-    organizationAccount,
-    setOrganizationAccount,
     organizationPassword,
     setOrganizationPassword,
     organizationOtpCode,
