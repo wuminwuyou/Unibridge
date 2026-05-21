@@ -88,4 +88,14 @@ public class ClientAuthController {
             return Result.error(400, e.getMessage());
         }
     }
+
+    @PostMapping("/logout")
+    public Result handleLogout(@RequestBody HandleLogoutRequest request) {
+        try {
+            clientAuthService.handleLogout(request);
+            return Result.success("logout success", null);
+        } catch (Exception e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
 }

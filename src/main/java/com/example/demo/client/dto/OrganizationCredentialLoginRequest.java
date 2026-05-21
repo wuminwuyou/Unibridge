@@ -6,6 +6,5 @@ import lombok.Data;
 @Data
 public class OrganizationCredentialLoginRequest {
     private String institutionCode;
-    private String account;
     private String password;
 }

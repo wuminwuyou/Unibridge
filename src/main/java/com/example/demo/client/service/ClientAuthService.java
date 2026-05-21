@@ -9,6 +9,7 @@ import com.example.demo.client.mapper.ClientEntityMapper;
 import com.example.demo.client.mapper.ClientUserMapper;
 import com.example.demo.client.mapper.UserAuthLinkMapper;
 import com.example.demo.util.JwtUtil;
+import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -39,6 +40,7 @@ public class ClientAuthService {
     private final Map<String, CodeRecord> codeStore = new ConcurrentHashMap<>();
     private final Map<String, ChallengeRecord> challengeStore = new ConcurrentHashMap<>();
     private final Map<String, String> activeRefreshTokenStore = new ConcurrentHashMap<>();
+    private final Map<String, LocalDateTime> revokedTokenStore = new ConcurrentHashMap<>();
     private final AtomicLong requestCounter = new AtomicLong(1);
 
     @Autowired
@@ -140,9 +142,9 @@ public class ClientAuthService {
         return new SendCodeResponse(requestId, CODE_EXPIRE_SEC, CODE_RETRY_AFTER_SEC);
     }
 
-    /** 主体登录第一步：机构代码 + 账号 + 密码校验，返回 challenge。 */
+    /** 主体登录第一步：机构代码 + 密码校验，返回 challenge。 */
     public OrganizationCredentialResponse loginOrganizationCredentials(OrganizationCredentialLoginRequest request) {
-        if (isBlank(request.getInstitutionCode()) || isBlank(request.getAccount()) || isBlank(request.getPassword())) {
+        if (isBlank(request.getInstitutionCode()) || isBlank(request.getPassword())) {
             throw new RuntimeException("ORGANIZATION_FIELDS_REQUIRED");
         }
 
@@ -202,6 +204,9 @@ public class ClientAuthService {
         if (request == null || isBlank(request.getRefreshToken())) {
             throw new RuntimeException("REFRESH_TOKEN_REQUIRED");
         }
+        if (isTokenRevoked(request.getRefreshToken())) {
+            throw new RuntimeException("REFRESH_TOKEN_INVALID");
+        }
         if (!jwtUtil.validateToken(request.getRefreshToken())) {
             throw new RuntimeException("REFRESH_TOKEN_INVALID");
         }
@@ -243,6 +248,31 @@ public class ClientAuthService {
         String newAccessToken = tokenPair.accessToken();
         String newRefreshToken = tokenPair.refreshToken();
         return new RefreshTokenResponse(newAccessToken, newRefreshToken, ACCESS_TOKEN_EXPIRE_SEC);
+    }
+
+    /** 退出登录：销毁 accessToken 与 refreshToken。 */
+    public synchronized void handleLogout(HandleLogoutRequest request) {
+        if (request == null || isBlank(request.getAccessToken()) || isBlank(request.getRefreshToken())) {
+            throw new RuntimeException("LOGOUT_TOKENS_REQUIRED");
+        }
+
+        String accessToken = request.getAccessToken().trim();
+        String refreshToken = request.getRefreshToken().trim();
+
+        revokeToken(accessToken);
+        revokeToken(refreshToken);
+
+        if (jwtUtil.validateToken(refreshToken)) {
+            String refreshType = jwtUtil.getUserType(refreshToken);
+            String userId = jwtUtil.getUserId(refreshToken);
+            if (isClientRefreshType(refreshType)) {
+                String subjectKey = buildRefreshSubjectKey(Long.parseLong(userId), refreshType);
+                String currentActiveRefresh = activeRefreshTokenStore.get(subjectKey);
+                if (Objects.equals(currentActiveRefresh, refreshToken)) {
+                    activeRefreshTokenStore.remove(subjectKey);
+                }
+            }
+        }
     }
 
     private LoginResponse buildPersonalLoginResponse(ClientUser user) {
@@ -389,6 +419,28 @@ public class ClientAuthService {
 
     private String mapToAccessTokenType(String refreshType) {
         return "CLIENT_ORG_REFRESH".equals(refreshType) ? "CLIENT_ORG" : "CLIENT_USER";
+    }
+
+    private void revokeToken(String token) {
+        try {
+            Claims claims = jwtUtil.parseToken(token);
+            LocalDateTime expireAt = LocalDateTime.ofInstant(claims.getExpiration().toInstant(), java.time.ZoneId.systemDefault());
+            revokedTokenStore.put(token, expireAt);
+        } catch (Exception ignored) {
+            revokedTokenStore.put(token, LocalDateTime.now().plusMinutes(30));
+        }
+    }
+
+    private boolean isTokenRevoked(String token) {
+        LocalDateTime expireAt = revokedTokenStore.get(token);
+        if (expireAt == null) {
+            return false;
+        }
+        if (expireAt.isBefore(LocalDateTime.now())) {
+            revokedTokenStore.remove(token);
+            return false;
+        }
+        return true;
     }
 
     private record AuthMeta(String userRole, String authStatus) {

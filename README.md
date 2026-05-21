@@ -20,6 +20,12 @@ powershell -ExecutionPolicy Bypass -File .\init-db.ps1 -MySqlPassword "<你的�
 powershell -ExecutionPolicy Bypass -File .\start-backend.ps1
 ```
 
+自动监听版本
+
+```
+powershell -ExecutionPolicy Bypass -File .\start-backend-copy.ps1
+```
+
 使用 `prod` 环境启动：
 
 ```powershell
