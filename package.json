@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/crypto-js": "^4.2.2",
     "@unibridge/shared": "*",
+    "axios": "^1.16.1",
     "crypto-js": "^4.2.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.4",

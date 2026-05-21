@@ -110,6 +110,10 @@ export function AuthModalView({ onClose, model }: AuthModalViewProps) {
                       registerConfirmPassword={model.registerConfirmPassword}
                       registerCode={model.registerCode}
                       registerHintMessage={model.registerHintMessage}
+                      isSendingPersonalLoginCode={model.isSendingPersonalLoginCode}
+                      isSendingRegisterCode={model.isSendingRegisterCode}
+                      personalLoginCodeCooldownSec={model.personalLoginCodeCooldownSec}
+                      registerCodeCooldownSec={model.registerCodeCooldownSec}
                       onSetPersonalPhone={model.setPersonalPhone}
                       onSetPersonalCode={model.setPersonalCode}
                       onSetRememberMe={model.setRememberMe}
@@ -124,6 +128,8 @@ export function AuthModalView({ onClose, model }: AuthModalViewProps) {
                       onSwitchToRegister={model.handleSwitchToRegisterForm}
                       onSwitchToLogin={model.handleSwitchToLoginForm}
                       onTogglePasswordVisibility={model.handleTogglePersonalPasswordVisibility}
+                      onSendPersonalLoginCode={model.handleSendPersonalLoginCode}
+                      onSendRegisterCode={model.handleSendRegisterCode}
                     />
                   </div>
                   <div className="auth-channel-slide__pane">
@@ -133,6 +139,7 @@ export function AuthModalView({ onClose, model }: AuthModalViewProps) {
                         organizationAccount={model.organizationAccount}
                         organizationPassword={model.organizationPassword}
                         isOrganizationPasswordVisible={model.isOrganizationPasswordVisible}
+                        isSubmitting={model.isSubmitting}
                         authErrorMessage={model.authErrorMessage}
                         onOrganizationCodeChange={model.setOrganizationCode}
                         onOrganizationAccountChange={model.setOrganizationAccount}
@@ -143,10 +150,11 @@ export function AuthModalView({ onClose, model }: AuthModalViewProps) {
                     ) : (
                       <TwoFactorAuthForm
                         organizationOtpCode={model.organizationOtpCode}
-                        organizationPasswordDigest={model.organizationPasswordDigest}
+                        isSubmitting={model.isSubmitting}
                         authErrorMessage={model.authErrorMessage}
                         onOtpChange={model.setOrganizationOtpCode}
                         onSubmit={model.handleOrganizationOtpSubmit}
+                        onBackToCredentials={model.handleBackToOrganizationCredentials}
                       />
                     )}
                   </div>

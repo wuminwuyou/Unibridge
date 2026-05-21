@@ -10,6 +10,8 @@ interface PersonalLoginFieldsProps {
   rememberMe: boolean
   isPasswordVisible: boolean
   isSubmitting: boolean
+  isSendingCode: boolean
+  codeCooldownSec: number
   errorMessage: string
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onAccountChange: (value: string) => void
@@ -18,6 +20,7 @@ interface PersonalLoginFieldsProps {
   onTogglePasswordVisibility: () => void
   onSwitchMode: (mode: PersonalLoginMode) => void
   onSwitchToRegister: () => void
+  onSendCode: () => void
 }
 
 // 02）个人登录子表单（PersonalLoginFields）
@@ -37,6 +40,8 @@ function PersonalLoginFields({
   rememberMe,
   isPasswordVisible,
   isSubmitting,
+  isSendingCode,
+  codeCooldownSec,
   errorMessage,
   onSubmit,
   onAccountChange,
@@ -45,6 +50,7 @@ function PersonalLoginFields({
   onTogglePasswordVisibility,
   onSwitchMode,
   onSwitchToRegister,
+  onSendCode,
 }: PersonalLoginFieldsProps) {
   return (
     <form className="auth-form auth-personal-form-card auth-personal-form-card--login" onSubmit={onSubmit}>
@@ -121,8 +127,13 @@ function PersonalLoginFields({
               placeholder=" "
             />
             <label htmlFor="auth-personal-sms">请输入验证码</label>
-            <button type="button" className="auth-code-send-button">
-              获取验证码
+            <button
+              type="button"
+              className="auth-code-send-button"
+              onClick={onSendCode}
+              disabled={isSendingCode || codeCooldownSec > 0}
+            >
+              {isSendingCode ? '发送中...' : codeCooldownSec > 0 ? `${codeCooldownSec}s 后重试` : '获取验证码'}
             </button>
           </div>
         </>
@@ -163,6 +174,9 @@ interface PersonalRegisterFieldsProps {
   password: string
   confirmPassword: string
   code: string
+  isSubmitting: boolean
+  isSendingCode: boolean
+  codeCooldownSec: number
   hintMessage: string
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onAccountChange: (value: string) => void
@@ -170,6 +184,7 @@ interface PersonalRegisterFieldsProps {
   onConfirmPasswordChange: (value: string) => void
   onCodeChange: (value: string) => void
   onSwitchToLogin: () => void
+  onSendCode: () => void
 }
 
 // 04）个人注册子表单（PersonalRegisterFields）
@@ -187,6 +202,9 @@ function PersonalRegisterFields({
   password,
   confirmPassword,
   code,
+  isSubmitting,
+  isSendingCode,
+  codeCooldownSec,
   hintMessage,
   onSubmit,
   onAccountChange,
@@ -194,6 +212,7 @@ function PersonalRegisterFields({
   onConfirmPasswordChange,
   onCodeChange,
   onSwitchToLogin,
+  onSendCode,
 }: PersonalRegisterFieldsProps) {
   const [isRegisterPasswordVisible, setIsRegisterPasswordVisible] = useState<boolean>(false)
   const [isRegisterConfirmPasswordVisible, setIsRegisterConfirmPasswordVisible] = useState<boolean>(false)
@@ -221,7 +240,7 @@ function PersonalRegisterFields({
           onChange={(event) => onAccountChange(event.target.value)}
           placeholder=" "
         />
-        <label htmlFor="auth-register-account">邮箱/手机号</label>
+        <label htmlFor="auth-register-account">手机号</label>
       </div>
 
       <div className="auth-password-row-head auth-personal-register__row-head">
@@ -292,13 +311,18 @@ function PersonalRegisterFields({
           placeholder=" "
         />
         <label htmlFor="auth-register-code">请输入验证码</label>
-        <button type="button" className="auth-code-send-button">
-          获取验证码
+        <button
+          type="button"
+          className="auth-code-send-button"
+          onClick={onSendCode}
+          disabled={isSendingCode || codeCooldownSec > 0}
+        >
+          {isSendingCode ? '发送中...' : codeCooldownSec > 0 ? `${codeCooldownSec}s 后重试` : '获取验证码'}
         </button>
       </div>
 
-      <button type="submit" className="auth-submit-button auth-personal-register__submit">
-        注册并继续
+      <button type="submit" className="auth-submit-button auth-personal-register__submit" disabled={isSubmitting}>
+        {isSubmitting ? '提交中...' : '注册并继续'}
       </button>
 
       {hintMessage ? <p className="auth-helper-tip auth-personal-register__hint">{hintMessage}</p> : null}
@@ -327,6 +351,10 @@ interface PersonalFormProps {
   registerConfirmPassword: string
   registerCode: string
   registerHintMessage: string
+  isSendingPersonalLoginCode: boolean
+  isSendingRegisterCode: boolean
+  personalLoginCodeCooldownSec: number
+  registerCodeCooldownSec: number
   onSetPersonalPhone: (value: string) => void
   onSetPersonalCode: (value: string) => void
   onSetRememberMe: (value: boolean) => void
@@ -341,6 +369,8 @@ interface PersonalFormProps {
   onSwitchToRegister: () => void
   onSwitchToLogin: () => void
   onTogglePasswordVisibility: () => void
+  onSendPersonalLoginCode: () => void
+  onSendRegisterCode: () => void
 }
 
 // 06）个人通道总表单（PersonalForm）
@@ -369,6 +399,10 @@ function PersonalForm({
   registerConfirmPassword,
   registerCode,
   registerHintMessage,
+  isSendingPersonalLoginCode,
+  isSendingRegisterCode,
+  personalLoginCodeCooldownSec,
+  registerCodeCooldownSec,
   onSetPersonalPhone,
   onSetPersonalCode,
   onSetRememberMe,
@@ -383,6 +417,8 @@ function PersonalForm({
   onSwitchToRegister,
   onSwitchToLogin,
   onTogglePasswordVisibility,
+  onSendPersonalLoginCode,
+  onSendRegisterCode,
 }: PersonalFormProps) {
   return (
     <div className={`auth-personal-form-stage ${personalPanelView === 'register' ? 'is-register-view' : ''}`}>
@@ -394,6 +430,8 @@ function PersonalForm({
             rememberMe={rememberMe}
             loginMode={personalLoginMode}
             isSubmitting={isSubmitting}
+            isSendingCode={isSendingPersonalLoginCode}
+            codeCooldownSec={personalLoginCodeCooldownSec}
             errorMessage={authErrorMessage}
             isPasswordVisible={isPersonalPasswordVisible}
             onAccountChange={onSetPersonalPhone}
@@ -409,6 +447,7 @@ function PersonalForm({
             }}
             onSwitchToRegister={onSwitchToRegister}
             onTogglePasswordVisibility={onTogglePasswordVisibility}
+            onSendCode={onSendPersonalLoginCode}
           />
         </div>
       ) : null}
@@ -420,6 +459,9 @@ function PersonalForm({
             password={registerPassword}
             confirmPassword={registerConfirmPassword}
             code={registerCode}
+            isSubmitting={isSubmitting}
+            isSendingCode={isSendingRegisterCode}
+            codeCooldownSec={registerCodeCooldownSec}
             hintMessage={registerHintMessage}
             onSubmit={onSubmitPersonalRegister}
             onAccountChange={onSetRegisterAccount}
@@ -427,6 +469,7 @@ function PersonalForm({
             onConfirmPasswordChange={onSetRegisterConfirmPassword}
             onCodeChange={onSetRegisterCode}
             onSwitchToLogin={onSwitchToLogin}
+            onSendCode={onSendRegisterCode}
           />
         </div>
       ) : null}

@@ -38,6 +38,7 @@ export function TopNavbarView({ navItems, model }: TopNavbarViewProps) {
           onToggleTheme={model.toggleTheme}
           onAuthEntryClick={model.handleAuthEntryClick}
           onNotifyClick={model.handleNotifyClick}
+          onLogout={model.handleLogout}
         />
       </div>
 

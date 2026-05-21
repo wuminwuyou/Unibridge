@@ -8,6 +8,7 @@ interface HeaderActionsProps {
   onToggleTheme: () => void
   onAuthEntryClick: () => void
   onNotifyClick: () => void
+  onLogout: () => void
 }
 
 // 02）右侧操作区视图（HeaderActions）
@@ -28,7 +29,7 @@ interface HeaderActionsProps {
  * - 返回值：JSX.Element，右侧操作区结构
  * - 副作用：无（事件由父级处理器承担）
  */
-function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick, onNotifyClick }: HeaderActionsProps) {
+function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick, onNotifyClick, onLogout }: HeaderActionsProps) {
   const themeButtonLabel = `切换到${theme === 'light' ? '深色' : '浅色'}主题`
 
   return (
@@ -66,7 +67,7 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
       </button>
 
       {isAuthenticated ? (
-        <UserProfileMenu />
+        <UserProfileMenu onLogout={onLogout} />
       ) : (
         <button className="login-entry-button" type="button" onClick={onAuthEntryClick}>
           登录 / 注册

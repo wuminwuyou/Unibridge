@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import {
+  AuthApiError,
+  loginOrganizationByCredentials,
+  loginOrganizationByOtp,
+  loginPersonalByPassword,
+  loginPersonalBySms,
+  registerPersonalAccount,
+  type AuthChannel,
+} from '../../api/Auth'
+import { CommonApiError, sendVerificationCode } from '../../api/common'
 import { hashPassword } from '../../utils/crypto'
-import { organizationAuthAccounts, personalAuthAccounts, type OrganizationAuthAccount } from '../../data/authAccounts'
 import type {
   AuthModalProps,
   AuthTabType,
@@ -31,7 +40,109 @@ function isEduCnMailbox(email: string): boolean {
   return normalizedEmail.endsWith('.edu.cn')
 }
 
-// 03）认证弹窗业务状态 Hook（useAuthModal）
+// 03）账号通道推断（resolveChannelByAccount）
+/**
+ * 函数名：resolveChannelByAccount
+ * 功能：根据个人账号内容推断验证码/登录通道类型。
+ * 实现方法：
+ * - 识别邮箱格式时返回 email
+ * - 其他情况默认返回 sms
+ * 输入：
+ * - account：个人账号（手机号或邮箱）
+ * 输出：
+ * - 返回值：AuthChannel（sms 或 email）
+ * - 副作用：无
+ */
+function resolveChannelByAccount(account: string): AuthChannel {
+  return account.includes('@') ? 'email' : 'sms'
+}
+
+// 04）认证错误文案映射（mapAuthApiErrorMessage）
+/**
+ * 函数名：mapAuthApiErrorMessage
+ * 功能：将后端认证错误码映射为前端可读文案。
+ * 实现方法：
+ * - 识别 AuthApiError.code 并返回约定中文提示
+ * - 对未知错误返回默认兜底文案
+ * 输入：
+ * - error：请求层抛出的异常
+ * - fallbackMessage：默认兜底文案
+ * 输出：
+ * - 返回值：可展示给用户的错误提示
+ * - 副作用：无
+ */
+function mapAuthApiErrorMessage(error: unknown, fallbackMessage: string): string {
+  if (!(error instanceof AuthApiError) && !(error instanceof CommonApiError)) {
+    return fallbackMessage
+  }
+
+  switch (error.message) {
+    case 'ACCOUNT_OR_PASSWORD_INVALID':
+    case 'SMS_CODE_INVALID':
+      return '手机号或验证码错误，请检查后重试'
+    case 'ORGANIZATION_CREDENTIAL_INVALID':
+      return '主体账号信息不匹配，请确认后重试'
+    case 'OTP_INVALID':
+      return '动态验证码错误，请重试'
+    case 'OTP_FORMAT_INVALID':
+      return '请输入 6 位数字动态验证码'
+    case 'ORGANIZATION_FIELDS_REQUIRED':
+      return '请完整输入机构代码、账号和密码'
+    case 'ACCOUNT_ALREADY_EXISTS':
+      return '该账号已注册，请直接登录'
+    case 'INVALID_VERIFY_CODE':
+    case 'VERIFY_CODE_EXPIRED':
+      return '验证码无效或已过期，请重新获取'
+    case 'WEAK_PASSWORD':
+      return '密码强度不足，请更换更复杂的密码'
+    case 'PASSWORD_NOT_MATCH':
+      return '两次输入的密码不一致，请检查'
+    default:
+      return error.message || fallbackMessage
+  }
+}
+
+// 05）登录态令牌持久化（persistAuthTokens）
+/**
+ * 函数名：persistAuthTokens
+ * 功能：将认证成功后返回的 accessToken 与 refreshToken 写入浏览器本地存储。
+ * 实现方法：
+ * - 对 accessToken / refreshToken 做非空判断
+ * - 使用 localStorage 固定键名写入两个 token
+ * - 保证请求拦截器能够直接读取 accessToken 发起鉴权请求
+ * 输入：
+ * - accessToken：访问令牌字符串
+ * - refreshToken：刷新令牌字符串
+ * 输出：
+ * - 返回值：void
+ * - 副作用：写入 localStorage（键名：accessToken、refreshToken）
+ */
+function persistAuthTokens(accessToken: string, refreshToken: string): void {
+  if (!accessToken || !refreshToken) {
+    return
+  }
+  window.localStorage.setItem('accessToken', accessToken)
+  window.localStorage.setItem('refreshToken', refreshToken)
+}
+
+// 06）验证码重发冷却时间归一化（normalizeRetryAfterSec）
+/**
+ * 函数名：normalizeRetryAfterSec
+ * 功能：将验证码接口返回的重试秒数转换为可用的倒计时秒数。
+ * 实现方法：
+ * - 当 retryAfterSec 为正整数时直接使用
+ * - 其他场景回退为默认 60 秒
+ * 输入：
+ * - retryAfterSec：接口返回的重发冷却秒数
+ * 输出：
+ * - 返回值：前端倒计时秒数
+ * - 副作用：无
+ */
+function normalizeRetryAfterSec(retryAfterSec: number): number {
+  return Number.isFinite(retryAfterSec) && retryAfterSec > 0 ? Math.floor(retryAfterSec) : 60
+}
+
+// 07）认证弹窗业务状态 Hook（useAuthModal）
 /**
  * 函数名：useAuthModal
  * 功能：聚合 AuthModal 的切换、校验、重置等状态与行为。
@@ -52,8 +163,6 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
   const [verificationTab, setVerificationTab] = useState<VerificationGuideTab>('edu-mail')
   const [eduMailbox, setEduMailbox] = useState<string>('')
   const [organizationStep, setOrganizationStep] = useState<OrganizationLoginStep>('credentials')
-  const [organizationPasswordDigest, setOrganizationPasswordDigest] = useState<string>('')
-  const [matchedOrganizationAccount, setMatchedOrganizationAccount] = useState<OrganizationAuthAccount | null>(null)
   const [authErrorMessage, setAuthErrorMessage] = useState<string>('')
 
   const [personalPhone, setPersonalPhone] = useState<string>('')
@@ -62,6 +171,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
   const [organizationAccount, setOrganizationAccount] = useState<string>('')
   const [organizationPassword, setOrganizationPassword] = useState<string>('')
   const [organizationOtpCode, setOrganizationOtpCode] = useState<string>('')
+  const [organizationChallengeId, setOrganizationChallengeId] = useState<string>('')
   const [rememberMe, setRememberMe] = useState<boolean>(true)
   const [personalLoginMode, setPersonalLoginMode] = useState<PersonalLoginMode>('password')
   const [personalPanelView, setPersonalPanelView] = useState<PersonalPanelView>('login')
@@ -72,6 +182,10 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState<string>('')
   const [registerCode, setRegisterCode] = useState<string>('')
   const [registerHintMessage, setRegisterHintMessage] = useState<string>('')
+  const [isSendingPersonalLoginCode, setIsSendingPersonalLoginCode] = useState<boolean>(false)
+  const [isSendingRegisterCode, setIsSendingRegisterCode] = useState<boolean>(false)
+  const [personalLoginCodeCooldownSec, setPersonalLoginCodeCooldownSec] = useState<number>(0)
+  const [registerCodeCooldownSec, setRegisterCodeCooldownSec] = useState<number>(0)
   const [isPersonalPasswordVisible, setIsPersonalPasswordVisible] = useState<boolean>(false)
   const [isOrganizationPasswordVisible, setIsOrganizationPasswordVisible] = useState<boolean>(false)
 
@@ -79,7 +193,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
   const PERSONAL_PANEL_TRANSITION_MS = 360
   const eduMailboxMatched = useMemo<boolean>(() => isEduCnMailbox(eduMailbox), [eduMailbox])
 
-  // 04）页面副作用：锁滚动和 ESC 监听
+  // 08）页面副作用：锁滚动和 ESC 监听
   useEffect(() => {
     if (!open) {
       return undefined
@@ -98,7 +212,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     }
   }, [open, onClose])
 
-  // 05）页面副作用：关闭时重置
+  // 09）页面副作用：关闭时重置
   useEffect(() => {
     if (open) {
       return
@@ -116,10 +230,41 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setRegisterConfirmPassword('')
     setRegisterCode('')
     setRegisterHintMessage('')
+    setIsSendingPersonalLoginCode(false)
+    setIsSendingRegisterCode(false)
+    setPersonalLoginCodeCooldownSec(0)
+    setRegisterCodeCooldownSec(0)
     setAuthErrorMessage('')
+    setOrganizationChallengeId('')
   }, [open])
 
-  // 06）页面副作用：卸载清理
+  // 10）页面副作用：登录验证码倒计时
+  useEffect(() => {
+    if (personalLoginCodeCooldownSec <= 0) {
+      return undefined
+    }
+    const countdownTimerId = window.setInterval(() => {
+      setPersonalLoginCodeCooldownSec((previousValue) => Math.max(previousValue - 1, 0))
+    }, 1000)
+    return () => {
+      window.clearInterval(countdownTimerId)
+    }
+  }, [personalLoginCodeCooldownSec])
+
+  // 11）页面副作用：注册验证码倒计时
+  useEffect(() => {
+    if (registerCodeCooldownSec <= 0) {
+      return undefined
+    }
+    const countdownTimerId = window.setInterval(() => {
+      setRegisterCodeCooldownSec((previousValue) => Math.max(previousValue - 1, 0))
+    }, 1000)
+    return () => {
+      window.clearInterval(countdownTimerId)
+    }
+  }, [registerCodeCooldownSec])
+
+  // 12）页面副作用：卸载清理
   useEffect(() => {
     return () => {
       if (registerTransitionTimerRef.current !== null) {
@@ -128,81 +273,260 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     }
   }, [])
 
-  // 07）个人登录提交
-  const handlePersonalSubmit = (event: FormEvent<HTMLFormElement>): void => {
-    event.preventDefault()
-    if (!personalPhone.trim() || !personalCode.trim()) {
-      setAuthErrorMessage(personalLoginMode === 'password' ? '请输入账号与密码' : '请输入账号与短信验证码')
+  // 13）登录验证码发送（handleSendPersonalLoginCode）
+  /**
+   * 函数名：handleSendPersonalLoginCode
+   * 功能：处理个人登录场景“获取验证码”点击并调用验证码接口。
+   * 实现方法：
+   * - 校验账号必填并推断短信/邮箱通道
+   * - 调用通用验证码发送接口（bizType=login）
+   * - 成功后按 retryAfterSec 启动重发倒计时
+   * 输入：无
+   * 输出：
+   * - 返回值：void
+   * - 副作用：发起网络请求并更新错误提示、发送状态与倒计时
+   */
+  const handleSendPersonalLoginCode = (): void => {
+    const normalizedAccount = personalPhone.trim()
+    if (!normalizedAccount) {
+      setAuthErrorMessage('请输入账号后再获取验证码')
       return
     }
-    const matchedPersonalAccount = personalAuthAccounts.find(
-      (account) => account.phone === personalPhone.trim() && account.smsCode === personalCode.trim(),
-    )
-    if (!matchedPersonalAccount) {
-      setAuthErrorMessage('手机号或验证码错误，请检查后重试')
+    if (isSendingPersonalLoginCode || personalLoginCodeCooldownSec > 0) {
       return
     }
-    setAuthErrorMessage('')
-    setIsSubmitting(true)
-    window.setTimeout(() => {
-      setIsSubmitting(false)
-      onSuccess?.(matchedPersonalAccount.role, matchedPersonalAccount.authStatus)
-      if (matchedPersonalAccount.authStatus === 'unverified') {
-        setShowVerificationGuide(true)
-      } else {
-        onClose()
+
+    void (async () => {
+      try {
+        setIsSendingPersonalLoginCode(true)
+        setAuthErrorMessage('')
+        const sendCodeData = await sendVerificationCode({
+          account: normalizedAccount,
+          bizType: 'login',
+          channel: resolveChannelByAccount(normalizedAccount),
+        })
+        setPersonalLoginCodeCooldownSec(normalizeRetryAfterSec(sendCodeData.retryAfterSec))
+      } catch (error) {
+        setAuthErrorMessage(mapAuthApiErrorMessage(error, '验证码发送失败，请稍后重试'))
+      } finally {
+        setIsSendingPersonalLoginCode(false)
       }
-    }, 450)
+    })()
   }
 
-  // 08）主体账号密码校验
+  // 14）注册验证码发送（handleSendRegisterCode）
+  /**
+   * 函数名：handleSendRegisterCode
+   * 功能：处理个人注册场景“获取验证码”点击并调用验证码接口。
+   * 实现方法：
+   * - 校验注册账号必填并推断短信/邮箱通道
+   * - 调用通用验证码发送接口（bizType=register）
+   * - 成功后按 retryAfterSec 启动重发倒计时并提示已发送
+   * 输入：无
+   * 输出：
+   * - 返回值：void
+   * - 副作用：发起网络请求并更新提示、发送状态与倒计时
+   */
+  const handleSendRegisterCode = (): void => {
+    const normalizedAccount = registerAccount.trim()
+    if (!normalizedAccount) {
+      setRegisterHintMessage('请输入注册账号后再获取验证码')
+      return
+    }
+    if (isSendingRegisterCode || registerCodeCooldownSec > 0) {
+      return
+    }
+
+    void (async () => {
+      try {
+        setIsSendingRegisterCode(true)
+        setRegisterHintMessage('')
+        const sendCodeData = await sendVerificationCode({
+          account: normalizedAccount,
+          bizType: 'register',
+          channel: resolveChannelByAccount(normalizedAccount),
+        })
+        setRegisterHintMessage('验证码已发送，请注意查收')
+        setRegisterCodeCooldownSec(normalizeRetryAfterSec(sendCodeData.retryAfterSec))
+      } catch (error) {
+        setRegisterHintMessage(mapAuthApiErrorMessage(error, '验证码发送失败，请稍后重试'))
+      } finally {
+        setIsSendingRegisterCode(false)
+      }
+    })()
+  }
+
+  // 15）个人登录提交（handlePersonalSubmit）
+  /**
+   * 函数名：handlePersonalSubmit
+   * 功能：处理个人通道登录提交，并按密码/短信模式调用对应接口。
+   * 实现方法：
+   * - 校验账号与凭证必填
+   * - 密码模式执行 SHA256 后调用密码登录；短信模式调用短信登录
+   * - 成功后按 authStatus 决定关闭弹窗或进入认证引导
+   * 输入：
+   * - event：React 表单提交事件
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新提交状态、错误提示、认证引导显隐
+   */
+  const handlePersonalSubmit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault()
+    const normalizedAccount = personalPhone.trim()
+    const normalizedCredential = personalCode.trim()
+
+    if (!normalizedAccount || !normalizedCredential) {
+      setAuthErrorMessage(personalLoginMode === 'password' ? '请输入账号与密码' : '请输入账号与验证码')
+      return
+    }
+
+    void (async () => {
+      try {
+        setAuthErrorMessage('')
+        setIsSubmitting(true)
+
+        const loginData =
+          personalLoginMode === 'password'
+            ? await loginPersonalByPassword({
+                account: normalizedAccount,
+                password: hashPassword(normalizedCredential),
+                rememberMe,
+                channel: resolveChannelByAccount(normalizedAccount),
+              })
+            : await loginPersonalBySms({
+                account: normalizedAccount,
+                smsCode: normalizedCredential,
+                rememberMe,
+              })
+
+        persistAuthTokens(loginData.accessToken, loginData.refreshToken)
+        onSuccess?.(loginData.userRole, loginData.authStatus)
+        if (loginData.authStatus === 'unverified') {
+          setShowVerificationGuide(true)
+          return
+        }
+
+        onClose()
+      } catch (error) {
+        setAuthErrorMessage(mapAuthApiErrorMessage(error, '登录失败，请稍后重试'))
+      } finally {
+        setIsSubmitting(false)
+      }
+    })()
+  }
+
+  // 16）主体第一步提交（handleOrganizationCredentialsSubmit）
+  /**
+   * 函数名：handleOrganizationCredentialsSubmit
+   * 功能：处理主体登录第一步，校验并提交机构代码、账号、密码。
+   * 实现方法：
+   * - 校验机构代码、账号、密码必填
+   * - 密码做 SHA256 后调用主体凭证登录接口
+   * - 保存 challengeId 并进入 OTP 阶段
+   * 输入：
+   * - event：React 表单提交事件
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新主体步骤、错误提示与挑战 ID
+   */
   const handleOrganizationCredentialsSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
-    if (!organizationCode.trim() || !organizationAccount.trim() || !organizationPassword.trim()) {
+    const normalizedInstitutionCode = organizationCode.trim()
+    const normalizedAccount = organizationAccount.trim()
+    const normalizedPassword = organizationPassword.trim()
+
+    if (!normalizedInstitutionCode || !normalizedAccount || !normalizedPassword) {
       setAuthErrorMessage('请完整输入机构代码、账号和密码')
       return
     }
-    const passwordDigest = hashPassword(organizationPassword.trim())
-    const matchedAccount = organizationAuthAccounts.find(
-      (account) =>
-        account.institutionCode === organizationCode.trim() &&
-        account.account === organizationAccount.trim() &&
-        account.passwordHash === passwordDigest,
-    )
-    if (!matchedAccount) {
-      setAuthErrorMessage('主体账号信息不匹配，请确认后重试')
-      return
-    }
-    setAuthErrorMessage('')
-    setMatchedOrganizationAccount(matchedAccount)
-    setOrganizationPasswordDigest(passwordDigest)
-    setOrganizationStep('otp')
+
+    void (async () => {
+      try {
+        setAuthErrorMessage('')
+        setIsSubmitting(true)
+
+        const challengeData = await loginOrganizationByCredentials({
+          institutionCode: normalizedInstitutionCode,
+          account: normalizedAccount,
+          password: hashPassword(normalizedPassword),
+        })
+        setOrganizationChallengeId(challengeData.challengeId)
+        setOrganizationStep('otp')
+      } catch (error) {
+        setAuthErrorMessage(mapAuthApiErrorMessage(error, '主体登录失败，请稍后重试'))
+      } finally {
+        setIsSubmitting(false)
+      }
+    })()
   }
 
-  // 09）主体 OTP 校验
+  // 17）主体 TOTP 校验（handleOrganizationOtpSubmit）
+  /**
+   * 函数名：handleOrganizationOtpSubmit
+   * 功能：处理主体登录第二步 OTP 校验并完成登录。
+   * 实现方法：
+   * - 校验 OTP 为 6 位数字且 challengeId 存在
+   * - 调用 OTP 登录接口换取最终 token
+   * - 成功后回调 onSuccess 并关闭弹窗
+   * 输入：
+   * - event：React 表单提交事件
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新提交状态、重置主体登录步骤与 OTP 输入
+   */
   const handleOrganizationOtpSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
-    if (!matchedOrganizationAccount) {
-      setAuthErrorMessage('请先完成主体账号密码登录')
-      setOrganizationStep('credentials')
-      return
-    }
     if (!/^\d{6}$/.test(organizationOtpCode.trim())) {
-      setAuthErrorMessage('请输入 6 位数字动态验证码')
+      setAuthErrorMessage('请输入 6 位数字 TOTP 验证码')
       return
     }
-    if (organizationOtpCode.trim() !== matchedOrganizationAccount.otpCode) {
-      setAuthErrorMessage('动态验证码错误，请重试')
+    if (!organizationChallengeId) {
+      setAuthErrorMessage('登录会话已失效，请返回上一步重新校验凭证')
       return
     }
-    setAuthErrorMessage('')
-    onSuccess?.('organization-admin', matchedOrganizationAccount.authStatus)
-    setMatchedOrganizationAccount(null)
-    setOrganizationStep('credentials')
-    onClose()
+
+    void (async () => {
+      try {
+        setAuthErrorMessage('')
+        setIsSubmitting(true)
+        const loginData = await loginOrganizationByOtp({
+          challengeId: organizationChallengeId,
+          otpCode: organizationOtpCode.trim(),
+        })
+        persistAuthTokens(loginData.accessToken, loginData.refreshToken)
+        onSuccess?.(loginData.userRole, loginData.authStatus)
+        setOrganizationStep('credentials')
+        setOrganizationOtpCode('')
+        setOrganizationChallengeId('')
+        onClose()
+      } catch (error) {
+        setAuthErrorMessage(mapAuthApiErrorMessage(error, 'OTP 验证失败，请稍后重试'))
+      } finally {
+        setIsSubmitting(false)
+      }
+    })()
   }
 
-  // 10）个人通道模式切换
+  // 18）主体 OTP 表单回退处理函数（handleBackToOrganizationCredentials）
+  /**
+   * 函数名：handleBackToOrganizationCredentials
+   * 功能：从 TOTP 验证表单返回主体凭证输入表单。
+   * 实现方法：
+   * - 将主体步骤重置为 credentials
+   * - 清空 TOTP 输入与错误提示，避免回退后残留状态
+   * 输入：无
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新组件状态
+   */
+  const handleBackToOrganizationCredentials = (): void => {
+    setOrganizationStep('credentials')
+    setOrganizationOtpCode('')
+    setOrganizationChallengeId('')
+    setAuthErrorMessage('')
+  }
+
+  // 19）个人通道模式切换
   const handleSwitchToSmsLoginMode = (): void => {
     setPersonalLoginMode('sms')
     setAuthErrorMessage('')
@@ -214,7 +538,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setPersonalCode('')
   }
 
-  // 11）登录/注册视图切换
+  // 20）登录/注册视图切换
   const handleSwitchToRegisterForm = (): void => {
     if (personalPanelView === 'register') {
       return
@@ -248,25 +572,69 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     }, PERSONAL_PANEL_TRANSITION_MS)
   }
 
-  // 12）个人注册提交
+  // 21）个人注册提交（handlePersonalRegisterSubmit）
+  /**
+   * 函数名：handlePersonalRegisterSubmit
+   * 功能：处理个人注册提交，调用注册接口并反馈注册结果。
+   * 实现方法：
+   * - 执行必填、密码长度与一致性校验
+   * - 对密码做 SHA256 后调用注册接口
+   * - 成功时同步登录态并切换到认证引导或关闭弹窗
+   * 输入：
+   * - event：React 表单提交事件
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新提交状态、提示文案与认证引导显隐
+   */
   const handlePersonalRegisterSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
-    if (!registerAccount.trim() || !registerPassword.trim() || !registerConfirmPassword.trim() || !registerCode.trim()) {
+    const normalizedAccount = registerAccount.trim()
+    const normalizedPassword = registerPassword.trim()
+    const normalizedConfirmPassword = registerConfirmPassword.trim()
+    const normalizedVerifyCode = registerCode.trim()
+
+    if (!normalizedAccount || !normalizedPassword || !normalizedConfirmPassword || !normalizedVerifyCode) {
       setRegisterHintMessage('请完整输入账号、密码、确认密码与验证码')
       return
     }
-    if (registerPassword.trim().length < 6) {
+    if (normalizedPassword.length < 6) {
       setRegisterHintMessage('密码长度至少 6 位')
       return
     }
-    if (registerPassword !== registerConfirmPassword) {
+    if (normalizedPassword !== normalizedConfirmPassword) {
       setRegisterHintMessage('两次输入的密码不一致，请检查')
       return
     }
-    setRegisterHintMessage('注册信息已提交，请返回登录继续')
+
+    void (async () => {
+      try {
+        setRegisterHintMessage('')
+        setAuthErrorMessage('')
+        setIsSubmitting(true)
+        const hashedPassword = hashPassword(normalizedPassword)
+        const registerData = await registerPersonalAccount({
+          account: normalizedAccount,
+          password: hashedPassword,
+          confirmPassword: hashPassword(normalizedConfirmPassword),
+          verifyCode: normalizedVerifyCode,
+          channel: resolveChannelByAccount(normalizedAccount),
+        })
+        persistAuthTokens(registerData.accessToken, registerData.refreshToken)
+        onSuccess?.(registerData.userRole, registerData.authStatus)
+        if (registerData.needVerificationGuide || registerData.authStatus === 'unverified') {
+          setShowVerificationGuide(true)
+          return
+        }
+        onClose()
+      } catch (error) {
+        setRegisterHintMessage(mapAuthApiErrorMessage(error, '注册失败，请稍后重试'))
+      } finally {
+        setIsSubmitting(false)
+      }
+    })()
   }
 
-  // 13）密码可见切换
+  // 22）密码可见切换
   const handleTogglePersonalPasswordVisibility = (): void => {
     setIsPersonalPasswordVisible((previousValue) => !previousValue)
   }
@@ -274,7 +642,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setIsOrganizationPasswordVisible((previousValue) => !previousValue)
   }
 
-  // 14）认证引导返回
+  // 23）认证引导返回
   const handleBackToAuthForm = (): void => {
     setShowVerificationGuide(false)
   }
@@ -290,7 +658,6 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setEduMailbox,
     eduMailboxMatched,
     organizationStep,
-    organizationPasswordDigest,
     authErrorMessage,
     setAuthErrorMessage,
     personalPhone,
@@ -320,11 +687,18 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     registerCode,
     setRegisterCode,
     registerHintMessage,
+    isSendingPersonalLoginCode,
+    isSendingRegisterCode,
+    personalLoginCodeCooldownSec,
+    registerCodeCooldownSec,
     isPersonalPasswordVisible,
     isOrganizationPasswordVisible,
+    handleSendPersonalLoginCode,
+    handleSendRegisterCode,
     handlePersonalSubmit,
     handleOrganizationCredentialsSubmit,
     handleOrganizationOtpSubmit,
+    handleBackToOrganizationCredentials,
     handleSwitchToSmsLoginMode,
     handleSwitchToPasswordLoginMode,
     handleSwitchToRegisterForm,

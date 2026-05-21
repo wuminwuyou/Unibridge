@@ -14,6 +14,11 @@ import {
 const CLOSE_TIMER_DELAY_MS = 180
 const PROFILE_PATH = '/profile'
 
+// 02）用户头像悬浮菜单参数（UserProfileMenuProps）
+interface UserProfileMenuProps {
+  onLogout: () => void
+}
+
 // 02）用户头像悬浮菜单组件（UserProfileMenu）
 /**
  * 函数名：UserProfileMenu
@@ -30,7 +35,7 @@ const PROFILE_PATH = '/profile'
  * - 返回值：JSX.Element，头像按钮 + 悬浮面板
  * - 副作用：组件内部 state 与 window.open 跳转
  */
-function UserProfileMenu() {
+function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
   const [isUserPanelOpen, setIsUserPanelOpen] = useState<boolean>(false)
   const closeTimerRef = useRef<number | null>(null)
   const location = useLocation()
@@ -101,6 +106,21 @@ function UserProfileMenu() {
     setIsUserPanelOpen(false)
   }
 
+  // 09）退出登录点击处理（handleLogoutClick）
+  /**
+   * 函数名：handleLogoutClick
+   * 功能：点击“退出登录”后关闭用户面板并触发父级退出登录逻辑。
+   * 输入：无
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新面板开关状态并执行 onLogout
+   */
+  const handleLogoutClick = (): void => {
+    clearCloseTimer()
+    setIsUserPanelOpen(false)
+    onLogout()
+  }
+
   return (
     <div
       className={`user-menu ${isUserPanelOpen ? 'is-open' : ''}`}
@@ -161,7 +181,7 @@ function UserProfileMenu() {
           ))}
         </ul>
 
-        <button type="button" className="user-logout-button">
+        <button type="button" className="user-logout-button" onClick={handleLogoutClick}>
           <span className="user-logout-button__icon" aria-hidden="true">
             <LogOut size={24} strokeWidth={2} />
           </span>

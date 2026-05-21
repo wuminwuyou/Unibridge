@@ -1,4 +1,4 @@
-import { Building2, Eye, EyeOff, Lock, UserRound } from 'lucide-react'
+import { Building2, Eye, EyeOff, Lock } from 'lucide-react'
 import type { FormEvent } from 'react'
 
 // 01）机构主体凭证登录表单参数（InstitutionFormProps）
@@ -7,6 +7,7 @@ interface InstitutionFormProps {
   organizationAccount: string
   organizationPassword: string
   isOrganizationPasswordVisible: boolean
+  isSubmitting: boolean
   authErrorMessage: string
   onOrganizationCodeChange: (value: string) => void
   onOrganizationAccountChange: (value: string) => void
@@ -30,6 +31,7 @@ function InstitutionForm({
   organizationAccount,
   organizationPassword,
   isOrganizationPasswordVisible,
+  isSubmitting,
   authErrorMessage,
   onOrganizationCodeChange,
   onOrganizationAccountChange,
@@ -61,17 +63,18 @@ function InstitutionForm({
       </div>
 
       <div className="auth-password-row-head">
-        <span>主体名称</span>
+        <span>主体账号</span>
       </div>
       <div className={`auth-floating-field ${organizationAccount.trim().length > 0 ? 'has-value' : ''}`}>
         <span className="auth-floating-field__icon" aria-hidden="true">
-          <UserRound size={16} />
+          <Building2 size={16} />
         </span>
         <input
           id="auth-organization-account"
           value={organizationAccount}
           onChange={(event) => onOrganizationAccountChange(event.target.value)}
           placeholder=" "
+          autoComplete="username"
         />
         <label htmlFor="auth-organization-account">请输入主体账号</label>
       </div>
@@ -101,9 +104,10 @@ function InstitutionForm({
           {isOrganizationPasswordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </div>
+
       <p className="auth-helper-tip">* 主体账号由平台官方分发，若遗失凭证请联系系统运营人员</p>
-      <button type="submit" className="auth-submit-button">
-        主体登录
+      <button type="submit" className="auth-submit-button" disabled={isSubmitting}>
+        {isSubmitting ? '提交中...' : '下一步'}
       </button>
       {authErrorMessage ? <p className="auth-helper-tip auth-helper-tip--error">{authErrorMessage}</p> : null}
     </form>

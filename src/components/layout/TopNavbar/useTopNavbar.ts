@@ -99,6 +99,29 @@ export function useTopNavbar() {
     window.open('/messages', '_blank', 'noopener,noreferrer')
   }
 
+  // 07）退出登录处理（handleLogout）
+  /**
+   * 函数名：handleLogout
+   * 功能：执行用户退出登录，清理本地登录态并返回未登录入口。
+   * 实现方法：
+   * - 删除 localStorage 中 accessToken 与 refreshToken
+   * - 重置顶部导航本地认证状态
+   * - 若当前位于 /profile，则回到首页避免停留在个人空间页
+   * 输入：无
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新 isAuthenticated、写 localStorage、触发路由跳转
+   */
+  const handleLogout = (): void => {
+    window.localStorage.removeItem('accessToken')
+    window.localStorage.removeItem('refreshToken')
+    setIsAuthenticated(false)
+
+    if (pathname === '/profile') {
+      navigate('/')
+    }
+  }
+
   return {
     theme,
     toggleTheme,
@@ -110,8 +133,9 @@ export function useTopNavbar() {
     handleAuthSuccess,
     handleAuthEntryClick,
     handleNotifyClick,
+    handleLogout,
   }
 }
 
-// 07）顶部导航业务模型类型（TopNavbarModel）
+// 08）顶部导航业务模型类型（TopNavbarModel）
 export type TopNavbarModel = ReturnType<typeof useTopNavbar>
