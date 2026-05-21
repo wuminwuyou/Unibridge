@@ -79,4 +79,13 @@ public class ClientAuthController {
             return Result.error(400, e.getMessage());
         }
     }
+
+    @PostMapping("/refresh")
+    public Result refreshToken(@RequestBody RefreshTokenRequest request) {
+        try {
+            return Result.success(clientAuthService.refreshAccessToken(request));
+        } catch (Exception e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
 }

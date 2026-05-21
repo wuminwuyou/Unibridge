@@ -15,13 +15,17 @@ import java.util.Map;
 public class JwtUtil {
 
     private static final String SECRET_KEY = "your-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm";
-    private static final long EXPIRATION_TIME = 7 * 24 * 60 * 60 * 1000;
+    private static final long EXPIRATION_TIME = 30L * 60 * 1000;
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
     }
 
     public String generateToken(String userId, String userType, Integer authLevel) {
+        return generateToken(userId, userType, authLevel, EXPIRATION_TIME);
+    }
+
+    public String generateToken(String userId, String userType, Integer authLevel, long expirationMillis) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("userType", userType);
@@ -31,7 +35,7 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(userId)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .setExpiration(new Date(System.currentTimeMillis() + expirationMillis))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }

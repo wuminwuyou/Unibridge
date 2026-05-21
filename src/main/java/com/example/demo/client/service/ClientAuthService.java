@@ -32,10 +32,13 @@ public class ClientAuthService {
     private static final int CODE_EXPIRE_SEC = 300;
     private static final int CODE_RETRY_AFTER_SEC = 60;
     private static final int OTP_EXPIRE_SEC = 300;
-    private static final int TOKEN_EXPIRE_SEC = 7200;
+    private static final int ACCESS_TOKEN_EXPIRE_SEC = 30 * 60;
+    private static final int REFRESH_TOKEN_EXPIRE_SEC = 7 * 24 * 60 * 60;
+    private static final long REFRESH_TOKEN_EXPIRE_MS = REFRESH_TOKEN_EXPIRE_SEC * 1000L;
 
     private final Map<String, CodeRecord> codeStore = new ConcurrentHashMap<>();
     private final Map<String, ChallengeRecord> challengeStore = new ConcurrentHashMap<>();
+    private final Map<String, String> activeRefreshTokenStore = new ConcurrentHashMap<>();
     private final AtomicLong requestCounter = new AtomicLong(1);
 
     @Autowired
@@ -79,8 +82,9 @@ public class ClientAuthService {
         user.setPasswordHash(request.getPassword());
         clientUserMapper.insert(user);
 
-        String accessToken = jwtUtil.generateToken(String.valueOf(user.getId()), "CLIENT_USER", 0);
-        String refreshToken = jwtUtil.generateToken(String.valueOf(user.getId()), "CLIENT_USER_REFRESH", 0);
+        TokenPair tokenPair = issueTokenPair(user.getId(), "CLIENT_USER", "CLIENT_USER_REFRESH");
+        String accessToken = tokenPair.accessToken();
+        String refreshToken = tokenPair.refreshToken();
         return new RegisterResponse(user.getId(), null, "unverified", true, accessToken, refreshToken);
     }
 
@@ -187,9 +191,58 @@ public class ClientAuthService {
         clientEntityMapper.updateById(entity);
         challengeStore.remove(request.getChallengeId());
 
-        String accessToken = jwtUtil.generateToken(String.valueOf(entity.getId()), "CLIENT_ORG", 0);
-        String refreshToken = jwtUtil.generateToken(String.valueOf(entity.getId()), "CLIENT_ORG_REFRESH", 0);
-        return new LoginResponse(entity.getId(), "organization-admin", "verified", accessToken, refreshToken, TOKEN_EXPIRE_SEC);
+        TokenPair tokenPair = issueTokenPair(entity.getId(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
+        String accessToken = tokenPair.accessToken();
+        String refreshToken = tokenPair.refreshToken();
+        return new LoginResponse(entity.getId(), "organization-admin", "verified", accessToken, refreshToken, ACCESS_TOKEN_EXPIRE_SEC);
+    }
+
+    /** 使用 refreshToken 换取新的 accessToken（并轮换 refreshToken）。 */
+    public synchronized RefreshTokenResponse refreshAccessToken(RefreshTokenRequest request) {
+        if (request == null || isBlank(request.getRefreshToken())) {
+            throw new RuntimeException("REFRESH_TOKEN_REQUIRED");
+        }
+        if (!jwtUtil.validateToken(request.getRefreshToken())) {
+            throw new RuntimeException("REFRESH_TOKEN_INVALID");
+        }
+
+        String oldRefreshToken = request.getRefreshToken();
+        String userType = jwtUtil.getUserType(oldRefreshToken);
+        String userId = jwtUtil.getUserId(oldRefreshToken);
+        if (!isClientRefreshType(userType)) {
+            throw new RuntimeException("REFRESH_TOKEN_INVALID");
+        }
+
+        Long numericUserId;
+        try {
+            numericUserId = Long.parseLong(userId);
+        } catch (NumberFormatException ex) {
+            throw new RuntimeException("REFRESH_TOKEN_INVALID");
+        }
+
+        String accessTokenType = mapToAccessTokenType(userType);
+        String subjectKey = buildRefreshSubjectKey(numericUserId, userType);
+        String activeRefreshToken = activeRefreshTokenStore.get(subjectKey);
+        if (activeRefreshToken == null || !Objects.equals(activeRefreshToken, oldRefreshToken)) {
+            throw new RuntimeException("REFRESH_TOKEN_INVALID");
+        }
+
+        if ("CLIENT_USER".equals(accessTokenType)) {
+            ClientUser user = clientUserMapper.selectById(numericUserId);
+            if (user == null) {
+                throw new RuntimeException("ACCOUNT_NOT_FOUND");
+            }
+        } else {
+            ClientEntity entity = clientEntityMapper.selectById(numericUserId);
+            if (entity == null) {
+                throw new RuntimeException("CHALLENGE_NOT_FOUND");
+            }
+        }
+
+        TokenPair tokenPair = issueTokenPair(numericUserId, accessTokenType, userType);
+        String newAccessToken = tokenPair.accessToken();
+        String newRefreshToken = tokenPair.refreshToken();
+        return new RefreshTokenResponse(newAccessToken, newRefreshToken, ACCESS_TOKEN_EXPIRE_SEC);
     }
 
     private LoginResponse buildPersonalLoginResponse(ClientUser user) {
@@ -197,9 +250,10 @@ public class ClientAuthService {
         clientUserMapper.updateById(user);
 
         AuthMeta authMeta = resolveUserAuthMeta(user.getId());
-        String accessToken = jwtUtil.generateToken(String.valueOf(user.getId()), "CLIENT_USER", 0);
-        String refreshToken = jwtUtil.generateToken(String.valueOf(user.getId()), "CLIENT_USER_REFRESH", 0);
-        return new LoginResponse(user.getId(), authMeta.userRole, authMeta.authStatus, accessToken, refreshToken, TOKEN_EXPIRE_SEC);
+        TokenPair tokenPair = issueTokenPair(user.getId(), "CLIENT_USER", "CLIENT_USER_REFRESH");
+        String accessToken = tokenPair.accessToken();
+        String refreshToken = tokenPair.refreshToken();
+        return new LoginResponse(user.getId(), authMeta.userRole, authMeta.authStatus, accessToken, refreshToken, ACCESS_TOKEN_EXPIRE_SEC);
     }
 
     private ClientUser loadPersonalUserByAccount(String accountRaw) {
@@ -306,6 +360,37 @@ public class ClientAuthService {
         return normalized.substring(0, 1) + "***" + normalized.substring(normalized.length() - 1);
     }
 
+    private String generateAccessToken(Long userId, String userType) {
+        return jwtUtil.generateToken(String.valueOf(userId), userType, 0);
+    }
+
+    private String generateRefreshToken(Long userId, String userType) {
+        return jwtUtil.generateToken(String.valueOf(userId), userType, 0, REFRESH_TOKEN_EXPIRE_MS);
+    }
+
+    /**
+     * 刷新 token 采用一次性设计：
+     * 每次签发新 refreshToken 都会覆盖旧值，旧 token 立刻失效。
+     */
+    private TokenPair issueTokenPair(Long userId, String accessTokenType, String refreshTokenType) {
+        String accessToken = generateAccessToken(userId, accessTokenType);
+        String refreshToken = generateRefreshToken(userId, refreshTokenType);
+        activeRefreshTokenStore.put(buildRefreshSubjectKey(userId, refreshTokenType), refreshToken);
+        return new TokenPair(accessToken, refreshToken);
+    }
+
+    private String buildRefreshSubjectKey(Long userId, String refreshTokenType) {
+        return userId + "|" + refreshTokenType;
+    }
+
+    private boolean isClientRefreshType(String userType) {
+        return "CLIENT_USER_REFRESH".equals(userType) || "CLIENT_ORG_REFRESH".equals(userType);
+    }
+
+    private String mapToAccessTokenType(String refreshType) {
+        return "CLIENT_ORG_REFRESH".equals(refreshType) ? "CLIENT_ORG" : "CLIENT_USER";
+    }
+
     private record AuthMeta(String userRole, String authStatus) {
     }
 
@@ -313,5 +398,8 @@ public class ClientAuthService {
     }
 
     private record ChallengeRecord(Long entityId, String otpCode, LocalDateTime expireAt) {
+    }
+
+    private record TokenPair(String accessToken, String refreshToken) {
     }
 }
