@@ -62,25 +62,58 @@ UnibridgeBackend/
     └── main/
         ├── java/com/example/demo/
         │   ├── DemoApplication.java          # Spring Boot 启动入口
+        │   ├── admin/                        # admin 领域（已隔离）
+        │   │   ├── controller/
+        │   │   │   ├── AdminAuthController.java  # /api/v1/admin/login
+        │   │   │   └── AdminController.java      # /api/v1/admin 业务接口
+        │   │   ├── service/
+        │   │   │   └── AdminAuthService.java
+        │   │   ├── dto/
+        │   │   │   └── AdminLoginRequest.java
+        │   │   ├── entity/
+        │   │   │   └── SystemAdmin.java
+        │   │   └── mapper/
+        │   │       └── SystemAdminMapper.java
+        │   ├── client/                       # client 领域（登录/注册接口）
+        │   │   ├── controller/
+        │   │   │   └── ClientAuthController.java
+        │   │   ├── service/
+        │   │   │   └── ClientAuthService.java
+        │   │   ├── dto/
+        │   │   │   ├── PersonalRegisterRequest.java
+        │   │   │   ├── PersonalPasswordLoginRequest.java
+        │   │   │   ├── PersonalSmsLoginRequest.java
+        │   │   │   ├── PersonalEmailLoginRequest.java
+        │   │   │   ├── SendCodeRequest.java
+        │   │   │   ├── OrganizationCredentialLoginRequest.java
+        │   │   │   ├── OrganizationOtpLoginRequest.java
+        │   │   │   ├── RegisterResponse.java
+        │   │   │   ├── LoginResponse.java
+        │   │   │   ├── SendCodeResponse.java
+        │   │   │   └── OrganizationCredentialResponse.java
+        │   │   ├── entity/
+        │   │   │   ├── ClientUser.java
+        │   │   │   ├── ClientEntity.java
+        │   │   │   └── UserAuthLink.java
+        │   │   └── mapper/
+        │   │       ├── ClientUserMapper.java
+        │   │       ├── ClientEntityMapper.java
+        │   │       └── UserAuthLinkMapper.java
         │   ├── common/
         │   │   └── Result.java               # 统一响应结构 {code, message, data}
         │   ├── config/
         │   │   └── WebConfig.java            # 全局 CORS 配置
         │   ├── controller/
-        │   │   ├── AuthController.java       # /api/v1 登录、登出
-        │   │   └── AdminController.java      # /api/v1/admin 管理端业务接口
+        │   │   └── AuthController.java       # /api/v1 用户/主体登录、登出
         │   ├── service/
-        │   │   └── AuthService.java          # 登录/登出业务逻辑
+        │   │   └── AuthService.java          # 用户/主体登录、登出逻辑
         │   ├── entity/                       # 数据库实体（MyBatis Plus）
-        │   │   ├── SystemAdmin.java          # system_admin
-        │   │   ├── UserProfile.java          # userProfile
+        │   │   ├── User.java                 # user（个人账号）
         │   │   └── Entity.java               # entity（主体：高校/企业）
         │   ├── mapper/                       # MyBatis Plus Mapper
-        │   │   ├── SystemAdminMapper.java
         │   │   ├── UserProfileMapper.java
         │   │   └── EntityMapper.java
         │   ├── dto/                          # 请求 / 响应 DTO
-        │   │   ├── AdminLoginRequest.java
         │   │   ├── UserLoginRequest.java
         │   │   ├── EntityLoginRequest.java
         │   │   ├── UserRegisterRequest.java

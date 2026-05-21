@@ -145,13 +145,13 @@ CREATE TABLE IF NOT EXISTS laboratory_profile (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 08）用户认证关联（user_auth_link：userProfile <-> entity，可选 lab）
+-- 08）用户认证关联（user_auth_link：user <-> entity，可选 lab）
 -- =========================
 CREATE TABLE user_auth_link (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL,
   entity_id BIGINT UNSIGNED NOT NULL,
-  lab_id BIGINT UNSIGNED NULL COMMENT '学校侧必填 (1:N)',
+  lab_id BIGINT UNSIGNED NULL COMMENT '用于绑定实验室的负责导师（1:N）',
   business_role VARCHAR(32) NOT NULL COMMENT 'PM | MENTOR | FACULTY | STUDENT',
   audit_status VARCHAR(32) NOT NULL COMMENT '认证状态',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
