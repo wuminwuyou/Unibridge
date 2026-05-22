@@ -1,3 +1,5 @@
+import type { LevelCode } from './level'
+
 // 01）项目标签类型定义（ProjectTag）
 export interface ProjectTag {
   label: string
@@ -17,7 +19,7 @@ export interface ProjectItem {
   company: string
   publisher: string
   publishTime: string
-  level: 'N' | 'R' | 'SR' | 'SSR' | 'UR'
+  level: LevelCode
   amount: string
 }
 

@@ -1,12 +1,13 @@
-import HomePage from './pages/HomePage.tsx'
+import HomePage from './pages/HomePage/HomePage.tsx'
 import EnterprisePracticePage from './pages/EnterprisePracticePage.tsx'
 import CampusRecruitPage from './pages/CampusRecruitPage.tsx'
-import ProfileSpacePage from './pages/ProfileSpacePage.tsx'
+import ProfileSpacePage from './pages/ProfileSpace/ProfileSpacePage.tsx'
 import ExperienceSharePage from './pages/ExperienceSharePage.tsx'
-import ProjectDetailPage from './pages/ProjectDetailPage.tsx'
-import NoteDetailPage from './pages/NoteDetailPage.tsx'
+import ProjectDetailPage from './pages/ProjectDetailPage/ProjectDetailPage.tsx'
+import NoteDetailPage from './pages/NoteDetailPage/NoteDetailPage.tsx'
 import InstantMessagePage from './pages/InstantMessagePage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
+import OrganizationVerificationPage from './pages/VerificationPage/OrganizationVerificationPage.tsx'
 import LabManagePage from './pages/LabManagePage.tsx'
 import ProtectedRoute from './components/routes/ProtectedRoute.tsx'
 import { Navigate, Route, Routes } from 'react-router-dom'
@@ -34,6 +35,14 @@ function App() {
       <Route path="/experience-share" element={<ExperienceSharePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/profile" element={<ProfileSpacePage />} />
+      <Route
+        path="/verify/organization"
+        element={
+          <ProtectedRoute>
+            <OrganizationVerificationPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/lab/manage"
         element={

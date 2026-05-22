@@ -1,204 +1,344 @@
-# AuthModal API 需求文档
+# UniBridge Web-Client Auth API 文档
 
-## 01）文档目的
+> 本机联调地址（localhost）：`http://localhost:8081/api/v1/client`
+> 
+> 前端若使用绝对地址，可将 `baseURL` 配置为：`http://localhost:8081/api/v1/client`
 
-- 本文档用于支撑 `apps/web-client/src/components/AuthModal` 当前交互。
-- 覆盖三类核心能力：
-  - 个人账号注册
-  - 个人账号登录（密码 / 短信验证码）
-  - 主体账号登录（凭证 + OTP 二次验证）
-- 目标是让后端接口与前端字段、状态、错误提示一一对应，降低联调成本。
+本文档用于对接 `apps/web-client/src/components/AuthModal`，当前包含：
 
-## 02）范围与前端行为约束
+- 个人账号注册 API
+- 个人账号登录 API（密码 / 短信验证码）
+- 主体账号登录 API（凭证校验 + OTP 二次验证）
+- 验证码下发 API
+
+> 基础路径约定：前端 `axios` 默认 `baseURL = /api/v1/client`。  
+> 下文所有路径均相对 `/api/v1/client`。
+
+---
+
+## 01）通用约定
+
+### 01.1）接口范围与账号规则
 
 - 前端通道：
   - `personal`：个人通道
   - `organization`：主体通道
-- 前端状态关键字（需后端返回对齐）：
-  - `authStatus`：`verified` 或 `unverified`
-  - `userRole`：`student` / `mentor` / `pm` / `organization-admin`
-- 交互约束：
-  - 个人登录成功后，若 `authStatus=unverified`，前端展示认证引导，不立即关闭弹窗。
-  - 主体登录分两步：先校验机构代码 + 主体账号 + 登录凭证，再校验 OTP。
-  - 前端当前有“获取验证码”按钮，需配套验证码下发接口。
+- 个人账号：
+  - 注册仅支持手机号
+  - 登录支持手机号与邮箱（若已绑定邮箱）
+- 主体账号：
+  - 机构代码由系统发放
+  - 企业/公司使用社会统一信用代码
+  - 学校使用教育部高校官方代码（五位数字）
 
-## 03）统一接口约定
+### 01.2）统一响应结构
 
-- 基础路径建议：`/api/v1/auth`
-- 请求体格式：`application/json`
-- 成功响应建议结构：
-  - `code`: `200`
-  - `message`: `"success"`
-  - `data`: 业务对象
-- 失败响应建议结构：
-  - `code`: 错误码
-  - `message`: 面向用户或日志的错误说明
-  - `data`: 可选
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {}
+}
+```
 
-## 04）个人账号注册
+- `code=200` 表示业务成功
+- 非 `200` 视为失败，`message` 用于展示提示
+- `data` 为业务对象
 
-### 04.1）接口定义
+### 01.3）前端状态字段对齐
 
-- 方法：`POST`
-- 路径：`/api/v1/auth/personal/register`
-- 说明：创建个人账号，供“立即注册”流程使用。
-
-### 04.2）请求参数
-
-- `account`：字符串，邮箱或手机号（对应前端 `registerAccount`）
-- `password`：字符串，建议前端先做 SHA256 后传输（与现有安全策略一致）
-- `confirmPassword`：字符串（用于二次确认）
-- `verifyCode`：字符串，6位数字验证码（对应前端 `registerCode`）
-- `channel`：字符串，可选，`sms` / `email`（用于验证码类型区分）
-
-### 04.3）成功响应 data
-
-- `userId`：用户 ID
-- `userRole`：默认可返回 `student`（后续可扩展）
-- `authStatus`：默认建议 `unverified`
-- `needVerificationGuide`：布尔值，建议返回 `true`
-- `accessToken`：访问令牌
-- `refreshToken`：刷新令牌
-
-### 04.4）失败场景
-
-- `ACCOUNT_ALREADY_EXISTS`：账号已存在
-- `INVALID_VERIFY_CODE`：验证码错误或失效
-- `WEAK_PASSWORD`：密码不满足强度规则
-- `PASSWORD_NOT_MATCH`：两次密码不一致
-- `VERIFY_CODE_EXPIRED`：验证码过期
-
-## 05）个人账号登录（密码）
-
-### 05.1）接口定义
-
-- 方法：`POST`
-- 路径：`/api/v1/auth/personal/login/password`
-- 说明：个人通道密码登录（对应 `personalLoginMode=password`）。
-
-### 05.2）请求参数
-
-- `account`：字符串，邮箱或手机号（对应前端 `personalPhone`）
-- `password`：字符串，建议前端先哈希后传输（当前 UI 文案为“请输入密码”）
-- `rememberMe`：布尔值（对应前端 `rememberMe`）
-
-### 05.3）成功响应 data
-
-- `userId`
-- `userRole`：`student` / `mentor` / `pm`
 - `authStatus`：`verified` / `unverified`
-- `accessToken`
-- `refreshToken`
-- `expiresIn`：秒
+- `userRole`：`student` / `mentor` / `pm` / `organization-admin`
 
-### 05.4）失败场景
+### 01.4）前端交互约束
+
+- 个人登录成功后若 `authStatus=unverified`，前端展示认证引导，不立即关闭弹窗。
+- 主体登录为两步：
+  - 第一步：机构代码 + 主体账号 + 登录凭证
+  - 第二步：TOTP验证码绑定（首次登录），TOTP验证（非首次登录）
+- 前端“获取验证码”按钮需要对应验证码下发接口。
+
+---
+
+## 02）个人账号注册
+
+### 02.1）注册
+
+- **Method**：`POST`
+- **Path**：`/auth/personal/register`
+- **Auth**：否
+- **说明**：创建个人账号，供“立即注册”流程使用。
+
+#### Request Body
+
+```json
+{
+  "account": "13800138000",
+  "password": "<前端SHA256后密码>",
+  "confirmPassword": "<前端SHA256后密码>",
+  "verifyCode": "123456",
+  "channel": "sms"
+}
+```
+
+字段说明：
+
+- `account`：邮箱或手机号（当前注册仅手机号）
+- `password`：建议前端 SHA256 后传输
+- `confirmPassword`：二次确认密码
+- `verifyCode`：6位验证码（对应前端 `registerCode`）
+- `channel`：可选，`sms` / `email`
+
+#### Response Data
+
+```json
+{
+  "userId": 10001,
+  "userRole": "null，注册后尚未绑定主体",
+  "authStatus": "unverified",
+  "needVerificationGuide": true,
+  "accessToken": "<access_token>",
+  "refreshToken": "<refresh_token>"
+}
+```
+
+#### 常见错误码
+
+- `ACCOUNT_ALREADY_EXISTS`
+- `INVALID_VERIFY_CODE`
+- `WEAK_PASSWORD`
+- `PASSWORD_NOT_MATCH`
+- `VERIFY_CODE_EXPIRED`
+
+---
+
+## 03）个人账号登录（密码）
+
+### 03.1）密码登录
+
+- **Method**：`POST`
+- **Path**：`/auth/personal/login/password`
+- **Auth**：否
+- **说明**：个人通道密码登录（对应 `personalLoginMode=password`）。
+
+#### Request Body
+
+```json
+{
+  "account": "13800138000",
+  "password": "<前端SHA256后密码>",
+  "rememberMe": true / false,
+  "channel": "sms"
+}
+```
+
+字段说明：
+
+- `account`：邮箱或手机号
+- `password`：建议前端 SHA256 后传输
+- `rememberMe`：前端选项，是否记住密码
+- `channel`：`sms` / `email`，前端自动检测account，判断是手机号（十一位数）还是邮箱
+
+#### Response Data
+
+```json
+{
+  "userId": 10001,
+  "userRole": "student",
+  "authStatus": "verified",
+  "accessToken": "<access_token>",
+  "refreshToken": "<refresh_token>",
+  "expiresIn": 7200
+}
+```
+
+#### 常见错误码
 
 - `ACCOUNT_OR_PASSWORD_INVALID`
 - `ACCOUNT_LOCKED`
 - `ACCOUNT_DISABLED`
 
-## 06）个人账号登录（短信验证码）
+---
 
-### 06.1）接口定义
+## 04）个人账号登录（短信/邮箱验证码）
 
-- 方法：`POST`
-- 路径：`/api/v1/auth/personal/login/sms`
-- 说明：个人通道短信验证码登录（对应 `personalLoginMode=sms`）。
+### 04.1）短信验证码登录
 
-### 06.2）请求参数
+- **Method**：`POST`
+- **Path**：`/auth/personal/login/sms`
+- **Auth**：否
+- **说明**：个人通道短信验证码登录（对应 `personalLoginMode=sms`）。
 
-- `account`：字符串，手机号/邮箱（当前 UI 是统一账号输入框）
-- `smsCode`：字符串，6位数字（对应前端 `personalCode`）
-- `rememberMe`：布尔值
+#### Request Body
 
-### 06.3）成功响应 data
+```json
+{
+  "account": "13800138000",
+  "smsCode": "123456",
+  "rememberMe": true
+}
+```
 
-- 与密码登录一致：`userId` / `userRole` / `authStatus` / `accessToken` / `refreshToken` / `expiresIn`
+#### Response Data
 
-### 06.4）失败场景
+```json
+{
+  "userId": 10001,
+  "userRole": "student",
+  "authStatus": "verified",
+  "accessToken": "<access_token>",
+  "refreshToken": "<refresh_token>",
+  "expiresIn": 7200
+}
+```
+
+### 04.2）邮箱验证码登录
+
+- **Method**：`POST`
+- **Path**：`/auth/personal/login/email`
+- **Auth**：否
+- **说明**：个人通道邮箱验证码登录（对应 `personalLoginMode=email`）。
+
+#### Request Body
+
+```json
+{
+  "account": "120729545@qq.com",
+  "emailCode": "123456",
+  "rememberMe": true
+}
+```
+
+#### Response Data
+
+```json
+{
+  "userId": 10001,
+  "userRole": "student",
+  "authStatus": "verified",
+  "accessToken": "<access_token>",
+  "refreshToken": "<refresh_token>",
+  "expiresIn": 7200
+}
+```
+
+#### 常见错误码
 
 - `SMS_CODE_INVALID`
 - `SMS_CODE_EXPIRED`
 - `ACCOUNT_NOT_FOUND`
 - `TOO_MANY_ATTEMPTS`
 
-## 07）验证码下发（支持登录与注册）
+---
 
-### 07.1）接口定义
+## 05）验证码下发（登录/注册复用）(目前为开发调试模式，将验证码打印在日志上，不发送)
 
-- 方法：`POST`
-- 路径：`/api/v1/auth/personal/sms/send`
-- 说明：支撑“获取验证码”按钮，供个人登录短信模式与个人注册复用。
+### 05.1）发送验证码
 
-### 07.2）请求参数
+- **Method**：`POST`
+- **Path**：`/auth/personal/sms/send`
+- **Auth**：否
+- **说明**：支撑“获取验证码”按钮，供个人登录短信模式与个人注册复用。
 
-- `account`：字符串，手机号（当前建议先以手机号为主）
-- `bizType`：字符串，`login` / `register`
-- `captchaToken`：字符串，可选（防刷图形验证码票据）
+#### Request Body
 
-### 07.3）成功响应 data
+```json
+{
+  "account": "13800138000",
+  "bizType": "login",
+  "channel": "sms",
+  "captchaToken": "<optional_captcha_token>"
+}
+```
 
-- `requestId`：本次验证码请求流水号
-- `expireInSec`：验证码有效期（秒）
-- `retryAfterSec`：再次发送倒计时（秒）
+#### Response Data
 
-### 07.4）失败场景
+```json
+{
+  "requestId": "req_20260520_000001",
+  "expireInSec": 300,
+  "retryAfterSec": 60
+}
+```
+
+#### 常见错误码
 
 - `TOO_FREQUENT_REQUEST`
 - `CAPTCHA_REQUIRED`
 - `CAPTCHA_INVALID`
 - `ACCOUNT_RISK_BLOCKED`
 
-## 08）主体登录第一步（凭证校验）
+---
 
-### 08.1）接口定义
+## 06）主体账号登录（第一步：凭证校验）
 
-- 方法：`POST`
-- 路径：`/api/v1/auth/organization/login/credentials`
-- 说明：校验机构代码、主体账号、登录凭证，成功后进入 OTP 阶段。
+### 06.1）主体凭证登录
 
-### 08.2）请求参数
+- **Method**：`POST`
+- **Path**：`/auth/organization/login/credentials`
+- **Auth**：否
+- **说明**：校验机构代码、主体账号、登录凭证，成功后进入 OTP 阶段。
 
-- `institutionCode`：字符串（对应前端 `organizationCode`）
-- `account`：字符串（对应前端 `organizationAccount`）
-- `password`：字符串，建议前端 SHA256 后传输
+#### Request Body
 
-### 08.3）成功响应 data
+```json
+{
+  "institutionCode": "12345",
+  "password": "<前端SHA256后凭证>"
+}
+```
 
-- `challengeId`：OTP 阶段会话 ID（必传）
-- `passwordDigestPreview`：可选，摘要前缀（便于前端展示“已完成 SHA256 提交”）
-- `otpExpireInSec`：OTP 有效期（秒）
-- `maskedTarget`：可选，OTP 下发目标脱敏信息
+#### Response Data
 
-### 08.4）失败场景
+```json
+{
+  "challengeId": "chl_20260520_000001",
+  "passwordDigestPreview": "a1b2c3d4e5f6",
+  "otpExpireInSec": 300,
+  "maskedTarget": "***@corp.com"
+}
+```
+
+#### 常见错误码
 
 - `ORGANIZATION_CREDENTIAL_INVALID`
 - `ORGANIZATION_ACCOUNT_DISABLED`
 - `NEED_CONTACT_OPERATOR`
 
-## 09）主体登录第二步（OTP 校验）
+---
 
-### 09.1）接口定义
+## 07）主体账号登录（第二步：OTP 校验）
 
-- 方法：`POST`
-- 路径：`/api/v1/auth/organization/login/otp`
-- 说明：使用 `challengeId` + `otpCode` 完成主体登录闭环。
+### 07.1）主体 OTP 验证登录
 
-### 09.2）请求参数
+- **Method**：`POST`
+- **Path**：`/auth/organization/login/otp`
+- **Auth**：否
+- **说明**：使用 `challengeId + otpCode` 完成主体登录。
 
-- `challengeId`：字符串（来自第一步）
-- `otpCode`：字符串，6位数字（对应前端 `organizationOtpCode`）
+#### Request Body
 
-### 09.3）成功响应 data
+```json
+{
+  "challengeId": "chl_20260520_000001",
+  "otpCode": "123456"
+}
+```
 
-- `userId`
-- `userRole`：固定返回 `organization-admin`
-- `authStatus`：`verified` / `unverified`
-- `accessToken`
-- `refreshToken`
-- `expiresIn`
+#### Response Data
 
-### 09.4）失败场景
+```json
+{
+  "userId": 90001,
+  "userRole": "organization-admin",
+  "authStatus": "verified",
+  "accessToken": "<access_token>",
+  "refreshToken": "<refresh_token>",
+  "expiresIn": 7200
+}
+```
+
+#### 常见错误码
 
 - `CHALLENGE_NOT_FOUND`
 - `CHALLENGE_EXPIRED`
@@ -206,15 +346,56 @@
 - `OTP_EXPIRED`
 - `TOO_MANY_ATTEMPTS`
 
-## 10）前端错误文案映射建议
+### 07.2）刷新 accessToken（一次性 refreshToken 轮换）
 
-- `ACCOUNT_OR_PASSWORD_INVALID` / `SMS_CODE_INVALID` -> `手机号或验证码错误，请检查后重试`
-- `ORGANIZATION_CREDENTIAL_INVALID` -> `主体账号信息不匹配，请确认后重试`
-- `OTP_INVALID` -> `动态验证码错误，请重试`
-- `OTP_FORMAT_INVALID` -> `请输入 6 位数字动态验证码`
-- `ORGANIZATION_FIELDS_REQUIRED` -> `请完整输入机构代码、账号和密码`
+- **Method**：`POST`
+- **Path**：`/auth/refresh`
+- **Auth**：否（使用 refreshToken 换取新令牌）
+- **说明**：当 accessToken 失效时，前端应调用该接口刷新令牌。`refreshToken` 采用一次性安全设计，刷新成功后旧 refreshToken 立即失效。
 
-## 11）安全与风控要求
+#### Request Body
+
+```json
+{
+  "refreshToken": "<refresh_token>"
+}
+```
+
+#### Response Data
+
+```json
+{
+  "accessToken": "<new_access_token>",
+  "refreshToken": "<new_refresh_token>",
+  "expiresIn": 7200
+}
+```
+
+字段说明：
+
+- `accessToken`：新的访问令牌，前端需立即覆盖本地旧值
+- `refreshToken`：新的刷新令牌，前端需立即覆盖本地旧值（旧 refreshToken 不可再次使用）
+- `expiresIn`：accessToken 剩余有效期（秒）
+
+#### 常见错误码
+
+- `REFRESH_TOKEN_INVALID`
+- `REFRESH_TOKEN_EXPIRED`
+- `TOKEN_REUSE_DETECTED`
+
+---
+
+## 08）前端错误文案映射建议
+
+- `ACCOUNT_OR_PASSWORD_INVALID` / `SMS_CODE_INVALID` → `手机号或验证码错误，请检查后重试`
+- `ORGANIZATION_CREDENTIAL_INVALID` → `主体账号信息不匹配，请确认后重试`
+- `OTP_INVALID` → `动态验证码错误，请重试`
+- `OTP_FORMAT_INVALID` → `请输入 6 位数字动态验证码`
+- `ORGANIZATION_FIELDS_REQUIRED` → `请完整输入机构代码、账号和密码`
+
+---
+
+## 09）安全与风控要求
 
 - 所有登录与注册接口必须限流（IP、账号、设备维度）。
 - 验证码必须设置有效期、发送频控、错误次数上限。
@@ -222,14 +403,18 @@
 - 返回体严禁回传敏感字段（原始密码、完整 OTP、完整手机号、完整邮箱）。
 - 对 `unverified` 用户颁发受限权限 token（可浏览，敏感操作受限）。
 
-## 12）联调优先级建议
+---
 
-- P0：
+## 10）联调优先级建议
+
+- **P0**
   - 个人密码登录
   - 主体两步登录
   - 个人注册
-- P1：
+- **P1**
   - 验证码发送与短信登录
   - 风控与错误码细化
-- P2：
+- **P2**
   - 认证引导相关接口（邮箱认证、资料上传）与 `VerificationStep` 对接
+
+

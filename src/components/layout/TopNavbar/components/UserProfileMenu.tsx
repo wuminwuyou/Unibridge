@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import {
-  BadgeCheck,
   BookOpenText,
   ChevronRight,
   FolderKanban,
@@ -12,7 +11,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-import LevelBadge, { type LevelCode } from '../../../common/LevelBadge'
+import LevelBadge from '../../../common/LevelBadge'
+import type { LevelCode } from '../../../../types/level'
 import {
   getCachedUserProfileMenu,
   getUserProfileMenu,
@@ -22,6 +22,7 @@ import {
 import { getUserId } from '../../../../auth/tokenStorage'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { currentUser as fallbackCurrentUser, userStatTabMap } from '../../../../data/currentUserData'
+import VerifiedOrgModal, { VerifiedOrgButton } from '../../../common/VerifiedOrgModal'
 
 // 01）用户头像悬浮菜单常量
 const CLOSE_TIMER_DELAY_MS = 180
@@ -393,11 +394,10 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
             {currentUserProfile.level ? <LevelBadge level={currentUserProfile.level} className="user-level-badge" /> : null}
           </div>
           {currentUserProfile.verifiedOrganization ? (
-            <span className="user-verify-badge">
-              <BadgeCheck size={16} strokeWidth={2} aria-hidden="true" />
-              {currentUserProfile.verifiedOrganization}
-            </span>
-          ) : null}
+            <VerifiedOrgModal organization={currentUserProfile.verifiedOrganization} />
+          ) : (
+            <VerifiedOrgButton onNavigate={() => setIsUserPanelOpen(false)} />
+          )}
         </div>
 
         <div className="user-panel__stats">

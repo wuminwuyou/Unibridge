@@ -1,5 +1,5 @@
 import type { Announcement, ProjectItem, RecommendedCompany } from '../types/project'
-import type { ProfileNoteItem } from '../components/profile/types'
+import type { ProfileNoteItem } from '../pages/ProfileSpace/components/types'
 
 // 01）使用方说明
 /**

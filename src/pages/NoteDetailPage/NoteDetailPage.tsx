@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
-import TopNavbar from '../components/layout/TopNavbar'
-import '../styles/DetailPage.css'
-import '../styles/HomePage.css'
+import TopNavbar from '../../components/layout/TopNavbar'
+import '../../styles/DetailPage.css'
+import '../../styles/HomePage.css'
 
 // 01）顶部导航数据（navItems）
 const navItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']

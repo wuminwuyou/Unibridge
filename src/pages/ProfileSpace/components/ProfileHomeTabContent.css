@@ -1,0 +1,55 @@
+/* 01）左侧主页区块卡片 */
+.profile-section-card {
+    margin-top: 20px;
+    border-radius: 24px;
+    background: var(--profile-card-bg);
+    border: 1px solid var(--profile-card-border);
+    box-shadow: var(--profile-card-shadow);
+    padding: 24px;
+}
+
+.profile-section-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.profile-section-card__head h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--profile-text);
+}
+
+.profile-section-card__head button {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* 02）项目网格（复用 ProjectCard） */
+.profile-project-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.profile-project-grid .project-card {
+    padding: 14px;
+    border-radius: 16px;
+}
+
+.profile-project-grid .project-card__meta h3 {
+    font-size: 16px;
+}
+
+.profile-project-grid .project-card__meta p {
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.profile-project-grid .project-card__value strong {
+    font-size: 24px;
+}

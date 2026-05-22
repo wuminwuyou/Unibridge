@@ -1,7 +1,6 @@
-// 01）能力等级类型定义（LevelCode）
-export type LevelCode = 'N' | 'R' | 'SR' | 'SSR' | 'UR'
+import type { LevelCode } from '../../types/level'
 
-// 02）能力等级色板映射（levelPaletteMap）
+// 01）能力等级色板映射（levelPaletteMap）
 const levelPaletteMap: Record<LevelCode, { color: string; background: string }> = {
   N: { color: '#3a8edb', background: 'rgba(58, 142, 219, 0.15)' },
   R: { color: '#46b357', background: 'rgba(70, 179, 87, 0.15)' },
@@ -10,14 +9,14 @@ const levelPaletteMap: Record<LevelCode, { color: string; background: string }> 
   UR: { color: '#a44ad3', background: 'rgba(164, 74, 211, 0.15)' },
 }
 
-// 03）能力等级标识参数类型（LevelBadgeProps）
+// 02）能力等级标识参数类型（LevelBadgeProps）
 interface LevelBadgeProps {
   level: LevelCode
   className?: string
   variant?: 'text' | 'pill'
 }
 
-// 04）能力等级标识组件（LevelBadge）
+// 03）能力等级标识组件（LevelBadge）
 /**
  * 函数名：LevelBadge
  * 功能：统一渲染能力等级文案与颜色规则，供项目卡片和个人空间等页面复用。

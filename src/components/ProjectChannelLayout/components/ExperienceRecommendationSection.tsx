@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import GridNoteCard from '../../common/GridNoteCard'
-import type { ProfileNoteItem } from '../../profile/types'
+import type { ProfileNoteItem } from '../../../pages/ProfileSpace/components/types'
 
 // 01）经验推荐区参数（ExperienceRecommendationSectionProps）
 interface ExperienceRecommendationSectionProps {

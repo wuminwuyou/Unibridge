@@ -1,13 +1,11 @@
 import { LayoutGrid, List } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import GridNoteCard from '../common/GridNoteCard'
-import RowNoteCard from '../common/RowNoteCard'
+import GridNoteCard from '../../../components/common/GridNoteCard'
+import LoadingSpinner from '../../../components/common/LoadingSpinner'
+import RowNoteCard from '../../../components/common/RowNoteCard'
 import type { ProfileNoteItem } from './types'
-
-// 01）笔记Tab内容组件参数类型（ProfileNotesTabContentProps）
-interface ProfileNotesTabContentProps {
-  notes: ProfileNoteItem[]
-}
+import { useProfileNotesData } from './useProfileNotesData'
+import './ProfileNotesTabContent.css'
 
 // 02）笔记筛选项类型定义（NoteFilterType）
 type NoteFilterType = '全部' | '图文' | '视频'
@@ -57,13 +55,13 @@ function resolveInitialNoteCardLayoutMode(): NoteCardLayoutMode {
  * - 使用筛选状态计算当前要展示的笔记列表
  * - 右上角提供 Grid/Row 视图切换，并缓存到 localStorage
  * - 根据当前视图模式分别渲染 GridNoteCard 或 RowNoteCard
- * 输入：
- * - notes：笔记数据列表
+ * 输入：无
  * 输出：
  * - 返回值：JSX.Element，笔记 Tab 内容结构
- * - 副作用：无
+ * - 副作用：发起网络请求
  */
-function ProfileNotesTabContent({ notes }: ProfileNotesTabContentProps) {
+function ProfileNotesTabContent() {
+  const { loadState, errorMessage, notes, total } = useProfileNotesData()
   const [activeFilter, setActiveFilter] = useState<NoteFilterType>('全部')
   const [layoutMode, setLayoutMode] = useState<NoteCardLayoutMode>(resolveInitialNoteCardLayoutMode)
 
@@ -109,10 +107,26 @@ function ProfileNotesTabContent({ notes }: ProfileNotesTabContentProps) {
     return filteredNotes.map((note) => <RowNoteCard key={note.title} note={note} />)
   }, [filteredNotes])
 
+  if (loadState === 'loading') {
+    return (
+      <div className="profile-tab-status">
+        <LoadingSpinner size={32} label="正在加载笔记数据…" />
+      </div>
+    )
+  }
+
+  if (loadState === 'error') {
+    return (
+      <p className="profile-tab-status profile-tab-status--error" role="alert">
+        {errorMessage ?? '加载笔记列表失败，请稍后重试'}
+      </p>
+    )
+  }
+
   return (
     <article className="profile-section-card">
       <header className="profile-section-card__head">
-        <h2>笔记</h2>
+        <h2>笔记{total != null ? `（${total}）` : ''}</h2>
         <div className="profile-note-layout-switch" role="group" aria-label="笔记卡片布局切换">
           <button
             type="button"
@@ -148,7 +162,9 @@ function ProfileNotesTabContent({ notes }: ProfileNotesTabContentProps) {
           ))}
         </nav>
 
-        {isGridMode ? (
+        {filteredNotes.length === 0 ? (
+          <p className="profile-tab-empty">暂无笔记内容</p>
+        ) : isGridMode ? (
           <div className="profile-note-grid profile-note-grid--five-columns">
             {renderedGridNoteCards}
           </div>

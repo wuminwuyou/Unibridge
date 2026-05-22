@@ -1,7 +1,7 @@
-import ProjectChannelLayout from '../components/ProjectChannelLayout'
-import type { Announcement, ProjectItem, RecommendedCompany } from '../types/project'
-import type { ProfileNoteItem } from '../components/profile/types'
-import '../styles/HomePage.css'
+import ProjectChannelLayout from '../../components/ProjectChannelLayout'
+import type { Announcement, ProjectItem, RecommendedCompany } from '../../types/project'
+import type { ProfileNoteItem } from '../ProfileSpace/components/types'
+import '../../styles/HomePage.css'
 
 // 02）项目卡片数据（projectItems）
 const projectItems: ProjectItem[] = [

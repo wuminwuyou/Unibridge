@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ProjectItem } from '../../types/project'
-import type { ProfileNoteItem } from '../profile/types'
+import type { ProfileNoteItem } from '../../pages/ProfileSpace/components/types'
 import { EXPERIENCE_NOTE_BATCH_SIZE, PROJECT_BATCH_SIZE } from './constants'
 import { pickRecommendationBatch } from './recommendationUtils'
 

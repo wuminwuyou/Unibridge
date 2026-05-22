@@ -1,5 +1,5 @@
 import { CalendarClock } from 'lucide-react'
-import type { ProfileNoteItem } from '../profile/types'
+import type { ProfileNoteItem } from '../../pages/ProfileSpace/components/types'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
 

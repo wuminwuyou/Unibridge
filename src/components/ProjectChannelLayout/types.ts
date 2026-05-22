@@ -1,5 +1,5 @@
 import type { Announcement, ProjectItem, RecommendedCompany } from '../../types/project'
-import type { ProfileNoteItem } from '../profile/types'
+import type { ProfileNoteItem } from '../../pages/ProfileSpace/components/types'
 
 // 01）项目频道布局对外参数（ProjectChannelLayoutProps）
 /**

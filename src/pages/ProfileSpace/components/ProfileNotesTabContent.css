@@ -1,0 +1,122 @@
+/* 01）左侧通用区块卡片 */
+.profile-section-card {
+    margin-top: 20px;
+    border-radius: 24px;
+    background: var(--profile-card-bg);
+    border: 1px solid var(--profile-card-border);
+    box-shadow: var(--profile-card-shadow);
+    padding: 24px;
+}
+
+.profile-section-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.profile-section-card__head h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--profile-text);
+}
+
+.profile-section-card__head button {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.profile-note-row-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* 02）笔记列表 */
+.profile-note-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.profile-note-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.profile-note-grid--five-columns {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.profile-notes-content {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 16px;
+}
+
+.profile-note-filter-nav {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.profile-note-filter-button {
+    height: 36px;
+    width: fit-content;
+    min-width: 0;
+    padding: 0 22px;
+    border-radius: 10px;
+    border: 1px solid var(--profile-card-border);
+    background: var(--profile-card-bg);
+    color: var(--profile-tab-text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.profile-note-filter-button:hover {
+    border-color: color-mix(in srgb, var(--profile-tab-active) 45%, var(--profile-card-border));
+}
+
+.profile-note-filter-button.active {
+    border-color: color-mix(in srgb, var(--profile-tab-active) 55%, var(--profile-card-border));
+    color: var(--profile-tab-active);
+    background: color-mix(in srgb, var(--profile-tab-active) 10%, var(--profile-card-bg));
+}
+
+/* 02-1）笔记视图模式切换按钮 */
+.profile-note-layout-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-note-layout-switch__button {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid var(--profile-card-border);
+    background: var(--profile-card-bg);
+    color: var(--profile-tab-text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.profile-note-layout-switch__button:hover {
+    border-color: color-mix(in srgb, var(--profile-tab-active) 45%, var(--profile-card-border));
+}
+
+.profile-note-layout-switch__button.active {
+    border-color: color-mix(in srgb, var(--profile-tab-active) 55%, var(--profile-card-border));
+    color: var(--profile-tab-active);
+    background: color-mix(in srgb, var(--profile-tab-active) 10%, var(--profile-card-bg));
+}
