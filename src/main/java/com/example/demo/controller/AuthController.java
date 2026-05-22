@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.common.BusinessException;
 import com.example.demo.common.Result;
 import com.example.demo.dto.EntityLoginRequest;
 import com.example.demo.dto.LoginResponse;
@@ -17,32 +18,23 @@ public class AuthController {
 
     @PostMapping("/user/login")
     public Result userLogin(@RequestBody UserLoginRequest request) {
-        try {
-            LoginResponse response = authService.userLogin(request);
-            return Result.success(response);
-        } catch (Exception e) {
-            return Result.error(401, e.getMessage());
-        }
+        LoginResponse response = authService.userLogin(request);
+        return Result.success(response);
     }
 
     @PostMapping("/entity/login")
     public Result entityLogin(@RequestBody EntityLoginRequest request) {
-        try {
-            LoginResponse response = authService.entityLogin(request);
-            return Result.success(response);
-        } catch (Exception e) {
-            return Result.error(401, e.getMessage());
-        }
+        LoginResponse response = authService.entityLogin(request);
+        return Result.success(response);
     }
 
     @PostMapping("/logout")
-    public Result logout(@RequestHeader("Authorization") String authorization) {
-        try {
-            String token = authorization.replace("Bearer ", "");
-            authService.logout(token);
-            return Result.success("退出登录成功", null);
-        } catch (Exception e) {
-            return Result.error(500, e.getMessage());
+    public Result logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            throw BusinessException.unauthorized("UNAUTHORIZED");
         }
+        String token = authorization.replace("Bearer ", "");
+        authService.logout(token);
+        return Result.success("退出登录成功", null);
     }
 }

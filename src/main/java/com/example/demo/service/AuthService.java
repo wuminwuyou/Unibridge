@@ -2,6 +2,7 @@ package com.example.demo.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.demo.admin.service.AdminAuthService;
+import com.example.demo.common.BusinessException;
 import com.example.demo.dto.EntityLoginRequest;
 import com.example.demo.dto.LoginResponse;
 import com.example.demo.dto.UserLoginRequest;
@@ -36,11 +37,11 @@ public class AuthService {
         UserProfile userProfile = userProfileMapper.selectOne(wrapper);
 
         if (userProfile == null) {
-            throw new RuntimeException("用户不存在");
+            throw BusinessException.unauthorized("用户不存在");
         }
 
         if (!userProfile.getPasswordHash().equals(request.getPasswordHash())) {
-            throw new RuntimeException("密码错误");
+            throw BusinessException.unauthorized("密码错误");
         }
 
         userProfile.setLastLoginAt(LocalDateTime.now());
@@ -57,11 +58,11 @@ public class AuthService {
         Entity entity = entityMapper.selectOne(wrapper);
 
         if (entity == null) {
-            throw new RuntimeException("主体不存在");
+            throw BusinessException.unauthorized("主体不存在");
         }
 
         if (!"APPROVED".equals(entity.getAuditStatus())) {
-            throw new RuntimeException("主体未审核通过");
+            throw BusinessException.forbidden("主体未审核通过");
         }
 
         entity.setLastLoginAt(LocalDateTime.now());

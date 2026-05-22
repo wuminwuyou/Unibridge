@@ -7,20 +7,20 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- =========================
 -- 02）清理旧表（可重复执行）
 -- =========================
--- DROP TABLE IF EXISTS achievement_archive;
--- DROP TABLE IF EXISTS task_card;
--- DROP TABLE IF EXISTS milestone;
--- DROP TABLE IF EXISTS recruitment_project;
--- DROP TABLE IF EXISTS commercial_project;
--- DROP TABLE IF EXISTS team_member;
--- DROP TABLE IF EXISTS team;
--- DROP TABLE IF EXISTS laboratory;
--- DROP TABLE IF EXISTS user_auth_link;
--- DROP TABLE IF EXISTS user_profile;
--- DROP TABLE IF EXISTS user;
--- DROP TABLE IF EXISTS entity_profile;
--- DROP TABLE IF EXISTS entity;
--- DROP TABLE IF EXISTS system_admin;
+DROP TABLE IF EXISTS achievement_archive;
+DROP TABLE IF EXISTS task_card;
+DROP TABLE IF EXISTS milestone;
+DROP TABLE IF EXISTS recruitment_project;
+DROP TABLE IF EXISTS commercial_project;
+DROP TABLE IF EXISTS team_member;
+DROP TABLE IF EXISTS team;
+DROP TABLE IF EXISTS laboratory;
+DROP TABLE IF EXISTS user_auth_link;
+DROP TABLE IF EXISTS user_profile;
+DROP TABLE IF EXISTS user;
+DROP TABLE IF EXISTS entity_profile;
+DROP TABLE IF EXISTS entity;
+DROP TABLE IF EXISTS system_admin;
 
 -- =========================================================================
 -- 03）主体核心表 (entity) -> 只负责主体（高校/企业）的 Root 账号鉴权与资金控制
@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS entity_profile (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_entity_profile_entity_id (entity_id), -- 🔒 强约束 1:1 关系
+  UNIQUE KEY uk_entity_profile_name (name), -- 主体名称全网唯一，用于前端展示
   KEY idx_entity_profile_type (type),
   CONSTRAINT fk_entity_profile_entity FOREIGN KEY (entity_id) REFERENCES entity(id) 
     ON DELETE CASCADE ON UPDATE CASCADE,
@@ -92,9 +93,11 @@ CREATE TABLE IF NOT EXISTS user (
 CREATE TABLE IF NOT EXISTS user_profile (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL COMMENT '关联的用户ID',
+  nick_name VARCHAR(128) NULL COMMENT '用户昵称',
   real_name VARCHAR(128) NULL COMMENT '用户实名信息',
   avatar_url VARCHAR(255) NULL COMMENT '头像访问 URL',
   current_entity_name VARCHAR(255) NULL COMMENT '当前所属主体名称',
+  level VARCHAR(16) NULL COMMENT '用户等级：N | R | SR | SSR | UR',
   bio_data JSON NULL COMMENT '技术栈/兴趣标签（JSON 格式：["Java", "React"]）',
   career_data JSON NULL COMMENT '职业/学籍背景数据结构',
   intro VARCHAR(50) NULL COMMENT '个人一句话简介（最多50字）',
@@ -126,22 +129,6 @@ CREATE TABLE laboratory (
     ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_laboratory_mentor FOREIGN KEY (mentor_id) REFERENCES userProfile(id)
     ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-CREATE TABLE IF NOT EXISTS laboratory_profile (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  laboratory_id BIGINT UNSIGNED NOT NULL COMMENT '关联的实验室ID',
-  name VARCHAR(255) NOT NULL COMMENT '实验室名称',
-  intro VARCHAR(50) NULL COMMENT '主体简介（最多50字）',
-  announcement VARCHAR(200) NULL COMMENT '机构/学校/企业公告（最多200字）'
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uk_entity_profile_entity_id (entity_id), -- 🔒 强约束 1:1 关系
-  KEY idx_entity_profile_type (type),
-  CONSTRAINT fk_entity_profile_entity FOREIGN KEY (entity_id) REFERENCES entity(id) 
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT chk_entity_profile_type CHECK (type IN ('ENTERPRISE', 'UNIVERSITY'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
@@ -356,7 +343,7 @@ INSERT IGNORE INTO system_admin (id, password_hash, auth_level) VALUES
 ('admin_master', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 3),
 ('admin_auditor', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 1),
 ('admin_manager', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 2);
-
+ 
 -- =========================
 -- 17）补充外键：主体审核管理员（entity.audit_admin_id -> system_admin.id）
 -- =========================

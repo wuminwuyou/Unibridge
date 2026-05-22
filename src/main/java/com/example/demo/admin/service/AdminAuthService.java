@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.demo.admin.dto.AdminLoginRequest;
 import com.example.demo.admin.entity.SystemAdmin;
 import com.example.demo.admin.mapper.SystemAdminMapper;
+import com.example.demo.common.BusinessException;
 import com.example.demo.dto.LoginResponse;
 import com.example.demo.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,11 +27,11 @@ public class AdminAuthService {
         SystemAdmin admin = systemAdminMapper.selectOne(wrapper);
 
         if (admin == null) {
-            throw new RuntimeException("管理员不存在");
+            throw BusinessException.unauthorized("管理员不存在");
         }
 
         if (!admin.getPasswordHash().equals(request.getPasswordHash())) {
-            throw new RuntimeException("密码错误");
+            throw BusinessException.unauthorized("密码错误");
         }
 
         admin.setLastLoginAt(LocalDateTime.now());

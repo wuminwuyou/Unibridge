@@ -16,11 +16,7 @@ public class AdminAuthController {
 
     @PostMapping("/login")
     public Result adminLogin(@RequestBody AdminLoginRequest request) {
-        try {
-            LoginResponse response = adminAuthService.adminLogin(request);
-            return Result.success(response);
-        } catch (Exception e) {
-            return Result.error(401, e.getMessage());
-        }
+        LoginResponse response = adminAuthService.adminLogin(request);
+        return Result.success(response);
     }
 }

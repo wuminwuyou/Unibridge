@@ -4,14 +4,19 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.demo.client.dto.*;
 import com.example.demo.client.entity.ClientEntity;
 import com.example.demo.client.entity.ClientUser;
+import com.example.demo.client.entity.ClientUserProfile;
 import com.example.demo.client.entity.UserAuthLink;
 import com.example.demo.client.mapper.ClientEntityMapper;
 import com.example.demo.client.mapper.ClientUserMapper;
+import com.example.demo.client.mapper.ClientUserProfileMapper;
 import com.example.demo.client.mapper.UserAuthLinkMapper;
 import com.example.demo.util.JwtUtil;
 import io.jsonwebtoken.Claims;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Locale;
@@ -30,6 +35,8 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @Service
 public class ClientAuthService {
+    private static final Logger log = LoggerFactory.getLogger(ClientAuthService.class);
+    private static final String DEFAULT_AVATAR_URL = "https://api.dicebear.com/9.x/initials/svg?seed=U&backgroundColor=cbd5e1&color=ffffff";
     private static final int CODE_EXPIRE_SEC = 300;
     private static final int CODE_RETRY_AFTER_SEC = 60;
     private static final int OTP_EXPIRE_SEC = 300;
@@ -47,6 +54,9 @@ public class ClientAuthService {
     private ClientUserMapper clientUserMapper;
 
     @Autowired
+    private ClientUserProfileMapper clientUserProfileMapper;
+
+    @Autowired
     private ClientEntityMapper clientEntityMapper;
 
     @Autowired
@@ -56,6 +66,7 @@ public class ClientAuthService {
     private JwtUtil jwtUtil;
 
     /** 个人账号注册。 */
+    @Transactional(rollbackFor = Exception.class)
     public RegisterResponse registerPersonal(PersonalRegisterRequest request) {
         String account = normalize(request.getAccount());
         String channel = normalizeOrDefault(request.getChannel(), "sms");
@@ -83,6 +94,7 @@ public class ClientAuthService {
         user.setPhone(account);
         user.setPasswordHash(request.getPassword());
         clientUserMapper.insert(user);
+        createDefaultUserProfile(user.getId(), account);
 
         TokenPair tokenPair = issueTokenPair(user.getId(), "CLIENT_USER", "CLIENT_USER_REFRESH");
         String accessToken = tokenPair.accessToken();
@@ -137,7 +149,7 @@ public class ClientAuthService {
 
         CodeRecord record = new CodeRecord(requestId, code, now, now.plusSeconds(CODE_EXPIRE_SEC));
         codeStore.put(key, record);
-        System.out.println("[ClientAuth] send code for " + channel + " account=" + account + ", code=" + code + ", bizType=" + bizType);
+        log.info("[ClientAuth] send code channel={}, account={}, code={}, bizType={}", channel, account, code, bizType);
 
         return new SendCodeResponse(requestId, CODE_EXPIRE_SEC, CODE_RETRY_AFTER_SEC);
     }
@@ -162,7 +174,7 @@ public class ClientAuthService {
         String otpCode = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1000000));
         String challengeId = "chl_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         challengeStore.put(challengeId, new ChallengeRecord(entity.getId(), otpCode, LocalDateTime.now().plusSeconds(OTP_EXPIRE_SEC)));
-        System.out.println("[ClientAuth] organization OTP challengeId=" + challengeId + ", otpCode=" + otpCode);
+        log.info("[ClientAuth] organization otp challengeId={}, otpCode={}", challengeId, otpCode);
 
         return new OrganizationCredentialResponse(challengeId, digestPreview(request.getPassword()), OTP_EXPIRE_SEC, maskInstitutionCode(request.getInstitutionCode()));
     }
@@ -326,6 +338,16 @@ public class ClientAuthService {
             case "STUDENT" -> "student";
             default -> "student";
         };
+    }
+
+    private void createDefaultUserProfile(Long userId, String phone) {
+        String suffix = phone.substring(phone.length() - 4);
+        ClientUserProfile profile = new ClientUserProfile();
+        profile.setId(userId);
+        profile.setUserId(userId);
+        profile.setAvatarUrl(DEFAULT_AVATAR_URL);
+        profile.setNickName("用户#" + suffix);
+        clientUserProfileMapper.insert(profile);
     }
 
     private boolean verifyCode(String accountRaw, String channelRaw, String verifyCode, String bizTypeRaw) {

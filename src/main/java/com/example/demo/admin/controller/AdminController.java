@@ -3,6 +3,7 @@ package com.example.demo.admin.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.demo.common.BusinessException;
 import com.example.demo.common.Result;
 import com.example.demo.dto.EntityCreateRequest;
 import com.example.demo.dto.UserRegisterRequest;
@@ -29,11 +30,11 @@ public class AdminController {
 
     private String validateToken(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
-            throw new RuntimeException("未授权");
+            throw BusinessException.unauthorized("未授权");
         }
         String token = authorization.replace("Bearer ", "");
         if (!jwtUtil.validateToken(token)) {
-            throw new RuntimeException("token错误");
+            throw BusinessException.unauthorized("token错误");
         }
         return token;
     }
@@ -45,7 +46,7 @@ public class AdminController {
     private void checkAuth(String token, Integer requiredLevel) {
         Integer authLevel = getAuthLevel(token);
         if (authLevel == null || authLevel < requiredLevel) {
-            throw new RuntimeException("权限不足");
+            throw BusinessException.forbidden("权限不足");
         }
     }
 
@@ -84,7 +85,7 @@ public class AdminController {
 
         Entity entity = entityMapper.selectById(id);
         if (entity == null) {
-            return Result.error(404, "主体不存在");
+            throw BusinessException.notFound("主体不存在");
         }
         return Result.success(entity);
     }
@@ -115,7 +116,7 @@ public class AdminController {
 
         Entity entity = entityMapper.selectById(id);
         if (entity == null) {
-            return Result.error(404, "主体不存在");
+            throw BusinessException.notFound("主体不存在");
         }
 
         entity.setName(request.getName());
@@ -133,7 +134,7 @@ public class AdminController {
 
         Entity entity = entityMapper.selectById(id);
         if (entity == null) {
-            return Result.error(404, "主体不存在");
+            throw BusinessException.notFound("主体不存在");
         }
 
         entityMapper.deleteById(id);
@@ -179,7 +180,7 @@ public class AdminController {
 
         UserProfile userProfile = userProfileMapper.selectById(id);
         if (userProfile == null) {
-            return Result.error(404, "用户不存在");
+            throw BusinessException.notFound("用户不存在");
         }
         return Result.success(userProfile);
     }
@@ -195,7 +196,7 @@ public class AdminController {
         UserProfile existingUser = userProfileMapper.selectOne(wrapper);
 
         if (existingUser != null) {
-            return Result.error(400, "手机号已注册");
+            throw BusinessException.badRequest("手机号已注册");
         }
 
         UserProfile userProfile = new UserProfile();
@@ -215,7 +216,7 @@ public class AdminController {
 
         UserProfile userProfile = userProfileMapper.selectById(id);
         if (userProfile == null) {
-            return Result.error(404, "用户不存在");
+            throw BusinessException.notFound("用户不存在");
         }
 
         if (request.getPasswordHash() != null) {
@@ -234,7 +235,7 @@ public class AdminController {
 
         UserProfile userProfile = userProfileMapper.selectById(id);
         if (userProfile == null) {
-            return Result.error(404, "用户不存在");
+            throw BusinessException.notFound("用户不存在");
         }
 
         userProfileMapper.deleteById(id);
