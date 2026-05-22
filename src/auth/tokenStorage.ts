@@ -1,6 +1,7 @@
 // 01）认证令牌存储键常量（Auth Token Storage Keys）
 const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
+const USER_ID_KEY = 'user_id'
 const LEGACY_ACCESS_TOKEN_KEY = 'accessToken'
 const LEGACY_REFRESH_TOKEN_KEY = 'refreshToken'
 
@@ -8,6 +9,49 @@ const LEGACY_REFRESH_TOKEN_KEY = 'refreshToken'
 export interface AuthTokenPair {
   accessToken: string
   refreshToken: string
+}
+
+// 03）读取用户 ID（getUserId）
+/**
+ * 函数名：getUserId
+ * 功能：读取本地缓存的当前登录用户 userId。
+ * 实现方法：
+ * - 从 localStorage 的 user_id 键读取原始字符串
+ * - 尝试转换为 number，非法值返回 null
+ * - 返回可用于接口请求构造的 userId
+ * 输入：无
+ * 输出：
+ * - 返回值：number | null
+ * - 副作用：读取 localStorage
+ */
+export function getUserId(): number | null {
+  const rawUserId = window.localStorage.getItem(USER_ID_KEY)
+  if (!rawUserId) {
+    return null
+  }
+  const parsedUserId = Number(rawUserId)
+  return Number.isInteger(parsedUserId) && parsedUserId > 0 ? parsedUserId : null
+}
+
+// 04）写入用户 ID（setUserId）
+/**
+ * 函数名：setUserId
+ * 功能：将登录响应中的 userId 持久化到本地存储。
+ * 实现方法：
+ * - 校验 userId 为正整数
+ * - 将数字转换为字符串写入 user_id 键
+ * - 非法值时不写入，避免污染本地缓存
+ * 输入：
+ * - userId：登录响应中的用户唯一标识
+ * 输出：
+ * - 返回值：void
+ * - 副作用：写入 localStorage
+ */
+export function setUserId(userId: number): void {
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return
+  }
+  window.localStorage.setItem(USER_ID_KEY, String(userId))
 }
 
 // 03）读取 accessToken（getAccessToken）
@@ -93,13 +137,29 @@ export function setAuthTokens(tokens: AuthTokenPair): void {
   window.localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY)
 }
 
-// 06）清理认证令牌（clearAuthTokens）
+// 06）清理用户 ID（clearUserId）
+/**
+ * 函数名：clearUserId
+ * 功能：清除本地缓存的 userId。
+ * 实现方法：
+ * - 删除 user_id 键
+ * 输入：无
+ * 输出：
+ * - 返回值：void
+ * - 副作用：删除 localStorage 项
+ */
+export function clearUserId(): void {
+  window.localStorage.removeItem(USER_ID_KEY)
+}
+
+// 07）清理认证令牌（clearAuthTokens）
 /**
  * 函数名：clearAuthTokens
- * 功能：清除所有新旧认证令牌键，供退出登录或会话失效使用。
+ * 功能：清除所有认证会话键（token + userId），供退出登录或会话失效使用。
  * 实现方法：
  * - 移除 access_token / refresh_token
  * - 兼容移除旧键 accessToken / refreshToken
+ * - 同步移除 user_id，避免使用过期身份信息发起请求
  * 输入：无
  * 输出：
  * - 返回值：void
@@ -110,4 +170,5 @@ export function clearAuthTokens(): void {
   window.localStorage.removeItem(REFRESH_TOKEN_KEY)
   window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY)
   window.localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY)
+  clearUserId()
 }

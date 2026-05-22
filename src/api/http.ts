@@ -413,7 +413,25 @@ async function responseErrorInterceptor(error: unknown): Promise<unknown> {
 httpClient.interceptors.request.use(requestInterceptor)
 httpClient.interceptors.response.use(responseSuccessInterceptor, responseErrorInterceptor)
 
-// 23）通用 POST 请求方法（postApi）
+// 23）通用 GET 请求方法（getApi）
+/**
+ * 函数名：getApi
+ * 功能：基于统一 axios 实例发送 GET 请求，并返回业务数据。
+ * 实现方法：
+ * - 使用 httpClient.get 发起请求
+ * - 依赖响应拦截器自动完成解包和错误归一化
+ * - 返回泛型业务数据 TData
+ * 输入：
+ * - path：接口相对路径（例如 /user-profile/menu）
+ * 输出：
+ * - 返回值：业务数据对象
+ * - 副作用：发起网络请求
+ */
+export async function getApi<TData>(path: string): Promise<TData> {
+  return httpClient.get<ApiEnvelope<TData>, TData>(path)
+}
+
+// 24）通用 POST 请求方法（postApi）
 /**
  * 函数名：postApi
  * 功能：基于统一 axios 实例发送 POST 请求，并返回业务数据。

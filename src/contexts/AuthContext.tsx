@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AUTH_FORCE_LOGOUT_EVENT, AUTH_TOKENS_UPDATED_EVENT, type AuthTokensUpdatedDetail } from '../auth/authEvents'
-import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from '../auth/tokenStorage'
+import { clearAuthTokens, getAccessToken, getRefreshToken, getUserId, setAuthTokens, setUserId } from '../auth/tokenStorage'
 
 // 01）认证用户档案类型定义（AuthUserProfile）
 export interface AuthUserProfile {
@@ -57,11 +57,12 @@ interface AuthProviderProps {
 function createInitialAuthState(): AuthState {
   const initialAccessToken = getAccessToken()
   const initialRefreshToken = getRefreshToken()
+  const initialUserId = getUserId()
   return {
     isLoggedIn: Boolean(initialAccessToken),
     token: initialAccessToken,
     refreshToken: initialRefreshToken,
-    userProfile: null,
+    userProfile: initialUserId ? { userId: initialUserId } : null,
     isHydrated: true,
   }
 }
@@ -89,6 +90,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       accessToken: payload.accessToken,
       refreshToken: payload.refreshToken,
     })
+    if (payload.userProfile?.userId) {
+      setUserId(payload.userProfile.userId)
+    }
     setAuthState((previousState) => ({
       ...previousState,
       isLoggedIn: true,
@@ -125,6 +129,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // 12）用户档案更新处理（setUserProfile）
   const setUserProfile = useCallback((profile: AuthUserProfile | null): void => {
+    if (profile?.userId) {
+      setUserId(profile.userId)
+    }
     setAuthState((previousState) => ({
       ...previousState,
       userProfile: profile,

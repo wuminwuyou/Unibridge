@@ -1,0 +1,52 @@
+/* 01）加载中容器（loading-spinner） */
+.loading-spinner {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-soft);
+}
+
+/* 02）圆环容器（loading-spinner__ring） */
+.loading-spinner__ring {
+  position: relative;
+  display: inline-block;
+  animation: loadingSpinnerRotate 1s linear infinite;
+}
+
+/* 03）圆环分段（loading-spinner__segment） */
+.loading-spinner__segment {
+  --segment-size: 8%;
+  --segment-width: 9%;
+  --segment-opacity-step: calc(var(--segment-index) / var(--segment-count));
+
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--segment-width);
+  height: var(--segment-size);
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: center calc(-420%);
+  transform: translate(-50%, -50%) rotate(calc(var(--segment-index) * (360deg / var(--segment-count))));
+  opacity: calc(0.2 + (0.8 * var(--segment-opacity-step)));
+}
+
+/* 04）加载中文案（loading-spinner__label） */
+.loading-spinner__label {
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--text-soft);
+}
+
+/* 05）旋转动画（loadingSpinnerRotate） */
+@keyframes loadingSpinnerRotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

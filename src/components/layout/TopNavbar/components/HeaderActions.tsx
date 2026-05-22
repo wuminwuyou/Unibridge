@@ -1,4 +1,5 @@
 import type { ThemeMode } from '../../../../contexts/ThemeContext'
+import { Send } from 'lucide-react'
 import UserProfileMenu from './UserProfileMenu'
 
 // 01）右侧操作区参数（HeaderActionsProps）
@@ -47,6 +48,14 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
         />
       </label>
 
+      {isAuthenticated ? (
+        <UserProfileMenu onLogout={onLogout} />
+      ) : (
+        <button className="login-entry-button" type="button" onClick={onAuthEntryClick}>
+          登录 / 注册
+        </button>
+      )}
+
       <button
         className={`theme-button theme-button--${theme}`}
         type="button"
@@ -65,14 +74,10 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
           🔔
         </span>
       </button>
-
-      {isAuthenticated ? (
-        <UserProfileMenu onLogout={onLogout} />
-      ) : (
-        <button className="login-entry-button" type="button" onClick={onAuthEntryClick}>
-          登录 / 注册
-        </button>
-      )}
+      <button type="button" className="publish-entry-button" aria-label="发布内容">
+        <Send size={16} strokeWidth={2.2} aria-hidden="true" />
+        <span>发布</span>
+      </button>
     </div>
   )
 }
