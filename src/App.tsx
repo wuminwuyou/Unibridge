@@ -9,6 +9,8 @@ import InstantMessagePage from './pages/InstantMessagePage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import OrganizationVerificationPage from './pages/VerificationPage/OrganizationVerificationPage.tsx'
 import LabManagePage from './pages/LabManagePage.tsx'
+import PublishProjectPage from './pages/PublishProject/index.tsx'
+import PublishNotePage from './pages/PublishNote/index.tsx'
 import ProtectedRoute from './components/routes/ProtectedRoute.tsx'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
@@ -54,6 +56,22 @@ function App() {
       <Route path="/project-detail" element={<ProjectDetailPage />} />
       <Route path="/note-detail" element={<NoteDetailPage />} />
       <Route path="/messages" element={<InstantMessagePage />} />
+      <Route
+        path="/publish/project"
+        element={
+          <ProtectedRoute>
+            <PublishProjectPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/publish/note"
+        element={
+          <ProtectedRoute>
+            <PublishNotePage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

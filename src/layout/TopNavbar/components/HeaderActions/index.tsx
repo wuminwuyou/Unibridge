@@ -1,6 +1,8 @@
 import type { ThemeMode } from '../../../../contexts/ThemeContext'
-import { Send } from 'lucide-react'
+import { ChevronDown, Send } from 'lucide-react'
 import UserProfileMenu from '../UserProfileMenu'
+import { usePublishEntryMenu } from './usePublishEntryMenu'
+import './style.css'
 
 // 01）右侧操作区参数（HeaderActionsProps）
 interface HeaderActionsProps {
@@ -21,6 +23,7 @@ interface HeaderActionsProps {
  * - 消息通知按钮预留入口
  * - 未登录：渲染「登录 / 注册」按钮，点击触发 onAuthEntryClick 打开登录弹窗
  * - 已登录：渲染 UserProfileMenu（头像 + 悬浮功能面板）
+ * - 发布按钮通过 usePublishEntryMenu 展示向下选项（项目 / 笔记）
  * 输入：
  * - theme：当前主题模式
  * - isAuthenticated：是否已登录
@@ -28,10 +31,14 @@ interface HeaderActionsProps {
  * - onAuthEntryClick：未登录态下的入口点击回调
  * 输出：
  * - 返回值：JSX.Element，右侧操作区结构
- * - 副作用：无（事件由父级处理器承担）
+ * - 副作用：无（事件由 Hook 与父级处理器承担）
  */
 function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick, onNotifyClick, onLogout }: HeaderActionsProps) {
   const themeButtonLabel = `切换到${theme === 'light' ? '深色' : '浅色'}主题`
+  const publishMenu = usePublishEntryMenu({
+    isAuthenticated,
+    onRequireAuth: onAuthEntryClick,
+  })
 
   return (
     <div className="header-actions">
@@ -74,10 +81,52 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
           🔔
         </span>
       </button>
-      <button type="button" className="publish-entry-button" aria-label="发布内容">
-        <Send size={16} strokeWidth={2.2} aria-hidden="true" />
-        <span>发布</span>
-      </button>
+
+      <div className="publish-entry" ref={publishMenu.menuRef}>
+        <button
+          type="button"
+          className={`publish-entry-button ${publishMenu.isMenuOpen ? 'publish-entry-button--open' : ''}`}
+          aria-label="发布内容"
+          aria-haspopup="menu"
+          aria-expanded={publishMenu.isMenuOpen}
+          onClick={publishMenu.togglePublishMenu}
+        >
+          <Send size={16} strokeWidth={2.2} aria-hidden="true" />
+          <span>发布</span>
+          <ChevronDown
+            size={14}
+            strokeWidth={2.2}
+            aria-hidden="true"
+            className={`publish-entry-button__chevron ${publishMenu.isMenuOpen ? 'publish-entry-button__chevron--open' : ''}`}
+          />
+        </button>
+
+        {publishMenu.isMenuOpen ? (
+          <div className="publish-entry-menu" role="menu" aria-label="选择发布类型">
+            {publishMenu.menuOptions.map((option) => {
+              const OptionIcon = option.icon
+
+              return (
+                <button
+                  key={option.type}
+                  type="button"
+                  role="menuitem"
+                  className="publish-entry-menu__item"
+                  onClick={() => publishMenu.handleSelectPublishType(option.type)}
+                >
+                  <span className="publish-entry-menu__item-icon" aria-hidden="true">
+                    <OptionIcon size={16} strokeWidth={2.2} />
+                  </span>
+                  <span className="publish-entry-menu__item-text">
+                    <span className="publish-entry-menu__item-label">{option.label}</span>
+                    <span className="publish-entry-menu__item-desc">{option.description}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }
