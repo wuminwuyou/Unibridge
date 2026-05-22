@@ -56,7 +56,8 @@ $tables = @(
     "team",
     "team_member",
     "project",
-    "project_commercial_secret"
+    "project_commercial_secret",
+    "note"
 )
 
 foreach ($table in $tables) {

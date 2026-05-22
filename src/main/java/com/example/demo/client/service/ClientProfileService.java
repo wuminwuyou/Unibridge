@@ -1,15 +1,27 @@
 package com.example.demo.client.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.demo.client.dto.ProfileHomeResponse;
+import com.example.demo.client.dto.ProfileNoteItem;
+import com.example.demo.client.dto.ProfileNotesResponse;
+import com.example.demo.client.dto.ProfileProjectItem;
+import com.example.demo.client.dto.ProfileProjectsResponse;
 import com.example.demo.client.dto.ProfileMenuResponse;
 import com.example.demo.client.dto.ProfileSpaceResponse;
 import com.example.demo.client.entity.ClientEntityProfile;
+import com.example.demo.client.entity.ClientNote;
+import com.example.demo.client.entity.ClientProject;
+import com.example.demo.client.entity.ClientProjectCommercialSecret;
 import com.example.demo.client.entity.ClientTeam;
 import com.example.demo.client.entity.ClientTeamMember;
 import com.example.demo.client.entity.ClientUser;
 import com.example.demo.client.entity.ClientUserProfile;
 import com.example.demo.client.entity.UserAuthLink;
 import com.example.demo.client.mapper.ClientEntityProfileMapper;
+import com.example.demo.client.mapper.ClientNoteMapper;
+import com.example.demo.client.mapper.ClientProjectCommercialSecretMapper;
+import com.example.demo.client.mapper.ClientProjectMapper;
 import com.example.demo.client.mapper.ClientTeamMapper;
 import com.example.demo.client.mapper.ClientTeamMemberMapper;
 import com.example.demo.client.mapper.ClientUserMapper;
@@ -28,14 +40,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class ClientProfileService {
@@ -44,6 +61,15 @@ public class ClientProfileService {
     private static final String CLIENT_USER_TOKEN_TYPE = "CLIENT_USER";
     private static final String DEFAULT_AVATAR_TEXT = "U";
     private static final DateTimeFormatter JOIN_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+    private static final DateTimeFormatter PROJECT_PUBLISH_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter NOTE_PUBLISH_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter NOTE_UPDATE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final String NOTE_STATUS_PUBLISHED = "PUBLISHED";
+    private static final int DEFAULT_PROJECT_LIMIT = 4;
+    private static final int DEFAULT_NOTE_LIMIT = 3;
+    private static final int DEFAULT_PAGE = 1;
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
@@ -73,6 +99,15 @@ public class ClientProfileService {
 
     @Autowired
     private ClientEntityProfileMapper clientEntityProfileMapper;
+
+    @Autowired
+    private ClientProjectMapper clientProjectMapper;
+
+    @Autowired
+    private ClientProjectCommercialSecretMapper clientProjectCommercialSecretMapper;
+
+    @Autowired
+    private ClientNoteMapper clientNoteMapper;
 
     /** UserProfileMenu 顶部菜单初始化数据。 */
     public ProfileMenuResponse getProfileMenu(String authorization) {
@@ -123,6 +158,81 @@ public class ClientProfileService {
                 .associatedTeam(associatedTeam)
                 .honors(Collections.emptyList())
                 .activityHeatmap(Collections.emptyList())
+                .build();
+    }
+
+    /** 个人空间「主页」Tab：项目 + 笔记预览列表。 */
+    public ProfileHomeResponse getProfileHome(String authorization,
+                                              Long queryUserId,
+                                              Integer projectLimit,
+                                              Integer noteLimit) {
+        Long targetUserId = resolveTargetUserId(authorization, queryUserId);
+        assertUserExists(targetUserId);
+
+        int resolvedProjectLimit = normalizeLimit(projectLimit, DEFAULT_PROJECT_LIMIT);
+        int resolvedNoteLimit = normalizeLimit(noteLimit, DEFAULT_NOTE_LIMIT);
+
+        ClientUserProfile profile = loadProfile(targetUserId);
+        List<ClientProject> projects = loadProjects(targetUserId, resolvedProjectLimit, 0);
+        List<ClientNote> notes = loadNotes(targetUserId, null, resolvedNoteLimit, 0);
+
+        return ProfileHomeResponse.builder()
+                .userId(targetUserId)
+                .projects(buildProjectItems(projects, profile, targetUserId))
+                .notes(buildNoteItems(notes))
+                .projectTotal(countProjects(targetUserId))
+                .noteTotal(countNotes(targetUserId, null))
+                .build();
+    }
+
+    /** 个人空间「项目」Tab：分页项目列表。 */
+    public ProfileProjectsResponse getProfileProjects(String authorization,
+                                                      Long queryUserId,
+                                                      Integer page,
+                                                      Integer pageSize) {
+        Long targetUserId = resolveTargetUserId(authorization, queryUserId);
+        assertUserExists(targetUserId);
+
+        int resolvedPage = normalizePage(page);
+        int resolvedPageSize = normalizePageSize(pageSize);
+        int offset = (resolvedPage - 1) * resolvedPageSize;
+
+        ClientUserProfile profile = loadProfile(targetUserId);
+        List<ClientProject> projects = loadProjects(targetUserId, resolvedPageSize, offset);
+        long total = countProjects(targetUserId);
+
+        return ProfileProjectsResponse.builder()
+                .userId(targetUserId)
+                .projects(buildProjectItems(projects, profile, targetUserId))
+                .total(total)
+                .page(resolvedPage)
+                .pageSize(resolvedPageSize)
+                .build();
+    }
+
+    /** 个人空间「笔记」Tab：分页笔记列表，可按 contentType 预筛。 */
+    public ProfileNotesResponse getProfileNotes(String authorization,
+                                                Long queryUserId,
+                                                Integer page,
+                                                Integer pageSize,
+                                                String contentType) {
+        Long targetUserId = resolveTargetUserId(authorization, queryUserId);
+        assertUserExists(targetUserId);
+
+        int resolvedPage = normalizePage(page);
+        int resolvedPageSize = normalizePageSize(pageSize);
+        int offset = (resolvedPage - 1) * resolvedPageSize;
+        String dbContentType = mapNoteContentTypeFilter(contentType);
+
+        List<ClientNote> notes = loadNotes(targetUserId, dbContentType, resolvedPageSize, offset);
+        long total = countNotes(targetUserId, dbContentType);
+
+        return ProfileNotesResponse.builder()
+                .userId(targetUserId)
+                .notes(buildNoteItems(notes))
+                .total(total)
+                .page(resolvedPage)
+                .pageSize(resolvedPageSize)
                 .build();
     }
 
@@ -432,5 +542,203 @@ public class ClientProfileService {
 
     private String nullSafe(String value) {
         return value == null ? "" : value;
+    }
+
+    private Long resolveTargetUserId(String authorization, Long queryUserId) {
+        Long currentUserId = resolveCurrentUserId(authorization);
+        return queryUserId != null ? queryUserId : currentUserId;
+    }
+
+    private void assertUserExists(Long userId) {
+        if (clientUserMapper.selectById(userId) == null) {
+            throw BusinessException.notFound("USER_NOT_FOUND");
+        }
+    }
+
+    private int normalizeLimit(Integer limit, int defaultValue) {
+        if (limit == null || limit <= 0) {
+            return defaultValue;
+        }
+        return Math.min(limit, MAX_PAGE_SIZE);
+    }
+
+    private int normalizePage(Integer page) {
+        return page == null || page <= 0 ? DEFAULT_PAGE : page;
+    }
+
+    private int normalizePageSize(Integer pageSize) {
+        if (pageSize == null || pageSize <= 0) {
+            return DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(pageSize, MAX_PAGE_SIZE);
+    }
+
+    private List<ClientProject> loadProjects(Long userId, int pageSize, int offset) {
+        int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
+        Page<ClientProject> page = new Page<>(pageNum, pageSize);
+        page.setSearchCount(false);
+        return clientProjectMapper.selectPage(page, baseProjectWrapper(userId)).getRecords();
+    }
+
+    private long countProjects(Long userId) {
+        return clientProjectMapper.selectCount(baseProjectWrapper(userId));
+    }
+
+    private LambdaQueryWrapper<ClientProject> baseProjectWrapper(Long userId) {
+        LambdaQueryWrapper<ClientProject> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ClientProject::getOwnerId, userId)
+                .orderByDesc(ClientProject::getPublishedAt)
+                .orderByDesc(ClientProject::getId);
+        return wrapper;
+    }
+
+    private List<ClientNote> loadNotes(Long userId, String dbContentType, int pageSize, int offset) {
+        int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
+        Page<ClientNote> page = new Page<>(pageNum, pageSize);
+        page.setSearchCount(false);
+        return clientNoteMapper.selectPage(page, baseNoteWrapper(userId, dbContentType)).getRecords();
+    }
+
+    private long countNotes(Long userId, String dbContentType) {
+        return clientNoteMapper.selectCount(baseNoteWrapper(userId, dbContentType));
+    }
+
+    private LambdaQueryWrapper<ClientNote> baseNoteWrapper(Long userId, String dbContentType) {
+        LambdaQueryWrapper<ClientNote> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ClientNote::getUserId, userId)
+                .eq(ClientNote::getStatus, NOTE_STATUS_PUBLISHED);
+        if (dbContentType != null) {
+            wrapper.eq(ClientNote::getContentType, dbContentType);
+        }
+        wrapper.orderByDesc(ClientNote::getCreatedAt)
+                .orderByDesc(ClientNote::getId);
+        return wrapper;
+    }
+
+    private List<ProfileProjectItem> buildProjectItems(List<ClientProject> projects,
+                                                       ClientUserProfile ownerProfile,
+                                                       Long ownerId) {
+        if (projects.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> projectIds = projects.stream().map(ClientProject::getId).collect(Collectors.toList());
+        Map<Long, ClientProjectCommercialSecret> secretMap = loadCommercialSecrets(projectIds);
+        String publisher = nullSafe(ownerProfile == null ? null : ownerProfile.getNickName());
+
+        List<ProfileProjectItem> items = new ArrayList<>();
+        for (ClientProject project : projects) {
+            ClientProjectCommercialSecret secret = secretMap.get(project.getId());
+            items.add(ProfileProjectItem.builder()
+                    .title(nullSafe(project.getTitle()))
+                    .summary(nullSafe(project.getPreview()))
+                    .tags(toProjectTagLabels(project.getTags()))
+                    .company(resolveProjectCompany(project, ownerId))
+                    .publisher(publisher)
+                    .publishTime(formatProjectPublishTime(project.getPublishedAt()))
+                    .level(nullSafe(project.getLevel()))
+                    .amount(formatProjectAmount(secret == null ? null : secret.getTotalBudget()))
+                    .build());
+        }
+        return items;
+    }
+
+    private Map<Long, ClientProjectCommercialSecret> loadCommercialSecrets(List<Long> projectIds) {
+        if (projectIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<ClientProjectCommercialSecret> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(ClientProjectCommercialSecret::getProjectId, projectIds);
+        Map<Long, ClientProjectCommercialSecret> secretMap = new HashMap<>();
+        for (ClientProjectCommercialSecret secret : clientProjectCommercialSecretMapper.selectList(wrapper)) {
+            secretMap.put(secret.getProjectId(), secret);
+        }
+        return secretMap;
+    }
+
+    private List<ProfileProjectItem.TagLabel> toProjectTagLabels(String jsonText) {
+        return parseJsonStringList(jsonText).stream()
+                .map(ProfileProjectItem.TagLabel::new)
+                .collect(Collectors.toList());
+    }
+
+    private String resolveProjectCompany(ClientProject project, Long ownerId) {
+        if (project.getTeamId() != null) {
+            ClientTeam team = clientTeamMapper.selectById(project.getTeamId());
+            if (team != null && team.getEntityId() != null) {
+                ClientEntityProfile entityProfile = loadEntityProfileByEntityId(team.getEntityId());
+                if (entityProfile != null && entityProfile.getName() != null && !entityProfile.getName().isBlank()) {
+                    return entityProfile.getName();
+                }
+            }
+        }
+        UserAuthLink authLink = loadCurrentAuthLink(ownerId);
+        ClientUserProfile profile = loadProfile(ownerId);
+        return resolveOrganization(authLink, profile);
+    }
+
+    private ClientEntityProfile loadEntityProfileByEntityId(Long entityId) {
+        LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ClientEntityProfile::getEntityId, entityId).last("LIMIT 1");
+        return clientEntityProfileMapper.selectOne(wrapper);
+    }
+
+    private String formatProjectPublishTime(LocalDateTime publishedAt) {
+        return publishedAt == null ? "" : publishedAt.format(PROJECT_PUBLISH_DATE_FORMATTER);
+    }
+
+    private String formatProjectAmount(BigDecimal amount) {
+        if (amount == null) {
+            return "";
+        }
+        return new DecimalFormat("#,##0.##").format(amount);
+    }
+
+    private List<ProfileNoteItem> buildNoteItems(List<ClientNote> notes) {
+        List<ProfileNoteItem> items = new ArrayList<>();
+        for (ClientNote note : notes) {
+            items.add(ProfileNoteItem.builder()
+                    .title(nullSafe(note.getTitle()))
+                    .summary(nullSafe(note.getSummary()))
+                    .contentType(mapNoteContentTypeDisplay(note.getContentType()))
+                    .tags(parseJsonStringList(note.getTags()))
+                    .publishTime(formatNotePublishTime(note.getCreatedAt()))
+                    .updateTime(formatNoteUpdateTime(note.getUpdatedAt()))
+                    .views(note.getViewCount() == null ? 0 : note.getViewCount())
+                    .comments(note.getCommentCount() == null ? 0 : note.getCommentCount())
+                    .favorites(note.getCollectCount() == null ? 0 : note.getCollectCount())
+                    .cover(nullSafe(note.getCoverUrl()))
+                    .build());
+        }
+        return items;
+    }
+
+    private String mapNoteContentTypeDisplay(String dbType) {
+        if (dbType == null || dbType.isBlank()) {
+            return "";
+        }
+        return switch (dbType.toUpperCase(Locale.ROOT)) {
+            case "IMAGETEXT" -> "图文";
+            case "VIDEO" -> "视频";
+            default -> dbType;
+        };
+    }
+
+    private String mapNoteContentTypeFilter(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return null;
+        }
+        return switch (contentType.trim()) {
+            case "图文" -> "IMAGETEXT";
+            case "视频" -> "VIDEO";
+            default -> null;
+        };
+    }
+
+    private String formatNotePublishTime(LocalDateTime createdAt) {
+        return createdAt == null ? "" : createdAt.format(NOTE_PUBLISH_DATETIME_FORMATTER);
+    }
+
+    private String formatNoteUpdateTime(LocalDateTime updatedAt) {
+        return updatedAt == null ? "" : updatedAt.format(NOTE_UPDATE_DATE_FORMATTER);
     }
 }

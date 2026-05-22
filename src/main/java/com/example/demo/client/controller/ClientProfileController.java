@@ -28,4 +28,29 @@ public class ClientProfileController {
                                   HttpServletRequest request) {
         return Result.success(clientProfileService.getProfileSpace(authorization, userId, request));
     }
+
+    @GetMapping("/home")
+    public Result getProfileHome(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                 @RequestParam(value = "userId", required = false) Long userId,
+                                 @RequestParam(value = "projectLimit", required = false) Integer projectLimit,
+                                 @RequestParam(value = "noteLimit", required = false) Integer noteLimit) {
+        return Result.success(clientProfileService.getProfileHome(authorization, userId, projectLimit, noteLimit));
+    }
+
+    @GetMapping("/projects")
+    public Result getProfileProjects(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                     @RequestParam(value = "userId", required = false) Long userId,
+                                     @RequestParam(value = "page", required = false) Integer page,
+                                     @RequestParam(value = "pageSize", required = false) Integer pageSize) {
+        return Result.success(clientProfileService.getProfileProjects(authorization, userId, page, pageSize));
+    }
+
+    @GetMapping("/notes")
+    public Result getProfileNotes(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                  @RequestParam(value = "userId", required = false) Long userId,
+                                  @RequestParam(value = "page", required = false) Integer page,
+                                  @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                  @RequestParam(value = "contentType", required = false) String contentType) {
+        return Result.success(clientProfileService.getProfileNotes(authorization, userId, page, pageSize, contentType));
+    }
 }

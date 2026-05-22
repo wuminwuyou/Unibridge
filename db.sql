@@ -338,26 +338,46 @@ CREATE TABLE achievement_archive (
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- =========================
--- 15）笔记（note：user 1:N notes）
--- =========================
-CREATE TABLE note(
+-- =========================================================================
+-- 15）笔记表（note：user 1:N notes）- 完美重构版
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS note (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id BIGINT UNSIGNED NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  tags JSON NULL COMMENT '推荐与算法标签列表',
-  preview TEXT NOT NULL COMMENT '笔记简略描述',
-  content TEXT NOT NULL COMMENT '笔记内容',
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '发布笔记的用户ID',
+  content_type VARCHAR(32) NOT NULL COMMENT 'IMAGETEXT(图文) | VIDEO(视频)',
+  title VARCHAR(255) NOT NULL COMMENT '笔记标题',
+  summary TEXT NOT NULL COMMENT '笔记外部预览摘要（列表页展示）',
+  content LONGTEXT NULL COMMENT '笔记正文内容（💡 升级为 LONGTEXT，防止长文溢出）',
+  cover_url VARCHAR(255) NOT NULL COMMENT '统一封面图片URL（不管是视频还是图文，列表页必须有封面）',
+  images JSON NULL COMMENT '图文笔记的图片列表，JSON格式：["url1", "url2"]，支持多图',
+  video_url VARCHAR(255) NULL COMMENT '视频源文件URL（仅 VIDEO 类型有效）',
+  video_duration INT UNSIGNED NULL DEFAULT 0 COMMENT '视频时长（秒，仅 VIDEO 类型有效）',
+  tags JSON NULL COMMENT '推荐与算法标签列表，JSON格式：["人工智能", "开源项目"]',
+  view_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '浏览量/阅读数',
+  like_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '点赞数',
+  collect_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '收藏数',
+  comment_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '评论总数',
+  
+  -- 内容状态机
+  status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT(草稿) | PUBLISHED(已发布) | BANNED(违规封禁)',
+  
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
   PRIMARY KEY (id),
   KEY idx_note_user_id (user_id),
+  KEY idx_note_status (status),
+  KEY idx_note_created_at (created_at),
+  
   CONSTRAINT fk_note_user FOREIGN KEY (user_id) REFERENCES `user`(id)
-    ON DELETE CASCADE ON UPDATE CASCADE
+    ON DELETE CASCADE ON UPDATE CASCADE,
+    
+  CONSTRAINT chk_note_content_type CHECK (content_type IN ('IMAGETEXT', 'VIDEO')),
+  CONSTRAINT chk_note_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'BANNED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 15）系统管理员表：完全独立于业务用户体系
+-- 16）系统管理员表：完全独立于业务用户体系
 -- =========================
 CREATE TABLE IF NOT EXISTS system_admin (
   id VARCHAR(32) NOT NULL COMMENT '登录凭证 (管理员账号)',

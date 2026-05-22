@@ -1,5 +1,5 @@
 -- =========================================================================
--- 测试数据：db.sql 第 03~11 节业务表，每表 3 条
+-- 测试数据：db.sql 业务表 + note，每表 3 条
 -- 前置：已执行 init-db.ps1 或 db.sql 建表；system_admin 种子数据已存在
 -- 密码哈希均为 SHA256("123456")
 -- =========================================================================
@@ -11,6 +11,7 @@ TRUNCATE TABLE project;
 TRUNCATE TABLE team_member;
 TRUNCATE TABLE team;
 TRUNCATE TABLE user_auth_link;
+TRUNCATE TABLE note;
 TRUNCATE TABLE user_profile;
 TRUNCATE TABLE `user`;
 TRUNCATE TABLE entity_profile;
@@ -110,3 +111,36 @@ INSERT INTO project_commercial_secret (project_id, total_budget, commercial_stat
 (1, 500000.00, 'PENDING_START'),
 (2, 800000.00, 'PROCESSING'),
 (3, 300000.00, 'SUBMIT_REVIEW');
+
+-- =========================================================================
+-- 15）note × 3
+-- =========================================================================
+INSERT INTO note (
+  id, user_id, content_type, title, summary, content, cover_url,
+  images, video_url, video_duration, tags,
+  view_count, like_count, collect_count, comment_count, status, created_at
+) VALUES
+(1, 1, 'IMAGETEXT', 'Spring Boot 产学研项目实战笔记',
+ '记录在平台后端开发中使用 Spring Boot + MyBatis-Plus 的实践经验与踩坑总结。',
+ '## 项目结构\n\n采用 controller / service / mapper 分层，统一使用 BusinessException 处理业务错误。\n\n## 鉴权\n\n客户端 JWT 类型为 CLIENT_USER，Profile 接口从 token 解析 userId。',
+ 'https://cdn.example.com/note/cover/springboot.jpg',
+ JSON_ARRAY('https://cdn.example.com/note/img/springboot-1.jpg', 'https://cdn.example.com/note/img/springboot-2.jpg'),
+ NULL, 0,
+ JSON_ARRAY('Spring Boot', '后端', '产学研'),
+ 128, 24, 9, 3, 'PUBLISHED', '2026-05-10 14:20:00'),
+(2, 2, 'IMAGETEXT', 'AI 实验室科研方向分享：NLP 与知识图谱',
+ '介绍深大 AI 实验室在 NLP 与知识图谱方向的近期研究进展与本科生参与路径。',
+ '实验室当前重点包括：信息抽取、知识图谱构建、RAG 应用落地等方向。欢迎对 AI 有兴趣的同学加入。',
+ 'https://cdn.example.com/note/cover/nlp-lab.jpg',
+ JSON_ARRAY('https://cdn.example.com/note/img/nlp-lab-1.jpg'),
+ NULL, 0,
+ JSON_ARRAY('人工智能', 'NLP', '知识图谱'),
+ 356, 58, 21, 7, 'PUBLISHED', '2026-05-12 09:00:00'),
+(3, 3, 'VIDEO', '校企合作项目复盘：从需求到交付',
+ '以智能客服系统研发为例，分享企业 PM 视角下的需求拆解、里程碑管理与验收要点。',
+ '本期视频梳理了 COMMERCIAL 类项目从 OPEN 到 ONGOING 的关键节点，以及与学生团队的协作经验。',
+ 'https://cdn.example.com/note/cover/pm-review.jpg',
+ NULL,
+ 'https://cdn.example.com/note/video/pm-review.mp4', 612,
+ JSON_ARRAY('项目管理', '校企合作', '复盘'),
+ 892, 103, 45, 12, 'PUBLISHED', '2026-05-18 16:45:00');
