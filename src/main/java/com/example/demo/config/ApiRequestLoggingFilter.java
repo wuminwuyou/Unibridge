@@ -1,5 +1,6 @@
 package com.example.demo.config;
 
+import com.example.demo.util.IpLocationUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,8 +31,9 @@ public class ApiRequestLoggingFilter extends OncePerRequestFilter {
             String query = request.getQueryString();
             String path = query == null || query.isBlank() ? uri : uri + "?" + query;
             int status = response.getStatus();
-            String clientIp = resolveClientIp(request);
-            log.info("[API] {} {} -> {} ({} ms) ip={}", method, path, status, costMs, clientIp);
+            String clientIp = IpLocationUtils.getRealIp(request);
+            String ipLocation = IpLocationUtils.getIpLocation(clientIp);
+            log.info("[API] {} {} -> {} ({} ms) ip={} location={}", method, path, status, costMs, clientIp, ipLocation);
         }
     }
 
@@ -41,15 +43,4 @@ public class ApiRequestLoggingFilter extends OncePerRequestFilter {
         return path.startsWith("/error");
     }
 
-    private String resolveClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp;
-        }
-        return request.getRemoteAddr();
-    }
 }

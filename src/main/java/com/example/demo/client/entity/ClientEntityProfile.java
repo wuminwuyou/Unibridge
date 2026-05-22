@@ -8,29 +8,22 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/**
- * 用户与主体认证关系实体，映射 `user_auth_link` 表。
- */
+/** 主体档案实体，映射 `entity_profile` 表。 */
 @Data
-@TableName("user_auth_link")
-public class UserAuthLink {
+@TableName("entity_profile")
+public class ClientEntityProfile {
     @TableId(type = IdType.AUTO)
     private Long id;
-    @TableField("user_id")
-    private Long userId;
     @TableField("entity_id")
     private Long entityId;
-    @TableField("role")
-    private String role;
-    @TableField("auth_serial_no")
-    private String authSerialNo;
-    @TableField("proof_artifact_url")
-    private String proofArtifactUrl;
-    @TableField("audit_status")
-    private String auditStatus;
-    @TableField("is_active")
-    private Integer isActive;
-    private String remark;
+    private String name;
+    private String type;
+    @TableField("logo_url")
+    private String logoUrl;
+    @TableField("banner_url")
+    private String bannerUrl;
+    private String intro;
+    private String announcement;
     @TableField("created_at")
     private LocalDateTime createdAt;
     @TableField("updated_at")

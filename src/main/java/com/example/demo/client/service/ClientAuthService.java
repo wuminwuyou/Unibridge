@@ -324,7 +324,7 @@ public class ClientAuthService {
         }
 
         String authStatus = "APPROVED".equalsIgnoreCase(link.getAuditStatus()) ? "verified" : "unverified";
-        String userRole = mapBusinessRole(link.getBusinessRole());
+        String userRole = mapBusinessRole(link.getRole());
         return new AuthMeta(userRole, authStatus);
     }
 

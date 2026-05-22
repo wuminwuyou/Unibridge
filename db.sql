@@ -8,19 +8,21 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- 02）清理旧表（可重复执行）
 -- =========================
 DROP TABLE IF EXISTS achievement_archive;
+DROP TABLE IF EXISTS note;
 DROP TABLE IF EXISTS task_card;
 DROP TABLE IF EXISTS milestone;
-DROP TABLE IF EXISTS recruitment_project;
-DROP TABLE IF EXISTS commercial_project;
+DROP TABLE IF EXISTS project_commercial_secret;
+DROP TABLE IF EXISTS project;
 DROP TABLE IF EXISTS team_member;
 DROP TABLE IF EXISTS team;
 DROP TABLE IF EXISTS laboratory;
 DROP TABLE IF EXISTS user_auth_link;
 DROP TABLE IF EXISTS user_profile;
-DROP TABLE IF EXISTS user;
+DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS entity_profile;
 DROP TABLE IF EXISTS entity;
 DROP TABLE IF EXISTS system_admin;
+
 
 -- =========================================================================
 -- 03）主体核心表 (entity) -> 只负责主体（高校/企业）的 Root 账号鉴权与资金控制
@@ -72,7 +74,7 @@ CREATE TABLE IF NOT EXISTS entity_profile (
 -- =========================================================================
 -- 05）用户核心表 (user) -> 只负责个人账号（手机/邮箱）的登录鉴权
 -- =========================================================================
-CREATE TABLE IF NOT EXISTS user (
+CREATE TABLE IF NOT EXISTS `user` (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   phone VARCHAR(32) NOT NULL COMMENT '登录手机号',
   email VARCHAR(255) NULL COMMENT '登录邮箱',
@@ -106,166 +108,177 @@ CREATE TABLE IF NOT EXISTS user_profile (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_user_profile_user_id (user_id), -- 🔒 强约束 1:1 关系
-  CONSTRAINT fk_user_profile_user FOREIGN KEY (user_id) REFERENCES user(id) 
+  CONSTRAINT fk_user_profile_user FOREIGN KEY (user_id) REFERENCES `user`(id) 
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- =========================
--- 07）实验室（laboratory，entity 1:N laboratory）
--- =========================
-CREATE TABLE laboratory (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  entity_id BIGINT UNSIGNED NOT NULL,
-  mentor_id BIGINT UNSIGNED NULL COMMENT '负责导师 (USER_ID)',
-  lab_name VARCHAR(255) NOT NULL,
-  tag JSON NULL COMMENT '实验室技能标签列表',
-  intro VARCHAR(200) NULL COMMENT '实验室职能简介（最多200字）',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_laboratory_entity_id (entity_id),
-  KEY idx_laboratory_mentor_id (mentor_id),
-  CONSTRAINT fk_laboratory_entity FOREIGN KEY (entity_id) REFERENCES entity(id)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_laboratory_mentor FOREIGN KEY (mentor_id) REFERENCES userProfile(id)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- =========================
--- 08）用户认证关联（user_auth_link：user <-> entity，可选 lab）
--- =========================
+-- ===================================================
+-- 07）用户机构认证关联表（user_auth_link）
+-- ===================================================
 CREATE TABLE user_auth_link (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id BIGINT UNSIGNED NOT NULL,
-  entity_id BIGINT UNSIGNED NOT NULL,
-  lab_id BIGINT UNSIGNED NULL COMMENT '用于绑定实验室的负责导师（1:N）',
-  business_role VARCHAR(32) NOT NULL COMMENT 'PM | MENTOR | FACULTY | STUDENT',
-  audit_status VARCHAR(32) NOT NULL COMMENT '认证状态',
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+  entity_id BIGINT UNSIGNED NOT NULL COMMENT '机构主体ID（学校或企业）',
+  role VARCHAR(32) NOT NULL COMMENT 'PM(企业项目经理/员工) | MENTOR(学校指导老师) | STUDENT(学生)',
+  -- 凭证资产留痕（审核必备）
+  auth_serial_no VARCHAR(64) NULL COMMENT '学号 或 工号（可选冗余，方便检索）',
+  proof_artifact_url VARCHAR(512) NULL COMMENT '认证证明材料URL（如学生证、工作证截图，供后台审核）',
+  -- 区分两层状态机：审核状态 vs 物理生效状态
+  audit_status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING(待审核) | APPROVED(审核通过) | REJECTED(审核拒绝)',
+  is_active TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1(当前活跃身份) | 0(历史失效/毕业离职归档)',
+  remark VARCHAR(255) NULL COMMENT '审核拒绝原因或备注说明',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_user_auth_link_user_id (user_id),
   KEY idx_user_auth_link_entity_id (entity_id),
-  KEY idx_user_auth_link_lab_id (lab_id),
-  UNIQUE KEY uk_user_auth_link_unique (user_id, entity_id, lab_id, business_role),
-  CONSTRAINT fk_user_auth_link_user FOREIGN KEY (user_id) REFERENCES userProfile(id)
+  KEY idx_user_auth_link_status (audit_status, is_active),
+  -- 联合唯一索引保持不变，依然完美锁死“同机构同角色只能申请一次”
+  UNIQUE KEY uk_user_auth_link_unique (user_id, entity_id, role),
+  CONSTRAINT fk_user_auth_link_user FOREIGN KEY (user_id) REFERENCES `user`(id)
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_user_auth_link_entity FOREIGN KEY (entity_id) REFERENCES entity(id)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_user_auth_link_lab FOREIGN KEY (lab_id) REFERENCES laboratory(id)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT chk_user_auth_link_business_role CHECK (business_role IN ('PM','MENTOR','FACULTY','STUDENT'))
+    ON DELETE RESTRICT ON UPDATE CASCADE, 
+  CONSTRAINT chk_user_auth_link_role CHECK (role IN ('PM','MENTOR','STUDENT')),
+  CONSTRAINT chk_user_auth_link_audit CHECK (audit_status IN ('PENDING','APPROVED','REJECTED')),
+  CONSTRAINT chk_user_auth_link_active CHECK (is_active IN (0, 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- =========================
--- 09）团队（team）
--- =========================
+-- ===================================================
+-- 08）统一团队与实验室表（team）
+-- ===================================================
 CREATE TABLE team (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  leader_id BIGINT UNSIGNED NULL COMMENT '队长 (USER_ID)',
-  team_name VARCHAR(255) NOT NULL,
-  tag JSON NULL COMMENT '团队技能标签列表',
-  intro VARCHAR(200) NULL COMMENT '团队职能简介（最多200字）',
-  status VARCHAR(32) NOT NULL COMMENT 'ACTIVE | DISBANDED',
+  type VARCHAR(32) NOT NULL COMMENT 'LAB(学校官方实验室) | STUDENT_TEAM(学生自发团队)', 
+  owner_id BIGINT UNSIGNED NULL COMMENT '第一负责人/创建者 (USER_ID，实验室为一号导师，学生队为队长)',
+  owner_name VARCHAR(255) NULL COMMENT '负责人姓名冗余',
+  entity_id BIGINT UNSIGNED NULL COMMENT '所属机构主体ID（仅实验室有效）',
+  team_name VARCHAR(255) NOT NULL COMMENT '团队或实验室名称',
+  tag JSON NULL COMMENT '技能/方向标签列表',
+  intro VARCHAR(200) NULL COMMENT '职能简介（最多200字）',
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE | DISBANDED',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_team_leader_id (leader_id),
+  KEY idx_team_type (type),
+  KEY idx_team_owner_id (owner_id),
+  KEY idx_team_entity_id (entity_id),
   KEY idx_team_status (status),
-  CONSTRAINT fk_team_leader FOREIGN KEY (leader_id) REFERENCES userProfile(id)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT chk_team_status CHECK (status IN ('ACTIVE', 'DISBANDED'))
+  CONSTRAINT fk_team_owner FOREIGN KEY (owner_id) REFERENCES `user`(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_team_entity FOREIGN KEY (entity_id) REFERENCES entity(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT chk_team_status CHECK (status IN ('ACTIVE', 'DISBANDED')),
+  CONSTRAINT chk_team_type CHECK (type IN ('LAB', 'STUDENT_TEAM'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- =========================
--- 10）团队成员（team_member：team 1:N 成员，userProfile 唯一归属）
--- =========================
+-- ===================================================
+-- 09）团队/实验室成员关联表（team_member）
+-- ===================================================
 CREATE TABLE team_member (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  team_id BIGINT UNSIGNED NOT NULL,
-  user_id BIGINT UNSIGNED NOT NULL COMMENT '唯一索引：限制一人一队',
-  role VARCHAR(32) NOT NULL COMMENT 'LEADER | MEMBER',
+  team_id BIGINT UNSIGNED NOT NULL COMMENT '团队/实验室ID',
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '用户ID（学生或导师）',
+  role VARCHAR(32) NOT NULL DEFAULT 'MEMBER' COMMENT 'LEADER(队长/负责人) | MEMBER(普通成员) | MENTOR(指导老师/学术导师)',
+  lab_user_id BIGINT UNSIGNED NULL COMMENT '用于严格限制学生单实验室的影子字段',
   joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_team_member_team_id (team_id),
-  KEY idx_team_member_user_id (user_id),
-  UNIQUE KEY uk_team_member_user_id (user_id),
-  UNIQUE KEY uk_team_member_team_user (team_id, user_id),
-  CONSTRAINT fk_team_member_team FOREIGN KEY (team_id) REFERENCES team(id)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_team_member_user FOREIGN KEY (user_id) REFERENCES userProfile(id)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT chk_team_member_role CHECK (role IN ('LEADER','MEMBER'))
+  KEY idx_member_team_id (team_id),
+  KEY idx_member_user_id (user_id),
+  CONSTRAINT fk_member_team_id FOREIGN KEY (team_id) REFERENCES team(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_member_user_id FOREIGN KEY (user_id) REFERENCES `user`(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  UNIQUE KEY uk_team_user (team_id, user_id),
+  UNIQUE KEY uk_single_lab_user (lab_user_id),
+  CONSTRAINT chk_member_role CHECK (role IN ('LEADER', 'MEMBER', 'MENTOR'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- =========================
--- 11）正式商业项目（commercial_project）
--- =========================
-CREATE TABLE commercial_project (
+-- ===================================================
+-- 10）统一项目主表（project）
+-- ===================================================
+CREATE TABLE project (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  project_pm_id BIGINT UNSIGNED NOT NULL COMMENT '发布者(企业PM)',
-  executor_lab_id BIGINT UNSIGNED NULL COMMENT '承接实验室(可选)',
-  executor_team_id BIGINT UNSIGNED NULL COMMENT '承接团队(可选)',
-  title VARCHAR(255) NOT NULL,
+  
+  -- 🌟 核心分类：COMMERCIAL(正式商业项目) | RECRUITMENT(招募与实践项目)
+  category VARCHAR(32) NOT NULL COMMENT 'COMMERCIAL | RECRUITMENT',
+  
+  -- 🌟 招募项目的细分子类型，如果是商业项目则为 NULL
+  recruitment_type VARCHAR(32) NULL COMMENT 'LAB_RECRUIT | TEAM_RECRUIT | CAMPUS_PRACTICE（仅招募项目有效）',
+  
+  -- 🌟 发起/所有者关联（统一了项目 PM 和 创作者）
+  owner_id BIGINT UNSIGNED NOT NULL COMMENT '项目发起人/发布企业PM (USER_ID)',
+  
+  -- 🌟 关联的组织空间（无缝对接我们之前合并后的统一 team 表）
+  team_id BIGINT UNSIGNED NULL COMMENT '关联/承接的团队或实验室ID (可选)',
+  
+  title VARCHAR(255) NOT NULL COMMENT '项目名称',
   preview TEXT NOT NULL COMMENT '项目简略描述',
-  tags JSON NULL COMMENT '推荐算法标签',
-  level VARCHAR(16) NOT NULL COMMENT 'N | R | SR | SSR | UR',
-  total_budget DECIMAL(18,2) NOT NULL DEFAULT 0.00 COMMENT '托管总额',
-  status VARCHAR(64) NOT NULL COMMENT '状态机',
+  tags JSON NULL COMMENT '推荐与算法标签列表',
+  
+  -- 🌟 难度评级：从原商业表上移至主表，全类型通用
+  level VARCHAR(16) NOT NULL DEFAULT 'N' COMMENT '难度评级：N | R | SR | SSR | UR',
+  
+  -- 🌟 基础状态：OPEN(开放中/招募中) | ONGOING(进行中) | CLOSED(已关闭/已结项)
+  status VARCHAR(16) NOT NULL DEFAULT 'OPEN' COMMENT 'OPEN | ONGOING | CLOSED',
+  
   published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
   PRIMARY KEY (id),
-  KEY idx_commercial_project_pm (project_pm_id),
-  KEY idx_commercial_project_executor_lab (executor_lab_id),
-  KEY idx_commercial_project_executor_team (executor_team_id),
-  KEY idx_commercial_project_published_at (published_at),
-  KEY idx_commercial_project_status (status),
-  CONSTRAINT fk_commercial_project_pm FOREIGN KEY (project_pm_id) REFERENCES userProfile(id)
+  KEY idx_project_category (category),
+  KEY idx_project_owner (owner_id),
+  KEY idx_project_team (team_id),
+  KEY idx_project_published_at (published_at),
+  KEY idx_project_status (status),
+  
+  CONSTRAINT fk_project_owner FOREIGN KEY (owner_id) REFERENCES `user`(id)
     ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_commercial_project_executor_lab FOREIGN KEY (executor_lab_id) REFERENCES laboratory(id)
+  CONSTRAINT fk_project_team FOREIGN KEY (team_id) REFERENCES team(id)
     ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT fk_commercial_project_executor_team FOREIGN KEY (executor_team_id) REFERENCES team(id)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT chk_commercial_project_level CHECK (level IN ('N','R','SR','SSR','UR'))
+    
+  CONSTRAINT chk_project_category CHECK (category IN ('COMMERCIAL', 'RECRUITMENT')),
+  CONSTRAINT chk_project_recruitment_type CHECK (recruitment_type IN ('LAB_RECRUIT', 'TEAM_RECRUIT', 'CAMPUS_PRACTICE')),
+  CONSTRAINT chk_project_status CHECK (status IN ('OPEN', 'ONGOING', 'CLOSED')),
+  CONSTRAINT chk_project_level CHECK (level IN ('N','R','SR','SSR','UR'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- =========================
--- 12）招募与实践项目（recruitment_project）
--- =========================
-CREATE TABLE recruitment_project (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  creator_id BIGINT UNSIGNED NOT NULL COMMENT '发起人 (USER_ID)',
-  source_lab_id BIGINT UNSIGNED NULL COMMENT '关联实验室',
-  source_team_id BIGINT UNSIGNED NULL COMMENT '关联团队',
-  type VARCHAR(32) NOT NULL COMMENT 'LAB_RECRUIT | TEAM_RECRUIT | CAMPUS_PRACTICE',
-  title VARCHAR(255) NOT NULL,
-  tags JSON NULL COMMENT '算法标签',
-  preview TEXT NOT NULL COMMENT '项目简略描述',
-  status VARCHAR(16) NOT NULL COMMENT 'OPEN | CLOSED',
-  published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
+-- =========================================================================
+-- 11）商业项目敏感与隐私扩展表（project_commercial_secret）
+-- =========================================================================
+CREATE TABLE project_commercial_secret (
+  project_id BIGINT UNSIGNED NOT NULL COMMENT '关联的主项目ID（1:1 关联）',
+  
+  -- 💰 核心敏感数据：托管金额
+  total_budget DECIMAL(18,2) NOT NULL DEFAULT 0.00 COMMENT '托管总额（企业隐私，严禁泄露）',
+  
+  -- 🔄 商业专用高级状态机：主表 status='ONGOING' 时激活
+  commercial_status VARCHAR(64) NOT NULL DEFAULT 'PENDING_START' 
+    COMMENT '商业专用状态机：PENDING_START(待托管开工) | PROCESSING(研发进行中) | SUBMIT_REVIEW(验收审核中) | NEED_IMPROVEMENT(待改进) | APPROVED_SUCCESS(验收通过) | IN_DISPUTE(争议维权中) | ARBITRATED(平台仲裁结项)',
+  
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_recruitment_project_creator (creator_id),
-  KEY idx_recruitment_project_source_lab (source_lab_id),
-  KEY idx_recruitment_project_source_team (source_team_id),
-  KEY idx_recruitment_project_published_at (published_at),
-  KEY idx_recruitment_project_status (status),
-  CONSTRAINT fk_recruitment_project_creator FOREIGN KEY (creator_id) REFERENCES userProfile(id)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_recruitment_project_source_lab FOREIGN KEY (source_lab_id) REFERENCES laboratory(id)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT fk_recruitment_project_source_team FOREIGN KEY (source_team_id) REFERENCES team(id)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT chk_recruitment_project_type CHECK (type IN ('LAB_RECRUIT','TEAM_RECRUIT','CAMPUS_PRACTICE')),
-  CONSTRAINT chk_recruitment_project_status CHECK (status IN ('OPEN','CLOSED'))
+  
+  PRIMARY KEY (project_id),
+  KEY idx_secret_commercial_status (commercial_status),
+  
+  -- 🔗 外键强约束：主表删除了项目，敏感表连带自动删除（CASCADE）
+  CONSTRAINT fk_secret_project_id FOREIGN KEY (project_id) REFERENCES project(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+    
+  -- 🔒 数据库防御死锁：严格限制状态机的输入值，防止后端代码写错
+  CONSTRAINT chk_secret_commercial_status CHECK (
+    commercial_status IN (
+      'PENDING_START', 
+      'PROCESSING', 
+      'SUBMIT_REVIEW', 
+      'NEED_IMPROVEMENT', 
+      'APPROVED_SUCCESS', 
+      'IN_DISPUTE', 
+      'ARBITRATED'
+    )
+  )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 13）里程碑（milestone：commercial_project 1:N milestones）
+-- 12）里程碑（milestone：project 1:N milestones）
 -- =========================
 CREATE TABLE milestone (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -277,13 +290,13 @@ CREATE TABLE milestone (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_milestone_project_id (project_id),
-  CONSTRAINT fk_milestone_project FOREIGN KEY (project_id) REFERENCES commercial_project(id)
+  CONSTRAINT fk_milestone_project FOREIGN KEY (project_id) REFERENCES project(id)
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT chk_milestone_payment_pct CHECK (payment_pct >= 0 AND payment_pct <= 100)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 14）任务卡片（task_card：milestone 1:N task cards）
+-- 13）任务卡片（task_card：milestone 1:N task cards）
 -- =========================
 CREATE TABLE task_card (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -300,13 +313,13 @@ CREATE TABLE task_card (
   KEY idx_task_card_status (status),
   CONSTRAINT fk_task_card_milestone FOREIGN KEY (milestone_id) REFERENCES milestone(id)
     ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_task_card_assignee FOREIGN KEY (assignee_id) REFERENCES userProfile(id)
+  CONSTRAINT fk_task_card_assignee FOREIGN KEY (assignee_id) REFERENCES `user`(id)
     ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT chk_task_card_status CHECK (status IN ('DONE','TODO'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 15）成就归档（achievement_archive：userProfile 1:N achievements）
+-- 14）成就归档（achievement_archive：user 1:N achievements）
 -- =========================
 CREATE TABLE achievement_archive (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -321,12 +334,30 @@ CREATE TABLE achievement_archive (
   PRIMARY KEY (id),
   KEY idx_achievement_archive_user_id (user_id),
   KEY idx_achievement_archive_completed_at (completed_at),
-  CONSTRAINT fk_achievement_archive_user FOREIGN KEY (user_id) REFERENCES userProfile(id)
+  CONSTRAINT fk_achievement_archive_user FOREIGN KEY (user_id) REFERENCES `user`(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 16）系统管理员表：完全独立于业务用户体系
+-- 15）笔记（note：user 1:N notes）
+-- =========================
+CREATE TABLE note(
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  tags JSON NULL COMMENT '推荐与算法标签列表',
+  preview TEXT NOT NULL COMMENT '笔记简略描述',
+  content TEXT NOT NULL COMMENT '笔记内容',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_note_user_id (user_id),
+  CONSTRAINT fk_note_user FOREIGN KEY (user_id) REFERENCES `user`(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- =========================
+-- 15）系统管理员表：完全独立于业务用户体系
 -- =========================
 CREATE TABLE IF NOT EXISTS system_admin (
   id VARCHAR(32) NOT NULL COMMENT '登录凭证 (管理员账号)',
@@ -343,6 +374,21 @@ INSERT IGNORE INTO system_admin (id, password_hash, auth_level) VALUES
 ('admin_master', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 3),
 ('admin_auditor', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 1),
 ('admin_manager', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 2);
+
+-- =========================
+-- 16）外键设计说明（涉及 userId 的字段一律引用 user.id，而非 user_profile.id）
+-- | 表              | 字段         | 引用        |
+-- |-----------------|--------------|-------------|
+-- | user_profile    | user_id      | user(id)    |
+-- | user_auth_link  | user_id      | user(id)    |
+-- | team            | owner_id     | user(id)    |
+-- | team_member     | user_id      | user(id)    |
+-- | project         | owner_id     | user(id)    |
+-- | task_card       | assignee_id  | user(id)    |
+-- | achievement_archive | user_id  | user(id)    |
+--
+-- 若线上库仍报 userprofile 外键错误，说明是旧 schema 残留，请执行 fix-fk-migration.sql 一次性修复。
+-- =========================
  
 -- =========================
 -- 17）补充外键：主体审核管理员（entity.audit_admin_id -> system_admin.id）

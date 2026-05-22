@@ -74,6 +74,13 @@
             <scope>runtime</scope>
         </dependency>
         
+        <!-- 离线 IP 属地库 ip2region（全内存查询，无磁盘 I/O） -->
+        <dependency>
+            <groupId>org.lionsoul</groupId>
+            <artifactId>ip2region</artifactId>
+            <version>3.3.7</version>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
