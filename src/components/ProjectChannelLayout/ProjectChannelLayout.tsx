@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import ProjectCard from '../common/ProjectCard'
-import TopNavbar from '../layout/TopNavbar'
+import TopNavbar from '../../layout/TopNavbar'
 import AnnouncementsCard from './components/AnnouncementsCard'
 import ExperienceRecommendationSection from './components/ExperienceRecommendationSection'
 import RecommendedCompaniesCard from './components/RecommendedCompaniesCard'

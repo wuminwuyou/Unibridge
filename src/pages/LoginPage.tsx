@@ -1,7 +1,7 @@
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import AuthModal from '../components/AuthModal'
 import { useAuth } from '../contexts/AuthContext'
-import HomePage from './HomePage/HomePage'
+import HomePage from './HomePage/index.tsx'
 
 // 01）登录页代理组件（LoginPage）
 /**

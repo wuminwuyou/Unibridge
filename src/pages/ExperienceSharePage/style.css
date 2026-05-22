@@ -1,0 +1,248 @@
+/* 01）经验分享页面根容器 */
+.experience-share-page {
+    min-height: 100vh;
+    background: var(--page-bg);
+    color: var(--text-main);
+}
+
+/* 02）经验分享主体容器 */
+.experience-share-main {
+    width: min(1400px, 70vw);
+    margin: 24px auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-bottom: 36px;
+}
+
+/* 03）大类筛选面板 */
+.experience-tag-panel {
+    border-radius: 18px;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    box-shadow: var(--panel-shadow);
+    padding: 16px 18px;
+}
+
+.experience-tag-list {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.experience-tag-chip {
+    border: 1px solid var(--chip-border);
+    background: var(--chip-bg);
+    color: var(--chip-text);
+    border-radius: 999px;
+    height: 32px;
+    padding: 0 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.experience-tag-chip:hover {
+    border-color: color-mix(in srgb, var(--primary-text) 42%, var(--chip-border));
+    color: var(--primary-text);
+}
+
+/* 04）笔记专区外层结构 */
+.experience-note-section {
+    position: relative;
+}
+
+/* 05）笔记专区外置操作区 */
+.experience-note-actions {
+    position: absolute;
+    top: 0;
+    right: -52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 6;
+}
+
+.experience-note-setting {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid var(--button-border);
+    background: var(--button-bg);
+    color: var(--button-text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.experience-note-setting:hover {
+    border-color: color-mix(in srgb, var(--primary-text) 48%, var(--button-border));
+    color: var(--primary-text);
+}
+
+.experience-note-setting.active {
+    border-color: color-mix(in srgb, var(--primary-text) 55%, var(--button-border));
+    color: var(--primary-text);
+    background: color-mix(in srgb, var(--primary-text) 10%, var(--button-bg));
+}
+
+.experience-note-refresh-button {
+    border: 1px solid var(--button-border);
+    background: var(--button-bg);
+    color: var(--button-text);
+    border-radius: 10px;
+    padding: 6px 4px;
+    min-height: 84px;
+    width: 34px;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    letter-spacing: 2px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.experience-note-refresh-button:hover {
+    border-color: color-mix(in srgb, var(--primary-text) 45%, var(--button-border));
+    color: var(--primary-text);
+}
+
+.experience-setting-panel {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 8px);
+    width: fit-content;
+    max-width: calc(100vw - 32px);
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+    background: color-mix(in srgb, var(--card-bg) 94%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: var(--panel-shadow);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    opacity: 0;
+    transform: translateX(-8px) scale(0.98);
+    pointer-events: none;
+    transition: opacity 180ms cubic-bezier(0.2, 0, 0, 1), transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.experience-setting-panel.is-open {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    pointer-events: auto;
+}
+
+.experience-setting-item {
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-main);
+    width: 100%;
+    text-align: left;
+    height: 34px;
+    padding: 0 5px;
+    white-space: nowrap;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.experience-setting-item:hover {
+    background: color-mix(in srgb, var(--primary-text) 10%, transparent);
+    color: var(--primary-text);
+}
+
+/* 06）笔记专区面板 */
+.experience-note-panel {
+    border-radius: 18px;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    box-shadow: var(--panel-shadow);
+    padding: 18px;
+}
+
+/* 07）经验分享笔记网格（复用 GridNoteCard） */
+.experience-note-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.experience-note-grid .profile-note-card-compact {
+    min-height: 148px;
+}
+
+/* 08）经验分享笔记行列表（复用 RowNoteCard） */
+.experience-note-row-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+@media (max-width: 1280px) {
+    .experience-share-main {
+        width: min(1400px, 88vw);
+    }
+}
+
+@media (max-width: 1200px) {
+    .experience-note-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1024px) {
+    .experience-note-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .experience-share-main {
+        width: min(1400px, 94vw);
+    }
+
+    .experience-note-section {
+        position: static;
+    }
+
+    .experience-note-actions {
+        position: static;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-end;
+        margin-top: 10px;
+    }
+
+    .experience-note-refresh-button {
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+        width: auto;
+        min-height: 34px;
+        padding: 0 12px;
+        letter-spacing: 0;
+    }
+
+    .experience-setting-panel {
+        left: auto;
+        right: 0;
+        top: calc(100% + 6px);
+    }
+
+    .experience-note-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .experience-note-grid {
+        grid-template-columns: 1fr;
+    }
+}

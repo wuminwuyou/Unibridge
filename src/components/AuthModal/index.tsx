@@ -1,5 +1,6 @@
+import './style.css'
+import { AuthModalView } from './AuthModalView'
 import { useAuthModal } from './useAuthModal'
-import { AuthModalView } from './AuthModal'
 import type { AuthModalProps } from './types'
 
 // 01）认证弹窗对外组件（AuthModal）
@@ -9,6 +10,7 @@ import type { AuthModalProps } from './types'
  * 实现方法：
  * - 始终调用 useAuthModal 以保持关闭时的清理副作用
  * - open 为 false 时不挂载 Portal，减少 DOM 负担
+ * - 样式由同目录 style.css 随模块一并加载
  * 输入：
  * - props：AuthModalProps（open/onClose/onSuccess）
  * 输出：
@@ -27,5 +29,15 @@ function AuthModal(props: AuthModalProps) {
 
 export default AuthModal
 
-export type { AuthStatus, AuthUserRole, AuthModalProps, PersonalLoginMode } from './types'
+export { default as VerificationStep } from './components/VerificationStep'
+export type {
+  AuthStatus,
+  AuthTabType,
+  AuthUserRole,
+  AuthModalProps,
+  OrganizationLoginStep,
+  PersonalLoginMode,
+  PersonalPanelView,
+  VerificationGuideTab,
+} from './types'
 export type { AuthModalModel } from './useAuthModal'

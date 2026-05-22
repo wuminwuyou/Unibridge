@@ -12,7 +12,7 @@ import {
 // 01）使用方说明
 /**
  * 该文件集中维护"当前登录用户"在导航顶部的静态展示数据。
- * 使用方：apps/web-client/src/components/layout/TopNavbar/components/UserProfileMenu.tsx
+ * 使用方：apps/web-client/src/layout/TopNavbar/components/UserProfileMenu
  * 数据范围：当前用户基本信息 / 用户统计入口 / 用户菜单项
  *
  * 注：BadgeCheck 一并导出以保持 UserProfileMenu 中"认证主体徽标"与数据来源一致。

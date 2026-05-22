@@ -1,10 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import VerificationStep from '../../components/AuthModal/components/VerificationStep'
-import type { VerificationGuideTab } from '../../components/AuthModal/types'
-import TopNavbar from '../../components/layout/TopNavbar/index'
-import '../../styles/AuthModal.css'
-import '../../styles/HomePage.css'
+import { VerificationStep, type VerificationGuideTab } from '../../components/AuthModal'
+import TopNavbar from '../../layout/TopNavbar'
 import '../../styles/OrganizationVerificationPage.css'
 
 // 01）顶部导航数据（navItems）

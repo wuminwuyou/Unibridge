@@ -1,4 +1,4 @@
-import TopNavbar from '../components/layout/TopNavbar'
+import TopNavbar from '../layout/TopNavbar'
 import '../styles/InstantMessagePage.css'
 
 // 01）顶部导航数据（navItems）
