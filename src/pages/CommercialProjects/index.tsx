@@ -1,4 +1,5 @@
-import ProjectChannelLayout from '../../components/ProjectChannelLayout'
+import { useMemo } from 'react'
+import ProjectChannelLayout, { buildCommercialLabFilterTabs } from '../../components/ProjectChannelLayout'
 import {
   enterprisePracticeAnnouncements,
   enterprisePracticeProjects,
@@ -6,24 +7,29 @@ import {
   enterprisePracticeRecommendedTypes,
 } from './enterprisePracticePageData'
 
-// 01）企业实战页面组件（EnterprisePracticePage）
+// 01）企业实战页面组件（CommercialProjectsPage）
 /**
- * 函数名：EnterprisePracticePage
+ * 函数名：CommercialProjectsPage
  * 功能：渲染企业实战频道页面。
  * 实现方法：
  * - 复用 ProjectChannelLayout
- * - 数据由同目录 enterprisePracticePageData 提供
+ * - 筛选 Tab 为「全部项目 / 看热门 / 看同地」
  * 输入：无
  * 输出：
  * - 返回值：JSX.Element
  * - 副作用：无
  */
-function EnterprisePracticePage() {
+function CommercialProjectsPage() {
+  const commercialFilterTabs = useMemo(
+    () => buildCommercialLabFilterTabs(enterprisePracticeProjects.length),
+    [],
+  )
+
   return (
     <ProjectChannelLayout
-      sectionTitle="企业实战"
-      searchInputId="enterprise-project-search-input"
+      projectsSectionLabel="企业实战"
       projects={enterprisePracticeProjects}
+      filterTabs={commercialFilterTabs}
       recommendedTypes={enterprisePracticeRecommendedTypes}
       recommendedOrganizations={enterprisePracticeRecommendedCompanies}
       announcements={enterprisePracticeAnnouncements}
@@ -34,4 +40,4 @@ function EnterprisePracticePage() {
   )
 }
 
-export default EnterprisePracticePage
+export default CommercialProjectsPage

@@ -2,110 +2,70 @@ import { useMemo } from 'react'
 import ProjectCard from '../ProjectCard'
 import TopNavbar from '../../layout/TopNavbar'
 import AnnouncementsCard from './components/AnnouncementsCard'
-import ExperienceRecommendationSection from './components/ExperienceRecommendationSection'
+import ProjectLabHeader from './components/ProjectLabHeader'
 import RecommendedCompaniesCard from './components/RecommendedCompaniesCard'
 import RecommendedTypesCard from './components/RecommendedTypesCard'
-import type { ProjectChannelLayoutModel } from './useProjectChannelLayout'
 import type { ProjectChannelLayoutProps } from './types'
 
-// 01）项目频道布局视图参数（ProjectChannelLayoutViewProps）
-interface ProjectChannelLayoutViewProps extends ProjectChannelLayoutProps {
-  model: ProjectChannelLayoutModel
-}
-
-// 02）项目频道布局纯视图（ProjectChannelLayoutView）
+// 01）项目频道布局纯视图（ProjectChannelLayoutView）
 /**
  * 函数名：ProjectChannelLayoutView
- * 功能：项目频道页面的 DOM 结构与子组件拼装。
+ * 功能：项目频道页面的 DOM 结构与子组件拼装，布局对齐首页项目实验室双栏结构。
  * 实现方法：
- * - default：左栏（经验推荐 + 项目列表）+ 右栏侧栏卡
- * - stacked（HomePage）：上栏笔记专区全宽 + 下栏项目专区（主区 + 固定宽 aside）
+ * - 左侧：项目实验室面板（ProjectLabHeader + ProjectCard 列表）
+ * - 右侧：推荐类型、推荐组织与平台公告侧栏
  * 输入：
- * - 见 ProjectChannelLayoutViewProps
+ * - 见 ProjectChannelLayoutProps
  * 输出：
  * - 返回值：JSX.Element
  * - 副作用：无
  */
 export function ProjectChannelLayoutView({
-  sectionTitle,
-  layout = 'default',
-  notesSectionTitle = '经验推荐',
+  projectsSectionLabel,
+  projects,
+  labTitle,
+  labSubtitle,
+  filterTabs,
   recommendedTypes,
   recommendedOrganizations,
   announcements,
   organizationCardTitle,
   organizationActionText,
   organizationAvatarText,
-  model,
-}: ProjectChannelLayoutViewProps) {
+}: ProjectChannelLayoutProps) {
   const renderedProjectCards = useMemo(() => {
-    return model.recommendedProjectBatch.map((project) => (
+    return projects.map((project) => (
       <ProjectCard key={project.id ?? `${project.title}-${project.ownerName}`} project={project} />
     ))
-  }, [model.recommendedProjectBatch])
-
-  const projectListSection = (
-    <>
-      <div className="section-title-row">
-        <h2 className="section-title">{sectionTitle}</h2>
-        <button type="button" className="section-refresh-button" onClick={model.handleRefreshProjects}>
-          换一换
-        </button>
-      </div>
-      <div className="project-list">{renderedProjectCards}</div>
-    </>
-  )
-
-  const sidebar = (
-    <aside className="sidebar" aria-label="右侧信息栏">
-      <RecommendedTypesCard types={recommendedTypes} />
-      <RecommendedCompaniesCard
-        companies={recommendedOrganizations}
-        title={organizationCardTitle}
-        actionText={organizationActionText}
-        avatarText={organizationAvatarText}
-      />
-      <AnnouncementsCard announcements={announcements} />
-    </aside>
-  )
-
-  const notesSection = (
-    <ExperienceRecommendationSection
-      notes={model.recommendedNoteBatch}
-      onRefresh={model.handleRefreshExperienceNotes}
-      sectionTitle={notesSectionTitle}
-    />
-  )
-
-  const isStackedLayout = layout === 'stacked'
+  }, [projects])
 
   return (
     <div className="home-page">
       <TopNavbar />
 
-      <main className={`home-main ${isStackedLayout ? 'home-main--stacked' : ''}`.trim()}>
-        {isStackedLayout ? (
-          <>
-            <section className="home-notes-zone" aria-label={notesSectionTitle}>
-              {notesSection}
-            </section>
+      <main className="home-page__main">
+        <section className="home-page__projects" aria-label={projectsSectionLabel}>
+          <div className="home-page__projects-panel">
+            <ProjectLabHeader
+              projectTotal={projects.length}
+              labTitle={labTitle}
+              labSubtitle={labSubtitle}
+              filterTabs={filterTabs}
+            />
+            <div className="home-page__projects-list">{renderedProjectCards}</div>
+          </div>
+        </section>
 
-            <section className="home-projects-zone" aria-label={sectionTitle}>
-              <div className="home-projects-zone__inner">
-                <div className="project-section">{projectListSection}</div>
-                {sidebar}
-              </div>
-            </section>
-          </>
-        ) : (
-          <>
-            <section className="project-section" aria-label={sectionTitle}>
-              {notesSection}
-              {projectListSection}
-            </section>
-            {sidebar}
-          </>
-        )}
+        <aside className="project-channel-layout__sidebar" aria-label="右侧信息栏">
+          <RecommendedTypesCard types={recommendedTypes} />
+          <RecommendedCompaniesCard
+            companies={recommendedOrganizations}
+            title={organizationCardTitle}
+            actionText={organizationActionText}
+            avatarText={organizationAvatarText}
+          />
+          <AnnouncementsCard announcements={announcements} />
+        </aside>
       </main>
     </div>
   )

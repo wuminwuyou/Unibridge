@@ -1,52 +1,68 @@
 import { ChevronDown, Info, SlidersHorizontal } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
 import {
-  buildHomeLabFilterTabs,
-  HOME_LAB_SORT_OPTIONS,
-  HOME_LAB_TECH_DIRECTION_OPTIONS,
-  type HomeLabFilterTabId,
-} from './homePageLabFilters'
+  buildProjectLabFilterTabs,
+  PROJECT_LAB_SORT_OPTIONS,
+  PROJECT_LAB_TECH_DIRECTION_OPTIONS,
+  type ProjectLabFilterTab,
+  type ProjectLabFilterTabId,
+} from '../projectLabFilters'
 
-// 01）项目实验室顶栏属性（HomePageProjectLabHeaderProps）
-interface HomePageProjectLabHeaderProps {
+// 01）项目实验室顶栏属性（ProjectLabHeaderProps）
+interface ProjectLabHeaderProps {
   projectTotal: number
+  labTitle?: string
+  labSubtitle?: string
+  /** 自定义筛选 Tab；未传时使用默认四项（含看同校） */
+  filterTabs?: ProjectLabFilterTab[]
 }
 
-// 02）项目实验室顶栏（HomePageProjectLabHeader）
+// 02）项目实验室顶栏（ProjectLabHeader）
 /**
- * 函数名：HomePageProjectLabHeader
+ * 函数名：ProjectLabHeader
  * 功能：渲染项目实验室标题区与筛选工具栏，工具栏在滚动时固定在顶部导航下方。
  * 实现方法：
  * - 标题区与工具栏作为面板内并列兄弟节点，避免 sticky 被短容器截断
- * - 渲染 Tab 筛选（全部项目 / 看热门 / 看同地 / 看同校）
+ * - 渲染 Tab 筛选（全部项目 / 看热门 / 看同地 / 看同校，或外部传入自定义 Tab）
  * - 渲染技术方向与排序下拉（当前为 UI 占位，后续可接筛选逻辑）
  * 输入：
  * - projectTotal：项目总数，用于「全部项目」Tab 计数
+ * - labTitle：标题文案，默认「项目实验室」
+ * - labSubtitle：副标题文案
+ * - filterTabs：可选自定义 Tab 列表
  * 输出：
  * - 返回值：JSX.Element
  * - 副作用：本地维护 Tab 与下拉选中状态
  */
-function HomePageProjectLabHeader({ projectTotal }: HomePageProjectLabHeaderProps) {
-  const filterTabs = useMemo(() => buildHomeLabFilterTabs(projectTotal), [projectTotal])
-  const [activeTabId, setActiveTabId] = useState<HomeLabFilterTabId>('all')
-  const [techDirection, setTechDirection] = useState<string>(HOME_LAB_TECH_DIRECTION_OPTIONS[0])
-  const [sortOption, setSortOption] = useState<string>(HOME_LAB_SORT_OPTIONS[0])
+function ProjectLabHeader({
+  projectTotal,
+  labTitle = '项目实验室',
+  labSubtitle = '探索前沿技术项目，参与真实场景实践，提升工程实战能力',
+  filterTabs,
+}: ProjectLabHeaderProps) {
+  const resolvedFilterTabs = useMemo(
+    () => filterTabs ?? buildProjectLabFilterTabs(projectTotal),
+    [filterTabs, projectTotal],
+  )
+  const [activeTabId, setActiveTabId] = useState<ProjectLabFilterTabId>('all')
+  const [techDirection, setTechDirection] = useState<string>(PROJECT_LAB_TECH_DIRECTION_OPTIONS[0])
+  const [sortOption, setSortOption] = useState<string>(PROJECT_LAB_SORT_OPTIONS[0])
 
   return (
     <>
       <div className="home-page__lab-heading">
         <div className="home-page__lab-title-row">
-          <h2 className="home-page__lab-title">项目实验室</h2>
-          <button type="button" className="home-page__lab-info" aria-label="项目实验室说明">
+          <h2 className="home-page__lab-title">{labTitle}</h2>
+          <button type="button" className="home-page__lab-info" aria-label={`${labTitle}说明`}>
             <Info size={16} aria-hidden="true" />
           </button>
         </div>
-        <p className="home-page__lab-subtitle">探索前沿技术项目，参与真实场景实践，提升工程实战能力</p>
+        <p className="home-page__lab-subtitle">{labSubtitle}</p>
       </div>
 
       <div className="home-page__lab-toolbar">
-        <div className="home-page__lab-tabs" role="tablist" aria-label="项目实验室筛选">
-          {filterTabs.map((tab) => {
+        <div className="home-page__lab-tabs" role="tablist" aria-label={`${labTitle}筛选`}>
+          {resolvedFilterTabs.map((tab) => {
             const isActive = tab.id === activeTabId
 
             return (
@@ -74,7 +90,7 @@ function HomePageProjectLabHeader({ projectTotal }: HomePageProjectLabHeaderProp
               onChange={(event) => setTechDirection(event.target.value)}
               aria-label="技术方向筛选"
             >
-              {HOME_LAB_TECH_DIRECTION_OPTIONS.map((option) => (
+              {PROJECT_LAB_TECH_DIRECTION_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -91,7 +107,7 @@ function HomePageProjectLabHeader({ projectTotal }: HomePageProjectLabHeaderProp
               onChange={(event) => setSortOption(event.target.value)}
               aria-label="排序方式"
             >
-              {HOME_LAB_SORT_OPTIONS.map((option) => (
+              {PROJECT_LAB_SORT_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -105,4 +121,4 @@ function HomePageProjectLabHeader({ projectTotal }: HomePageProjectLabHeaderProp
   )
 }
 
-export default memo(HomePageProjectLabHeader)
+export default memo(ProjectLabHeader)

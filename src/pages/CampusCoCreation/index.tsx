@@ -6,10 +6,10 @@ import {
   campusRecruitRecommendedTypes,
 } from './campusRecruitPageData'
 
-// 01）高校招募页面组件（CampusRecruitPage）
+// 01）高校共创页面组件（CampusCoCreationPage）
 /**
- * 函数名：CampusRecruitPage
- * 功能：渲染高校招募频道页面。
+ * 函数名：CampusCoCreationPage
+ * 功能：渲染高校共创频道页面。
  * 实现方法：
  * - 复用 ProjectChannelLayout
  * - 右侧栏展示推荐本校实验室
@@ -18,11 +18,10 @@ import {
  * - 返回值：JSX.Element
  * - 副作用：无
  */
-function CampusRecruitPage() {
+function CampusCoCreationPage() {
   return (
     <ProjectChannelLayout
-      sectionTitle="高校招募"
-      searchInputId="campus-recruit-search-input"
+      projectsSectionLabel="高校共创"
       projects={campusRecruitProjects}
       recommendedTypes={campusRecruitRecommendedTypes}
       recommendedOrganizations={campusRecruitRecommendedLabs}
@@ -34,4 +33,4 @@ function CampusRecruitPage() {
   )
 }
 
-export default CampusRecruitPage
+export default CampusCoCreationPage

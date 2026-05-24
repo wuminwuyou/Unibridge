@@ -1,6 +1,6 @@
 // 01）项目频道默认顶部导航项（projectChannelNavItems）
 /**
- * 用途：HomePage / CampusRecruitPage / EnterprisePracticePage 三个项目频道页
+ * 用途：CommercialProjects / CampusCoCreation 等项目频道页
  * 通过 ProjectChannelLayout 共用同一份主导航文案。
  */
 export { mainNavItemLabels as projectChannelNavItems } from '../../layout/TopNavbar/navRoutes'

@@ -1,8 +1,8 @@
 import HomePage from './pages/HomePage/index.tsx'
-import EnterprisePracticePage from './pages/EnterprisePracticePage/index.tsx'
-import CampusRecruitPage from './pages/CampusRecruitPage/index.tsx'
+import CommercialProjectsPage from './pages/CommercialProjects/index.tsx'
+import CampusCoCreationPage from './pages/CampusCoCreation/index.tsx'
 import ProfileSpacePage from './pages/ProfileSpace/index.tsx'
-import ExperienceSharePage from './pages/ExperienceSharePage/index.tsx'
+import NoteSharePage from './pages/NoteShare/index.tsx'
 import ProjectDetailPage from './pages/ProjectDetailPage/ProjectDetailPage.tsx'
 import NoteDetailPage from './pages/NoteDetailPage'
 import InstantMessagePage from './pages/InstantMessagePage/InstantMessagePage.tsx'
@@ -18,9 +18,9 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 // 01）应用路由表（appRouter）
 const appRouter = createBrowserRouter([
   { path: '/', element: <HomePage /> },
-  { path: '/project', element: <EnterprisePracticePage /> },
-  { path: '/co-create', element: <CampusRecruitPage /> },
-  { path: '/note', element: <ExperienceSharePage /> },
+  { path: '/project', element: <CommercialProjectsPage /> },
+  { path: '/co-create', element: <CampusCoCreationPage /> },
+  { path: '/note', element: <NoteSharePage /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/profile', element: <ProfileSpacePage /> },
   {

@@ -1,225 +1,4 @@
-/* 01）首页根布局（home-page） */
-.home-page {
-  --home-top-header-height: 76px;
-
-  min-height: 100vh;
-  background: var(--page-bg);
-  color: var(--text-main);
-}
-
-/* 02）双栏主容器：70% 项目大厅 + 30% 经验侧栏 */
-.home-page__main {
-  box-sizing: border-box;
-  width: min(1280px, calc(100vw - 48px));
-  margin: 24px auto 0;
-  padding-bottom: 40px;
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
-  gap: 24px;
-  align-items: start;
-}
-
-/* 03）左侧项目实验室大厅 */
-.home-page__projects {
-  min-width: 0;
-}
-
-/* 03-1）项目实验室面板（顶栏 + 列表，与 ProjectCard 同色） */
-.home-page__projects-panel {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  border-radius: 16px;
-  padding: 10px 16px 16px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  overflow: visible;
-}
-
-:root[data-theme='dark'] .home-page__projects-panel {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-/* 03-2）项目实验室标题区 */
-.home-page__lab-heading {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.home-page__lab-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.home-page__lab-title {
-  margin: 0;
-  font-size: clamp(22px, 2vw, 26px);
-  font-weight: 700;
-  line-height: 1.25;
-  color: var(--text-main);
-}
-
-.home-page__lab-info {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease;
-}
-
-.home-page__lab-info:hover {
-  color: var(--text-main);
-  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
-}
-
-.home-page__lab-subtitle {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-soft);
-}
-
-.home-page__lab-toolbar {
-  --home-lab-toolbar-sticky-top: var(--home-top-header-height);
-
-  position: sticky;
-  top: var(--home-lab-toolbar-sticky-top);
-  z-index: 15;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin: 0 -16px;
-  padding: 12px 16px;
-  background: var(--card-bg);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--card-border) 85%, transparent);
-}
-
-.home-page__lab-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  min-width: 0;
-}
-
-.home-page__lab-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: var(--text-soft);
-  font-size: 14px;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
-
-:root[data-theme='dark'] .home-page__lab-tab {
-  background: #334155;
-  color: #cbd5e1;
-}
-
-.home-page__lab-tab:hover {
-  color: var(--text-main);
-}
-
-.home-page__lab-tab--active {
-  background: #2563eb;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
-}
-
-:root[data-theme='dark'] .home-page__lab-tab--active {
-  background: #0284c7;
-  color: #f8fafc;
-  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
-}
-
-.home-page__lab-tab-count {
-  font-size: 13px;
-  opacity: 0.92;
-}
-
-.home-page__lab-selects {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.home-page__lab-select {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.home-page__lab-select-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.home-page__lab-select-control {
-  appearance: none;
-  box-sizing: border-box;
-  min-width: 132px;
-  height: 38px;
-  padding: 0 36px 0 14px;
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--card-bg) 92%, var(--page-bg));
-  color: var(--text-main);
-  font-size: 13px;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.home-page__lab-select-control:hover {
-  border-color: color-mix(in srgb, var(--accent-sky) 35%, var(--card-border));
-}
-
-.home-page__lab-select-control:focus-visible {
-  outline: none;
-  border-color: var(--accent-sky);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-sky) 22%, transparent);
-}
-
-.home-page__lab-select-icon {
-  position: absolute;
-  right: 12px;
-  pointer-events: none;
-  color: var(--text-muted);
-}
-
-.home-page__projects-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* 04）右侧学生项目复盘侧栏 */
+/* 01）首页右侧经验侧栏 */
 .home-page__insights {
   min-width: 0;
   display: flex;
@@ -258,7 +37,7 @@
   color: var(--accent-sky-hover);
 }
 
-/* 05）侧栏笔记垂直堆叠 */
+/* 02）侧栏笔记垂直堆叠 */
 .home-page__note-list {
   display: flex;
   flex-direction: column;
@@ -271,7 +50,7 @@
   height: auto;
 }
 
-/* 06）底部经验撰写引导 */
+/* 03）底部经验撰写引导 */
 .home-page__compose-trigger {
   display: flex;
   align-items: center;
@@ -296,53 +75,14 @@
   background: color-mix(in srgb, var(--accent-sky) 6%, transparent);
 }
 
-/* 07）响应式布局 */
-@media (max-width: 1280px) {
-  .home-page__main {
-    width: min(1280px, calc(100vw - 32px));
-  }
-}
-
+/* 04）响应式布局 */
 @media (max-width: 980px) {
-  .home-page__main {
-    grid-template-columns: 1fr;
-    gap: 28px;
-  }
-
   .home-page__insights {
     position: static;
   }
 }
 
 @media (max-width: 640px) {
-  .home-page__main {
-    width: min(1280px, calc(100vw - 20px));
-    margin-top: 16px;
-  }
-
-  .home-page__lab-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    --home-lab-toolbar-sticky-top: 120px;
-  }
-
-  .home-page__lab-selects {
-    width: 100%;
-  }
-
-  .home-page__lab-select {
-    flex: 1 1 0;
-  }
-
-  .home-page__lab-select-control {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .home-page__projects-panel {
-    padding: 12px;
-  }
-
   .home-page__insights-title {
     font-size: 16px;
   }

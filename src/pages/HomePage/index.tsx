@@ -2,10 +2,11 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import GridNoteCard from '../../components/NoteCard/GridNoteCard'
 import ProjectCard from '../../components/ProjectCard'
+import ProjectLabHeader from '../../components/ProjectChannelLayout/components/ProjectLabHeader'
 import TopNavbar from '../../layout/TopNavbar'
-import HomePageProjectLabHeader from './HomePageProjectLabHeader'
 import { homePageExperienceNotes, homePageProjects } from './homePageData'
 import { useHomePageLayout } from './useHomePageLayout'
+import '../../components/ProjectChannelLayout/style.css'
 import './HomePage.css'
 
 // 01）首页主组件（HomePage）
@@ -46,7 +47,7 @@ function HomePage() {
       <main className="home-page__main">
         <section className="home-page__projects" aria-label="项目实验室">
           <div className="home-page__projects-panel">
-            <HomePageProjectLabHeader projectTotal={homePageProjects.length} />
+            <ProjectLabHeader projectTotal={homePageProjects.length} />
             <div className="home-page__projects-list">{renderedProjectCards}</div>
           </div>
         </section>
