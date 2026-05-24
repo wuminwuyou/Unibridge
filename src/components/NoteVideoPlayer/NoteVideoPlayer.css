@@ -1,0 +1,51 @@
+/* 01）ArtPlayer 笔记视频播放器（ArtPlayer v5 样式由 JS 注入，此处仅补充站点覆写） */
+
+.note-video-player {
+  position: relative;
+  width: 100%;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  background: #0f172a;
+  box-shadow: var(--panel-shadow);
+}
+
+.note-video-player__container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 14rem;
+}
+
+.note-video-player__container .art-video-player {
+  width: 100%;
+  height: 100%;
+}
+
+.note-video-player__pause-icon {
+  display: block;
+  width: 1.75rem;
+  height: 1.75rem;
+  object-fit: contain;
+}
+
+.note-video-player .art-control .art-icon-play svg,
+.note-video-player .art-control .art-icon-pause img {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.note-video-player__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: rgb(226 232 240 / 85%);
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+}
+
+:root[data-theme='dark'] .note-video-player {
+  border-color: rgb(63 63 70 / 80%);
+}

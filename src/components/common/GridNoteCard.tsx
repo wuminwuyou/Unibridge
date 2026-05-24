@@ -1,5 +1,6 @@
 import { CalendarClock } from 'lucide-react'
 import type { ProfileNoteItem } from '../../pages/ProfileSpace/components/types'
+import { buildNoteDetailHref } from '../../pages/NoteDetailPage/shared/noteDetailRouting'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
 
@@ -48,7 +49,11 @@ function formatPublishTime(publishTime: string): string {
  * - 副作用：无
  */
 function GridNoteCard({ note }: GridNoteCardProps) {
-  const noteDetailPath = `/note-detail?title=${encodeURIComponent(note.title)}`
+  const noteDetailPath = buildNoteDetailHref({
+    id: note.id,
+    title: note.title,
+    contentType: note.contentType,
+  })
 
   return (
     <Link

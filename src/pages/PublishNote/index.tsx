@@ -1,6 +1,6 @@
 import TopNavbar from '../../layout/TopNavbar'
 import { publishNoteNavItems } from './publishNotePageData'
-import { PublishNoteView } from './PublishNoteView'
+import { PublishNoteView } from './PublishNoteView.tsx'
 import { usePublishNoteForm } from './usePublishNoteForm'
 import './style.css'
 

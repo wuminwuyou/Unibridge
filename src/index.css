@@ -1,3 +1,8 @@
+/* 00）Tailwind + Typography + 站点 data-theme 暗色变体 */
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 /* 01）全局盒模型与基础排版 */
 *,
 *::before,
@@ -110,4 +115,81 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 07）极客 Markdown 代码样式清洗补丁（全站 prose / 阅读器 / Milkdown 共用） */
+
+/* 07-1）抹除 Tailwind Typography 行内 code 前后反引号伪元素 */
+.prose code::before,
+.prose code::after,
+.markdown-content-prose code::before,
+.markdown-content-prose code::after {
+  content: '' !important;
+}
+
+/* 07-2）行内 code：白天高反差 · 黑夜亮字深底 */
+.prose :not(pre) > code,
+.markdown-content-prose :not(pre) > code,
+.markdown-content-prose .md-editor-preview :not(pre) > code,
+.milkdown-wrapper__surface .ProseMirror :not(pre) > code {
+  background-color: #f1f5f9 !important;
+  color: #db2777 !important;
+  border-radius: 0.375rem !important;
+  padding: 0.125rem 0.375rem !important;
+  font-size: 0.875em !important;
+  font-weight: 500 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme='dark'] .prose :not(pre) > code,
+:root[data-theme='dark'] .markdown-content-prose :not(pre) > code,
+:root[data-theme='dark'] .markdown-content-prose .md-editor-preview :not(pre) > code,
+:root[data-theme='dark'] .milkdown-wrapper__surface .ProseMirror :not(pre) > code {
+  background-color: #27272a !important;
+  color: #f472b6 !important;
+}
+
+/* 07-3）多行 pre 代码块：统一极客深色大厅，内层 code 透明 */
+.prose pre,
+.markdown-content-prose pre,
+.markdown-content-prose .md-editor-preview pre,
+.milkdown-wrapper__surface .ProseMirror pre {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid rgb(51 65 85 / 60%) !important;
+  padding: 1rem 1.125rem !important;
+  overflow-x: auto !important;
+  margin-top: 1.25em !important;
+  margin-bottom: 1.25em !important;
+}
+
+.prose pre code,
+.markdown-content-prose pre code,
+.markdown-content-prose .md-editor-preview pre code,
+.milkdown-wrapper__surface .ProseMirror pre code {
+  background-color: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+}
+
+/* 07-4）MdPreview 阅读器：透出外层 zinc-800 皮囊，避免 md-editor 自带纯黑底 */
+.markdown-content-shell .md-editor,
+.markdown-content-shell .md-editor-preview-wrapper,
+.markdown-content-shell .md-editor-preview {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.markdown-content-shell .md-editor-preview {
+  color: rgb(31 41 55) !important;
+}
+
+:root[data-theme='dark'] .markdown-content-shell .md-editor-preview {
+  color: rgb(228 228 231) !important;
 }

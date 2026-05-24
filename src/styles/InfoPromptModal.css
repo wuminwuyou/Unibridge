@@ -64,6 +64,25 @@
 .info-prompt-modal__footer {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
+}
+
+.info-prompt-modal__cancel {
+  min-width: 84px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.info-prompt-modal__cancel:hover {
+  color: var(--text-main);
+  border-color: color-mix(in srgb, var(--primary-text) 32%, var(--card-border));
 }
 
 .info-prompt-modal__confirm {

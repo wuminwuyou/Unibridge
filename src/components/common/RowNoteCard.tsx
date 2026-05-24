@@ -1,11 +1,14 @@
 import { CalendarClock, Eye, MessageCircleMore, Star } from 'lucide-react'
+import { buildNoteDetailHref } from '../../pages/NoteDetailPage/shared/noteDetailRouting'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
 
 // 01）行卡片笔记数据类型定义（RowNoteCardItem）
 export interface RowNoteCardItem {
+  id?: number
   title: string
   summary: string
+  contentType?: '图文' | '视频'
   tags: string[]
   publishTime: string
   updateTime: string
@@ -41,7 +44,12 @@ interface RowNoteCardProps {
  */
 function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
   const isVerticalLayout: boolean = layout === 'vertical'
-  const noteDetailPath = `/note-detail?title=${encodeURIComponent(note.title)}`
+  const contentType = note.contentType ?? '图文'
+  const noteDetailPath = buildNoteDetailHref({
+    id: note.id,
+    title: note.title,
+    contentType,
+  })
 
   return (
     <Link

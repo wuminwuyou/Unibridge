@@ -1,0 +1,29 @@
+/* 01）Markdown 编辑区（md-editor-rt） */
+
+.markdown-online-editor {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.markdown-online-editor .md-editor {
+  flex: 1;
+  min-height: 0;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.markdown-online-editor__prose {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.markdown-online-editor .md-editor-toolbar-wrapper,
+.markdown-online-editor .md-editor-footer {
+  border-color: var(--card-border) !important;
+}

@@ -40,3 +40,54 @@
   color: var(--text-soft);
   line-height: 1.7;
 }
+
+/* 04）发布流程 / 编辑回流模式 */
+.detail-page--editorial {
+  min-height: 100vh;
+  --detail-sticky-top: 1.5rem;
+}
+
+.detail-page:not(.detail-page--editorial) {
+  --detail-sticky-top: 6rem;
+}
+
+/* 05）发布流程顶栏提示 */
+.detail-preview-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--primary-text) 35%, var(--card-border));
+  background: color-mix(in srgb, var(--primary-soft) 55%, var(--card-bg));
+}
+
+.detail-preview-banner__text {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--primary-text);
+}
+
+.detail-preview-banner__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-main);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.detail-preview-banner__action:hover {
+  border-color: var(--primary-text);
+  color: var(--primary-text);
+}

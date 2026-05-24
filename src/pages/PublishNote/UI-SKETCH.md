@@ -4,7 +4,7 @@
 
 ## 页面结构
 
-与发布项目页共用 `PublishForm/publishFormShared.css`，支持全局浅色/深色主题切换。
+样式见 `PublishNote/style.css`（引入 `PublishProject/style.css` 共用表单样式），主题变量对齐 `index.css` 全局变量。
 
 | 区块 | 字段 |
 |------|------|
@@ -22,6 +22,8 @@ PublishNote/
 ├── PublishNoteView.tsx
 ├── usePublishNoteForm.ts
 ├── publishNotePageData.ts
-├── style.css          → @import 共享主题样式
+├── style.css
 └── UI-SKETCH.md
+
+共用组件：`components/PublishFormSection/`（含 `style.css`）
 ```

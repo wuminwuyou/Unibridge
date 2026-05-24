@@ -10,14 +10,30 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@milkdown/core": "^7.21.1",
+    "@milkdown/ctx": "^7.21.1",
+    "@milkdown/plugin-listener": "^7.21.1",
+    "@milkdown/plugin-tooltip": "^7.21.1",
+    "@milkdown/preset-commonmark": "^7.21.1",
+    "@milkdown/preset-gfm": "^7.21.1",
+    "@milkdown/react": "^7.21.1",
+    "@milkdown/theme-nord": "^7.21.1",
+    "@milkdown/transformer": "^7.21.1",
+    "@milkdown/utils": "^7.21.1",
+    "@tailwindcss/typography": "^0.5.19",
+    "@tailwindcss/vite": "^4.3.0",
     "@types/crypto-js": "^4.2.2",
     "@unibridge/shared": "*",
+    "artplayer": "^5.4.0",
     "axios": "^1.16.1",
     "crypto-js": "^4.2.0",
+    "highlight.js": "^11.11.1",
     "lucide-react": "^1.16.0",
+    "md-editor-rt": "^6.5.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.15.1"
+    "react-router-dom": "^7.15.1",
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

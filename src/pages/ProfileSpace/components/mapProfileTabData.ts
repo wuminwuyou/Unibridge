@@ -77,6 +77,7 @@ export function mapApiProjects(projects: UserProfileProjectDto[]): ProjectItem[]
  */
 export function mapApiNotes(notes: UserProfileNoteDto[]): ProfileNoteItem[] {
   return (notes ?? []).map((note) => ({
+    id: note.id,
     title: note.title,
     summary: note.summary,
     contentType: normalizeNoteContentType(note.contentType),

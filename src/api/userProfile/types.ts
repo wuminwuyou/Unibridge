@@ -63,6 +63,7 @@ export interface UserProfileProjectDto {
 
 // 07）个人空间笔记 DTO（UserProfileNoteDto）
 export interface UserProfileNoteDto {
+  id: number
   title: string
   summary: string
   contentType: string

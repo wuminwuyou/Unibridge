@@ -1,0 +1,306 @@
+/* 01）视频笔记详情页 */
+
+.note-video-page {
+  min-height: calc(100vh - 4rem);
+  background: var(--page-bg);
+  color: var(--text-main);
+  padding: 1.25rem 10% 3rem;
+}
+
+.note-video-page--editorial {
+  min-height: 100vh;
+  padding-top: 1.5rem;
+}
+
+.note-video-page__shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+/* 02）导航 */
+.note-video-page__nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.note-video-page__nav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--primary-text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.note-video-page__nav-back:hover {
+  text-decoration: underline;
+}
+
+.note-video-page__nav-sep,
+.note-video-page__nav-current {
+  color: var(--text-soft);
+}
+
+/* 03）双栏 hero：播放器 + 侧栏 */
+.note-video-page__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17.5rem;
+  gap: 1.25rem;
+  align-items: start;
+  margin-bottom: 0.5rem;
+}
+
+.note-video-page__main {
+  min-width: 0;
+}
+
+.note-video-page__player {
+  margin-bottom: 0.625rem;
+}
+
+.note-video-page__title {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.275rem, 3.3vw, 1.575rem);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-video-page__sidebar {
+  position: sticky;
+  top: var(--detail-sticky-top, 6rem);
+  align-self: start;
+}
+
+.note-video-page__sidebar-card {
+  border: 1px dashed var(--card-border);
+  border-radius: 0.75rem;
+  background: var(--card-bg);
+  padding: 1.25rem 1rem;
+  min-height: 12rem;
+  box-shadow: var(--panel-shadow);
+}
+
+.note-video-page__sidebar-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.note-video-page__sidebar-placeholder {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--text-soft);
+}
+
+/* 04）作者行 + 操作按钮（YouTube 频道栏） */
+.note-video-page__channel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+  min-width: 0;
+}
+
+.note-video-page__author {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.note-video-page__avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.note-video-page__avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-soft), var(--chip-bg));
+  color: var(--primary-text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.note-video-page__author-meta {
+  min-width: 0;
+}
+
+.note-video-page__author-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.9375rem;
+}
+
+.note-video-page__author-line span {
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+}
+
+.note-video-page__time {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.note-video-page__status {
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.note-video-page__status--draft {
+  background: var(--chip-bg);
+  color: var(--text-soft);
+}
+
+.note-video-page__status--preview {
+  background: color-mix(in srgb, var(--primary-soft) 80%, transparent);
+  color: var(--primary-text);
+}
+
+.note-video-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.note-video-page__views {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.note-video-page__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid var(--card-border);
+  border-radius: 9999px;
+  background: var(--chip-bg);
+  padding: 0.4375rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.note-video-page__action-btn:hover {
+  border-color: var(--primary-text);
+  background: color-mix(in srgb, var(--primary-soft) 65%, transparent);
+  color: var(--primary-text);
+}
+
+/* 05）简介区（YouTube 描述框） */
+.note-video-page__desc-box {
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--chip-bg) 85%, var(--card-bg));
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.note-video-page__summary-block {
+  margin-bottom: 0.625rem;
+}
+
+.note-video-page__summary {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--text-main);
+  white-space: pre-wrap;
+}
+
+.note-video-page__summary--collapsed {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.note-video-page__summary-toggle {
+  margin-top: 0.375rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.note-video-page__summary-toggle:hover {
+  color: var(--primary-text);
+}
+
+.note-video-page__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.note-video-page__tag {
+  border: 1px solid color-mix(in srgb, var(--primary-text) 25%, var(--card-border));
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--primary-soft) 65%, transparent);
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--primary-text);
+}
+
+@media (max-width: 1024px) {
+  .note-video-page__hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .note-video-page__sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .note-video-page {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .note-video-page__channel-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .note-video-page__actions {
+    justify-content: flex-start;
+  }
+}

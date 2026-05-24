@@ -11,6 +11,8 @@ export interface InfoPromptModalProps {
   onConfirm?: () => void
   title?: string
   confirmText?: string
+  /** 提供时展示次要按钮，点击仅关闭弹窗不触发 onConfirm */
+  cancelText?: string
 }
 
 // 02）信息提示弹窗组件（InfoPromptModal）
@@ -35,6 +37,7 @@ function InfoPromptModal({
   onConfirm,
   title = '温馨提示',
   confirmText = '确认',
+  cancelText,
 }: InfoPromptModalProps) {
   useEffect(() => {
     if (!open) {
@@ -98,6 +101,11 @@ function InfoPromptModal({
         </div>
 
         <footer className="info-prompt-modal__footer">
+          {cancelText ? (
+            <button type="button" className="info-prompt-modal__cancel" onClick={onClose}>
+              {cancelText}
+            </button>
+          ) : null}
           <button type="button" className="info-prompt-modal__confirm" onClick={handleConfirmClick}>
             {confirmText}
           </button>

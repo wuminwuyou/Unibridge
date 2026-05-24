@@ -1,2 +1,243 @@
-/* 01）发布笔记页样式入口（引入共享主题表单样式） */
-@import '../PublishForm/publishFormShared.css';
+/* 01）发布笔记页 — 引入项目页共用表单样式（主题变量对齐 index.css） */
+@import '../PublishProject/style.css';
+
+/* 02）发布笔记页 — 封面预览（笔记侧栏专属） */
+
+.publish-form-page .preview-cover {
+  width: 100%;
+  height: 8rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--pp-border);
+  background: var(--pp-surface-muted);
+  object-fit: cover;
+}
+
+.publish-form-page .preview-cover--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pp-text-muted);
+  font-size: 0.75rem;
+}
+
+/* 03）发布笔记页 — 视频上传卡片 */
+
+.publish-form-page .video-upload-card {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 1rem;
+  border: 2px dashed var(--pp-border);
+  background: var(--pp-surface-muted);
+  padding: 2.5rem 1.5rem;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.publish-form-page .video-upload-card:hover {
+  border-color: var(--pp-accent);
+  background: var(--pp-channel-active-bg);
+}
+
+.publish-form-page .video-upload-card__icon {
+  display: flex;
+  height: 3.5rem;
+  width: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--pp-accent-soft);
+  color: var(--pp-accent);
+}
+
+.publish-form-page .video-upload-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--pp-text);
+}
+
+.publish-form-page .video-upload-card__hint {
+  max-width: 20rem;
+  font-size: 0.75rem;
+  color: var(--pp-text-muted);
+}
+
+.publish-form-page .video-upload-card__btn {
+  margin-top: 0.25rem;
+  pointer-events: none;
+}
+
+.publish-form-page .video-upload-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--pp-border);
+  background: var(--pp-surface);
+  padding: 1rem;
+}
+
+.publish-form-page .video-upload-preview__player-wrap {
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: #000;
+}
+
+.publish-form-page .video-upload-preview__player {
+  display: block;
+  width: 100%;
+  max-height: 16rem;
+  object-fit: contain;
+}
+
+.publish-form-page .video-upload-preview__player--placeholder {
+  display: flex;
+  height: 12rem;
+  align-items: center;
+  justify-content: center;
+  background: var(--pp-surface-muted);
+}
+
+.publish-form-page .video-upload-preview__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.publish-form-page .video-upload-preview__name {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--pp-text);
+  word-break: break-all;
+}
+
+.publish-form-page .video-upload-preview__size {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--pp-text-muted);
+}
+
+.publish-form-page .video-upload-preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.publish-form-page .video-upload-preview__remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* 04）发布笔记页 — 封面双选项 */
+
+.publish-form-page .cover-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.publish-form-page .cover-picker__options {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 640px) {
+  .publish-form-page .cover-picker__options {
+    grid-template-columns: 1fr;
+  }
+}
+
+.publish-form-page .cover-picker__option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid var(--pp-border);
+  background: var(--pp-surface);
+  padding: 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.publish-form-page .cover-picker__option:hover {
+  border-color: var(--pp-channel-hover);
+}
+
+.publish-form-page .cover-picker__option--active {
+  border-color: var(--pp-accent);
+  box-shadow: 0 0 0 3px var(--pp-focus-ring);
+  background: var(--pp-channel-active-bg);
+}
+
+.publish-form-page .cover-picker__option-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--pp-accent);
+}
+
+.publish-form-page .cover-picker__thumb {
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid var(--pp-border);
+  aspect-ratio: 16 / 9;
+  background: var(--pp-surface-muted);
+}
+
+.publish-form-page .cover-picker__thumb-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.publish-form-page .cover-picker__thumb-placeholder,
+.publish-form-page .cover-picker__upload-zone {
+  display: flex;
+  height: 100%;
+  min-height: 7.5rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  font-size: 0.75rem;
+  color: var(--pp-text-muted);
+  text-align: center;
+}
+
+.publish-form-page .cover-picker__upload-zone {
+  border-radius: 0.75rem;
+  border: 2px dashed var(--pp-border);
+  background: var(--pp-surface-muted);
+}
+
+.publish-form-page .cover-picker__upload-formats {
+  font-size: 0.6875rem;
+  opacity: 0.85;
+}
+
+.publish-form-page .cover-picker__option-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--pp-text-muted);
+}
+
+.publish-form-page .cover-picker__replace-btn {
+  align-self: flex-start;
+}
+
+/* 05）Markdown 编辑区在发布页内的提示色 */
+
+.publish-form-page .markdown-editor-field__hint {
+  color: var(--pp-text-muted);
+}

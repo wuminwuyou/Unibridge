@@ -450,4 +450,32 @@ export async function postApi<TPayload extends object, TData>(path: string, payl
   return httpClient.post<ApiEnvelope<TData>, TData>(path, payload)
 }
 
+// 25）通用 PUT 请求方法（putApi）
+/**
+ * 函数名：putApi
+ * 功能：基于统一 axios 实例发送 PUT 请求，并返回业务数据。
+ * 输入：
+ * - path：接口相对路径
+ * - payload：请求体对象
+ * 输出：
+ * - 返回值：业务数据对象
+ */
+export async function putApi<TPayload extends object, TData>(path: string, payload: TPayload): Promise<TData> {
+  return httpClient.put<ApiEnvelope<TData>, TData>(path, payload)
+}
+
+// 26）multipart POST 请求方法（postFormDataApi）
+/**
+ * 函数名：postFormDataApi
+ * 功能：发送 multipart/form-data POST 请求（媒体上传等）。
+ * 输入：
+ * - path：接口相对路径
+ * - formData：FormData 表单
+ * 输出：
+ * - 返回值：业务数据对象
+ */
+export async function postFormDataApi<TData>(path: string, formData: FormData): Promise<TData> {
+  return httpClient.post<ApiEnvelope<TData>, TData>(path, formData)
+}
+
 export { httpClient }

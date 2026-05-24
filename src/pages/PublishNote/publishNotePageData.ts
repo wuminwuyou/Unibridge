@@ -14,7 +14,6 @@ export interface PublishNoteFormDraft {
   summary: string
   contentType: PublishNoteContentType
   body: string
-  cover: string
   tags: string[]
 }
 
@@ -43,7 +42,8 @@ export const suggestedNoteTags: string[] = [
 export const publishNoteChecklistItems: string[] = [
   '标题简洁且能概括核心观点',
   '摘要适合在卡片列表中快速浏览',
-  '正文结构清晰，图文/视频类型选择正确',
+  '图文需填写正文，视频需上传视频文件',
+  '封面可选用系统生成或自行上传',
   '至少添加 1 个话题标签便于检索',
 ]
 
@@ -64,7 +64,6 @@ export function createDefaultPublishNoteDraft(): PublishNoteFormDraft {
     summary: '',
     contentType: '图文',
     body: '',
-    cover: '',
     tags: [],
   }
 }

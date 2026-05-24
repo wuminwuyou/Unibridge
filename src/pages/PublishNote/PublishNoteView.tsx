@@ -10,7 +10,11 @@ import {
   Video,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { FormSection } from '../PublishForm/FormSection'
+import InfoPromptModal from '../../components/common/InfoPromptModal'
+import { MarkdownContentModePicker } from '../../components/OnlineEditor'
+import { PublishFormSection } from '../../components/PublishFormSection'
+import { PublishNoteCoverPicker } from './components/PublishNoteCoverPicker'
+import { PublishNoteVideoUploadCard } from './components/PublishNoteVideoUploadCard'
 import { publishContentTypeOptions, publishNoteChecklistItems } from './publishNotePageData'
 import type { PublishNoteFormModel } from './usePublishNoteForm'
 
@@ -25,6 +29,7 @@ interface PublishNoteViewProps {
  * 功能：渲染发布笔记 UI 草图（主题感知样式 + 共享表单布局）。
  * 实现方法：
  * - 左侧多段表单 + 右侧网格卡片预览与检查清单
+ * - 图文/视频分支内容区 + 封面双选项
  * - 底部固定操作栏（草稿 / 预览 / 发布）
  * 输入：
  * - form：usePublishNoteForm 返回值
@@ -45,16 +50,39 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
     handleTagInputKeyDown,
     toggleSuggestedTag,
     setContentType,
+    videoUpload,
+    cover,
+    bodyMeta,
+    bodyContent,
+    handleBodyChange,
+    buildEditorLocationState,
     handleSaveDraft,
     handlePreview,
     handlePublish,
+    isSubmitting,
+    submitError,
+    submitPhase,
+    leavePromptOpen,
+    leavePromptMessage,
+    confirmLeave,
+    cancelLeave,
   } = form
 
-  const coverPreview = draft.cover.trim()
+  const isVideoNote = draft.contentType === '视频'
+  const sidebarCoverSrc = cover.activePreviewUrl
+
+  const submitStatusHint =
+    submitPhase === 'uploading-cover'
+      ? '正在上传封面…'
+      : submitPhase === 'uploading-video'
+        ? '正在上传视频…'
+        : submitPhase === 'saving-note'
+          ? '正在保存笔记…'
+          : '预览为本地快照；保存草稿与发布将先上传封面再写入服务端'
 
   return (
     <div className="publish-form-page min-h-screen bg-page text-main">
-      <div className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6 lg:px-8">
+      <div className="publish-page-shell">
         <header className="mb-8">
           <Link to="/" className="back-link inline-flex items-center gap-2 text-sm font-medium transition">
             <ArrowLeft className="h-4 w-4" />
@@ -65,7 +93,7 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
               <p className="text-xs font-semibold uppercase tracking-wider text-accent">Publish</p>
               <h1 className="mt-1 text-3xl font-bold tracking-tight text-main">发布笔记</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted">
-                撰写图文或视频笔记并发布到经验分享频道。当前为 UI 原型，不会真实提交到服务端。
+                撰写图文或视频笔记并发布到经验分享频道。保存草稿与正式发布将提交至服务端。
               </p>
             </div>
             <div className="rounded-2xl border bg-surface px-4 py-3 shadow-sm">
@@ -75,9 +103,9 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
           </div>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="publish-page-layout">
           <main className="space-y-6">
-            <FormSection
+            <PublishFormSection
               icon={<BookOpenText className="h-5 w-5" />}
               title="基本信息"
               description="标题、摘要与内容类型"
@@ -137,46 +165,50 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
                   ))}
                 </div>
               </fieldset>
-            </FormSection>
+            </PublishFormSection>
 
-            <FormSection
-              icon={<FileText className="h-5 w-5" />}
-              title="正文内容"
-              description="支持 Markdown 风格排版（原型为纯文本）"
+            <PublishFormSection
+              icon={isVideoNote ? <Video className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+              title={isVideoNote ? '视频内容' : '正文内容'}
+              description={
+                isVideoNote
+                  ? '上传视频文件，可补充简介'
+                  : '在线编辑器或上传 Markdown 文件录入正文'
+              }
             >
-              <label className="block space-y-2">
-                <span className="label-text">
-                  正文 <span className="text-danger">*</span>
-                </span>
-                <textarea
-                  value={draft.body}
-                  onChange={(event) => updateField('body', event.target.value)}
-                  rows={12}
-                  placeholder={
-                    draft.contentType === '视频'
-                      ? '撰写视频简介、章节要点；可在文末附上视频链接…'
-                      : '## 背景\n\n## 过程\n\n## 结论与建议…'
-                  }
-                  className="input-field resize-y"
-                />
-              </label>
-
-              <label className="block space-y-2">
-                <span className="label-text">封面图 URL（可选）</span>
-                <div className="relative">
-                  <ImageIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-icon-muted" />
-                  <input
-                    type="url"
-                    value={draft.cover}
-                    onChange={(event) => updateField('cover', event.target.value)}
-                    placeholder="https://example.com/cover.jpg"
-                    className="input-field pl-10"
-                  />
+              {isVideoNote ? (
+                <div className="space-y-2">
+                  <span className="label-text">
+                    视频文件 <span className="text-danger">*</span>
+                  </span>
+                  <PublishNoteVideoUploadCard video={videoUpload} />
                 </div>
-              </label>
-            </FormSection>
+              ) : (
+                <MarkdownContentModePicker
+                  label="正文"
+                  required
+                  value={bodyContent.longtext}
+                  source={bodyMeta?.source ?? null}
+                  uploadedFileName={bodyMeta?.fileName ?? null}
+                  contentEditorType={bodyContent.editorType}
+                  onChange={handleBodyChange}
+                  buildEditorLocationState={buildEditorLocationState}
+                  editorPath="/publish/markdown-editor"
+                  editorTitle="编辑笔记正文"
+                  returnTo="/publish/note"
+                />
+              )}
+            </PublishFormSection>
 
-            <FormSection
+            <PublishFormSection
+              icon={<ImageIcon className="h-5 w-5" />}
+              title="封面"
+              description="系统生成或自行上传，选用结果见右侧卡片预览"
+            >
+              <PublishNoteCoverPicker cover={cover} isVideoNote={isVideoNote} summary={draft.summary} />
+            </PublishFormSection>
+
+            <PublishFormSection
               icon={<Hash className="h-5 w-5" />}
               title="话题标签"
               description="帮助用户在经验分享频道发现你的内容"
@@ -224,7 +256,7 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
                   ))}
                 </div>
               </div>
-            </FormSection>
+            </PublishFormSection>
           </main>
 
           <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
@@ -234,10 +266,12 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
                 卡片预览
               </div>
               <article className="preview-card">
-                {coverPreview ? (
-                  <img src={coverPreview} alt="" className="preview-cover mb-3" />
+                {sidebarCoverSrc ? (
+                  <img src={sidebarCoverSrc} alt="" className="preview-cover mb-3" />
                 ) : (
-                  <div className="preview-cover preview-cover--placeholder mb-3">封面预览</div>
+                  <div className="preview-cover preview-cover--placeholder mb-3">
+                    {isVideoNote ? '上传视频后生成封面' : '填写摘要以生成封面'}
+                  </div>
                 )}
                 <span className="preview-badge">{draft.contentType}</span>
                 <h3 className="mt-2 text-lg font-bold text-main line-clamp-2">
@@ -272,21 +306,37 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
       </div>
 
       <footer className="publish-footer">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <p className="text-xs text-muted">草稿仅保存在本地原型状态，刷新后丢失</p>
+        <div className="publish-footer__inner">
+          <p className="text-xs text-muted">
+            {submitError ? (
+              <span className="text-danger">{submitError}</span>
+            ) : (
+              submitStatusHint
+            )}
+          </p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={handleSaveDraft} className="btn-secondary">
-              保存草稿
+            <button type="button" onClick={handleSaveDraft} className="btn-secondary" disabled={isSubmitting}>
+              {isSubmitting ? (submitPhase === 'uploading-cover' ? '上传封面…' : submitPhase === 'saving-note' ? '保存中…' : '提交中…') : '保存草稿'}
             </button>
-            <button type="button" onClick={handlePreview} className="btn-secondary">
-              预览
+            <button type="button" onClick={handlePreview} className="btn-secondary" disabled={isSubmitting}>
+              {isSubmitting ? '保存并预览…' : '预览'}
             </button>
-            <button type="button" onClick={handlePublish} className="btn-primary">
-              发布笔记
+            <button type="button" onClick={handlePublish} className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? (submitPhase === 'uploading-cover' ? '上传封面…' : submitPhase === 'saving-note' ? '发布中…' : '提交中…') : '发布笔记'}
             </button>
           </div>
         </div>
       </footer>
+
+      <InfoPromptModal
+        open={leavePromptOpen}
+        message={leavePromptMessage}
+        title="温馨提示"
+        cancelText="继续编辑"
+        confirmText="确认退出"
+        onClose={cancelLeave}
+        onConfirm={confirmLeave}
+      />
     </div>
   )
 }

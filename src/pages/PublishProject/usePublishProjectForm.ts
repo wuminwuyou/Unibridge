@@ -1,44 +1,260 @@
-import { useMemo, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import {
+  createContentLongtext,
+  createContentLongtextFromEditorSave,
+  createDefaultContentLongtext,
+  type ContentLongtext,
+} from '../../components/Reader'
+import type { MarkdownContentChangeMeta, OnlineTextEditorResultState } from '../../components/OnlineEditor'
+import type { OnlineTextEditorLocationState } from '../../components/OnlineEditor/types/route'
+import { usePublishLeaveGuard } from '../../hooks/usePublishLeaveGuard'
+import { clearProjectDetailPreview } from '../ProjectDetailPage/projectDetailPreviewSession'
+import { navigateToProjectDetail } from './navigateToProjectDetail'
+import { ProjectsApiError, submitPublishProject } from './submitPublishProject'
 import {
   createDefaultPublishProjectDraft,
   suggestedSkillTags,
+  type CampusRecruitType,
   type PublishProjectFormDraft,
 } from './publishProjectPageData'
+import {
+  clearPublishProjectSession,
+  loadPublishProjectSession,
+  savePublishProjectSession,
+  type PublishProjectFormRestore,
+  type PublishProjectSession,
+} from './publishFormSession'
+import { hasPublishProjectUserInput } from './publishProjectFormUtils'
 
-// 01）发布项目表单 Hook（usePublishProjectForm）
+// 01）同步需求说明 longtext 到 draft（syncDraftDescription）
+function syncDraftDescription(draft: PublishProjectFormDraft, descriptionContent: ContentLongtext): PublishProjectFormDraft {
+  return {
+    ...draft,
+    description: descriptionContent.longtext,
+  }
+}
+
+// 02）解析发布项目回传路由状态（parsePublishProjectReturnState）
+function parsePublishProjectReturnState(state: unknown): OnlineTextEditorResultState | null {
+  if (!state || typeof state !== 'object') {
+    return null
+  }
+  const record = state as OnlineTextEditorResultState
+  const hasEditorContent =
+    typeof record.content === 'string' || typeof record.markdownResult === 'string'
+  if (!hasEditorContent && !record.publishProjectRestore) {
+    return null
+  }
+  return record
+}
+
+// 03）解析表单恢复快照（parsePublishProjectFormRestore）
+function parsePublishProjectFormRestore(value: unknown): PublishProjectFormRestore | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const record = value as PublishProjectFormRestore
+  if (!record.draft || typeof record.draft !== 'object') {
+    return null
+  }
+  return record
+}
+
+// 04）提交成功后的跳转方式（SubmitProjectSuccessMode）
+type SubmitProjectSuccessMode = 'detail' | 'preview'
+
+// 05）发布项目会话持久化覆盖项（PublishProjectSessionPersistOverride）
+type PublishProjectSessionPersistOverride = Partial<Pick<PublishProjectSession, 'projectId'>>
+
+// 06）发布项目表单 Hook（usePublishProjectForm）
 /**
  * 函数名：usePublishProjectForm
- * 功能：管理发布项目原型页的表单状态、标签选择与完成度提示。
- * 实现方法：
- * - useState 维护 PublishProjectFormDraft
- * - 提供字段更新与技能标签增删方法
- * - 根据必填项计算完成进度（仅 UI 原型，不提交后端）
- * 输入：无
- * 输出：
- * - 返回值：表单状态、处理器与派生进度
- * - 副作用：无
+ * 功能：管理发布项目表单；预览前保存草稿；预览返回从 session 恢复；未保存离开拦截。
  */
 export function usePublishProjectForm() {
-  const [draft, setDraft] = useState<PublishProjectFormDraft>(() => createDefaultPublishProjectDraft())
+  const location = useLocation()
+  const navigate = useNavigate()
+  const initialSessionRef = useRef(loadPublishProjectSession())
+  const skipClearSessionRef = useRef(false)
+  const editRevisionRef = useRef(0)
+  const [savedRevision, setSavedRevision] = useState(0)
+  const [revisionTick, setRevisionTick] = useState(0)
+
+  const [draft, setDraft] = useState<PublishProjectFormDraft>(
+    () => initialSessionRef.current?.draft ?? createDefaultPublishProjectDraft(),
+  )
+  const [descriptionMeta, setDescriptionMeta] = useState<MarkdownContentChangeMeta | null>(
+    () => initialSessionRef.current?.descriptionMeta ?? null,
+  )
+  const [descriptionContent, setDescriptionContent] = useState<ContentLongtext>(
+    () => initialSessionRef.current?.descriptionContent ?? createDefaultContentLongtext(),
+  )
   const [tagInput, setTagInput] = useState<string>('')
+  const [projectId, setProjectId] = useState<number | null>(() => initialSessionRef.current?.projectId ?? null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const markEdited = useCallback((): void => {
+    editRevisionRef.current += 1
+    setRevisionTick((value) => value + 1)
+  }, [])
+
+  const markSaved = useCallback((): void => {
+    setSavedRevision(editRevisionRef.current)
+  }, [])
+
+  const persistSessionSnapshot = useCallback((override?: PublishProjectSessionPersistOverride): void => {
+    savePublishProjectSession({
+      draft: syncDraftDescription(draft, descriptionContent),
+      descriptionMeta,
+      descriptionContent,
+      projectId: override?.projectId ?? projectId,
+      keepForRestore: true,
+    })
+  }, [descriptionContent, descriptionMeta, draft, projectId])
+
+  const applyPublishProjectSession = useCallback((session: PublishProjectSession): void => {
+    setDraft(session.draft)
+    setDescriptionMeta(session.descriptionMeta)
+    setDescriptionContent(session.descriptionContent)
+    setProjectId(session.projectId ?? null)
+  }, [])
+
+  const updateDescriptionContent = (
+    nextDescriptionContent: ContentLongtext,
+    meta: MarkdownContentChangeMeta | null,
+  ): void => {
+    setDescriptionContent(nextDescriptionContent)
+    setDescriptionMeta(meta)
+    setDraft((previous) => syncDraftDescription(previous, nextDescriptionContent))
+    markEdited()
+  }
+
+  useEffect(() => {
+    if (initialSessionRef.current) {
+      markSaved()
+    }
+  }, [markSaved])
+
+  useEffect(() => {
+    return () => {
+      if (skipClearSessionRef.current) {
+        return
+      }
+      const session = loadPublishProjectSession()
+      if (session?.keepForRestore) {
+        return
+      }
+      clearPublishProjectSession()
+    }
+  }, [])
+
+  useEffect(() => {
+    const returnState = parsePublishProjectReturnState(location.state)
+    if (!returnState) {
+      return
+    }
+
+    const restore = parsePublishProjectFormRestore(returnState.publishProjectRestore)
+    if (restore) {
+      applyPublishProjectSession({
+        draft: restore.draft,
+        descriptionMeta: restore.descriptionMeta,
+        descriptionContent: restore.descriptionContent,
+        projectId: restore.projectId,
+      })
+      markSaved()
+    }
+
+    if (typeof returnState.content === 'string' || typeof returnState.markdownResult === 'string') {
+      const editorType = returnState.editorType ?? 'MARKDOWN'
+      const content = returnState.content ?? returnState.markdownResult
+      const nextDescriptionContent = createContentLongtextFromEditorSave(editorType, content)
+      const nextMeta: MarkdownContentChangeMeta = { source: 'editor', fileName: null }
+
+      setDescriptionContent(nextDescriptionContent)
+      setDescriptionMeta(nextMeta)
+      setDraft((previous) => syncDraftDescription(previous, nextDescriptionContent))
+      markEdited()
+    }
+
+    navigate(location.pathname, { replace: true, state: null })
+  }, [applyPublishProjectSession, location.pathname, location.state, markEdited, markSaved, navigate])
+
+  const hasUnsavedChanges = useMemo(() => {
+    void revisionTick
+    if (!hasPublishProjectUserInput(draft, descriptionContent)) {
+      return false
+    }
+    return editRevisionRef.current > savedRevision
+  }, [descriptionContent, draft, revisionTick, savedRevision])
+
+  const leaveGuard = usePublishLeaveGuard({
+    hasUnsavedChanges,
+    onConfirmLeave: clearPublishProjectSession,
+  })
 
   const completionPercent = useMemo<number>(() => {
     const checkpoints = [
       draft.title.trim().length > 0,
       draft.summary.trim().length > 0,
-      draft.description.trim().length > 0,
+      descriptionContent.longtext.trim().length > 0,
       draft.amount.trim().length > 0,
       draft.skillTags.length > 0,
     ]
     const completedCount = checkpoints.filter(Boolean).length
     return Math.round((completedCount / checkpoints.length) * 100)
-  }, [draft])
+  }, [descriptionContent.longtext, draft])
 
   const updateField = <K extends keyof PublishProjectFormDraft>(key: K, value: PublishProjectFormDraft[K]): void => {
     setDraft((previous) => ({
       ...previous,
       [key]: value,
     }))
+    markEdited()
+  }
+
+  const setChannel = (channel: string): void => {
+    setDraft((previous) => ({
+      ...previous,
+      channel,
+      campusRecruitType:
+        channel === 'campus' ? (previous.campusRecruitType ?? 'LAB_RECRUIT') : null,
+    }))
+    markEdited()
+  }
+
+  const setCampusRecruitType = (campusRecruitType: CampusRecruitType): void => {
+    setDraft((previous) => ({
+      ...previous,
+      channel: 'campus',
+      campusRecruitType,
+    }))
+    markEdited()
+  }
+
+  const handleDescriptionChange = (value: string, meta: MarkdownContentChangeMeta): void => {
+    const nextDescriptionContent =
+      meta.source === 'upload'
+        ? createContentLongtext('MARKDOWN', value)
+        : createContentLongtext(descriptionContent.editorType, value)
+
+    updateDescriptionContent(nextDescriptionContent, meta)
+  }
+
+  const buildEditorLocationState = (): Pick<OnlineTextEditorLocationState, 'publishProjectRestore'> => {
+    leaveGuard.allowNextNavigation()
+    skipClearSessionRef.current = true
+    persistSessionSnapshot()
+    return {
+      publishProjectRestore: {
+        draft: syncDraftDescription(draft, descriptionContent),
+        descriptionMeta,
+        descriptionContent,
+        projectId,
+      },
+    }
   }
 
   const addSkillTag = (tag: string): void => {
@@ -52,6 +268,7 @@ export function usePublishProjectForm() {
       skillTags: [...previous.skillTags, normalizedTag],
     }))
     setTagInput('')
+    markEdited()
   }
 
   const removeSkillTag = (tag: string): void => {
@@ -59,6 +276,7 @@ export function usePublishProjectForm() {
       ...previous,
       skillTags: previous.skillTags.filter((item) => item !== tag),
     }))
+    markEdited()
   }
 
   const handleTagInputKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
@@ -76,25 +294,85 @@ export function usePublishProjectForm() {
     addSkillTag(tag)
   }
 
+  const submitProject = async (
+    publishAction: 'DRAFT' | 'PUBLISH',
+    successMode: SubmitProjectSuccessMode = 'detail',
+  ): Promise<boolean> => {
+    setSubmitError(null)
+    setIsSubmitting(true)
+
+    try {
+      const result = await submitPublishProject({
+        draft,
+        descriptionContent,
+        projectId,
+        publishAction,
+      })
+
+      setProjectId(result.projectId)
+      markSaved()
+
+      if (successMode === 'preview') {
+        skipClearSessionRef.current = true
+        persistSessionSnapshot({ projectId: result.projectId })
+        leaveGuard.allowNextNavigation()
+        navigateToProjectDetail(
+          navigate,
+          syncDraftDescription(draft, descriptionContent),
+          descriptionContent,
+          'PREVIEW',
+        )
+        return true
+      }
+
+      clearProjectDetailPreview()
+      skipClearSessionRef.current = true
+      persistSessionSnapshot({ projectId: result.projectId })
+      leaveGuard.allowNextNavigation()
+      navigate(`/project-detail?id=${result.projectId}`)
+      return true
+    } catch (error) {
+      const message =
+        error instanceof ProjectsApiError ? error.message : '保存项目失败，请稍后重试'
+      setSubmitError(message)
+      return false
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleSaveDraft = (): void => {
-    console.info('[PublishProject] 保存草稿（原型）', draft)
+    void submitProject('DRAFT', 'detail')
   }
 
   const handlePreview = (): void => {
-    console.info('[PublishProject] 预览项目卡片（原型）', draft)
+    void submitProject('DRAFT', 'preview')
   }
 
   const handlePublish = (): void => {
-    console.info('[PublishProject] 提交发布（原型）', draft)
+    void submitProject('PUBLISH', 'detail')
   }
 
   return {
     draft,
+    descriptionMeta,
+    descriptionContent,
     tagInput,
     suggestedSkillTags,
     completionPercent,
+    projectId,
+    isSubmitting,
+    submitError,
+    leavePromptOpen: leaveGuard.leavePromptOpen,
+    leavePromptMessage: leaveGuard.leavePromptMessage,
+    confirmLeave: leaveGuard.confirmLeave,
+    cancelLeave: leaveGuard.cancelLeave,
     setTagInput,
     updateField,
+    setChannel,
+    setCampusRecruitType,
+    handleDescriptionChange,
+    buildEditorLocationState,
     addSkillTag,
     removeSkillTag,
     handleTagInputKeyDown,

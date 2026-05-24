@@ -1,59 +1,132 @@
 import { useMemo } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import TopNavbar from '../../layout/TopNavbar'
+import { loadProjectDetailPreview } from './projectDetailPreviewSession'
+import { ProjectDetailView } from './ProjectDetailView'
+import type { ProjectDetailLocationState, ProjectDetailPayload } from './types'
+import { parseProjectDetailIdFromQuery, useProjectDetailFromApi } from './useProjectDetailFromApi'
 import '../../styles/DetailPage.css'
 
-// 01）顶部导航数据（navItems）
+// 01）顶部导航（navItems）
 const navItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']
 
-// 02）项目标题解析函数（resolveProjectTitleFromSearch）
-/**
- * 函数名：resolveProjectTitleFromSearch
- * 功能：从查询参数中解析项目标题，用于详情页展示卡片来源信息。
- * 实现方法：
- * - 使用 URLSearchParams 读取 title 参数
- * - 对 title 进行 trim 处理避免空白污染
- * - 参数缺失时返回默认占位文案
- * 输入：
- * - search：location.search 查询字符串
- * 输出：
- * - 返回值：string，项目标题
- * - 副作用：无
- */
-function resolveProjectTitleFromSearch(search: string): string {
-  const searchParams = new URLSearchParams(search)
-  const title = searchParams.get('title')?.trim()
-  return title && title.length > 0 ? title : '未命名项目'
+// 02）由 URL 查询参数构建占位详情（buildFallbackFromSearch）
+function buildFallbackFromSearch(title: string | null): ProjectDetailPayload | null {
+  const normalized = title?.trim()
+  if (!normalized) {
+    return null
+  }
+
+  return {
+    title: normalized,
+    summary: '该项目来自卡片链接，完整详情待后端接口接入。',
+    channel: 'enterprise',
+    channelLabel: '企业实战',
+    description: '',
+    descriptionEditorType: 'MARKDOWN',
+    amount: '—',
+    level: 'R',
+    duration: '—',
+    teamSize: '—',
+    skillTags: [],
+    deadline: '—',
+    publishStatus: 'PUBLISHED',
+    updatedAt: new Date().toISOString(),
+  }
 }
 
-// 03）项目详情页面组件（ProjectDetailPage）
+// 03）判断是否来自发布页（resolveProjectEditorialFlow）
+function resolveProjectEditorialFlow(
+  hasRoutePayload: boolean,
+  hasProjectIdQuery: boolean,
+  hasTitleQuery: boolean,
+): boolean {
+  if (hasRoutePayload) {
+    return true
+  }
+  if (hasProjectIdQuery || hasTitleQuery) {
+    return false
+  }
+  return loadProjectDetailPreview() != null
+}
+
+// 04）项目详情页（ProjectDetailPage）
 /**
  * 函数名：ProjectDetailPage
- * 功能：承接项目卡片新标签页跳转，展示项目标题与后续详情页建设占位内容。
+ * 功能：展示项目详情，支持 Markdown / 富文本双模式正文阅读。
  * 实现方法：
- * - 读取 URL 查询参数解析项目标题
- * - 渲染统一 TopNavbar 保持页面导航体验一致
- * - 输出简洁占位卡片，便于后续接入真实项目详情数据
- * 输入：
- * - 无（标题由 URL 查询参数提供）
- * 输出：
- * - 返回值：JSX.Element，项目详情页面结构
- * - 副作用：无
+ * - 优先读取路由 state / sessionStorage 预览数据（发布页跳转）
+ * - 其次 GET /projects/{projectId}（query id）
+ * - 回退至 URL title 查询参数（项目卡片链接）
  */
 function ProjectDetailPage() {
   const location = useLocation()
-  const projectTitle = useMemo<string>(() => resolveProjectTitleFromSearch(location.search), [location.search])
+  const [searchParams] = useSearchParams()
+  const routeState = location.state as ProjectDetailLocationState | null
+  const projectIdFromQuery = parseProjectDetailIdFromQuery(searchParams.get('id'))
+  const titleFromQuery = searchParams.get('title')
+
+  const previewPayload =
+    projectIdFromQuery != null ? null : routeState?.payload ?? loadProjectDetailPreview()
+  const shouldFetchFromApi = projectIdFromQuery != null
+  const { loadState, errorMessage, payload: apiPayload } = useProjectDetailFromApi(
+    shouldFetchFromApi ? projectIdFromQuery : null,
+  )
+
+  const project = useMemo<ProjectDetailPayload | null>(() => {
+    if (previewPayload) {
+      return previewPayload
+    }
+
+    if (shouldFetchFromApi) {
+      if (loadState !== 'ready') {
+        return null
+      }
+      return apiPayload
+    }
+
+    return buildFallbackFromSearch(titleFromQuery)
+  }, [apiPayload, loadState, previewPayload, shouldFetchFromApi, titleFromQuery])
+
+  const isEditorialFlow = resolveProjectEditorialFlow(
+    Boolean(routeState?.payload),
+    projectIdFromQuery != null,
+    Boolean(titleFromQuery),
+  )
+
+  const showLoading = shouldFetchFromApi && loadState === 'loading'
+  const showError = shouldFetchFromApi && loadState === 'error'
 
   return (
-    <div className="detail-page">
-      <TopNavbar navItems={navItems} />
-      <main className="detail-page-main">
-        <section className="detail-card" aria-label="项目详情信息">
-          <p className="detail-card__label">项目详情</p>
-          <h1>{projectTitle}</h1>
-          <p>项目详情页已预留，后续可在此接入完整项目内容、成员信息与进度动态。</p>
-        </section>
-      </main>
+    <div className={`detail-page ${isEditorialFlow ? 'detail-page--editorial' : ''}`.trim()}>
+      {!isEditorialFlow ? <TopNavbar navItems={navItems} /> : null}
+      {showLoading ? (
+        <main className="detail-page-main">
+          <section className="detail-card" aria-label="项目详情加载中">
+            <p className="detail-card__label">项目详情</p>
+            <h1>加载中…</h1>
+            <p>正在从服务器获取项目内容。</p>
+          </section>
+        </main>
+      ) : showError ? (
+        <main className="detail-page-main">
+          <section className="detail-card" aria-label="项目详情错误">
+            <p className="detail-card__label">项目详情</p>
+            <h1>加载失败</h1>
+            <p>{errorMessage ?? '无法获取项目详情，请稍后重试。'}</p>
+          </section>
+        </main>
+      ) : project ? (
+        <ProjectDetailView project={project} isEditorialFlow={isEditorialFlow} />
+      ) : (
+        <main className="detail-page-main">
+          <section className="detail-card" aria-label="项目详情信息">
+            <p className="detail-card__label">项目详情</p>
+            <h1>未找到项目</h1>
+            <p>请从发布项目页保存草稿、预览或发布后查看，或通过有效标题链接访问。</p>
+          </section>
+        </main>
+      )}
     </div>
   )
 }

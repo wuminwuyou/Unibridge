@@ -1,0 +1,192 @@
+/* 01）在线正文编辑全屏页（对齐 index.css 全局主题变量） */
+
+.online-text-editor-page {
+  --ote-bg: var(--page-bg);
+  --ote-surface: var(--card-bg);
+  --ote-border: var(--card-border);
+  --ote-text: var(--text-main);
+  --ote-text-muted: var(--text-soft);
+  --ote-accent: var(--primary-text);
+  --ote-accent-soft: var(--primary-soft);
+  --ote-toolbar-bg: var(--card-bg);
+  --ote-shadow: var(--panel-shadow);
+  --ote-switch-track: var(--chip-bg);
+  --ote-switch-thumb: #fff;
+
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  background: var(--ote-bg);
+  color: var(--ote-text);
+}
+
+.online-text-editor-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--ote-border);
+  background: var(--ote-toolbar-bg);
+  padding: 0.875rem 50px;
+  box-shadow: var(--ote-shadow);
+}
+
+.online-text-editor-page__toolbar-left {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.online-text-editor-page__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.online-text-editor-page__subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ote-text-muted);
+}
+
+.online-text-editor-page__mode-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--ote-border);
+  background: var(--ote-surface);
+  padding: 0.375rem 0.875rem;
+}
+
+.online-text-editor-page__mode-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ote-text-muted);
+  transition: color 0.15s ease;
+  user-select: none;
+}
+
+.online-text-editor-page__mode-label--active {
+  color: var(--ote-accent);
+  font-weight: 600;
+}
+
+.online-text-editor-page__switch {
+  position: relative;
+  width: 2.75rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 9999px;
+  background: var(--ote-switch-track);
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.online-text-editor-page__switch--on {
+  background: var(--ote-accent);
+}
+
+.online-text-editor-page__switch-thumb {
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  background: var(--ote-switch-thumb);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+  transition: transform 0.2s ease;
+}
+
+.online-text-editor-page__switch--on .online-text-editor-page__switch-thumb {
+  transform: translateX(1.25rem);
+}
+
+.online-text-editor-page__workspace {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 1rem 50px 5rem;
+}
+
+.online-text-editor-page__editor {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.online-text-editor-page__editor--placeholder {
+  min-height: 12rem;
+}
+
+.online-text-editor-page__switch--disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.online-text-editor-page__footer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  border-top: 1px solid var(--ote-border);
+  background: color-mix(in srgb, var(--ote-surface) 92%, transparent);
+  backdrop-filter: blur(12px);
+  padding: 1rem 50px;
+}
+
+.online-text-editor-page__btn {
+  border-radius: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.online-text-editor-page__btn--ghost {
+  border: 1px solid var(--ote-border);
+  background: var(--ote-surface);
+  color: var(--ote-text);
+}
+
+.online-text-editor-page__btn--ghost:hover {
+  background: var(--ote-switch-track);
+}
+
+.online-text-editor-page__btn--primary {
+  border: none;
+  background: #2563eb;
+  color: #fff;
+}
+
+.online-text-editor-page__btn--primary:hover {
+  background: #1d4ed8;
+}
+
+:root[data-theme='dark'] .online-text-editor-page__btn--primary {
+  background: #3b82f6;
+}
+
+:root[data-theme='dark'] .online-text-editor-page__btn--primary:hover {
+  background: #60a5fa;
+}
+
+@media (max-width: 768px) {
+  .online-text-editor-page__toolbar,
+  .online-text-editor-page__workspace,
+  .online-text-editor-page__footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}

@@ -40,8 +40,8 @@ flowchart TB
 
 | 区域 | 宽度 | 说明 |
 |------|------|------|
-| 内容区 | `max-w-6xl` 居中 | 与频道页一致的阅读宽度 |
-| 主表单 | `1fr` | 三段白色卡片，段首图标 + 标题 |
+| 内容区 | 左右各 `10%` 留白，全宽 | 主栏 `1fr` + 侧栏 `320px` |
+| 主表单 | `1fr` | 表单分段卡片 |
 | 侧栏 | `320px` sticky | 预览 + 检查清单 |
 | 底栏 | 全宽 fixed | 毛玻璃背景，主按钮 `#2563EB` |
 
@@ -65,19 +65,21 @@ flowchart TB
 ## 5. React 文件结构
 
 ```
-PublishForm/
-└── publishFormShared.css     # 主题感知共享样式（映射 --page-bg 等全局变量）
+src/index.css                              # 仅全局 light/dark 主题变量
+src/components/PublishFormSection/style.css  # 表单分段卡片组件样式
+src/pages/PublishProject/style.css         # 发布页局部变量 + 表单/布局样式
+src/pages/PublishNote/style.css            # 笔记页专属样式 + 引入项目页共用样式
 
 PublishProject/
 ├── index.tsx
 ├── PublishProjectView.tsx
 ├── usePublishProjectForm.ts
 ├── publishProjectPageData.ts
-├── style.css                 # @import 共享样式
+├── style.css
 └── UI-SKETCH.md
 ```
 
-切换顶栏「浅色/深色」主题时，发布页背景、卡片、输入框、按钮会随 `:root[data-theme='dark']` 自动适配。
+`--pp-*` 局部变量映射 `index.css` 中的 `--page-bg`、`--text-main` 等；切换顶栏主题时自动跟随。
 
 ## 6. 独立 HTML 原型（Tailwind CDN）
 

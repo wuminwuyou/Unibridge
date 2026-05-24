@@ -10,12 +10,16 @@ import {
   Users,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { FormSection } from '../PublishForm/FormSection'
+import InfoPromptModal from '../../components/common/InfoPromptModal'
+import { MarkdownContentModePicker } from '../../components/OnlineEditor'
+import { PublishFormSection } from '../../components/PublishFormSection'
 import type { LevelCode } from '../../types/level'
 import {
+  campusRecruitOptions,
   publishChannelOptions,
   publishChecklistItems,
   publishLevelOptions,
+  resolvePublishPreviewBadge,
 } from './publishProjectPageData'
 import type { PublishProjectFormModel } from './usePublishProjectForm'
 
@@ -45,6 +49,12 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
     completionPercent,
     setTagInput,
     updateField,
+    setChannel,
+    setCampusRecruitType,
+    descriptionMeta,
+    descriptionContent,
+    handleDescriptionChange,
+    buildEditorLocationState,
     addSkillTag,
     removeSkillTag,
     handleTagInputKeyDown,
@@ -52,11 +62,17 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
     handleSaveDraft,
     handlePreview,
     handlePublish,
+    isSubmitting,
+    submitError,
+    leavePromptOpen,
+    leavePromptMessage,
+    confirmLeave,
+    cancelLeave,
   } = form
 
   return (
     <div className="publish-form-page min-h-screen bg-page text-main">
-      <div className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6 lg:px-8">
+      <div className="publish-page-shell">
         <header className="mb-8">
           <Link to="/" className="back-link inline-flex items-center gap-2 text-sm font-medium transition">
             <ArrowLeft className="h-4 w-4" />
@@ -67,7 +83,7 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
               <p className="text-xs font-semibold uppercase tracking-wider text-accent">Publish</p>
               <h1 className="mt-1 text-3xl font-bold tracking-tight text-main">发布项目</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted">
-                填写项目需求信息，发布后将在对应频道展示。当前为 UI 原型，不会真实提交到服务端。
+                填写项目需求信息，发布后将在对应频道展示。保存草稿与正式发布将提交至服务端。
               </p>
             </div>
             <div className="rounded-2xl border bg-surface px-4 py-3 shadow-sm">
@@ -77,9 +93,9 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
           </div>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="publish-page-layout">
           <main className="space-y-6">
-            <FormSection
+            <PublishFormSection
               icon={<FolderKanban className="h-5 w-5" />}
               title="基本信息"
               description="用于列表卡片与搜索展示"
@@ -123,7 +139,7 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
                         name="channel"
                         value={option.value}
                         checked={draft.channel === option.value}
-                        onChange={() => updateField('channel', option.value)}
+                        onChange={() => setChannel(option.value)}
                         className="sr-only"
                       />
                       <span className="font-semibold text-main">{option.label}</span>
@@ -131,26 +147,54 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
                     </label>
                   ))}
                 </div>
-              </fieldset>
-            </FormSection>
 
-            <FormSection
+                {draft.channel === 'campus' ? (
+                  <div className="campus-recruit-fieldset" role="group" aria-label="高校招募类型">
+                    <p className="label-text mb-3">高校招募类型</p>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {campusRecruitOptions.map((option) => (
+                        <label
+                          key={option.value}
+                          className={`campus-recruit-card ${
+                            draft.campusRecruitType === option.value ? 'campus-recruit-card--active' : ''
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="campusRecruitType"
+                            value={option.value}
+                            checked={draft.campusRecruitType === option.value}
+                            onChange={() => setCampusRecruitType(option.value)}
+                            className="sr-only"
+                          />
+                          <span className="font-medium text-main">{option.label}</span>
+                          <span className="mt-1 block text-xs text-muted">{option.description}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </fieldset>
+            </PublishFormSection>
+
+            <PublishFormSection
               icon={<Layers3 className="h-5 w-5" />}
               title="需求详情"
-              description="帮助接单方理解任务边界"
+              description="在线编辑器或上传 Markdown 文件录入需求说明"
             >
-              <label className="block space-y-2">
-                <span className="label-text">
-                  详细描述 <span className="text-danger">*</span>
-                </span>
-                <textarea
-                  value={draft.description}
-                  onChange={(event) => updateField('description', event.target.value)}
-                  rows={8}
-                  placeholder="背景、目标、交付标准、协作方式…"
-                  className="input-field resize-y"
-                />
-              </label>
+              <MarkdownContentModePicker
+                label="详细描述"
+                required
+                value={descriptionContent.longtext}
+                source={descriptionMeta?.source ?? null}
+                uploadedFileName={descriptionMeta?.fileName ?? null}
+                contentEditorType={descriptionContent.editorType}
+                onChange={handleDescriptionChange}
+                buildEditorLocationState={buildEditorLocationState}
+                editorPath="/publish/markdown-editor"
+                editorTitle="编辑项目需求说明"
+                returnTo="/publish/project"
+              />
 
               <div className="space-y-3">
                 <span className="label-text">
@@ -195,9 +239,9 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
                   ))}
                 </div>
               </div>
-            </FormSection>
+            </PublishFormSection>
 
-            <FormSection
+            <PublishFormSection
               icon={<CircleDollarSign className="h-5 w-5" />}
               title="合作信息"
               description="预算、周期与团队规模"
@@ -217,14 +261,14 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
                 </label>
                 <label className="block space-y-2">
                   <span className="label-text">预计周期</span>
-                  <div className="relative">
-                    <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-icon-muted" />
+                  <div className="input-icon-wrap">
+                    <Clock3 className="input-icon-wrap__icon" aria-hidden="true" />
                     <input
                       type="text"
                       value={draft.duration}
                       onChange={(event) => updateField('duration', event.target.value)}
                       placeholder="例如：4 周"
-                      className="input-field pl-10"
+                      className="input-field input-field--has-icon"
                     />
                   </div>
                 </label>
@@ -244,14 +288,14 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
                 </label>
                 <label className="block space-y-2">
                   <span className="label-text">团队人数</span>
-                  <div className="relative">
-                    <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-icon-muted" />
+                  <div className="input-icon-wrap">
+                    <Users className="input-icon-wrap__icon" aria-hidden="true" />
                     <input
                       type="text"
                       value={draft.teamSize}
                       onChange={(event) => updateField('teamSize', event.target.value)}
                       placeholder="例如：1-3 人"
-                      className="input-field pl-10"
+                      className="input-field input-field--has-icon"
                     />
                   </div>
                 </label>
@@ -266,7 +310,7 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
                   className="input-field"
                 />
               </label>
-            </FormSection>
+            </PublishFormSection>
           </main>
 
           <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
@@ -277,7 +321,7 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
               </div>
               <article className="preview-card">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="preview-badge">{draft.channel === 'campus' ? '高校招募' : '企业实战'}</span>
+                  <span className="preview-badge">{resolvePublishPreviewBadge(draft)}</span>
                   <span className="preview-level">{draft.level}</span>
                 </div>
                 <h3 className="text-lg font-bold text-main">
@@ -315,21 +359,37 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
       </div>
 
       <footer className="publish-footer">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <p className="text-xs text-muted">草稿仅保存在本地原型状态，刷新后丢失</p>
+        <div className="publish-footer__inner">
+          <p className="text-xs text-muted">
+            {submitError ? (
+              <span className="text-danger">{submitError}</span>
+            ) : (
+              '预览为本地快照；保存草稿与发布将写入服务端'
+            )}
+          </p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={handleSaveDraft} className="btn-secondary">
-              保存草稿
+            <button type="button" onClick={handleSaveDraft} className="btn-secondary" disabled={isSubmitting}>
+              {isSubmitting ? '提交中…' : '保存草稿'}
             </button>
-            <button type="button" onClick={handlePreview} className="btn-secondary">
-              预览
+            <button type="button" onClick={handlePreview} className="btn-secondary" disabled={isSubmitting}>
+              {isSubmitting ? '保存并预览…' : '预览'}
             </button>
-            <button type="button" onClick={handlePublish} className="btn-primary">
-              发布项目
+            <button type="button" onClick={handlePublish} className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? '提交中…' : '发布项目'}
             </button>
           </div>
         </div>
       </footer>
+
+      <InfoPromptModal
+        open={leavePromptOpen}
+        message={leavePromptMessage}
+        title="温馨提示"
+        cancelText="继续编辑"
+        confirmText="确认退出"
+        onClose={cancelLeave}
+        onConfirm={confirmLeave}
+      />
     </div>
   )
 }
