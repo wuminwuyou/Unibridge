@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getNoteDetail, NotesApiError } from '../../api/notes'
+import type { NoteResourceUid } from '../../api/resourceUid'
 import type { NoteDetailPayload } from './shared/noteDetailPayload'
 import { mapNoteDetailToPayload } from './shared/mapNoteDetailToPayload'
 
@@ -16,29 +17,29 @@ export interface UseNoteDetailFromApiResult {
 // 03）从 API 加载笔记详情（useNoteDetailFromApi）
 /**
  * 函数名：useNoteDetailFromApi
- * 功能：当路由携带 noteId 时调用 GET /notes/{noteId} 并映射为页面载荷。
+ * 功能：当路由携带 note uid 时调用 GET /notes/{uid} 并映射为页面载荷。
  * 实现方法：
- * - noteId 为空时不请求（idle）
+ * - noteUid 为空时不请求（idle）
  * - useEffect 内 fetch，支持卸载 cancel
  * 输入：
- * - noteId：笔记主键，null 时跳过
+ * - noteUid：笔记对外 uid，null 时跳过
  * 输出：
  * - 返回值：加载状态、错误信息与 NoteDetailPayload
  */
-export function useNoteDetailFromApi(noteId: number | null): UseNoteDetailFromApiResult {
-  const [loadState, setLoadState] = useState<NoteDetailApiLoadState>(noteId ? 'loading' : 'idle')
+export function useNoteDetailFromApi(noteUid: NoteResourceUid | null): UseNoteDetailFromApiResult {
+  const [loadState, setLoadState] = useState<NoteDetailApiLoadState>(noteUid ? 'loading' : 'idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [payload, setPayload] = useState<NoteDetailPayload | null>(null)
 
   useEffect(() => {
-    if (!noteId) {
+    if (!noteUid) {
       setLoadState('idle')
       setErrorMessage(null)
       setPayload(null)
       return
     }
 
-    const activeNoteId = noteId
+    const activeNoteUid = noteUid
     let isCancelled = false
 
     async function loadNoteDetail(): Promise<void> {
@@ -47,7 +48,7 @@ export function useNoteDetailFromApi(noteId: number | null): UseNoteDetailFromAp
       setPayload(null)
 
       try {
-        const dto = await getNoteDetail(activeNoteId)
+        const dto = await getNoteDetail(activeNoteUid)
         const nextPayload = mapNoteDetailToPayload(dto)
         if (isCancelled) {
           return
@@ -71,7 +72,7 @@ export function useNoteDetailFromApi(noteId: number | null): UseNoteDetailFromAp
     return () => {
       isCancelled = true
     }
-  }, [noteId])
+  }, [noteUid])
 
   return {
     loadState,

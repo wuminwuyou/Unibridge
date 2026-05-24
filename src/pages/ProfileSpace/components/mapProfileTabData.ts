@@ -73,25 +73,17 @@ export function mapApiProjects(projects: UserProfileProjectDto[]): ProjectItem[]
     const category = normalizeProjectCategory(project.category)
     const recruitmentType =
       category === 'RECRUITMENT' ? normalizeProjectRecruitmentType(project.recruitmentType) : null
-    const budget =
-      category === 'COMMERCIAL' && project.budget?.trim()
-        ? project.budget.trim()
-        : category === 'COMMERCIAL' && project.amount?.trim()
-          ? project.amount.trim()
-          : null
 
     return {
-      id: project.id,
+      uid: project.uid,
       title: project.title,
       preview: project.preview?.trim() || project.summary?.trim() || '',
       tags: project.tags ?? [],
       category,
       recruitmentType,
       ownerOrganization: project.ownerOrganization?.trim() || project.company?.trim() || '',
-      ownerName: project.ownerName?.trim() || project.publisher?.trim() || '',
       publishTime: project.publishTime,
       level: normalizeProjectLevel(project.level),
-      budget,
       logoSvgUrl: project.logoSvgUrl?.trim() || null,
       teamSize: project.teamSize?.trim() || null,
       duration: project.duration?.trim() || null,
@@ -113,7 +105,7 @@ export function mapApiProjects(projects: UserProfileProjectDto[]): ProjectItem[]
  */
 export function mapApiNotes(notes: UserProfileNoteDto[]): ProfileNoteItem[] {
   return (notes ?? []).map((note) => ({
-    id: note.id,
+    uid: note.uid,
     title: note.title,
     summary: note.summary,
     contentType: normalizeNoteContentType(note.contentType),

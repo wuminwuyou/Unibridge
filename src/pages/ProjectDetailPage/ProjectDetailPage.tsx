@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import TopNavbar from '../../layout/TopNavbar'
+import { useFeedViewDetailReport } from '../../api/feed/useFeedViewDetailReport'
 import { loadProjectDetailPreview } from './projectDetailPreviewSession'
 import { ProjectDetailView } from './ProjectDetailView'
 import type { ProjectDetailLocationState, ProjectDetailPayload } from './types'
-import { parseProjectDetailIdFromQuery, useProjectDetailFromApi } from './useProjectDetailFromApi'
+import { parseProjectDetailUidFromQuery, useProjectDetailFromApi } from './useProjectDetailFromApi'
 import '../../styles/DetailPage.css'
 
 // 01）由 URL 查询参数构建占位详情（buildFallbackFromSearch）
@@ -35,13 +36,13 @@ function buildFallbackFromSearch(title: string | null): ProjectDetailPayload | n
 // 03）判断是否来自发布页（resolveProjectEditorialFlow）
 function resolveProjectEditorialFlow(
   hasRoutePayload: boolean,
-  hasProjectIdQuery: boolean,
+  hasProjectUidQuery: boolean,
   hasTitleQuery: boolean,
 ): boolean {
   if (hasRoutePayload) {
     return true
   }
-  if (hasProjectIdQuery || hasTitleQuery) {
+  if (hasProjectUidQuery || hasTitleQuery) {
     return false
   }
   return loadProjectDetailPreview() != null
@@ -53,21 +54,24 @@ function resolveProjectEditorialFlow(
  * 功能：展示项目详情，支持 Markdown / 富文本双模式正文阅读。
  * 实现方法：
  * - 优先读取路由 state / sessionStorage 预览数据（发布页跳转）
- * - 其次 GET /projects/{projectId}（query id）
+ * - 其次 GET /projects/{uid}（query uid）
  * - 回退至 URL title 查询参数（项目卡片链接）
  */
 function ProjectDetailPage() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const routeState = location.state as ProjectDetailLocationState | null
-  const projectIdFromQuery = parseProjectDetailIdFromQuery(searchParams.get('id'))
+  const projectUidFromQuery = parseProjectDetailUidFromQuery(
+    searchParams.get('uid'),
+    searchParams.get('id'),
+  )
   const titleFromQuery = searchParams.get('title')
 
   const previewPayload =
-    projectIdFromQuery != null ? null : routeState?.payload ?? loadProjectDetailPreview()
-  const shouldFetchFromApi = projectIdFromQuery != null
+    projectUidFromQuery != null ? null : routeState?.payload ?? loadProjectDetailPreview()
+  const shouldFetchFromApi = projectUidFromQuery != null
   const { loadState, errorMessage, payload: apiPayload } = useProjectDetailFromApi(
-    shouldFetchFromApi ? projectIdFromQuery : null,
+    shouldFetchFromApi ? projectUidFromQuery : null,
   )
 
   const project = useMemo<ProjectDetailPayload | null>(() => {
@@ -87,12 +91,26 @@ function ProjectDetailPage() {
 
   const isEditorialFlow = resolveProjectEditorialFlow(
     Boolean(routeState?.payload),
-    projectIdFromQuery != null,
+    projectUidFromQuery != null,
     Boolean(titleFromQuery),
   )
 
   const showLoading = shouldFetchFromApi && loadState === 'loading'
   const showError = shouldFetchFromApi && loadState === 'error'
+
+  const viewDetailTags = useMemo(() => {
+    if (loadState === 'ready' && apiPayload) {
+      return apiPayload.skillTags
+    }
+    return []
+  }, [apiPayload, loadState])
+
+  useFeedViewDetailReport({
+    enabled: shouldFetchFromApi && loadState === 'ready' && projectUidFromQuery != null,
+    targetType: 'PROJECT',
+    targetUid: projectUidFromQuery,
+    tags: viewDetailTags,
+  })
 
   return (
     <div className={`detail-page ${isEditorialFlow ? 'detail-page--editorial' : ''}`.trim()}>

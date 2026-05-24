@@ -1,7 +1,7 @@
+import { useProjectFeedData } from '../../api/feed/useProjectFeedData'
 import ProjectChannelLayout from '../../components/ProjectChannelLayout'
 import {
   campusRecruitAnnouncements,
-  campusRecruitProjects,
   campusRecruitRecommendedLabs,
   campusRecruitRecommendedTypes,
 } from './campusRecruitPageData'
@@ -9,20 +9,24 @@ import {
 // 01）高校共创页面组件（CampusCoCreationPage）
 /**
  * 函数名：CampusCoCreationPage
- * 功能：渲染高校共创频道页面。
+ * 功能：渲染高校共创频道页面，项目列表来自 GET /feed/projects?category=RECRUITMENT。
  * 实现方法：
  * - 复用 ProjectChannelLayout
  * - 右侧栏展示推荐本校实验室
  * 输入：无
  * 输出：
  * - 返回值：JSX.Element
- * - 副作用：无
+ * - 副作用：发起网络请求
  */
 function CampusCoCreationPage() {
+  const { loadState, errorMessage, projects } = useProjectFeedData({ category: 'RECRUITMENT' })
+
   return (
     <ProjectChannelLayout
       projectsSectionLabel="高校共创"
-      projects={campusRecruitProjects}
+      projects={projects}
+      feedLoadState={loadState}
+      feedErrorMessage={errorMessage}
       recommendedTypes={campusRecruitRecommendedTypes}
       recommendedOrganizations={campusRecruitRecommendedLabs}
       announcements={campusRecruitAnnouncements}

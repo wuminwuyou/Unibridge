@@ -1,4 +1,5 @@
 import { HttpApiError, getApi, postApi, putApi } from '../http'
+import type { NoteResourceUid } from '../resourceUid'
 import { normalizeUpsertNoteRequestPayload } from './payload'
 import { uploadNoteCoverWithPrecheck, uploadNoteVideoWithPrecheck } from './uploadPrecheck'
 import type {
@@ -27,10 +28,10 @@ async function wrapNotesApi<TData>(request: () => Promise<TData>): Promise<TData
 // 03）查询笔记详情（getNoteDetail）
 /**
  * 函数名：getNoteDetail
- * 功能：调用 GET /notes/{noteId} 获取笔记详情。
+ * 功能：调用 GET /notes/{uid} 获取笔记详情。
  */
-export async function getNoteDetail(noteId: number): Promise<NoteDetailDto> {
-  return wrapNotesApi(() => getApi<NoteDetailDto>(`/notes/${noteId}`))
+export async function getNoteDetail(noteUid: NoteResourceUid): Promise<NoteDetailDto> {
+  return wrapNotesApi(() => getApi<NoteDetailDto>(`/notes/${noteUid}`))
 }
 
 // 04）秒传预检（checkUploadByMd5）
@@ -73,12 +74,12 @@ export async function createNote(payload: UpsertNoteRequest): Promise<UpsertNote
 // 08）更新笔记（updateNote）
 /**
  * 函数名：updateNote
- * 功能：调用 PUT /notes/{noteId} 更新笔记。
+ * 功能：调用 PUT /notes/{uid} 更新笔记。
  */
-export async function updateNote(noteId: number, payload: UpsertNoteRequest): Promise<UpsertNoteResponse> {
+export async function updateNote(noteUid: NoteResourceUid, payload: UpsertNoteRequest): Promise<UpsertNoteResponse> {
   return wrapNotesApi(async () => {
     const body = normalizeUpsertNoteRequestPayload(payload)
-    return putApi<UpsertNoteRequest, UpsertNoteResponse>(`/notes/${noteId}`, body)
+    return putApi<UpsertNoteRequest, UpsertNoteResponse>(`/notes/${noteUid}`, body)
   })
 }
 

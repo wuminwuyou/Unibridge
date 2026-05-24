@@ -3,6 +3,8 @@ import {
   type ContentLongtext,
 } from '../../components/Reader'
 import type { MarkdownContentChangeMeta } from '../../components/OnlineEditor'
+import { isProjectResourceUid } from '../../api/resourceUid'
+import type { ProjectResourceUid } from '../../api/resourceUid'
 import {
   createDefaultPublishProjectDraft,
   type PublishProjectFormDraft,
@@ -16,7 +18,7 @@ export interface PublishProjectSession {
   draft: PublishProjectFormDraft
   descriptionMeta: MarkdownContentChangeMeta | null
   descriptionContent: ContentLongtext
-  projectId?: number | null
+  projectUid?: ProjectResourceUid | null
   /** 为 true 时离开发布页不自动清除 session（预览/保存后返回编辑） */
   keepForRestore?: boolean
 }
@@ -26,7 +28,7 @@ export interface PublishProjectFormRestore {
   draft: PublishProjectFormDraft
   descriptionMeta: MarkdownContentChangeMeta | null
   descriptionContent: ContentLongtext
-  projectId: number | null
+  projectUid: ProjectResourceUid | null
 }
 
 // 04）解析会话中的需求说明存储（resolvePublishProjectDescriptionContent）
@@ -55,6 +57,7 @@ export function loadPublishProjectSession(): PublishProjectSession | null {
 
     const parsed = JSON.parse(raw) as Partial<PublishProjectSession> & {
       descriptionEditorType?: ContentLongtext['editorType']
+      projectId?: unknown
     }
     if (!parsed?.draft || typeof parsed.draft !== 'object') {
       return null
@@ -65,12 +68,13 @@ export function loadPublishProjectSession(): PublishProjectSession | null {
       draft.campusRecruitType = 'LAB_RECRUIT'
     }
     const descriptionContent = resolvePublishProjectDescriptionContent(parsed, draft)
+    const projectUid = isProjectResourceUid(parsed.projectUid) ? parsed.projectUid : null
 
     return {
       draft: { ...draft, description: descriptionContent.longtext },
       descriptionMeta: parsed.descriptionMeta ?? null,
       descriptionContent,
-      projectId: parsed.projectId ?? null,
+      projectUid,
       keepForRestore: parsed.keepForRestore === true,
     }
   } catch {
@@ -85,7 +89,7 @@ export function savePublishProjectSession(session: PublishProjectSession): void 
       draft: { ...session.draft, description: session.descriptionContent.longtext },
       descriptionMeta: session.descriptionMeta,
       descriptionContent: session.descriptionContent,
-      projectId: session.projectId ?? null,
+      projectUid: session.projectUid ?? null,
       keepForRestore: session.keepForRestore === true,
     }
     sessionStorage.setItem(PUBLISH_PROJECT_SESSION_KEY, JSON.stringify(payload))

@@ -1,4 +1,5 @@
 import type { CampusRecruitType, PublishProjectFormDraft } from '../../pages/PublishProject/publishProjectPageData'
+import type { ProjectResourceUid } from '../resourceUid'
 
 // 01）项目发布动作（ProjectPublishAction）
 export type ProjectPublishAction = 'DRAFT' | 'PUBLISH'
@@ -21,7 +22,7 @@ export interface UpsertProjectRequest {
 
 // 03）项目写操作响应（UpsertProjectResponse）
 export interface UpsertProjectResponse {
-  projectId: number
+  uid: ProjectResourceUid
   publishAction: ProjectPublishAction
   status: 'DRAFT' | 'OPEN' | 'ONGOING' | 'CLOSED'
   category: string
@@ -33,7 +34,7 @@ export interface UpsertProjectResponse {
 
 // 04）项目详情响应 DTO（ProjectDetailDto）
 export interface ProjectDetailDto {
-  projectId: number
+  uid: ProjectResourceUid
   title: string
   summary: string
   channel: string

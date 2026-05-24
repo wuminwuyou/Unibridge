@@ -1,6 +1,9 @@
 // 01）个人空间笔记类型定义（ProfileNoteItem）
+import type { NoteResourceUid } from '../../../api/resourceUid'
+
 export interface ProfileNoteItem {
-  id?: number
+  /** 对外 uid：`TX` / `VD` + 11 位 */
+  uid?: NoteResourceUid
   title: string
   summary: string
   contentType: '图文' | '视频'

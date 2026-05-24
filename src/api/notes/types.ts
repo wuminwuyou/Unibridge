@@ -5,9 +5,11 @@ export interface NoteDetailAuthorDto {
   avatarUrl: string | null
 }
 
+import type { NoteResourceUid } from '../resourceUid'
+
 // 02）笔记详情响应 DTO（NoteDetailDto）
 export interface NoteDetailDto {
-  noteId: number
+  uid: NoteResourceUid
   contentType: '图文' | '视频'
   contentTypeCode: string
   title: string
@@ -45,7 +47,7 @@ export interface UpsertNoteRequest {
 
 // 05）笔记写操作响应（UpsertNoteResponse）
 export interface UpsertNoteResponse {
-  noteId: number
+  uid: NoteResourceUid
   contentTypeCode: string
   publishAction: NotePublishAction
   status: 'DRAFT' | 'PUBLISHED'

@@ -12,3 +12,9 @@ export * from './notes'
 
 // 05）项目接口模块导出（Projects API Exports）
 export * from './projects'
+
+// 06）Feed 接口模块导出（Feed API Exports）
+export * from './feed'
+
+// 07）资源 uid 工具（Resource UID）
+export * from './resourceUid'

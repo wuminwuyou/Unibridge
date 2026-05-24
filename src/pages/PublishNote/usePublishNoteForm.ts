@@ -22,6 +22,7 @@ import {
   type PublishNoteFormRestore,
   type PublishNoteSession,
 } from './publishNoteFormSession'
+import type { NoteResourceUid } from '../../api/resourceUid'
 import { hasPublishNoteUserInput } from './publishNoteFormUtils'
 import { navigateToNoteArticleDetail } from './navigateToNoteDetail'
 import { clearNoteDetailPreview } from '../NoteDetailPage/shared/noteDetailPreviewSession'
@@ -81,7 +82,7 @@ function parsePublishNoteFormRestore(value: unknown): PublishNoteFormRestore | n
 type SubmitNoteSuccessMode = 'detail' | 'preview'
 
 // 06）发布笔记会话持久化覆盖项（PublishNoteSessionPersistOverride）
-type PublishNoteSessionPersistOverride = Partial<Pick<PublishNoteSession, 'noteId' | 'mediaPersist'>>
+type PublishNoteSessionPersistOverride = Partial<Pick<PublishNoteSession, 'noteUid' | 'mediaPersist'>>
 
 // 07）发布笔记表单 Hook（usePublishNoteForm）
 /**
@@ -112,7 +113,7 @@ export function usePublishNoteForm() {
   const [videoDescription, setVideoDescription] = useState<string>(
     () => initialSessionRef.current?.videoDescription ?? '',
   )
-  const [noteId, setNoteId] = useState<number | null>(() => initialSessionRef.current?.noteId ?? null)
+  const [noteUid, setNoteUid] = useState<NoteResourceUid | null>(() => initialSessionRef.current?.noteUid ?? null)
   const [mediaPersist, setMediaPersist] = useState<PublishNoteMediaPersist | null>(
     () => initialSessionRef.current?.mediaPersist ?? null,
   )
@@ -141,18 +142,18 @@ export function usePublishNoteForm() {
       draft: syncDraftBody(draft, bodyContent),
       bodyMeta,
       bodyContent,
-      noteId: override?.noteId ?? noteId,
+      noteUid: override?.noteUid ?? noteUid,
       mediaPersist: override?.mediaPersist ?? mediaPersist,
       videoDescription,
       keepForRestore: true,
     })
-  }, [bodyContent, bodyMeta, draft, mediaPersist, noteId, videoDescription])
+  }, [bodyContent, bodyMeta, draft, mediaPersist, noteUid, videoDescription])
 
   const applyPublishNoteSession = useCallback((session: PublishNoteSession): void => {
     setDraft(session.draft)
     setBodyMeta(session.bodyMeta)
     setBodyContent(session.bodyContent)
-    setNoteId(session.noteId ?? null)
+    setNoteUid(session.noteUid ?? null)
     setMediaPersist(session.mediaPersist ?? null)
     setVideoDescription(session.videoDescription ?? '')
   }, [])
@@ -195,7 +196,7 @@ export function usePublishNoteForm() {
         draft: restore.draft,
         bodyMeta: restore.bodyMeta,
         bodyContent: restore.bodyContent,
-        noteId: restore.noteId,
+        noteUid: restore.noteUid,
         mediaPersist: restore.mediaPersist,
         videoDescription: restore.videoDescription ?? '',
       })
@@ -278,7 +279,7 @@ export function usePublishNoteForm() {
         draft: syncDraftBody(draft, bodyContent),
         bodyMeta,
         bodyContent,
-        noteId,
+        noteUid,
         mediaPersist,
         videoDescription,
       },
@@ -346,7 +347,7 @@ export function usePublishNoteForm() {
   }
 
   const resetPersistedNote = (): void => {
-    setNoteId(null)
+    setNoteUid(null)
     setMediaPersist(null)
     markEdited()
   }
@@ -409,21 +410,21 @@ export function usePublishNoteForm() {
           bodyContent,
           cover,
           videoFile,
-          noteId,
+          noteUid,
           mediaPersist,
           publishAction,
         },
         setSubmitPhase,
       )
 
-      setNoteId(result.noteId)
+      setNoteUid(result.noteUid)
       setMediaPersist(result.mediaPersist)
       markSaved()
 
       if (successMode === 'preview') {
         skipClearSessionRef.current = true
         persistSessionSnapshot({
-          noteId: result.noteId,
+          noteUid: result.noteUid,
           mediaPersist: result.mediaPersist,
         })
 
@@ -447,11 +448,11 @@ export function usePublishNoteForm() {
       clearNoteDetailPreview()
       skipClearSessionRef.current = true
       persistSessionSnapshot({
-        noteId: result.noteId,
+        noteUid: result.noteUid,
         mediaPersist: result.mediaPersist,
       })
       leaveGuard.allowNextNavigation()
-      navigate(`/note-detail?id=${result.noteId}`)
+      navigate(`/note-detail?uid=${encodeURIComponent(result.noteUid)}`)
       return true
     } catch (error) {
       const message =
@@ -485,7 +486,7 @@ export function usePublishNoteForm() {
     completionPercent,
     videoUpload,
     cover,
-    noteId,
+    noteUid,
     isSubmitting,
     submitError,
     submitPhase,

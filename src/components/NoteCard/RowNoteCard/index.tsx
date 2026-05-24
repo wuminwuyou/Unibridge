@@ -7,12 +7,12 @@ import {
 } from './rowNoteCardUtils'
 import './RowNoteCard.css'
 
-// 01ï¼‰è¡Œå¡ç‰‡ç¬”è®°æ•°æ®ç±»å‹å®šä¹‰ï¼ˆRowNoteCardItemï¼‰
+// 01ï¼?è¡?å¡ç??ç¬?è®°æ?°æ®ç±»å??å®?ä¹?ï¼?RowNoteCardItemï¼?
 export interface RowNoteCardItem {
   id?: number
   title: string
   summary: string
-  contentType?: 'å›¾æ–‡' | 'è§†é¢‘'
+  contentType?: 'å?¾æ??' | 'è§?é¢?'
   tags: string[]
   publishTime: string
   updateTime: string
@@ -22,41 +22,41 @@ export interface RowNoteCardItem {
   cover: string
 }
 
-// 02ï¼‰è¡Œå¡ç‰‡ç¬”è®°å¸ƒå±€ç±»å‹å®šä¹‰ï¼ˆRowNoteCardLayoutï¼‰
+// 02ï¼?è¡?å¡ç??ç¬?è®°å¸?å±?ç±»å??å®?ä¹?ï¼?RowNoteCardLayoutï¼?
 type RowNoteCardLayout = 'horizontal' | 'vertical'
 
-// 03ï¼‰è¡Œå¡ç‰‡ç¬”è®°ç»„ä»¶å‚æ•°ç±»å‹ï¼ˆRowNoteCardPropsï¼‰
+// 03ï¼?è¡?å¡ç??ç¬?è®°ç»?ä»¶å?æ?°ç±»å??ï¼?RowNoteCardPropsï¼?
 interface RowNoteCardProps {
   note: RowNoteCardItem
   layout?: RowNoteCardLayout
 }
 
-// 04ï¼‰è¡Œå¡ç‰‡ç¬”è®°ç»„ä»¶ï¼ˆRowNoteCardï¼‰
+// 04ï¼?è¡?å¡ç??ç¬?è®°ç»?ä»¶ï¼?RowNoteCardï¼?
 /**
- * å‡½æ•°åï¼šRowNoteCard
- * åŠŸèƒ½ï¼šæŒ‰ ProjectCard / design.md æ€è·¯æ¸²æŸ“ä¸‰æ®µå¼ç¬”è®°è¡Œå¡ç‰‡ï¼ˆå°é¢ / ä¸»ä¿¡æ¯ / äº¤äº’åŒºï¼‰ã€‚
- * å®ç°æ–¹æ³•ï¼š
- * - å·¦ä¾§æ­£æ–¹å½¢å°é¢å±•ä½ï¼Œé«˜åº¦éšå¡ç‰‡ inner æ‹‰ä¼¸
- * - ä¸­éƒ¨ä¸Šä¸‹åˆ†åŒºå±•ç¤ºç±»å‹/æ ‡é¢˜/æ‘˜è¦ä¸ # æ ‡ç­¾/å…ƒä¿¡æ¯
- * - å³ä¾§å±•ç¤ºæµè§ˆé‡å¾½æ ‡ä¸ã€Œé˜…è¯»ç¬”è®°ã€ä¸»æŒ‰é’®
- * è¾“å…¥ï¼š
- * - noteï¼šç¬”è®°å¡ç‰‡æ•°æ®å¯¹è±¡
- * - layoutï¼šhorizontal ä¸ºé»˜è®¤è¡Œå¡ç‰‡ï¼Œvertical ä¸ºç´§å‡‘çºµå‘å¡ç‰‡
- * è¾“å‡ºï¼š
- * - è¿”å›å€¼ï¼šJSX.Element
- * - å‰¯ä½œç”¨ï¼šæ— 
+ * å?½æ?°åï¼?RowNoteCard
+ * å??è?½ï¼?æ?? ProjectCard / design.md æ?è·¯æ¸²æ??ä¸?æ®µå¼ç¬?è®°è¡?å¡ç??ï¼?å°é¢ / ä¸»ä¿¡æ¯ / äº¤äº?å?ºï¼?ã??
+ * å®?ç?°æ?¹æ³?ï¼?
+ * - å·¦ä¾§æ­£æ?¹å½¢å°é¢å±?ä½ï¼?é«?åº¦é?å¡ç?? inner æ??ä¼¸
+ * - ä¸­é?¨ä¸?ä¸?å??å?ºå±?ç¤ºç±»å??/æ ?é¢?/æ??è¦ä¸? # æ ?ç­¾/å??ä¿¡æ¯
+ * - å³ä¾§å±?ç¤ºæµè§?é?å¾½æ ?ä¸?ã??é??è¯»ç¬?è®°ã?ä¸»æ??é?®
+ * è¾?å?¥ï¼?
+ * - noteï¼?ç¬?è®°å¡ç??æ?°æ®å¯¹è±¡
+ * - layoutï¼?horizontal ä¸ºé»?è®¤è¡?å¡ç??ï¼?vertical ä¸ºç´§å??çºµå?å¡ç??
+ * è¾?å?ºï¼?
+ * - è¿?å??å?¼ï¼?JSX.Element
+ * - å?¯ä½?ç?¨ï¼?æ? 
  */
 function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
   const isVerticalLayout = layout === 'vertical'
-  const contentType = note.contentType ?? 'å›¾æ–‡'
+  const contentType = note.contentType ?? 'å?¾æ??'
   const noteDetailPath = buildNoteDetailHref({
-    id: note.id,
+    uid: note.uid,
     title: note.title,
     contentType,
   })
   const typeBadgeLabel = resolveNoteCardTypeBadge(contentType)
   const metaText = isVerticalLayout
-    ? `${note.views} æµè§ˆ Â· ${note.comments} è¯„è®º Â· ${note.favorites} æ”¶è—`
+    ? `${note.views} æµè§? Â· ${note.comments} è¯?è®º Â· ${note.favorites} æ?¶è?`
     : resolveNoteCardMetaText(note)
 
   return (
@@ -95,7 +95,7 @@ function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
 
         <div className="row-note-card__aside">
           <span className="row-note-card__cta" aria-hidden="true">
-            é˜…è¯»ç¬”è®°
+            é??è¯»ç¬?è®°
           </span>
         </div>
       </div>

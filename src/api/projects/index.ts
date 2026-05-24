@@ -1,4 +1,5 @@
 import { HttpApiError, getApi, postApi, putApi } from '../http'
+import type { ProjectResourceUid } from '../resourceUid'
 import type { ProjectDetailDto, UpsertProjectRequest, UpsertProjectResponse } from './types'
 
 // 01）项目接口异常类型（ProjectsApiError）
@@ -28,22 +29,22 @@ export async function createProject(payload: UpsertProjectRequest): Promise<Upse
 // 04）更新项目（updateProject）
 /**
  * 函数名：updateProject
- * 功能：调用 PUT /projects/{projectId} 更新项目。
+ * 功能：调用 PUT /projects/{uid} 更新项目。
  */
 export async function updateProject(
-  projectId: number,
+  projectUid: ProjectResourceUid,
   payload: UpsertProjectRequest,
 ): Promise<UpsertProjectResponse> {
-  return wrapProjectsApi(() => putApi<UpsertProjectRequest, UpsertProjectResponse>(`/projects/${projectId}`, payload))
+  return wrapProjectsApi(() => putApi<UpsertProjectRequest, UpsertProjectResponse>(`/projects/${projectUid}`, payload))
 }
 
 // 05）查询项目详情（getProjectDetail）
 /**
  * 函数名：getProjectDetail
- * 功能：调用 GET /projects/{projectId} 获取项目详情。
+ * 功能：调用 GET /projects/{uid} 获取项目详情。
  */
-export async function getProjectDetail(projectId: number): Promise<ProjectDetailDto> {
-  return wrapProjectsApi(() => getApi<ProjectDetailDto>(`/projects/${projectId}`))
+export async function getProjectDetail(projectUid: ProjectResourceUid): Promise<ProjectDetailDto> {
+  return wrapProjectsApi(() => getApi<ProjectDetailDto>(`/projects/${projectUid}`))
 }
 
 export { buildUpsertProjectRequest } from './types'

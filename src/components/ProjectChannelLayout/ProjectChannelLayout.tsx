@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import ProjectCard from '../ProjectCard'
+import LoadingSpinner from '../common/LoadingSpinner'
 import TopNavbar from '../../layout/TopNavbar'
 import AnnouncementsCard from './components/AnnouncementsCard'
 import ProjectLabHeader from './components/ProjectLabHeader'
@@ -23,6 +24,8 @@ import type { ProjectChannelLayoutProps } from './types'
 export function ProjectChannelLayoutView({
   projectsSectionLabel,
   projects,
+  feedLoadState = 'ready',
+  feedErrorMessage,
   labTitle,
   labSubtitle,
   filterTabs,
@@ -35,7 +38,7 @@ export function ProjectChannelLayoutView({
 }: ProjectChannelLayoutProps) {
   const renderedProjectCards = useMemo(() => {
     return projects.map((project) => (
-      <ProjectCard key={project.id ?? `${project.title}-${project.ownerName}`} project={project} />
+      <ProjectCard key={project.uid ?? project.title} project={project} />
     ))
   }, [projects])
 
@@ -52,7 +55,22 @@ export function ProjectChannelLayoutView({
               labSubtitle={labSubtitle}
               filterTabs={filterTabs}
             />
-            <div className="home-page__projects-list">{renderedProjectCards}</div>
+
+            {feedLoadState === 'loading' ? (
+              <div className="home-page__feed-status">
+                <LoadingSpinner size={32} label="正在加载推荐项目…" />
+              </div>
+            ) : null}
+
+            {feedLoadState === 'error' ? (
+              <p className="home-page__feed-status home-page__feed-status--error" role="alert">
+                {feedErrorMessage ?? '加载推荐项目失败，请稍后重试'}
+              </p>
+            ) : null}
+
+            {feedLoadState === 'ready' ? (
+              <div className="home-page__projects-list">{renderedProjectCards}</div>
+            ) : null}
           </div>
         </section>
 

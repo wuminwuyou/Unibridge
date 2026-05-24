@@ -1,4 +1,6 @@
 // 01）用户资料菜单数据类型定义（UserProfileMenuData）
+import type { NoteResourceUid, ProjectResourceUid } from '../resourceUid'
+
 export interface UserProfileMenuData {
   userId: number
   nickname: string
@@ -49,9 +51,11 @@ export interface UserProfileSpaceData {
   activityHeatmap: number[]
 }
 
+import type { NoteResourceUid, ProjectResourceUid } from '../resourceUid'
+
 // 06）个人空间项目 DTO（UserProfileProjectDto）
 export interface UserProfileProjectDto {
-  id?: number
+  uid?: ProjectResourceUid
   title: string
   /** 列表接口推荐字段，对应 project.preview */
   preview?: string
@@ -63,10 +67,8 @@ export interface UserProfileProjectDto {
   /** 对应 project.recruitment_type */
   recruitmentType?: 'LAB_RECRUIT' | 'TEAM_RECRUIT' | 'CAMPUS_PRACTICE' | 'PERSONAL_RECRUIT' | null
   ownerOrganization?: string
-  ownerName?: string
-  /** 兼容旧字段 */
+  /** 兼容旧字段，等同 ownerOrganization */
   company?: string
-  publisher?: string
   publishTime: string
   level: string
   /** 商业项目托管预算展示文案 */
@@ -80,7 +82,7 @@ export interface UserProfileProjectDto {
 
 // 07）个人空间笔记 DTO（UserProfileNoteDto）
 export interface UserProfileNoteDto {
-  id: number
+  uid: NoteResourceUid
   title: string
   summary: string
   contentType: string

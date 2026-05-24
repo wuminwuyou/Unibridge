@@ -25,6 +25,7 @@ import {
   type PublishProjectFormRestore,
   type PublishProjectSession,
 } from './publishFormSession'
+import type { ProjectResourceUid } from '../../api/resourceUid'
 import { hasPublishProjectUserInput } from './publishProjectFormUtils'
 
 // 01）同步需求说明 longtext 到 draft（syncDraftDescription）
@@ -65,7 +66,7 @@ function parsePublishProjectFormRestore(value: unknown): PublishProjectFormResto
 type SubmitProjectSuccessMode = 'detail' | 'preview'
 
 // 05）发布项目会话持久化覆盖项（PublishProjectSessionPersistOverride）
-type PublishProjectSessionPersistOverride = Partial<Pick<PublishProjectSession, 'projectId'>>
+type PublishProjectSessionPersistOverride = Partial<Pick<PublishProjectSession, 'projectUid'>>
 
 // 06）发布项目表单 Hook（usePublishProjectForm）
 /**
@@ -91,7 +92,9 @@ export function usePublishProjectForm() {
     () => initialSessionRef.current?.descriptionContent ?? createDefaultContentLongtext(),
   )
   const [tagInput, setTagInput] = useState<string>('')
-  const [projectId, setProjectId] = useState<number | null>(() => initialSessionRef.current?.projectId ?? null)
+  const [projectUid, setProjectUid] = useState<ProjectResourceUid | null>(
+    () => initialSessionRef.current?.projectUid ?? null,
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -109,16 +112,16 @@ export function usePublishProjectForm() {
       draft: syncDraftDescription(draft, descriptionContent),
       descriptionMeta,
       descriptionContent,
-      projectId: override?.projectId ?? projectId,
+      projectUid: override?.projectUid ?? projectUid,
       keepForRestore: true,
     })
-  }, [descriptionContent, descriptionMeta, draft, projectId])
+  }, [descriptionContent, descriptionMeta, draft, projectUid])
 
   const applyPublishProjectSession = useCallback((session: PublishProjectSession): void => {
     setDraft(session.draft)
     setDescriptionMeta(session.descriptionMeta)
     setDescriptionContent(session.descriptionContent)
-    setProjectId(session.projectId ?? null)
+    setProjectUid(session.projectUid ?? null)
   }, [])
 
   const updateDescriptionContent = (
@@ -162,7 +165,7 @@ export function usePublishProjectForm() {
         draft: restore.draft,
         descriptionMeta: restore.descriptionMeta,
         descriptionContent: restore.descriptionContent,
-        projectId: restore.projectId,
+        projectUid: restore.projectUid,
       })
       markSaved()
     }
@@ -252,7 +255,7 @@ export function usePublishProjectForm() {
         draft: syncDraftDescription(draft, descriptionContent),
         descriptionMeta,
         descriptionContent,
-        projectId,
+        projectUid,
       },
     }
   }
@@ -305,16 +308,16 @@ export function usePublishProjectForm() {
       const result = await submitPublishProject({
         draft,
         descriptionContent,
-        projectId,
+        projectUid,
         publishAction,
       })
 
-      setProjectId(result.projectId)
+      setProjectUid(result.projectUid)
       markSaved()
 
       if (successMode === 'preview') {
         skipClearSessionRef.current = true
-        persistSessionSnapshot({ projectId: result.projectId })
+        persistSessionSnapshot({ projectUid: result.projectUid })
         leaveGuard.allowNextNavigation()
         navigateToProjectDetail(
           navigate,
@@ -327,9 +330,9 @@ export function usePublishProjectForm() {
 
       clearProjectDetailPreview()
       skipClearSessionRef.current = true
-      persistSessionSnapshot({ projectId: result.projectId })
+      persistSessionSnapshot({ projectUid: result.projectUid })
       leaveGuard.allowNextNavigation()
-      navigate(`/project-detail?id=${result.projectId}`)
+      navigate(`/project-detail?uid=${encodeURIComponent(result.projectUid)}`)
       return true
     } catch (error) {
       const message =
@@ -360,7 +363,7 @@ export function usePublishProjectForm() {
     tagInput,
     suggestedSkillTags,
     completionPercent,
-    projectId,
+    projectUid,
     isSubmitting,
     submitError,
     leavePromptOpen: leaveGuard.leavePromptOpen,

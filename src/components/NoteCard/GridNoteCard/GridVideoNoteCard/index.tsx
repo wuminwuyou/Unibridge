@@ -26,7 +26,7 @@ interface GridVideoNoteCardProps {
 
 function GridVideoNoteCard({ note }: GridVideoNoteCardProps) {
   const noteDetailPath = buildNoteDetailHref({
-    id: note.id,
+    uid: note.uid,
     title: note.title,
     contentType: note.contentType,
   })

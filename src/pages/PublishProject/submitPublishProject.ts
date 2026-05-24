@@ -1,6 +1,8 @@
 import { createProject, ProjectsApiError, updateProject } from '../../api/projects'
 import { buildUpsertProjectRequest } from '../../api/projects/types'
 import type { ProjectPublishAction } from '../../api/projects/types'
+import { isProjectResourceUid } from '../../api/resourceUid'
+import type { ProjectResourceUid } from '../../api/resourceUid'
 import type { ContentLongtext } from '../../components/Reader'
 import type { PublishProjectFormDraft } from './publishProjectPageData'
 
@@ -49,9 +51,9 @@ export function validatePublishProjectSubmit(
 export async function submitPublishProject(options: {
   draft: PublishProjectFormDraft
   descriptionContent: ContentLongtext
-  projectId?: number | null
+  projectUid?: ProjectResourceUid | null
   publishAction: ProjectPublishAction
-}): Promise<{ projectId: number }> {
+}): Promise<{ projectUid: ProjectResourceUid }> {
   const validationError = validatePublishProjectSubmit(
     options.draft,
     options.descriptionContent,
@@ -68,11 +70,11 @@ export async function submitPublishProject(options: {
   )
 
   const response =
-    options.projectId != null && options.projectId > 0
-      ? await updateProject(options.projectId, payload)
+    isProjectResourceUid(options.projectUid)
+      ? await updateProject(options.projectUid, payload)
       : await createProject(payload)
 
-  return { projectId: response.projectId }
+  return { projectUid: response.uid }
 }
 
 export { ProjectsApiError }

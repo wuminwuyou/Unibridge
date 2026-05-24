@@ -1,4 +1,4 @@
-/* 01）频道页根布局（home-page） */
+﻿/* 01）频道页根布局（home-page） */
 .home-page {
   --home-top-header-height: 76px;
 
@@ -434,4 +434,20 @@
   .home-page__projects-panel {
     padding: 12px;
   }
+}
+
+/* 05）Feed 加载与错误态 */
+.home-page__feed-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+.home-page__feed-status--error {
+  color: #c0392b;
 }

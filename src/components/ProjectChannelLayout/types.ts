@@ -1,4 +1,5 @@
 import type { Announcement, ProjectItem, RecommendedCompany } from '../../types/project'
+import type { FeedLoadState } from '../../api/feed/types'
 import type { ProjectLabFilterTab } from './projectLabFilters'
 
 // 01）项目频道布局对外参数（ProjectChannelLayoutProps）
@@ -11,6 +12,8 @@ export interface ProjectChannelLayoutProps {
   /** 左侧项目区无障碍标签 */
   projectsSectionLabel: string
   projects: ProjectItem[]
+  feedLoadState?: FeedLoadState
+  feedErrorMessage?: string | null
   labTitle?: string
   labSubtitle?: string
   filterTabs?: ProjectLabFilterTab[]

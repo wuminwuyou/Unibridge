@@ -111,6 +111,11 @@
     color: var(--primary-text);
 }
 
+.experience-note-refresh-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .experience-setting-panel {
     position: absolute;
     top: 0;
@@ -161,11 +166,43 @@
 
 /* 06）笔记专区面板 */
 .experience-note-panel {
+    position: relative;
     border-radius: 18px;
     border: 1px solid var(--card-border);
     background: var(--card-bg);
     box-shadow: var(--panel-shadow);
     padding: 18px;
+}
+
+.experience-note-panel--shuffling {
+    opacity: 0.55;
+}
+
+.experience-note-feed-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 24px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-soft);
+}
+
+.experience-note-feed-status--error {
+    color: #c0392b;
+}
+
+.experience-note-shuffle-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--page-bg) 55%, transparent);
+    z-index: 2;
+    pointer-events: none;
 }
 
 /* 07）经验分享笔记网格（复用 GridNoteCard） */

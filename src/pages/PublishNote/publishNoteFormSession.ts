@@ -3,6 +3,8 @@ import {
   type ContentLongtext,
 } from '../../components/Reader'
 import type { MarkdownContentChangeMeta } from '../../components/OnlineEditor'
+import { isNoteResourceUid } from '../../api/resourceUid'
+import type { NoteResourceUid } from '../../api/resourceUid'
 import type { PublishNoteMediaPersist } from './publishNoteSubmit'
 import {
   createDefaultPublishNoteDraft,
@@ -17,7 +19,7 @@ export interface PublishNoteSession {
   draft: PublishNoteFormDraft
   bodyMeta: MarkdownContentChangeMeta | null
   bodyContent: ContentLongtext
-  noteId?: number | null
+  noteUid?: NoteResourceUid | null
   mediaPersist?: PublishNoteMediaPersist | null
   videoDescription?: string
   /** 为 true 时离开发布页不自动清除 session（预览/保存后返回编辑） */
@@ -29,7 +31,7 @@ export interface PublishNoteFormRestore {
   draft: PublishNoteFormDraft
   bodyMeta: MarkdownContentChangeMeta | null
   bodyContent: ContentLongtext
-  noteId: number | null
+  noteUid: NoteResourceUid | null
   mediaPersist: PublishNoteMediaPersist | null
   videoDescription?: string
 }
@@ -69,12 +71,13 @@ export function loadPublishNoteSession(): PublishNoteSession | null {
 
     const draft = { ...createDefaultPublishNoteDraft(), ...parsed.draft }
     const bodyContent = resolvePublishNoteBodyContent(parsed, draft)
+    const noteUid = isNoteResourceUid(parsed.noteUid) ? parsed.noteUid : null
 
     return {
       draft: { ...draft, body: bodyContent.longtext },
       bodyMeta: parsed.bodyMeta ?? null,
       bodyContent,
-      noteId: parsed.noteId ?? null,
+      noteUid,
       mediaPersist: parsed.mediaPersist ?? null,
       videoDescription: parsed.videoDescription ?? '',
       keepForRestore: parsed.keepForRestore === true,
@@ -95,7 +98,7 @@ export function savePublishNoteSession(session: PublishNoteSession): void {
       draft: { ...session.draft, body: session.bodyContent.longtext },
       bodyMeta: session.bodyMeta,
       bodyContent: session.bodyContent,
-      noteId: session.noteId ?? null,
+      noteUid: session.noteUid ?? null,
       mediaPersist: session.mediaPersist ?? null,
       videoDescription: session.videoDescription ?? '',
       keepForRestore: session.keepForRestore === true,

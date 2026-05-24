@@ -2,15 +2,17 @@
 
 > **本机联调地址**：`http://localhost:8081/api/v1/client`  
 > **前端 baseURL**：`/api/v1/client`（`apps/web-client/src/api/http.ts`）  
-> **路径约定**：下文所有 Path 均相对 `/api/v1/client`。
+> **路径约定**：下文所有 Path 均相对 `/api/v1/client`。  
+> **待跟进增量**：见 [`API-request.md`](./API-request.md)（当前为项目卡片 `coverUrl` 联调项）。
 
-本文档汇总 Web 客户端已对接的后端接口，按业务模块分三部分编写。前端封装位于 `apps/web-client/src/api/`。
+本文档汇总 Web 客户端已对接的后端接口，按业务模块分四部分编写。前端封装位于 `apps/web-client/src/api/`。
 
 ---
 
 ## API 总览与实现状态
 
-> **当前状态：全部已实现。** 后端接口可用，前端 `src/api` 模块已完成对接与页面联调。
+> Feed 推荐与互动接口已实现并联调；个人空间项目列表字段与 Feed 项目卡片对齐见第四部分。  
+> **双 ID / `uid`**：客户端**仅使用**对外 `uid`（项目 `PR`+11 位，笔记 `TX`/`VD`+11 位），**禁止**使用自增数字 `id` 访问内容。
 
 ### 接口清单
 
@@ -30,16 +32,27 @@
 | 12 | 用户资料 | GET | `/user-profile/projects` | 个人空间「项目」Tab | `getUserProfileProjects` |
 | 13 | 用户资料 | GET | `/user-profile/notes` | 个人空间「笔记」Tab | `getUserProfileNotes` |
 | 14 | 项目 | POST | `/projects` | 创建项目（草稿/发布） | `createProject` |
-| 15 | 项目 | PUT | `/projects/{projectId}` | 更新项目 | `updateProject` |
-| 16 | 项目 | GET | `/projects/{projectId}` | 查询项目详情 | `getProjectDetail` |
-| 17 | 项目 | GET | `/projects/{projectId}/draft` | 查询项目草稿（owner） | 后端已实现，可按需接入 |
+| 15 | 项目 | PUT | `/projects/{uid}` | 更新项目 | `updateProject` |
+| 16 | 项目 | GET | `/projects/{uid}` | 查询项目详情 | `getProjectDetail` |
+| 17 | 项目 | GET | `/projects/{uid}/draft` | 查询项目草稿（owner） | 后端已实现，可按需接入 |
 | 18 | 笔记 | POST | `/notes` | 创建笔记（草稿/发布） | `createNote` |
-| 19 | 笔记 | PUT | `/notes/{noteId}` | 更新笔记 | `updateNote` |
-| 20 | 笔记 | GET | `/notes/{noteId}` | 查询笔记详情 | `getNoteDetail` |
-| 21 | 笔记 | GET | `/notes/{noteId}/draft` | 查询笔记草稿（owner） | 后端已实现，可按需接入 |
+| 19 | 笔记 | PUT | `/notes/{uid}` | 更新笔记 | `updateNote` |
+| 20 | 笔记 | GET | `/notes/{uid}` | 查询笔记详情 | `getNoteDetail` |
+| 21 | 笔记 | GET | `/notes/{uid}/draft` | 查询笔记草稿（owner） | 后端已实现，可按需接入 |
 | 22 | 上传 | GET | `/uploads/check-md5` | 秒传预检 | `checkUploadByMd5` |
 | 23 | 上传 | POST | `/uploads/note-cover` | 上传笔记封面 | `uploadNoteCover` |
 | 24 | 上传 | POST | `/uploads/note-video` | 上传笔记视频 | `uploadNoteVideo` |
+| 25 | Feed | GET | `/feed/home` | 首页推荐（笔记 5 + 项目 10） | `getHomeFeed` |
+| 26 | Feed | GET | `/feed/home/shuffle` | 首页「换一换」混排 | `shuffleHomeFeed` |
+| 27 | Feed | GET | `/feed/projects` | 项目专区（商业/招募分栏） | `getProjectFeed` |
+| 28 | Feed | GET | `/feed/projects/shuffle` | 项目专区「换一换」 | `shuffleProjectFeed` |
+| 29 | Feed | GET | `/feed/notes` | 笔记专区（图文/视频分栏） | `getNoteFeed` |
+| 30 | Feed | GET | `/feed/notes/shuffle` | 笔记专区「换一换」 | `shuffleNoteFeed` |
+| 31 | Feed | GET | `/feed/notes/{uid}/similar` | 相似笔记推荐 | `getSimilarNotes` |
+| 32 | 埋点 | POST | `/feed/events` | 用户行为捕获 | `postFeedEvent` |
+| 33 | 互动 | PUT | `/interactions/like` | 点赞 / 取消 | `putInteractionLike` |
+| 34 | 互动 | PUT | `/interactions/collect` | 收藏 / 取消 | `putInteractionCollect` |
+| 35 | 互动 | POST | `/interactions/view` | 浏览计次（视频播放等） | `postInteractionView` |
 
 ### 页面与接口映射
 
@@ -48,10 +61,14 @@
 | `AuthModal` | 弹窗 | 认证 #1–#8 |
 | `UserProfileMenu` | 顶栏 | `GET /user-profile/menu` |
 | `ProfileSpacePage` | `/profile` | `GET /user-profile/space`、`/home`、`/projects`、`/notes` |
+| `HomePage` | `/` | `GET /feed/home` |
+| `CommercialProjectsPage` | `/commercial` | `GET /feed/projects?category=COMMERCIAL` |
+| `CampusCoCreationPage` | `/campus` | `GET /feed/projects?category=RECRUITMENT` |
+| `ExperienceSharePage` | `/note` | `GET /feed/notes`、`/feed/notes/shuffle` |
 | `PublishProjectView` | `/publish/project` | `POST/PUT /projects` |
 | `PublishNoteView` | `/publish/note` | `POST/PUT /notes`、`POST /uploads/*`、`GET /uploads/check-md5` |
-| `ProjectDetailPage` | `/project-detail` | `GET /projects/{projectId}` |
-| `NoteDetailPage` | `/note-detail` | `GET /notes/{noteId}` |
+| `ProjectDetailPage` | `/project-detail` | `GET /projects/{uid}`、`POST /feed/events`（VIEW_DETAIL） |
+| `NoteDetailPage` | `/note-detail` | `GET /notes/{uid}`、`POST /feed/events`（VIEW_DETAIL） |
 
 ### 文档目录
 
@@ -60,6 +77,7 @@
 | [第一部分：认证 API](#第一部分认证-api) | 注册、登录、验证码、退出 |
 | [第二部分：个人空间与用户资料](#第二部分个人空间与用户资料) | 个人空间页与顶栏菜单 |
 | [第三部分：发布与详情](#第三部分发布与详情) | 项目/笔记发布、上传、详情读 |
+| [第四部分：Feed 推荐与互动](#第四部分feed-推荐与互动) | Feed 读接口、埋点、互动、双 ID 约定 |
 
 ### 全局通用约定
 
@@ -539,7 +557,30 @@ Authorization: Bearer <access_token>
 
 | 类型 | 说明 | 使用方 |
 |------|------|--------|
-| `ProjectItem` | 项目卡片数据 | `ProfileHomeTabContent` / `ProfileProjectsTabContent` / `ProjectCard` |
+| `ProjectItem` | 项目卡片数据（`ProjectCard`） | `ProfileHomeTabContent` / `ProfileProjectsTabContent` / 频道 Feed 项目列表 |
+
+**`ProjectItem` 卡片关键字段（与 `ProjectCard` UI 对齐）**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `uid` | string | 项目对外 uid（`PR`+11 位）；卡片跳转 `/project-detail?uid=` |
+| `title` | string | 项目标题 |
+| `preview` | string | 卡片摘要 → `project.preview` |
+| `tags` | `{ label: string }[]` | 技术标签，卡片以 `#标签` 展示 |
+| `category` | string | `COMMERCIAL` \| `RECRUITMENT` |
+| `recruitmentType` | string \| null | 招募子类型；仅 `RECRUITMENT` 有效 |
+| `ownerOrganization` | string | 发布主体；元信息行 |
+| `logoSvgUrl` | string \| null | 主体 Logo SVG；`coverUrl` 缺失时可作左侧视觉回退 |
+| `coverUrl` | string \| null | 项目卡片封面图 URL；见 [`API-request.md`](./API-request.md) §01 待跟进 |
+| `level` | string | `N` / `R` / `SR` / `SSR` / `UR` |
+| `teamSize` | string \| null | 团队规模 |
+| `duration` | string \| null | 预计周期 |
+| `publishTime` | string | 发布时间（列表可用，当前卡片 UI 不展示） |
+
+> **列表卡片无需返回**：`budget` / `amount`、`ownerName` / `publisher`（`ProjectCard` 无对应展示位）。商业预算与发布人信息见 **项目详情** `GET /projects/{uid}`。
+
+| 类型 | 说明 | 使用方 |
+|------|------|--------|
 | `ProfileNoteItem` | 笔记卡片数据 | `ProfileHomeTabContent` / `ProfileNotesTabContent` / `GridNoteCard` / `RowNoteCard` |
 | `LevelCode` | 能力等级：`N` / `R` / `SR` / `SSR` / `UR` | `LevelBadge` |
 
@@ -695,18 +736,24 @@ Authorization: Bearer <access_token>
   "userId": 10001,
   "projects": [
     {
+      "uid": "PR00000090001",
       "title": "数据可视化大屏设计与开发",
-      "summary": "基于 Vue3 + ECharts 构建企业级可视化大屏，实现业务指标动态展示与交互分析。",
+      "preview": "基于 Vue3 + ECharts 构建企业级可视化大屏，实现业务指标动态展示与交互分析。",
+      "coverUrl": "http://localhost:8081/uploads/project-covers/viz-dashboard.jpg",
       "tags": [{ "label": "Vue3" }, { "label": "ECharts" }, { "label": "可视化" }],
-      "company": "数智未来科技",
-      "publisher": "张同学",
+      "category": "COMMERCIAL",
+      "recruitmentType": null,
+      "ownerOrganization": "数智未来科技",
+      "logoSvgUrl": null,
       "publishTime": "2024-12-18",
       "level": "SR",
-      "amount": "18,600"
+      "teamSize": "2-4人",
+      "duration": "1个月"
     }
   ],
   "notes": [
     {
+      "uid": "TX20212345678",
       "title": "大模型 RAG 系统：从原理到项目落地",
       "summary": "本文梳理检索增强生成系统的关键链路，覆盖 embedding、召回与重排实践。",
       "contentType": "图文",
@@ -730,14 +777,21 @@ Authorization: Bearer <access_token>
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
+| `uid` | string | 项目对外 uid（`PR`+11 位） |
 | `title` | string | 项目标题 |
-| `summary` | string | 项目摘要 |
+| `preview` | string | 卡片摘要 → `project.preview` |
+| `coverUrl` | string \| null | 项目卡片封面图 URL |
 | `tags` | `{ label: string }[]` | 技术/业务标签 |
-| `company` | string | 发布企业/主体 |
-| `publisher` | string | 发布人昵称 |
+| `category` | string | `COMMERCIAL` \| `RECRUITMENT` |
+| `recruitmentType` | string \| null | `LAB_RECRUIT` \| `TEAM_RECRUIT` \| `CAMPUS_PRACTICE` \| `PERSONAL_RECRUIT`；商业项目为 `null` |
+| `ownerOrganization` | string | 发布企业/主体名称 |
+| `logoSvgUrl` | string \| null | 主体 Logo SVG 地址 |
 | `publishTime` | string | 发布时间，如 `2024-12-18` |
 | `level` | string | 项目等级：`N` / `R` / `SR` / `SSR` / `UR` |
-| `amount` | string | 项目金额展示文案，如 `18,600` |
+| `teamSize` | string \| null | 团队规模，如 `2-4人` |
+| `duration` | string \| null | 预计周期，如 `1个月` |
+
+> 兼容说明：后端可短期同时返回旧字段 `summary` / `company`；前端 `mapApiProjects` 会映射为 `preview` / `ownerOrganization`。列表**无需** `publisher` / `ownerName`、`amount`（卡片不展示；详情见 `GET /projects/{uid}`）。
 
 **notes[]（ProfileNoteItem）**
 
@@ -802,24 +856,34 @@ Authorization: Bearer <access_token>
   "userId": 10001,
   "projects": [
     {
+      "uid": "PR00000090001",
       "title": "数据可视化大屏设计与开发",
-      "summary": "基于 Vue3 + ECharts 构建企业级可视化大屏，实现业务指标动态展示与交互分析。",
+      "preview": "基于 Vue3 + ECharts 构建企业级可视化大屏，实现业务指标动态展示与交互分析。",
+      "coverUrl": "http://localhost:8081/uploads/project-covers/viz-dashboard.jpg",
       "tags": [{ "label": "Vue3" }, { "label": "ECharts" }, { "label": "可视化" }],
-      "company": "数智未来科技",
-      "publisher": "张同学",
+      "category": "COMMERCIAL",
+      "recruitmentType": null,
+      "ownerOrganization": "数智未来科技",
+      "logoSvgUrl": null,
       "publishTime": "2024-12-18",
       "level": "SR",
-      "amount": "18,600"
+      "teamSize": "2-4人",
+      "duration": "1个月"
     },
     {
+      "uid": "PR00000090002",
       "title": "企业官网重构设计",
-      "summary": "完成品牌官网重构与视觉升级，提升信息可读性与移动端体验，支持组件化内容管理。",
+      "preview": "完成品牌官网重构与视觉升级，提升信息可读性与移动端体验，支持组件化内容管理。",
+      "coverUrl": null,
       "tags": [{ "label": "Web设计" }, { "label": "前端" }, { "label": "响应式" }],
-      "company": "创新互联",
-      "publisher": "张同学",
+      "category": "RECRUITMENT",
+      "recruitmentType": "TEAM_RECRUIT",
+      "ownerOrganization": "创新互联",
+      "logoSvgUrl": null,
       "publishTime": "2024-11-29",
       "level": "R",
-      "amount": "12,900"
+      "teamSize": "3-5人",
+      "duration": "2个月"
     }
   ],
   "total": 4,
@@ -1895,6 +1959,7 @@ sequenceDiagram
 - [x] 笔记：草稿亦必填 `coverUrl`；`contentType` 创建后不可变
 - [x] 笔记：`content_type_code` 使用 NanoID 生成 11 位后缀，碰撞重试
 - [x] 读列表：含 `id` 字段；按 `COALESCE(published_at, created_at)` 降序
+- [x] 个人空间项目列表：返回 `ProjectItem` 对齐字段（`preview`、`category`、`ownerOrganization`、`teamSize`、`duration` 等）
 - [x] 项目详情：`GET /projects/{id}` 可映射 `ProjectDetailPayload`
 - [x] 项目详情：`amount` 仅商业项目来自 `project_commercial_secret.total_budget`；招募为 `null`
 - [x] 笔记详情：`GET /notes/{id}` 含 `author`、互动数；图文返回 `body`，视频返回 `videoUrl`
@@ -1903,6 +1968,310 @@ sequenceDiagram
 - [x] 上传：`POST /uploads/note-cover|note-video` 的 `data` 为 URL **字符串**
 - [x] 上传：同 MD5 秒传；`GET /uploads/check-md5` 命中可跳过 POST
 - [x] 上传：视频 `videoDuration` 由前端本地解析；封面单独上传
+
+---
+
+## 第四部分：Feed 推荐与互动
+
+> 前端模块：`apps/web-client/src/api/feed`  
+> 缓存架构：Spring Cache（当前本地内存 `ConcurrentMapCacheManager`）；未来引入 Redis 后业务代码零改动。
+
+### 01）Feed 读接口总览
+
+| 接口 | Method | Path | Auth | 前端封装 |
+|------|--------|------|------|----------|
+| 首页个性化推送 | GET | `/feed/home` | 可选 | `getHomeFeed` |
+| 首页「换一换」混排 | GET | `/feed/home/shuffle` | 可选 | `shuffleHomeFeed` |
+| 项目专区推送 | GET | `/feed/projects` | 可选 | `getProjectFeed` |
+| 项目专区「换一换」 | GET | `/feed/projects/shuffle` | 可选 | `shuffleProjectFeed` |
+| 笔记专区推送 | GET | `/feed/notes` | 可选 | `getNoteFeed` |
+| 笔记专区「换一换」 | GET | `/feed/notes/shuffle` | 可选 | `shuffleNoteFeed` |
+| 相似笔记推荐 | GET | `/feed/notes/{uid}/similar` | 否 | `getSimilarNotes` |
+
+---
+
+### 02）首页个性化推送
+
+- **Method**：`GET`
+- **Path**：`/feed/home`
+- **Auth**：可选（未登录走冷启动；登录后按 `user_tag_interests` 加权）
+- **Cache**：`@Cacheable("home_feed", key=userId)`
+
+固定返回两类内容，**分别排序、分别截断**：
+
+| 区块 | 条数 | `contentType` |
+|------|------|---------------|
+| 笔记 | **5** | `NOTE` |
+| 项目 | **10** | `PROJECT` |
+
+#### Response `data`
+
+```json
+{
+  "notes": [
+    {
+      "contentType": "NOTE",
+      "noteType": "IMAGE_TEXT",
+      "uid": "TX20212345678",
+      "title": "Spring Boot 实战笔记",
+      "summary": "实践经验总结",
+      "coverUrl": "http://localhost:8081/uploads/covers/xxx.jpg",
+      "tags": ["Spring Boot", "后端"],
+      "authorName": "张明",
+      "views": 128,
+      "likes": 24,
+      "publishTime": "2026-05-10 14:20",
+      "score": 2.415
+    }
+  ],
+  "projects": [
+    {
+      "contentType": "PROJECT",
+      "projectCategory": "COMMERCIAL",
+      "recruitmentType": null,
+      "uid": "PR20212345678",
+      "title": "基于大模型的智能问答系统开发",
+      "preview": "构建企业级智能问答平台，支持多知识库接入与权限管理，提升内部知识检索效率。",
+      "coverUrl": "http://localhost:8081/uploads/project-covers/qa-system.jpg",
+      "tags": [{ "label": "AI开发" }, { "label": "Python" }],
+      "ownerOrganization": "智源科技有限公司",
+      "logoSvgUrl": null,
+      "level": "R",
+      "teamSize": "3-5人",
+      "duration": "3个月",
+      "publishTime": "2026-04-01 10:00",
+      "views": 0,
+      "likes": 0,
+      "score": 1.872
+    }
+  ]
+}
+```
+
+**排序公式（服务端）**
+
+| 因子 | 权重 |
+|------|------|
+| 标签匹配分（`user_tag_interests.weight` 累加） | × 时间衰减 × 0.7 |
+| 热度分 `log(1+like+collect×1.5)` | × 0.3 |
+| 时间衰减 | `1 / (1 + days×0.05)` |
+
+**Feed 卡片字段**
+
+| 字段 | 适用 | 取值 / 说明 |
+|------|------|-------------|
+| `uid` | 笔记 / 项目 | 对外唯一标识；笔记 `TX…`/`VD…`，项目 `PR…`；**禁止**返回自增 `id` |
+| `noteType` | 笔记 | `IMAGE_TEXT` \| `VIDEO` |
+| `projectCategory` | 项目 | `COMMERCIAL` \| `RECRUITMENT`；映射前端 `ProjectItem.category` |
+| `recruitmentType` | 项目 | 仅 `RECRUITMENT` 有效，商业为 `null` |
+| `preview` | 项目 | 卡片摘要 → `project.preview` |
+| `coverUrl` | 笔记 / 项目 | 卡片封面图 URL；项目见 [`API-request.md`](./API-request.md) §01 |
+| `tags` | 项目 | `{ label: string }[]`；笔记为 `string[]` |
+| `ownerOrganization` | 项目 | 发布主体名称 |
+| `logoSvgUrl` | 项目 | 主体 Logo SVG；`coverUrl` 缺失时可作回退 |
+| `level` / `teamSize` / `duration` | 项目 | 等级与元信息行 |
+
+> 项目列表卡片**无需返回** `summary`、`authorName`、`ownerName`、`publisher`、`budget` / `amount`；预算见 `GET /projects/{uid}`。
+
+---
+
+### 03）项目专区推送
+
+- **Method**：`GET`
+- **Path**：`/feed/projects`
+- **Auth**：可选
+- **Cache**：`@Cacheable("project_feed", key=userId:category:limit)`
+
+**严格分栏**：仅返回指定 `category` 的项目。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `category` | string | 是 | `COMMERCIAL` \| `RECRUITMENT` |
+| `limit` | number | 否 | 默认 `10`，最大 `30` |
+
+#### Response `data`
+
+`ContentVO[]`，结构与首页项目卡片一致。
+
+```json
+[
+  {
+    "contentType": "PROJECT",
+    "projectCategory": "COMMERCIAL",
+    "recruitmentType": null,
+    "uid": "PR20212345678",
+    "title": "基于大模型的智能问答系统开发",
+    "preview": "构建企业级智能问答平台…",
+    "coverUrl": "http://localhost:8081/uploads/project-covers/qa-system.jpg",
+    "tags": [{ "label": "AI开发" }, { "label": "Python" }],
+    "ownerOrganization": "智源科技有限公司",
+    "logoSvgUrl": null,
+    "level": "R",
+    "teamSize": "3-5人",
+    "duration": "3个月",
+    "publishTime": "2026-04-01 10:00",
+    "views": 0,
+    "likes": 0,
+    "score": 1.872
+  }
+]
+```
+
+---
+
+### 04）笔记专区推送
+
+- **Method**：`GET`
+- **Path**：`/feed/notes`
+- **Auth**：可选
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `noteType` | string | 是 | `IMAGE_TEXT` \| `VIDEO` |
+| `limit` | number | 否 | 默认 `10`，最大 `30` |
+
+#### Response `data`
+
+```json
+[
+  {
+    "contentType": "NOTE",
+    "noteType": "VIDEO",
+    "uid": "VD1T1w2K4x6O8",
+    "title": "项目复盘视频",
+    "summary": "5 分钟讲清交付流程",
+    "coverUrl": "http://localhost:8081/uploads/covers/xxx.jpg",
+    "tags": ["项目管理"],
+    "authorName": "李同学",
+    "views": 256,
+    "likes": 18,
+    "publishTime": "2026-05-12 09:00",
+    "score": 2.103
+  }
+]
+```
+
+---
+
+### 05）相似笔记推荐
+
+- **Method**：`GET`
+- **Path**：`/feed/notes/{uid}/similar`
+- **Auth**：否
+
+| 参数 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| `uid` | string | — | 源笔记 uid（路径参数） |
+| `limit` | number | 10 | 最大 30 |
+
+- 同源标签 Jaccard + 点赞 tie-break；无标签时降级高赞列表
+- **不用于「换一换」**：`uid` 不变则结果固定，仅首次进入详情拉取一次
+
+---
+
+### 06）「换一换」混排推送
+
+| 场景 | Path | 机制 A（缓存分页） | 机制 B（实时洗牌） |
+|------|------|-------------------|-------------------|
+| 首页 | `/feed/home/shuffle` | 递增 `page`，不传 `seed` | 传 `seed`，`page=1` |
+| 项目专区 | `/feed/projects/shuffle` | 同上 + `category` | 同上 |
+| 笔记专区 | `/feed/notes/shuffle` | 同上 + `noteType` | 同上 |
+
+**公共 Query**：`page`（默认 1）、`size`（首页 15 / 专区 10）、`seed`（机制 B）
+
+#### Response `data`
+
+```json
+{
+  "items": [{ "contentType": "NOTE", "noteType": "IMAGE_TEXT", "uid": "TX20212345678", "title": "..." }],
+  "page": 2,
+  "size": 15,
+  "total": 128,
+  "pageWrapped": false,
+  "shuffleMode": "CACHE_PAGE"
+}
+```
+
+---
+
+### 07）埋点与互动
+
+#### POST `/feed/events`（Auth：是）
+
+| 场景 | eventType | 说明 |
+|------|-----------|------|
+| 进入详情 | `VIEW_DETAIL` | **必须**（登录用户），携带 `tags` |
+| 点赞 | `LIKE` | 建议，与 PUT like 并行 |
+| 收藏 | `COLLECT` | 建议 |
+
+```json
+{
+  "eventType": "VIEW_DETAIL",
+  "targetType": "NOTE",
+  "targetUid": "TX20212345678",
+  "tags": ["Spring Boot", "后端"]
+}
+```
+
+#### PUT `/interactions/like` | `/interactions/collect`
+
+```json
+{
+  "targetType": "NOTE",
+  "targetUid": "TX20212345678",
+  "active": true
+}
+```
+
+#### POST `/interactions/view`（视频播放计次等）
+
+```json
+{
+  "targetType": "NOTE",
+  "targetUid": "VD1T1w2K4x6O8"
+}
+```
+
+---
+
+### 08）Feed 项目卡片与个人空间对齐
+
+个人空间 `projects[]` 与 Feed 项目 `ContentVO` 建议共用 Assembler，字段差异：
+
+| 场景 | 分类字段 | 封面字段 |
+|------|----------|----------|
+| 个人空间 | `category` | `coverUrl` |
+| Feed | `projectCategory` | `coverUrl` |
+
+统一项目卡片 VO 见第二部分 §01.4、`§03`、`§04`；`coverUrl` 待跟进见 [`API-request.md`](./API-request.md)。
+
+---
+
+### 09）内容读写 `uid` 约定
+
+| 资源 | 路径 | 响应主键 |
+|------|------|----------|
+| 笔记 | `GET/PUT /notes/{uid}` | `data.uid` |
+| 项目 | `GET/PUT /projects/{uid}` | `data.uid` |
+
+| uid 前缀 | 资源 |
+|----------|------|
+| `TX` / `VD` + 11 位 | 笔记 |
+| `PR` + 11 位 | 项目 |
+
+- 埋点 / 互动请求体使用 **`targetUid`**（string）
+- Feed / 列表禁止返回自增 `id`
+
+---
+
+### 10）Feed 联调检查清单
+
+- [ ] 请求体使用 `targetUid`，勿传数字 `targetId`
+- [ ] 列表 / Feed 使用 `uid` 跳转详情
+- [ ] `GET /feed/projects?category=` 严格分栏
+- [ ] 项目 Feed 含 `preview`、`coverUrl`、`ownerOrganization`、`level` 等
+- [ ] 登录用户进入详情后 `POST /feed/events`（VIEW_DETAIL）
+- [ ] 点赞后 Feed 缓存失效、列表刷新
 
 ---
 

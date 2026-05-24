@@ -1,4 +1,6 @@
 import { createNote, NotesApiError, updateNote, uploadNoteVideo } from '../../api/notes'
+import { isNoteResourceUid } from '../../api/resourceUid'
+import type { NoteResourceUid } from '../../api/resourceUid'
 import { pickNoteVideoDurationFromUploadData, pickNoteVideoUrlFromUploadData } from '../../api/notes/payload'
 import type { NotePublishAction } from '../../api/notes/types'
 import type { ContentLongtext } from '../../components/Reader'
@@ -17,14 +19,14 @@ export interface SubmitPublishNoteOptions {
   bodyContent: ContentLongtext
   cover: PublishNoteCoverModel
   videoFile: File | null
-  noteId?: number | null
+  noteUid?: NoteResourceUid | null
   mediaPersist?: PublishNoteMediaPersist | null
   publishAction: NotePublishAction
 }
 
 // 02）提交笔记结果（SubmitPublishNoteResult）
 export interface SubmitPublishNoteResult {
-  noteId: number
+  noteUid: NoteResourceUid
   mediaPersist: PublishNoteMediaPersist
 }
 
@@ -115,14 +117,14 @@ export async function submitPublishNote(
   )
 
   const response =
-    options.noteId != null && options.noteId > 0
-      ? await updateNote(options.noteId, payload)
+    isNoteResourceUid(options.noteUid)
+      ? await updateNote(options.noteUid, payload)
       : await createNote(payload)
 
   onPhaseChange?.('idle')
 
   return {
-    noteId: response.noteId,
+    noteUid: response.uid,
     mediaPersist: {
       coverUrl,
       videoUrl,

@@ -1,20 +1,21 @@
 import { useMemo } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import TopNavbar from '../../layout/TopNavbar'
+import { useFeedViewDetailReport } from '../../api/feed/useFeedViewDetailReport'
 import { NoteArticleDetailView, resolveNoteArticleDetail } from './NoteArticleDetail'
 import { NoteVideoDetailView, resolveNoteVideoDetail } from './NoteVideoDetail'
 import { loadNoteDetailPreview } from './shared/noteDetailPreviewSession'
 import type { NoteDetailLocationState } from './shared/noteDetailPayload'
-import { parseNoteDetailIdFromQuery } from './shared/noteDetailRouting'
+import { parseNoteDetailUidFromQuery } from './shared/noteDetailRouting'
 import { useNoteDetailFromApi } from './useNoteDetailFromApi'
 import '../../styles/DetailPage.css'
 
 // 01）判断是否来自发布页（resolveNoteEditorialFlow）
-function resolveNoteEditorialFlow(hasRoutePayload: boolean, hasNoteIdQuery: boolean, hasTitleQuery: boolean): boolean {
+function resolveNoteEditorialFlow(hasRoutePayload: boolean, hasNoteUidQuery: boolean, hasTitleQuery: boolean): boolean {
   if (hasRoutePayload) {
     return true
   }
-  if (hasNoteIdQuery || hasTitleQuery) {
+  if (hasNoteUidQuery || hasTitleQuery) {
     return false
   }
   return loadNoteDetailPreview() != null
@@ -26,7 +27,7 @@ function resolveNoteEditorialFlow(hasRoutePayload: boolean, hasNoteIdQuery: bool
  * 功能：笔记详情路由入口，按 contentType 分发图文 / 视频详情页。
  * 实现方法：
  * - 优先 location.state / sessionStorage 预览数据
- * - 其次 GET /notes/{noteId}（query id）
+ * - 其次 GET /notes/{uid}（query uid）
  * - 回退 URL query（title、contentType）并填充演示数据
  * 输入：无
  * 输出：
@@ -36,15 +37,18 @@ function NoteDetailPage() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const routeState = location.state as NoteDetailLocationState | null
-  const noteIdFromQuery = parseNoteDetailIdFromQuery(searchParams.get('id'))
+  const noteUidFromQuery = parseNoteDetailUidFromQuery(
+    searchParams.get('uid'),
+    searchParams.get('id'),
+  )
   const titleFromQuery = searchParams.get('title')
   const contentTypeFromQuery = searchParams.get('contentType')
 
   const previewPayload =
-    noteIdFromQuery != null ? null : routeState?.payload ?? loadNoteDetailPreview()
-  const shouldFetchFromApi = noteIdFromQuery != null
+    noteUidFromQuery != null ? null : routeState?.payload ?? loadNoteDetailPreview()
+  const shouldFetchFromApi = noteUidFromQuery != null
   const { loadState, errorMessage, payload: apiPayload } = useNoteDetailFromApi(
-    shouldFetchFromApi ? noteIdFromQuery : null,
+    shouldFetchFromApi ? noteUidFromQuery : null,
   )
 
   const resolvedPayload = previewPayload ?? apiPayload
@@ -65,12 +69,26 @@ function NoteDetailPage() {
 
   const isEditorialFlow = resolveNoteEditorialFlow(
     Boolean(routeState?.payload),
-    noteIdFromQuery != null,
+    noteUidFromQuery != null,
     Boolean(titleFromQuery),
   )
 
   const showLoading = shouldFetchFromApi && loadState === 'loading'
   const showError = shouldFetchFromApi && loadState === 'error'
+
+  const viewDetailTags = useMemo(() => {
+    if (loadState === 'ready' && apiPayload) {
+      return apiPayload.tags ?? []
+    }
+    return []
+  }, [apiPayload, loadState])
+
+  useFeedViewDetailReport({
+    enabled: shouldFetchFromApi && loadState === 'ready' && noteUidFromQuery != null,
+    targetType: 'NOTE',
+    targetUid: noteUidFromQuery,
+    tags: viewDetailTags,
+  })
 
   return (
     <div className={`detail-page ${isEditorialFlow ? 'detail-page--editorial' : ''}`.trim()}>

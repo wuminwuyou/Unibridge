@@ -1,4 +1,5 @@
 import type { LevelCode } from './level'
+import type { ProjectResourceUid } from '../api/resourceUid'
 
 // 01）项目分类（ProjectCategory）- 对应 project.category
 export type ProjectCategory = 'COMMERCIAL' | 'RECRUITMENT'
@@ -24,7 +25,8 @@ export interface ProjectTag {
  * 字段对齐 db.sql project 表；商业预算来自 project_commercial_secret.total_budget。
  */
 export interface ProjectItem {
-  id?: number
+  /** 对外 uid：`PR` + 11 位；卡片跳转与读接口禁止使用自增 id */
+  uid?: ProjectResourceUid
   title: string
   /** 对应 project.preview */
   preview: string
@@ -35,12 +37,10 @@ export interface ProjectItem {
   recruitmentType?: ProjectRecruitmentType | null
   /** 发布主体：企业名 / 实验室或团队名（owner 所属主体或 team） */
   ownerOrganization: string
-  /** 发布人展示名（对应 owner_id 关联用户） */
-  ownerName: string
-  /** 卡片底部时间展示（published_at 格式化或相对时间） */
+  /** 卡片底部时间展示（published_at 格式化或相对时间）；当前 ProjectCard 不展示 */
   publishTime: string
   level: LevelCode
-  /** 商业项目托管预算展示文案；对应 total_budget，招募项目为 null */
+  /** 商业项目托管预算；列表卡片不展示，可选保留于 mock / 类型兼容 */
   budget?: string | null
   /** 发布主体 Logo SVG 地址，对应 entity_profile.logo_url */
   logoSvgUrl?: string | null

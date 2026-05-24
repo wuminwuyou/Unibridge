@@ -1,3 +1,4 @@
+import { isProjectResourceUid } from '../../api/resourceUid'
 import type { ProjectItem, ProjectRecruitmentType } from '../../types/project'
 
 // 01）Simple Icons CDN 前缀（SIMPLE_ICONS_CDN_BASE）
@@ -53,11 +54,16 @@ export function resolveProjectCardTypeBadge(
 // 05）解析项目详情跳转路径（resolveProjectDetailHref）
 /**
  * 函数名：resolveProjectDetailHref
- * 功能：优先使用 projectId 跳转详情，否则回退 title 查询参数。
+ * 功能：优先使用 project uid 跳转详情，否则回退 title 查询参数。
+ * 输入：
+ * - project：含 uid、title 的项目卡片数据
+ * 输出：
+ * - 返回值：详情页路径
+ * - 副作用：无
  */
-export function resolveProjectDetailHref(project: Pick<ProjectItem, 'id' | 'title'>): string {
-  if (project.id != null && project.id > 0) {
-    return `/project-detail?id=${project.id}`
+export function resolveProjectDetailHref(project: Pick<ProjectItem, 'uid' | 'title'>): string {
+  if (isProjectResourceUid(project.uid)) {
+    return `/project-detail?uid=${encodeURIComponent(project.uid)}`
   }
 
   return `/project-detail?title=${encodeURIComponent(project.title)}`
