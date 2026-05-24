@@ -24,6 +24,11 @@ public class Result {
         return new Result(code, message, null);
     }
 
+    /** 失败响应（与 {@link #error(Integer, String)} 语义一致，便于全局异常处理器统一调用）。 */
+    public static Result fail(int code, String msg) {
+        return error(code, msg);
+    }
+
     public static Result error(String message) {
         return new Result(500, message, null);
     }

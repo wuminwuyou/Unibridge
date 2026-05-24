@@ -587,8 +587,7 @@ public class ClientProfileService {
     private LambdaQueryWrapper<ClientProject> baseProjectWrapper(Long userId) {
         LambdaQueryWrapper<ClientProject> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ClientProject::getOwnerId, userId)
-                .orderByDesc(ClientProject::getPublishedAt)
-                .orderByDesc(ClientProject::getId);
+                .last("ORDER BY COALESCE(published_at, created_at) DESC, id DESC");
         return wrapper;
     }
 
@@ -608,10 +607,9 @@ public class ClientProfileService {
         wrapper.eq(ClientNote::getUserId, userId)
                 .eq(ClientNote::getStatus, NOTE_STATUS_PUBLISHED);
         if (dbContentType != null) {
-            wrapper.eq(ClientNote::getContentType, dbContentType);
+            wrapper.likeRight(ClientNote::getContentTypeCode, dbContentType);
         }
-        wrapper.orderByDesc(ClientNote::getCreatedAt)
-                .orderByDesc(ClientNote::getId);
+        wrapper.last("ORDER BY COALESCE(published_at, created_at) DESC, id DESC");
         return wrapper;
     }
 
@@ -629,12 +627,14 @@ public class ClientProfileService {
         for (ClientProject project : projects) {
             ClientProjectCommercialSecret secret = secretMap.get(project.getId());
             items.add(ProfileProjectItem.builder()
+                    .id(project.getId())
                     .title(nullSafe(project.getTitle()))
                     .summary(nullSafe(project.getPreview()))
+                    .description(nullSafe(project.getDescription()))
                     .tags(toProjectTagLabels(project.getTags()))
                     .company(resolveProjectCompany(project, ownerId))
                     .publisher(publisher)
-                    .publishTime(formatProjectPublishTime(project.getPublishedAt()))
+                    .publishTime(formatProjectPublishTime(resolveDisplayTime(project.getPublishedAt(), project.getCreatedAt())))
                     .level(nullSafe(project.getLevel()))
                     .amount(formatProjectAmount(secret == null ? null : secret.getTotalBudget()))
                     .build());
@@ -682,8 +682,12 @@ public class ClientProfileService {
         return clientEntityProfileMapper.selectOne(wrapper);
     }
 
-    private String formatProjectPublishTime(LocalDateTime publishedAt) {
-        return publishedAt == null ? "" : publishedAt.format(PROJECT_PUBLISH_DATE_FORMATTER);
+    private LocalDateTime resolveDisplayTime(LocalDateTime publishedAt, LocalDateTime createdAt) {
+        return publishedAt != null ? publishedAt : createdAt;
+    }
+
+    private String formatProjectPublishTime(LocalDateTime dateTime) {
+        return dateTime == null ? "" : dateTime.format(PROJECT_PUBLISH_DATE_FORMATTER);
     }
 
     private String formatProjectAmount(BigDecimal amount) {
@@ -697,11 +701,12 @@ public class ClientProfileService {
         List<ProfileNoteItem> items = new ArrayList<>();
         for (ClientNote note : notes) {
             items.add(ProfileNoteItem.builder()
+                    .id(note.getId())
                     .title(nullSafe(note.getTitle()))
                     .summary(nullSafe(note.getSummary()))
-                    .contentType(mapNoteContentTypeDisplay(note.getContentType()))
+                    .contentType(mapNoteContentTypeDisplay(note.getContentTypeCode()))
                     .tags(parseJsonStringList(note.getTags()))
-                    .publishTime(formatNotePublishTime(note.getCreatedAt()))
+                    .publishTime(formatNotePublishTime(resolveDisplayTime(note.getPublishedAt(), note.getCreatedAt())))
                     .updateTime(formatNoteUpdateTime(note.getUpdatedAt()))
                     .views(note.getViewCount() == null ? 0 : note.getViewCount())
                     .comments(note.getCommentCount() == null ? 0 : note.getCommentCount())
@@ -712,15 +717,17 @@ public class ClientProfileService {
         return items;
     }
 
-    private String mapNoteContentTypeDisplay(String dbType) {
-        if (dbType == null || dbType.isBlank()) {
+    private String mapNoteContentTypeDisplay(String contentTypeCode) {
+        if (contentTypeCode == null || contentTypeCode.isBlank()) {
             return "";
         }
-        return switch (dbType.toUpperCase(Locale.ROOT)) {
-            case "IMAGETEXT" -> "图文";
-            case "VIDEO" -> "视频";
-            default -> dbType;
-        };
+        if (contentTypeCode.startsWith("TX")) {
+            return "图文";
+        }
+        if (contentTypeCode.startsWith("VD")) {
+            return "视频";
+        }
+        return "";
     }
 
     private String mapNoteContentTypeFilter(String contentType) {
@@ -728,14 +735,14 @@ public class ClientProfileService {
             return null;
         }
         return switch (contentType.trim()) {
-            case "图文" -> "IMAGETEXT";
-            case "视频" -> "VIDEO";
+            case "图文" -> "TX";
+            case "视频" -> "VD";
             default -> null;
         };
     }
 
-    private String formatNotePublishTime(LocalDateTime createdAt) {
-        return createdAt == null ? "" : createdAt.format(NOTE_PUBLISH_DATETIME_FORMATTER);
+    private String formatNotePublishTime(LocalDateTime publishedAt) {
+        return publishedAt == null ? "" : publishedAt.format(NOTE_PUBLISH_DATETIME_FORMATTER);
     }
 
     private String formatNoteUpdateTime(LocalDateTime updatedAt) {

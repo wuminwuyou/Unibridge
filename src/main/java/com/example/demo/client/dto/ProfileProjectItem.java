@@ -13,8 +13,12 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class ProfileProjectItem {
+    /** 项目 ID，用于跳转详情/编辑页 */
+    private Long id;
     private String title;
     private String summary;
+    /** 项目详情正文（Markdown） */
+    private String description;
     private List<TagLabel> tags;
     private String company;
     private String publisher;

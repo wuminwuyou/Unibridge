@@ -13,6 +13,8 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class ProfileNoteItem {
+    /** 笔记 ID，用于跳转详情/编辑页 */
+    private Long id;
     private String title;
     private String summary;
     /** 图文 / 视频 */

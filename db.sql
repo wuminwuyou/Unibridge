@@ -191,53 +191,47 @@ CREATE TABLE team_member (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ===================================================
--- 10）统一项目主表（project）
+-- 10）统一项目主表（project）- 详情读接口见 apps/web-client/API-request.md §06.1
 -- ===================================================
 CREATE TABLE project (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  
-  -- 🌟 核心分类：COMMERCIAL(正式商业项目) | RECRUITMENT(招募与实践项目)
+  -- 核心分类：COMMERCIAL(正式商业项目) | RECRUITMENT(招募与实践项目)
   category VARCHAR(32) NOT NULL COMMENT 'COMMERCIAL | RECRUITMENT',
-  
-  -- 🌟 招募项目的细分子类型，如果是商业项目则为 NULL
-  recruitment_type VARCHAR(32) NULL COMMENT 'LAB_RECRUIT | TEAM_RECRUIT | CAMPUS_PRACTICE（仅招募项目有效）',
-  
-  -- 🌟 发起/所有者关联（统一了项目 PM 和 创作者）
+  -- 招募项目的细分子类型，商业项目为 NULL
+  recruitment_type VARCHAR(32) NULL COMMENT 'LAB_RECRUIT | TEAM_RECRUIT | CAMPUS_PRACTICE | PERSONAL_RECRUIT（仅招募项目有效）',
+  -- 发起/所有者关联（统一了项目 PM 和 创作者）
   owner_id BIGINT UNSIGNED NOT NULL COMMENT '项目发起人/发布企业PM (USER_ID)',
-  
-  -- 🌟 关联的组织空间（无缝对接我们之前合并后的统一 team 表）
   team_id BIGINT UNSIGNED NULL COMMENT '关联/承接的团队或实验室ID (可选)',
-  
   title VARCHAR(255) NOT NULL COMMENT '项目名称',
   preview TEXT NOT NULL COMMENT '项目简略描述',
+  editor_type VARCHAR(32) NOT NULL DEFAULT 'MARKDOWN' COMMENT '编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前前端统一 Milkdown）',
+  description LONGTEXT NULL COMMENT '项目详情正文（Markdown，前端 Milkdown 渲染）',
   tags JSON NULL COMMENT '推荐与算法标签列表',
-  
-  -- 🌟 难度评级：从原商业表上移至主表，全类型通用
+  duration VARCHAR(64) NULL COMMENT '预计周期',
+  team_size VARCHAR(64) NULL COMMENT '团队人数',
+  deadline DATE NULL COMMENT '报名截止日期',
+  -- 难度评级：从原商业表上移至主表，全类型通用
   level VARCHAR(16) NOT NULL DEFAULT 'N' COMMENT '难度评级：N | R | SR | SSR | UR',
-  
-  -- 🌟 基础状态：OPEN(开放中/招募中) | ONGOING(进行中) | CLOSED(已关闭/已结项)
-  status VARCHAR(16) NOT NULL DEFAULT 'OPEN' COMMENT 'OPEN | ONGOING | CLOSED',
-  
-  published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
+  -- 基础状态：DRAFT(草稿) | OPEN(开放中/招募中) | ONGOING(进行中) | CLOSED(已关闭/已结项)
+  status VARCHAR(16) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT | OPEN | ONGOING | CLOSED',
+  published_at DATETIME NULL COMMENT '正式发布时间；草稿为 NULL',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
   PRIMARY KEY (id),
   KEY idx_project_category (category),
   KEY idx_project_owner (owner_id),
   KEY idx_project_team (team_id),
   KEY idx_project_published_at (published_at),
   KEY idx_project_status (status),
-  
   CONSTRAINT fk_project_owner FOREIGN KEY (owner_id) REFERENCES `user`(id)
     ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_project_team FOREIGN KEY (team_id) REFERENCES team(id)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-    
+    ON DELETE SET NULL ON UPDATE CASCADE, 
   CONSTRAINT chk_project_category CHECK (category IN ('COMMERCIAL', 'RECRUITMENT')),
-  CONSTRAINT chk_project_recruitment_type CHECK (recruitment_type IN ('LAB_RECRUIT', 'TEAM_RECRUIT', 'CAMPUS_PRACTICE')),
-  CONSTRAINT chk_project_status CHECK (status IN ('OPEN', 'ONGOING', 'CLOSED')),
-  CONSTRAINT chk_project_level CHECK (level IN ('N','R','SR','SSR','UR'))
+  CONSTRAINT chk_project_recruitment_type CHECK (recruitment_type IN ('LAB_RECRUIT', 'TEAM_RECRUIT', 'CAMPUS_PRACTICE', 'PERSONAL_RECRUIT')),
+  CONSTRAINT chk_project_status CHECK (status IN ('DRAFT', 'OPEN', 'ONGOING', 'CLOSED')),
+  CONSTRAINT chk_project_level CHECK (level IN ('N','R','SR','SSR','UR')),
+  CONSTRAINT chk_project_editor_type CHECK (editor_type IN ('MARKDOWN', 'RICHTEXT'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================================================================
@@ -245,25 +239,19 @@ CREATE TABLE project (
 -- =========================================================================
 CREATE TABLE project_commercial_secret (
   project_id BIGINT UNSIGNED NOT NULL COMMENT '关联的主项目ID（1:1 关联）',
-  
-  -- 💰 核心敏感数据：托管金额
+  -- 核心敏感数据：托管金额
   total_budget DECIMAL(18,2) NOT NULL DEFAULT 0.00 COMMENT '托管总额（企业隐私，严禁泄露）',
-  
-  -- 🔄 商业专用高级状态机：主表 status='ONGOING' 时激活
+  -- 商业专用高级状态机：主表 status='ONGOING' 时激活
   commercial_status VARCHAR(64) NOT NULL DEFAULT 'PENDING_START' 
     COMMENT '商业专用状态机：PENDING_START(待托管开工) | PROCESSING(研发进行中) | SUBMIT_REVIEW(验收审核中) | NEED_IMPROVEMENT(待改进) | APPROVED_SUCCESS(验收通过) | IN_DISPUTE(争议维权中) | ARBITRATED(平台仲裁结项)',
-  
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
   PRIMARY KEY (project_id),
   KEY idx_secret_commercial_status (commercial_status),
-  
-  -- 🔗 外键强约束：主表删除了项目，敏感表连带自动删除（CASCADE）
+  -- 外键强约束：主表删除了项目，敏感表连带自动删除（CASCADE）
   CONSTRAINT fk_secret_project_id FOREIGN KEY (project_id) REFERENCES project(id)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-    
-  -- 🔒 数据库防御死锁：严格限制状态机的输入值，防止后端代码写错
+    ON DELETE CASCADE ON UPDATE CASCADE,  
+  -- 数据库防御死锁：严格限制状态机的输入值，防止后端代码写错
   CONSTRAINT chk_secret_commercial_status CHECK (
     commercial_status IN (
       'PENDING_START', 
@@ -339,45 +327,68 @@ CREATE TABLE achievement_archive (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================================================================
--- 15）笔记表（note：user 1:N notes）- 完美重构版
+-- 15）笔记表（note：user 1:N notes）- 详情读接口见 apps/web-client/API-request.md §06.2
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS note (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL COMMENT '发布笔记的用户ID',
-  content_type VARCHAR(32) NOT NULL COMMENT 'IMAGETEXT(图文) | VIDEO(视频)',
+  -- 类型编码：TX/VD + 11 位 [A-Za-z0-9]，后缀由 NanoID 随机生成（见 NoteContentTypeCodeGenerator）
+  content_type_code VARCHAR(64) NOT NULL COMMENT '内容类型编码（视频:VD+11位编码 | 图文:TX+11位编码）',
   title VARCHAR(255) NOT NULL COMMENT '笔记标题',
   summary TEXT NOT NULL COMMENT '笔记外部预览摘要（列表页展示）',
-  content LONGTEXT NULL COMMENT '笔记正文内容（💡 升级为 LONGTEXT，防止长文溢出）',
-  cover_url VARCHAR(255) NOT NULL COMMENT '统一封面图片URL（不管是视频还是图文，列表页必须有封面）',
-  images JSON NULL COMMENT '图文笔记的图片列表，JSON格式：["url1", "url2"]，支持多图',
-  video_url VARCHAR(255) NULL COMMENT '视频源文件URL（仅 VIDEO 类型有效）',
-  video_duration INT UNSIGNED NULL DEFAULT 0 COMMENT '视频时长（秒，仅 VIDEO 类型有效）',
+  editor_type VARCHAR(32) NOT NULL DEFAULT 'MARKDOWN' COMMENT '编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前前端统一 Milkdown）',
+  content LONGTEXT NULL COMMENT '图文笔记 Markdown 正文；视频笔记不写入',
+  
+  -- 媒体资源
+  cover_url VARCHAR(255) NOT NULL COMMENT '统一封面图片URL（草稿/发布均必填）',
+  video_url VARCHAR(255) NULL COMMENT '视频源文件URL（仅视频编码类型有效）',
+  video_duration INT UNSIGNED NULL DEFAULT 0 COMMENT '视频时长（秒，仅视频编码类型有效）',
+  -- 算法与推荐
   tags JSON NULL COMMENT '推荐与算法标签列表，JSON格式：["人工智能", "开源项目"]',
-  view_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '浏览量/阅读数',
+  -- 核心计数器
+  view_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '浏览量',
   like_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '点赞数',
   collect_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '收藏数',
   comment_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '评论总数',
-  
   -- 内容状态机
   status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT(草稿) | PUBLISHED(已发布) | BANNED(违规封禁)',
-  
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+  published_at DATETIME NULL COMMENT '正式发布时间；草稿为 NULL',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
   PRIMARY KEY (id),
   KEY idx_note_user_id (user_id),
   KEY idx_note_status (status),
   KEY idx_note_created_at (created_at),
-  
+  KEY idx_note_published_at (published_at),
+  -- 复合索引：大厅按类型 + 状态刷首屏
+  KEY idx_note_type_status (content_type_code, status),  -- 外键约束
   CONSTRAINT fk_note_user FOREIGN KEY (user_id) REFERENCES `user`(id)
     ON DELETE CASCADE ON UPDATE CASCADE,
-    
-  CONSTRAINT chk_note_content_type CHECK (content_type IN ('IMAGETEXT', 'VIDEO')),
-  CONSTRAINT chk_note_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'BANNED'))
+  CONSTRAINT chk_note_content_type_code CHECK (
+    (content_type_code REGEXP '^TX[A-Za-z0-9]{11}$') OR
+    (content_type_code REGEXP '^VD[A-Za-z0-9]{11}$')
+  ),
+  CONSTRAINT chk_note_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'BANNED')),
+  CONSTRAINT chk_note_editor_type CHECK (editor_type IN ('MARKDOWN', 'RICHTEXT'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- =========================================================================
+-- 16）文件资产表（file_records：MD5 去重秒传底稿）
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS file_records (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  file_md5 CHAR(32) NOT NULL COMMENT '文件内容 MD5 十六进制指纹（去重终极防线）',
+  file_path VARCHAR(255) NOT NULL COMMENT '静态资源访问网络 URL',
+  file_size BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '文件大小（字节）',
+  mime_type VARCHAR(50) NULL COMMENT 'MIME 类型，如 image/png、video/mp4',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次入库时间',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_file_md5 (file_md5),
+  KEY idx_file_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 16）系统管理员表：完全独立于业务用户体系
+-- 17）系统管理员表：完全独立于业务用户体系
 -- =========================
 CREATE TABLE IF NOT EXISTS system_admin (
   id VARCHAR(32) NOT NULL COMMENT '登录凭证 (管理员账号)',

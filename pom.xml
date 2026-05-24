@@ -47,6 +47,12 @@
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>3.5.15</version>
         </dependency>
+
+        <!-- MD5 文件指纹计算（上传去重秒传） -->
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+        </dependency>
         
         <!-- MySQL 驱动依赖 -->
         <dependency>
@@ -86,6 +92,13 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- NanoID：笔记 content_type_code 后缀生成 -->
+        <dependency>
+            <groupId>com.aventrix.jnanoid</groupId>
+            <artifactId>jnanoid</artifactId>
+            <version>2.0.0</version>
         </dependency>
         
         <!-- 测试依赖 -->

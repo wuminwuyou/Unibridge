@@ -16,14 +16,18 @@ public class ClientNote {
     private Long id;
     @TableField("user_id")
     private Long userId;
-    @TableField("content_type")
-    private String contentType;
+    /** 内容类型编码：图文 TX+11位 | 视频 VD+11位 */
+    @TableField("content_type_code")
+    private String contentTypeCode;
     private String title;
     private String summary;
+    /** 编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前默认 MARKDOWN） */
+    @TableField("editor_type")
+    private String editorType;
+    /** 图文笔记 Markdown 正文；视频笔记为 null */
     private String content;
     @TableField("cover_url")
     private String coverUrl;
-    private String images;
     @TableField("video_url")
     private String videoUrl;
     @TableField("video_duration")
@@ -38,6 +42,8 @@ public class ClientNote {
     @TableField("comment_count")
     private Integer commentCount;
     private String status;
+    @TableField("published_at")
+    private LocalDateTime publishedAt;
     @TableField("created_at")
     private LocalDateTime createdAt;
     @TableField("updated_at")

@@ -1,0 +1,19 @@
+# =============================================================================
+# 本地多媒体落盘配置（无 OSS 联调阶段）
+# =============================================================================
+file:
+  # 物理绝对路径（目录不存在时由业务层 mkdirs 自动创建子目录 covers/、videos/）
+  # Windows 示例: D:/unibridge/uploads
+  # Mac/Linux 示例: /Users/username/unibridge/uploads
+  upload-folder: ${user.home}/unibridge/uploads
+  # 虚拟静态资源路由前缀（锁定为 /uploads/**，勿随意修改）
+  access-path: /uploads/**
+  # 对外可访问的站点根 URL（用于拼装落盘后的完整链接；端口需与 server.port 一致）
+  public-base-url: http://localhost:8081
+
+spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 500MB
+      max-request-size: 500MB
