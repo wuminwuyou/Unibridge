@@ -11,7 +11,6 @@ import LevelBadge from '../../components/common/LevelBadge'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import VerifiedOrgModal from '../../components/common/VerifiedOrgModal'
 import TopNavbar from '../../layout/TopNavbar'
-import { profileSpaceNavItems } from './profileSpacePageData'
 import ProfileHomeTabContent from './components/ProfileHomeTabContent/ProfileHomeTabContent'
 import ProfileNotesTabContent from './components/ProfileNotesTabContent/ProfileNotesTabContent'
 import ProfileProjectsTabContent from './components/ProfileProjectsTabContent/ProfileProjectsTabContent'
@@ -58,7 +57,7 @@ export function ProfileSpaceView({ model }: ProfileSpaceViewProps) {
 
   return (
     <div className="profile-space-page">
-      <TopNavbar navItems={profileSpaceNavItems} />
+      <TopNavbar />
 
       <section className="profile-hero" aria-label="个人空间顶部信息">
         <div className="profile-hero__visual" aria-hidden="true" />

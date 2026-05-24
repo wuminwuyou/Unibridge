@@ -1,6 +1,6 @@
 import type { UserProfileNoteDto, UserProfileProjectDto } from '../../../api/userProfile'
 import type { LevelCode } from '../../../types/level'
-import type { ProjectItem } from '../../../types/project'
+import type { ProjectCategory, ProjectItem, ProjectRecruitmentType } from '../../../types/project'
 import type { ProfileNoteItem } from './types'
 
 // 01）归一化项目等级（normalizeProjectLevel）
@@ -22,7 +22,25 @@ function normalizeProjectLevel(level: string): LevelCode {
   return levelWhitelist.includes(normalizedLevel as LevelCode) ? (normalizedLevel as LevelCode) : 'N'
 }
 
-// 02）归一化笔记内容类型（normalizeNoteContentType）
+// 02）归一化项目分类（normalizeProjectCategory）
+function normalizeProjectCategory(category: string | undefined): ProjectCategory {
+  return category === 'RECRUITMENT' ? 'RECRUITMENT' : 'COMMERCIAL'
+}
+
+// 03）归一化招募子类型（normalizeProjectRecruitmentType）
+function normalizeProjectRecruitmentType(value: string | null | undefined): ProjectRecruitmentType | null {
+  if (
+    value === 'LAB_RECRUIT' ||
+    value === 'TEAM_RECRUIT' ||
+    value === 'CAMPUS_PRACTICE' ||
+    value === 'PERSONAL_RECRUIT'
+  ) {
+    return value
+  }
+  return null
+}
+
+// 04）归一化笔记内容类型（normalizeNoteContentType）
 /**
  * 函数名：normalizeNoteContentType
  * 功能：将接口笔记 contentType 归一化为前端枚举。
@@ -51,19 +69,37 @@ function normalizeNoteContentType(contentType: string): ProfileNoteItem['content
  * - 副作用：无
  */
 export function mapApiProjects(projects: UserProfileProjectDto[]): ProjectItem[] {
-  return (projects ?? []).map((project) => ({
-    title: project.title,
-    summary: project.summary,
-    tags: project.tags ?? [],
-    company: project.company,
-    publisher: project.publisher,
-    publishTime: project.publishTime,
-    level: normalizeProjectLevel(project.level),
-    amount: project.amount,
-  }))
+  return (projects ?? []).map((project) => {
+    const category = normalizeProjectCategory(project.category)
+    const recruitmentType =
+      category === 'RECRUITMENT' ? normalizeProjectRecruitmentType(project.recruitmentType) : null
+    const budget =
+      category === 'COMMERCIAL' && project.budget?.trim()
+        ? project.budget.trim()
+        : category === 'COMMERCIAL' && project.amount?.trim()
+          ? project.amount.trim()
+          : null
+
+    return {
+      id: project.id,
+      title: project.title,
+      preview: project.preview?.trim() || project.summary?.trim() || '',
+      tags: project.tags ?? [],
+      category,
+      recruitmentType,
+      ownerOrganization: project.ownerOrganization?.trim() || project.company?.trim() || '',
+      ownerName: project.ownerName?.trim() || project.publisher?.trim() || '',
+      publishTime: project.publishTime,
+      level: normalizeProjectLevel(project.level),
+      budget,
+      logoSvgUrl: project.logoSvgUrl?.trim() || null,
+      teamSize: project.teamSize?.trim() || null,
+      duration: project.duration?.trim() || null,
+    }
+  })
 }
 
-// 04）映射接口笔记列表（mapApiNotes）
+// 05）映射接口笔记列表（mapApiNotes）
 /**
  * 函数名：mapApiNotes
  * 功能：将 /user-profile/home 与 /user-profile/notes 的笔记 DTO 转为 ProfileNoteItem。

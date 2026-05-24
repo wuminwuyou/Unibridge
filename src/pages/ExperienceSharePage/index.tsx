@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Settings2 } from 'lucide-react'
-import GridNoteCard from '../../components/common/GridNoteCard'
-import RowNoteCard from '../../components/common/RowNoteCard'
+import GridNoteCard from '../../components/NoteCard/GridNoteCard'
+import RowNoteCard from '../../components/NoteCard/RowNoteCard'
 import TopNavbar from '../../layout/TopNavbar'
 import { experienceShareNotes, experienceShareTags } from './experienceSharePageData'
 import './style.css'
 
-// 01）顶部导航数据（navItems）
-const navItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']
-
-// 02）笔记卡片布局模式类型（ExperienceNoteLayoutMode）
+// 01）笔记卡片布局模式类型（ExperienceNoteLayoutMode）
 type ExperienceNoteLayoutMode = 'grid' | 'row'
 
 // 03）笔记布局缓存键名（EXPERIENCE_NOTE_LAYOUT_STORAGE_KEY）
@@ -134,7 +131,7 @@ function ExperienceSharePage() {
 
     return (
         <div className="experience-share-page">
-            <TopNavbar navItems={navItems} />
+            <TopNavbar />
 
             <main className="experience-share-main">
                 <section className="experience-tag-panel" aria-label="经验分享大类筛选">
@@ -150,7 +147,7 @@ function ExperienceSharePage() {
                 <section className="experience-note-section" aria-label="经验分享笔记专区">
                     <div className="experience-note-panel">
                         {isGridLayout ? (
-                            <div className="experience-note-grid">{renderedGridNoteCards}</div>
+                            <div className="experience-note-grid grid-note-card-grid--equal-rows">{renderedGridNoteCards}</div>
                         ) : (
                             <div className="experience-note-row-list">{renderedRowNoteCards}</div>
                         )}

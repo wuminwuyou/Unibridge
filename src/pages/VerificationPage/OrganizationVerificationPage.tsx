@@ -4,10 +4,7 @@ import { VerificationStep, type VerificationGuideTab } from '../../components/Au
 import TopNavbar from '../../layout/TopNavbar'
 import '../../styles/OrganizationVerificationPage.css'
 
-// 01）顶部导航数据（navItems）
-const navItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']
-
-// 02）邮箱后缀校验（isEduCnMailbox）
+// 01）邮箱后缀校验（isEduCnMailbox）
 /**
  * 函数名：isEduCnMailbox
  * 功能：校验输入邮箱是否为 .edu.cn 后缀。
@@ -46,7 +43,7 @@ function OrganizationVerificationPage() {
 
   return (
     <div className="organization-verification-page">
-      <TopNavbar navItems={navItems} />
+      <TopNavbar />
       <main className="organization-verification-page__main" aria-label="主体认证">
         <div className="organization-verification-page__card">
           <VerificationStep

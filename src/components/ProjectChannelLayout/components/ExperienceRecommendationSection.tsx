@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
-import GridNoteCard from '../../common/GridNoteCard'
+import GridNoteCard from '../../NoteCard/GridNoteCard'
 import type { ProfileNoteItem } from '../../../pages/ProfileSpace/components/types'
 
 // 01）经验推荐区参数（ExperienceRecommendationSectionProps）
 interface ExperienceRecommendationSectionProps {
   notes: ProfileNoteItem[]
   onRefresh: () => void
+  sectionTitle?: string
 }
 
 // 02）经验推荐区（ExperienceRecommendationSection）
@@ -23,7 +24,11 @@ interface ExperienceRecommendationSectionProps {
  * - 返回值：JSX.Element | null
  * - 副作用：无
  */
-function ExperienceRecommendationSection({ notes, onRefresh }: ExperienceRecommendationSectionProps) {
+function ExperienceRecommendationSection({
+  notes,
+  onRefresh,
+  sectionTitle = '经验推荐',
+}: ExperienceRecommendationSectionProps) {
   const renderedNoteCards = useMemo(() => {
     return notes.map((note) => <GridNoteCard key={`home-experience-${note.title}`} note={note} />)
   }, [notes])
@@ -33,14 +38,14 @@ function ExperienceRecommendationSection({ notes, onRefresh }: ExperienceRecomme
   }
 
   return (
-    <article className="home-experience-recommendation" aria-label="经验推荐">
+    <article className="home-experience-recommendation" aria-label={sectionTitle}>
       <div className="section-title-row">
-        <h2 className="section-title">经验推荐</h2>
+        <h2 className="section-title">{sectionTitle}</h2>
         <button type="button" className="section-refresh-button" onClick={onRefresh}>
           换一换
         </button>
       </div>
-      <div className="home-experience-recommendation__grid">{renderedNoteCards}</div>
+      <div className="home-experience-recommendation__grid grid-note-card-grid--equal-rows">{renderedNoteCards}</div>
     </article>
   )
 }

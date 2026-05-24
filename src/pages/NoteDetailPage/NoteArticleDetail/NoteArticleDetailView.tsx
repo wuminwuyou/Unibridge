@@ -71,16 +71,7 @@ export function NoteArticleDetailView({ note, isEditorialFlow = false }: NoteArt
                 返回编辑
               </Link>
             </div>
-          ) : (
-            <nav className="note-discussion-nav" aria-label="笔记导航">
-              <Link to="/experience-share" className="note-discussion-nav__back">
-                <ArrowLeft className="h-4 w-4" />
-                经验分享
-              </Link>
-              <span className="note-discussion-nav__sep">/</span>
-              <span className="note-discussion-nav__current">讨论</span>
-            </nav>
-          )}
+          ) : null}
 
           <article className="note-discussion-post" aria-label="笔记正文">
             <header className="note-discussion-post__header">

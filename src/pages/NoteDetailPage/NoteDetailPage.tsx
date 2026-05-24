@@ -9,10 +9,7 @@ import { parseNoteDetailIdFromQuery } from './shared/noteDetailRouting'
 import { useNoteDetailFromApi } from './useNoteDetailFromApi'
 import '../../styles/DetailPage.css'
 
-// 01）顶部导航（navItems）
-const navItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']
-
-// 02）判断是否来自发布页（resolveNoteEditorialFlow）
+// 01）判断是否来自发布页（resolveNoteEditorialFlow）
 function resolveNoteEditorialFlow(hasRoutePayload: boolean, hasNoteIdQuery: boolean, hasTitleQuery: boolean): boolean {
   if (hasRoutePayload) {
     return true
@@ -77,7 +74,7 @@ function NoteDetailPage() {
 
   return (
     <div className={`detail-page ${isEditorialFlow ? 'detail-page--editorial' : ''}`.trim()}>
-      {!isEditorialFlow ? <TopNavbar navItems={navItems} /> : null}
+      {!isEditorialFlow ? <TopNavbar /> : null}
       {showLoading ? (
         <main className="detail-page-main">
           <section className="detail-card" aria-label="笔记详情加载中">

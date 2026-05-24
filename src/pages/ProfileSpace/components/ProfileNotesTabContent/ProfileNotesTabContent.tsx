@@ -1,8 +1,8 @@
 import { LayoutGrid, List } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import GridNoteCard from '../../../../components/common/GridNoteCard'
+import GridNoteCard from '../../../../components/NoteCard/GridNoteCard'
 import LoadingSpinner from '../../../../components/common/LoadingSpinner'
-import RowNoteCard from '../../../../components/common/RowNoteCard'
+import RowNoteCard from '../../../../components/NoteCard/RowNoteCard'
 import type { ProfileNoteItem } from '../types'
 import { useProfileNotesData } from './useProfileNotesData'
 import './ProfileNotesTabContent.css'
@@ -165,7 +165,7 @@ function ProfileNotesTabContent() {
         {filteredNotes.length === 0 ? (
           <p className="profile-tab-empty">暂无笔记内容</p>
         ) : isGridMode ? (
-          <div className="profile-note-grid profile-note-grid--five-columns">
+          <div className="profile-note-grid profile-note-grid--three-columns grid-note-card-grid--equal-rows">
             {renderedGridNoteCards}
           </div>
         ) : (

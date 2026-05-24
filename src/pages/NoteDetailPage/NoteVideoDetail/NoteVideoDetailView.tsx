@@ -55,16 +55,8 @@ export function NoteVideoDetailView({ note, isEditorialFlow = false }: NoteVideo
               返回编辑
             </Link>
           </div>
-        ) : (
-          <nav className="note-video-page__nav" aria-label="笔记导航">
-            <Link to="/experience-share" className="note-video-page__nav-back">
-              <ArrowLeft className="h-4 w-4" />
-              经验分享
-            </Link>
-            <span className="note-video-page__nav-sep">/</span>
-            <span className="note-video-page__nav-current">视频</span>
-          </nav>
-        )}
+        ) : null
+        }
 
         <section className="note-video-page__hero" aria-label="视频播放区">
           <div className="note-video-page__main">

@@ -1,5 +1,4 @@
 import TopNavbar from '../../layout/TopNavbar'
-import { publishNoteNavItems } from './publishNotePageData'
 import { PublishNoteView } from './PublishNoteView.tsx'
 import { usePublishNoteForm } from './usePublishNoteForm'
 import './style.css'
@@ -21,7 +20,7 @@ export default function PublishNotePage() {
 
   return (
     <>
-      <TopNavbar navItems={publishNoteNavItems} />
+      <TopNavbar />
       <PublishNoteView form={form} />
     </>
   )

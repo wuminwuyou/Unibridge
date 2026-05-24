@@ -1,5 +1,5 @@
 // 01）个人空间顶部导航数据（profileSpaceNavItems）
-export const profileSpaceNavItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']
+export { mainNavItemLabels as profileSpaceNavItems } from '../../layout/TopNavbar/navRoutes'
 
 // 02）个人空间 Tab 列表（profileTabs）
 export const profileTabs = ['主页', '项目', '笔记', '收藏', '设置'] as const

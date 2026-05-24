@@ -304,17 +304,16 @@
     border-radius: 16px;
 }
 
-.profile-project-grid .project-card__meta h3 {
-    font-size: 16px;
+.profile-project-grid .project-card__title {
+    font-size: 18px;
 }
 
-.profile-project-grid .project-card__meta p {
+.profile-project-grid .project-card__preview {
     font-size: 13px;
-    line-height: 1.5;
 }
 
-.profile-project-grid .project-card__value strong {
-    font-size: 24px;
+.profile-project-grid .project-card__aside {
+    width: 88px;
 }
 
 .profile-project-tab-list {
@@ -342,9 +341,14 @@
     gap: 14px;
 }
 
-.profile-note-grid--five-columns {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 10px;
+.profile-note-grid--three-columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.profile-note-grid--three-columns .grid-note-card {
+    min-width: var(--grid-note-card-min-width);
+    width: 100%;
 }
 
 .profile-notes-content {
@@ -872,20 +876,14 @@
     }
 }
 
-@media (max-width: 1400px) {
-    .profile-note-grid--five-columns {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-}
-
 @media (max-width: 1200px) {
-    .profile-note-grid--five-columns {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+    .profile-note-grid--three-columns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 960px) {
-    .profile-note-grid--five-columns {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .profile-note-grid--three-columns {
+        grid-template-columns: 1fr;
     }
 }

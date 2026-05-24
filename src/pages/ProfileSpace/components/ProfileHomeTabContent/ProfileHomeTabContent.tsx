@@ -1,6 +1,6 @@
-import RowNoteCard from '../../../../components/common/RowNoteCard'
+import RowNoteCard from '../../../../components/NoteCard/RowNoteCard'
 import LoadingSpinner from '../../../../components/common/LoadingSpinner'
-import ProjectCard from '../../../../components/common/ProjectCard'
+import ProjectCard from '../../../../components/ProjectCard'
 import { useProfileHomeData } from './useProfileHomeData'
 import './ProfileHomeTabContent.css'
 

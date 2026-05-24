@@ -1,10 +1,7 @@
-import TopNavbar from '../layout/TopNavbar'
-import '../styles/InstantMessagePage.css'
+import TopNavbar from '../../layout/TopNavbar'
+import '../../styles/InstantMessagePage.css'
 
-// 01）顶部导航数据（navItems）
-const navItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']
-
-// 02）左侧项目/招募分组图标数据（imGroups）
+// 01）左侧项目/招募分组图标数据（imGroups）
 const directAndGroupMessages = [
   { id: 'dm', label: '个人私聊', shortLabel: '私', unread: true },
   { id: 'lab', label: '实验室群聊', shortLabel: '实', unread: true },
@@ -107,7 +104,7 @@ const messageItems = [
 function InstantMessagePage() {
   return (
     <div className="im-page">
-      <TopNavbar navItems={navItems} />
+      <TopNavbar />
 
       <main className="im-layout" aria-label="即时通讯页面">
         <aside className="im-rail" aria-label="项目与对话分组">

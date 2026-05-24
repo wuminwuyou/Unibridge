@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
 import { useEffect, type MouseEvent } from 'react'
 import CloseIconButton from './CloseIconButton'
-import '../../styles/InfoPromptModal.css'
+import './InfoPromptModal.css'
 
 // 01）信息提示弹窗参数类型（InfoPromptModalProps）
 export interface InfoPromptModalProps {

@@ -41,7 +41,7 @@ export const campusRecruitOptions: CampusRecruitOption[] = [
 ]
 
 // 06）顶部导航数据（publishProjectNavItems）
-export const publishProjectNavItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']
+export { mainNavItemLabels as publishProjectNavItems } from '../../layout/TopNavbar/navRoutes'
 
 // 07）发布渠道列表（publishChannelOptions）
 export const publishChannelOptions: PublishChannelOption[] = [

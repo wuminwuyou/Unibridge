@@ -1,38 +1,74 @@
-import ProjectChannelLayout from '../../components/ProjectChannelLayout'
-import {
-  homePageAnnouncements,
-  homePageExperienceNotes,
-  homePageProjects,
-  homePageRecommendedCompanies,
-  homePageRecommendedTypes,
-} from './homePageData'
+import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
+import GridNoteCard from '../../components/NoteCard/GridNoteCard'
+import ProjectCard from '../../components/ProjectCard'
+import TopNavbar from '../../layout/TopNavbar'
+import HomePageProjectLabHeader from './HomePageProjectLabHeader'
+import { homePageExperienceNotes, homePageProjects } from './homePageData'
+import { useHomePageLayout } from './useHomePageLayout'
+import './HomePage.css'
 
 // 01）首页主组件（HomePage）
 /**
  * 函数名：HomePage
- * 功能：渲染项目众包平台首页，组合 ProjectChannelLayout 与首页静态数据。
+ * 功能：按 design.md 渲染 Unibridge 主界面双栏布局（项目实验室大厅 + 经验侧栏）。
  * 实现方法：
- * - 页面专属数据由同目录 homePageData 维护
- * - 样式由 ProjectChannelLayout 与 TopNavbar 各自加载
+ * - 左侧项目实验室：顶栏筛选 + 卡片列表面板 + ProjectCard 列表
+ * - 右侧 25% 展示经验笔记侧栏、查看全部链接与撰写引导
+ * - 主题色通过 index.css 全局变量驱动
  * 输入：无
  * 输出：
  * - 返回值：JSX.Element
  * - 副作用：无
  */
 function HomePage() {
+  const { projectBatch, sidebarNoteBatch } = useHomePageLayout({
+    projects: homePageProjects,
+    sidebarNotes: homePageExperienceNotes,
+  })
+
+  const renderedProjectCards = useMemo(() => {
+    return projectBatch.map((project) => (
+      <ProjectCard key={project.id ?? `${project.title}-${project.ownerName}`} project={project} />
+    ))
+  }, [projectBatch])
+
+  const renderedSidebarNotes = useMemo(() => {
+    return sidebarNoteBatch.map((note) => (
+      <GridNoteCard key={`home-sidebar-note-${note.title}`} note={note} />
+    ))
+  }, [sidebarNoteBatch])
+
   return (
-    <ProjectChannelLayout
-      sectionTitle="项目专区"
-      searchInputId="home-project-search-input"
-      projects={homePageProjects}
-      experienceRecommendedNotes={homePageExperienceNotes}
-      recommendedTypes={homePageRecommendedTypes}
-      recommendedOrganizations={homePageRecommendedCompanies}
-      announcements={homePageAnnouncements}
-      organizationCardTitle="推荐企业"
-      organizationActionText="查看更多"
-      organizationAvatarText="企"
-    />
+    <div className="home-page">
+      <TopNavbar />
+
+      <main className="home-page__main">
+        <section className="home-page__projects" aria-label="项目实验室">
+          <div className="home-page__projects-panel">
+            <HomePageProjectLabHeader projectTotal={homePageProjects.length} />
+            <div className="home-page__projects-list">{renderedProjectCards}</div>
+          </div>
+        </section>
+
+        <aside className="home-page__insights" aria-label="学生项目复盘与经验">
+          <header className="home-page__insights-header">
+            <h2 className="home-page__insights-title">项目复盘与经验</h2>
+            <Link className="home-page__insights-link" to="/note">
+              查看全部 &gt;
+            </Link>
+          </header>
+
+          {sidebarNoteBatch.length > 0 ? (
+            <div className="home-page__note-list">{renderedSidebarNotes}</div>
+          ) : null}
+
+          <Link className="home-page__compose-trigger" to="/publish/note">
+            📝 写下你的项目经验
+          </Link>
+        </aside>
+      </main>
+    </div>
   )
 }
 

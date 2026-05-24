@@ -89,34 +89,76 @@
   color: var(--text-soft);
 }
 
-/* 04锛夊鑸彍鍗曟ā鍧?*/
+/* 04）导航菜单模块 */
 .top-nav {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: stretch;
+  gap: 4px;
   margin-right: auto;
   margin-left: 24px;
+  height: 100%;
 }
 
 .top-nav__item {
-  padding: 9px 14px;
-  border-radius: 11px;
-  font-size: 14px;
-  color: var(--text-main);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 64px;
+  padding: 0 18px;
   border: none;
+  border-radius: 0;
   background: transparent;
-  cursor: pointer;
+  color: var(--text-soft);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
   text-decoration: none;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  cursor: pointer;
+  transition:
+    color 0.22s ease,
+    min-width 0.22s ease,
+    padding 0.22s ease,
+    background-color 0.22s ease;
+}
+
+.top-nav__item::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--primary-text);
+  transform: translateX(-50%);
+  transition: width 0.22s ease, background-color 0.22s ease;
 }
 
 .top-nav__item:hover {
-  background: var(--primary-soft);
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--primary-soft) 42%, transparent);
 }
 
 .top-nav__item.active {
+  min-width: 96px;
+  padding: 0 30px;
   color: var(--primary-text);
-  background: var(--primary-soft);
+  font-weight: 600;
+  background: transparent;
+}
+
+.top-nav__item.active:hover {
+  color: var(--primary-text);
+  background: color-mix(in srgb, var(--primary-soft) 28%, transparent);
+}
+
+.top-nav__item.active::after {
+  width: calc(100% - 28px);
+  min-width: 36px;
+  max-width: 56px;
 }
 
 /* 05锛夊ご閮ㄦ搷浣滃尯 */

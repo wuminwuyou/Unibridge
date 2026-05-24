@@ -51,14 +51,31 @@ export interface UserProfileSpaceData {
 
 // 06）个人空间项目 DTO（UserProfileProjectDto）
 export interface UserProfileProjectDto {
+  id?: number
   title: string
-  summary: string
+  /** 列表接口推荐字段，对应 project.preview */
+  preview?: string
+  /** 兼容旧字段，等同 preview */
+  summary?: string
   tags: { label: string }[]
-  company: string
-  publisher: string
+  /** 对应 project.category */
+  category?: 'COMMERCIAL' | 'RECRUITMENT'
+  /** 对应 project.recruitment_type */
+  recruitmentType?: 'LAB_RECRUIT' | 'TEAM_RECRUIT' | 'CAMPUS_PRACTICE' | 'PERSONAL_RECRUIT' | null
+  ownerOrganization?: string
+  ownerName?: string
+  /** 兼容旧字段 */
+  company?: string
+  publisher?: string
   publishTime: string
   level: string
-  amount: string
+  /** 商业项目托管预算展示文案 */
+  budget?: string | null
+  /** 兼容旧字段，等同 budget */
+  amount?: string
+  logoSvgUrl?: string | null
+  teamSize?: string | null
+  duration?: string | null
 }
 
 // 07）个人空间笔记 DTO（UserProfileNoteDto）

@@ -1,4 +1,4 @@
-import ProjectCard from '../../../../components/common/ProjectCard'
+import ProjectCard from '../../../../components/ProjectCard'
 import LoadingSpinner from '../../../../components/common/LoadingSpinner'
 import { useProfileProjectsData } from './useProfileProjectsData'
 import './ProfileProjectsTabContent.css'

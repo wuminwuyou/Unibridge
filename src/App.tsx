@@ -5,7 +5,7 @@ import ProfileSpacePage from './pages/ProfileSpace/index.tsx'
 import ExperienceSharePage from './pages/ExperienceSharePage/index.tsx'
 import ProjectDetailPage from './pages/ProjectDetailPage/ProjectDetailPage.tsx'
 import NoteDetailPage from './pages/NoteDetailPage'
-import InstantMessagePage from './pages/InstantMessagePage.tsx'
+import InstantMessagePage from './pages/InstantMessagePage/InstantMessagePage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import OrganizationVerificationPage from './pages/VerificationPage/OrganizationVerificationPage.tsx'
 import LabManagePage from './pages/LabManagePage.tsx'
@@ -18,9 +18,9 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 // 01）应用路由表（appRouter）
 const appRouter = createBrowserRouter([
   { path: '/', element: <HomePage /> },
-  { path: '/enterprise', element: <EnterprisePracticePage /> },
-  { path: '/campus-recruit', element: <CampusRecruitPage /> },
-  { path: '/experience-share', element: <ExperienceSharePage /> },
+  { path: '/project', element: <EnterprisePracticePage /> },
+  { path: '/co-create', element: <CampusRecruitPage /> },
+  { path: '/note', element: <ExperienceSharePage /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/profile', element: <ProfileSpacePage /> },
   {

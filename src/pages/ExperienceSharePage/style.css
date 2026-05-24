@@ -171,12 +171,13 @@
 /* 07）经验分享笔记网格（复用 GridNoteCard） */
 .experience-note-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
 }
 
-.experience-note-grid .profile-note-card-compact {
-    min-height: 148px;
+.experience-note-grid .grid-note-card {
+  min-width: var(--grid-note-card-min-width);
+  width: 100%;
 }
 
 /* 08）经验分享笔记行列表（复用 RowNoteCard） */
@@ -194,13 +195,7 @@
 
 @media (max-width: 1200px) {
     .experience-note-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 1024px) {
-    .experience-note-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -234,10 +229,6 @@
         left: auto;
         right: 0;
         top: calc(100% + 6px);
-    }
-
-    .experience-note-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 

@@ -1,5 +1,4 @@
 import TopNavbar from '../../layout/TopNavbar'
-import { publishProjectNavItems } from './publishProjectPageData'
 import { PublishProjectView } from './PublishProjectView'
 import { usePublishProjectForm } from './usePublishProjectForm'
 import './style.css'
@@ -21,7 +20,7 @@ export default function PublishProjectPage() {
 
   return (
     <>
-      <TopNavbar navItems={publishProjectNavItems} />
+      <TopNavbar />
       <PublishProjectView form={form} />
     </>
   )

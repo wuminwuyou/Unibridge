@@ -14,7 +14,32 @@
   padding-bottom: 36px;
 }
 
-/* 09锛夐」鐩笓鍖轰笌鍗＄墖娴?*/
+.home-main--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.home-notes-zone {
+  width: 100%;
+}
+
+.home-notes-zone .home-experience-recommendation {
+  margin-bottom: 0;
+}
+
+.home-projects-zone {
+  width: 100%;
+}
+
+.home-projects-zone__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(280px, 3fr);
+  gap: 22px;
+  align-items: start;
+}
+
+/* 09）项目专区与卡片流 */
 .project-section {
   min-width: 0;
 }
@@ -26,12 +51,13 @@
 
 .home-experience-recommendation__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.home-experience-recommendation__grid .profile-note-card-compact {
-  min-height: 148px;
+.home-experience-recommendation__grid .grid-note-card {
+  min-width: var(--grid-note-card-min-width);
+  width: 100%;
 }
 
 /* 09-2锛夋爣棰樿涓庢崲涓€鎹㈡寜閽?*/
@@ -80,133 +106,7 @@
   gap: 14px;
 }
 
-.project-card {
-  border-radius: 18px;
-  padding: 18px 20px 16px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  box-shadow: var(--panel-shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.project-card--link {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-}
-
-.project-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 18px rgba(17, 40, 85, 0.1);
-}
-
-:root[data-theme='dark'] .project-card:hover {
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
-}
-
-.project-card__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.project-card__meta {
-  min-width: 0;
-}
-
-.project-card__meta h3 {
-  margin: 0;
-  font-size: 20px;
-  color: var(--text-main);
-}
-
-.project-card__meta p {
-  margin: 10px 0 0;
-  color: var(--text-soft);
-  line-height: 1.55;
-  font-size: 14px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.project-card__value {
-  text-align: right;
-  min-width: 75px;
-}
-
-.project-card__level {
-  display: block;
-  font-weight: 700;
-  font-size: 20px;
-  line-height: 1;
-}
-
-.project-card__value strong {
-  display: block;
-  margin-top: 8px;
-  font-size: 30px;
-  color: #2d8c48;
-  line-height: 1;
-}
-
-.project-tags {
-  margin-top: 12px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.project-tag {
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
-  background: var(--chip-bg);
-  color: var(--chip-text);
-  border: 1px solid var(--chip-border);
-}
-
-.project-card__foot {
-  margin-top: 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.publisher-info {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-soft);
-}
-
-.publisher-info span:first-child {
-  color: var(--primary-text);
-  font-weight: 600;
-}
-
-.interest-button {
-  min-width: 94px;
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid var(--button-border);
-  background: var(--button-bg);
-  color: var(--button-text);
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-/* 10锛夊彸渚т俊鎭崱鐗囧尯 */
+/* 10）右侧信息卡片区 */
 .sidebar {
   min-width: 0;
   display: flex;
@@ -433,6 +333,10 @@
     grid-template-columns: 1fr;
   }
 
+  .home-projects-zone__inner {
+    grid-template-columns: 1fr;
+  }
+
   .sidebar {
     position: static;
   }
@@ -451,18 +355,6 @@
 
   .top-header-search {
     display: none;
-  }
-
-  .project-card__head {
-    flex-direction: column;
-  }
-
-  .project-card__value {
-    text-align: left;
-  }
-
-  .project-card__value strong {
-    font-size: 26px;
   }
 
   .home-experience-recommendation__grid {

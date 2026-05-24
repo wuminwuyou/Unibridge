@@ -18,7 +18,7 @@ export interface PublishNoteFormDraft {
 }
 
 // 04）顶部导航（publishNoteNavItems）
-export const publishNoteNavItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']
+export { mainNavItemLabels as publishNoteNavItems } from '../../layout/TopNavbar/navRoutes'
 
 // 05）内容类型列表（publishContentTypeOptions）
 export const publishContentTypeOptions: PublishContentTypeOption[] = [

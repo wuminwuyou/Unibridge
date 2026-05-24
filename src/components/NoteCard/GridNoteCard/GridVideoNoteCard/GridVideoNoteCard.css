@@ -1,0 +1,100 @@
+/* 01）视频网格笔记卡片（grid-video-note-card） */
+.grid-video-note-card {
+  --grid-video-note-badge-bg: #f3e8ff;
+  --grid-video-note-badge-text: #a855f7;
+  --grid-note-card-body-min-height: 0;
+
+  padding: 0;
+}
+
+:root[data-theme='dark'] .grid-video-note-card {
+  --grid-video-note-badge-bg: #581c87;
+  --grid-video-note-badge-text: #c084fc;
+}
+
+.grid-video-note-card .grid-note-card__menu {
+  top: 8px;
+  right: 8px;
+  background: rgba(15, 23, 42, 0.45);
+  color: #f8fafc;
+}
+
+.grid-video-note-card .grid-note-card__menu:hover {
+  background: rgba(15, 23, 42, 0.62);
+  color: #ffffff;
+}
+
+.grid-video-note-card__media {
+  background: #0f172a;
+}
+
+.grid-video-note-card__media-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.grid-video-note-card__media-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0.28) 100%);
+  pointer-events: none;
+}
+
+.grid-video-note-card__type-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  background: var(--grid-video-note-badge-bg);
+  color: var(--grid-video-note-badge-text);
+}
+
+.grid-video-note-card__media-icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 2px 8px rgba(15, 23, 42, 0.35));
+  pointer-events: none;
+}
+
+.grid-video-note-card__media-duration {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.grid-video-note-card__body {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.grid-video-note-card__body .grid-note-card__footer {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .grid-video-note-card__body {
+    padding: var(--grid-note-card-body-padding);
+  }
+}

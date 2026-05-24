@@ -7,10 +7,7 @@ import type { ProjectDetailLocationState, ProjectDetailPayload } from './types'
 import { parseProjectDetailIdFromQuery, useProjectDetailFromApi } from './useProjectDetailFromApi'
 import '../../styles/DetailPage.css'
 
-// 01）顶部导航（navItems）
-const navItems: string[] = ['首页', '企业实战', '高校招募', '经验分享']
-
-// 02）由 URL 查询参数构建占位详情（buildFallbackFromSearch）
+// 01）由 URL 查询参数构建占位详情（buildFallbackFromSearch）
 function buildFallbackFromSearch(title: string | null): ProjectDetailPayload | null {
   const normalized = title?.trim()
   if (!normalized) {
@@ -99,7 +96,7 @@ function ProjectDetailPage() {
 
   return (
     <div className={`detail-page ${isEditorialFlow ? 'detail-page--editorial' : ''}`.trim()}>
-      {!isEditorialFlow ? <TopNavbar navItems={navItems} /> : null}
+      {!isEditorialFlow ? <TopNavbar /> : null}
       {showLoading ? (
         <main className="detail-page-main">
           <section className="detail-card" aria-label="项目详情加载中">

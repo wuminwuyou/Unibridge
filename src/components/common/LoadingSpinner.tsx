@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import '../../styles/LoadingSpinner.css'
+import './LoadingSpinner.css'
 
 // 01）加载中组件参数类型（LoadingSpinnerProps）
 export interface LoadingSpinnerProps {
