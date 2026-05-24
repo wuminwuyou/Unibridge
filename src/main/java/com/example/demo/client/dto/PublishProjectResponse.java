@@ -11,7 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PublishProjectResponse {
-    private Long projectId;
+    /** 对外公开 UID（= project_uid） */
+    private String uid;
     private String publishAction;
     private String status;
     private String category;

@@ -7,13 +7,14 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/** GET /projects/{projectId} 响应体。 */
+/** GET /projects/{uid} 响应体。 */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProjectDetailResponse {
-    private Long projectId;
+    /** 对外公开 UID（= project_uid） */
+    private String uid;
     private String title;
     private String summary;
     private String channel;

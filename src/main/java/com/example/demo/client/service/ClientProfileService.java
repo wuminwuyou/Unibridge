@@ -101,6 +101,9 @@ public class ClientProfileService {
     private ClientEntityProfileMapper clientEntityProfileMapper;
 
     @Autowired
+    private ProjectCardAssembler projectCardAssembler;
+
+    @Autowired
     private ClientProjectMapper clientProjectMapper;
 
     @Autowired
@@ -619,25 +622,9 @@ public class ClientProfileService {
         if (projects.isEmpty()) {
             return Collections.emptyList();
         }
-        List<Long> projectIds = projects.stream().map(ClientProject::getId).collect(Collectors.toList());
-        Map<Long, ClientProjectCommercialSecret> secretMap = loadCommercialSecrets(projectIds);
-        String publisher = nullSafe(ownerProfile == null ? null : ownerProfile.getNickName());
-
         List<ProfileProjectItem> items = new ArrayList<>();
         for (ClientProject project : projects) {
-            ClientProjectCommercialSecret secret = secretMap.get(project.getId());
-            items.add(ProfileProjectItem.builder()
-                    .id(project.getId())
-                    .title(nullSafe(project.getTitle()))
-                    .summary(nullSafe(project.getPreview()))
-                    .description(nullSafe(project.getDescription()))
-                    .tags(toProjectTagLabels(project.getTags()))
-                    .company(resolveProjectCompany(project, ownerId))
-                    .publisher(publisher)
-                    .publishTime(formatProjectPublishTime(resolveDisplayTime(project.getPublishedAt(), project.getCreatedAt())))
-                    .level(nullSafe(project.getLevel()))
-                    .amount(formatProjectAmount(secret == null ? null : secret.getTotalBudget()))
-                    .build());
+            items.add(projectCardAssembler.toProfileProjectItem(project));
         }
         return items;
     }
@@ -701,7 +688,7 @@ public class ClientProfileService {
         List<ProfileNoteItem> items = new ArrayList<>();
         for (ClientNote note : notes) {
             items.add(ProfileNoteItem.builder()
-                    .id(note.getId())
+                    .uid(note.getContentTypeCode())
                     .title(nullSafe(note.getTitle()))
                     .summary(nullSafe(note.getSummary()))
                     .contentType(mapNoteContentTypeDisplay(note.getContentTypeCode()))

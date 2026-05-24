@@ -11,8 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PublishNoteResponse {
-    private Long noteId;
-    private String contentTypeCode;
+    /** 对外公开 UID（= content_type_code） */
+    private String uid;
     private String publishAction;
     private String status;
     private String publishedAt;

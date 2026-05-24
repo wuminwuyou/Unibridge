@@ -15,6 +15,9 @@ import java.time.LocalDateTime;
 public class ClientProject {
     @TableId(type = IdType.AUTO)
     private Long id;
+    /** 对外公开 UID（PR+11 位）；API 仅暴露此字段 */
+    @TableField("project_uid")
+    private String projectUid;
     private String category;
     private String recruitmentType;
     @TableField("owner_id")

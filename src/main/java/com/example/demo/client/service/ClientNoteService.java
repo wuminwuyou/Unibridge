@@ -10,10 +10,13 @@ import com.example.demo.client.entity.ClientUserProfile;
 import com.example.demo.client.mapper.ClientNoteMapper;
 import com.example.demo.client.mapper.ClientUserProfileMapper;
 import com.example.demo.common.BusinessException;
+import com.example.demo.util.IpUtil;
 import com.example.demo.util.NoteContentTypeCodeGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -48,16 +51,24 @@ public class ClientNoteService {
     private final ClientAccessService clientAccessService;
     private final ClientNoteMapper clientNoteMapper;
     private final ClientUserProfileMapper clientUserProfileMapper;
+    private final NoteViewTracker noteViewTracker;
+    private final ContentUidResolver contentUidResolver;
 
     public ClientNoteService(ClientAccessService clientAccessService,
                              ClientNoteMapper clientNoteMapper,
-                             ClientUserProfileMapper clientUserProfileMapper) {
+                             ClientUserProfileMapper clientUserProfileMapper,
+                             NoteViewTracker noteViewTracker,
+                             ContentUidResolver contentUidResolver) {
         this.clientAccessService = clientAccessService;
         this.clientNoteMapper = clientNoteMapper;
         this.clientUserProfileMapper = clientUserProfileMapper;
+        this.noteViewTracker = noteViewTracker;
+        this.contentUidResolver = contentUidResolver;
     }
 
     @Transactional
+    @CacheEvict(value = {"home_feed", "similar_notes", "project_feed", "note_feed"}, allEntries = true,
+            condition = "#request.publishAction == 'PUBLISH'")
     public PublishNoteResponse createNote(String authorization, PublishNoteRequest request) {
         Long userId = clientAccessService.requireCurrentUserId(authorization);
         validateRequest(request, null);
@@ -73,9 +84,11 @@ public class ClientNoteService {
     }
 
     @Transactional
-    public PublishNoteResponse updateNote(String authorization, Long noteId, PublishNoteRequest request) {
+    @CacheEvict(value = {"home_feed", "similar_notes", "project_feed", "note_feed"}, allEntries = true,
+            condition = "#request.publishAction == 'PUBLISH'")
+    public PublishNoteResponse updateNote(String authorization, String noteUid, PublishNoteRequest request) {
         Long userId = clientAccessService.requireCurrentUserId(authorization);
-        ClientNote note = requireOwnedNote(noteId, userId);
+        ClientNote note = requireOwnedNote(noteUid, userId);
 
         validateRequest(request, note);
         assertContentTypeImmutable(note, request.getContentType());
@@ -87,13 +100,12 @@ public class ClientNoteService {
         return buildResponse(persisted, request.getPublishAction());
     }
 
-    public PublishNoteDraftResponse getNoteDraft(String authorization, Long noteId) {
+    public PublishNoteDraftResponse getNoteDraft(String authorization, String noteUid) {
         Long userId = clientAccessService.requireCurrentUserId(authorization);
-        ClientNote note = requireOwnedNote(noteId, userId);
+        ClientNote note = requireOwnedNote(noteUid, userId);
 
         return PublishNoteDraftResponse.builder()
-                .noteId(note.getId())
-                .contentTypeCode(note.getContentTypeCode())
+                .uid(note.getContentTypeCode())
                 .publishAction(STATUS_DRAFT.equals(note.getStatus()) ? PUBLISH_ACTION_DRAFT : PUBLISH_ACTION_PUBLISH)
                 .title(note.getTitle())
                 .summary(note.getSummary())
@@ -110,24 +122,23 @@ public class ClientNoteService {
     /**
      * 查询笔记详情（公开读 + 草稿 owner 读）。
      * <ul>
-     *   <li>PUBLISHED：可不登录；返回前 view_count +1</li>
+     *   <li>PUBLISHED：可不登录；非发布者且非短时重复访问时 view_count +1</li>
      *   <li>DRAFT：仅 owner 可读</li>
      *   <li>BANNED：对外统一 404</li>
      * </ul>
      */
     @Transactional
-    public NoteDetailResponse getNoteDetail(String authorization, Long noteId) {
-        ClientNote note = clientNoteMapper.selectById(noteId);
-        if (note == null || STATUS_BANNED.equals(note.getStatus())) {
+    public NoteDetailResponse getNoteDetail(String authorization, String noteUid, HttpServletRequest request) {
+        ClientNote note = contentUidResolver.requireNoteByUid(noteUid);
+        if (STATUS_BANNED.equals(note.getStatus())) {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
 
         Long currentUserId = clientAccessService.resolveOptionalCurrentUserId(authorization);
         assertNoteReadable(note, currentUserId);
 
-        if (STATUS_PUBLISHED.equals(note.getStatus())) {
-            incrementViewCount(noteId);
-            note = clientNoteMapper.selectById(noteId);
+        if (tryIncrementViewCount(note, currentUserId, request)) {
+            note = clientNoteMapper.selectById(note.getId());
         }
 
         return buildNoteDetailResponse(note);
@@ -138,9 +149,8 @@ public class ClientNoteService {
         LocalDateTime displayPublishTime = resolveDisplayTime(note.getPublishedAt(), note.getCreatedAt());
 
         return NoteDetailResponse.builder()
-                .noteId(note.getId())
+                .uid(note.getContentTypeCode())
                 .contentType(mapContentTypeCodeToDisplay(note.getContentTypeCode()))
-                .contentTypeCode(note.getContentTypeCode())
                 .title(note.getTitle())
                 .summary(note.getSummary())
                 .body(note.getContent())
@@ -172,6 +182,33 @@ public class ClientNoteService {
         if (!currentUserId.equals(note.getUserId())) {
             throw new BusinessException(403, "NOTE_NOT_OWNER");
         }
+    }
+
+    /**
+     * 已发布笔记浏览量 +1 条件：非发布者本人，且同一访问者 30 分钟内未计次。
+     *
+     * @return 是否已执行 +1（便于调用方决定是否重新加载 note）
+     */
+    private boolean tryIncrementViewCount(ClientNote note, Long currentUserId, HttpServletRequest request) {
+        if (!STATUS_PUBLISHED.equals(note.getStatus())) {
+            return false;
+        }
+        if (currentUserId != null && currentUserId.equals(note.getUserId())) {
+            return false;
+        }
+        String viewerKey = resolveViewerKey(currentUserId, request);
+        if (!noteViewTracker.shouldCountView(viewerKey, note.getId())) {
+            return false;
+        }
+        incrementViewCount(note.getId());
+        return true;
+    }
+
+    private String resolveViewerKey(Long currentUserId, HttpServletRequest request) {
+        if (currentUserId != null) {
+            return "u:" + currentUserId;
+        }
+        return "ip:" + IpUtil.resolveClientIp(request);
     }
 
     private void incrementViewCount(Long noteId) {
@@ -226,11 +263,8 @@ public class ClientNoteService {
         return StringUtils.hasText(editorType) ? editorType : EDITOR_TYPE_MARKDOWN;
     }
 
-    private ClientNote requireOwnedNote(Long noteId, Long userId) {
-        ClientNote note = clientNoteMapper.selectById(noteId);
-        if (note == null) {
-            throw BusinessException.notFound("NOTE_NOT_FOUND");
-        }
+    private ClientNote requireOwnedNote(String noteUid, Long userId) {
+        ClientNote note = contentUidResolver.requireNoteByUid(noteUid);
         if (!userId.equals(note.getUserId())) {
             throw new BusinessException(403, "NOTE_NOT_OWNER");
         }
@@ -349,8 +383,7 @@ public class ClientNoteService {
 
     private PublishNoteResponse buildResponse(ClientNote note, String publishAction) {
         return PublishNoteResponse.builder()
-                .noteId(note.getId())
-                .contentTypeCode(note.getContentTypeCode())
+                .uid(note.getContentTypeCode())
                 .publishAction(publishAction)
                 .status(note.getStatus())
                 .publishedAt(formatOffsetDateTime(note.getPublishedAt()))

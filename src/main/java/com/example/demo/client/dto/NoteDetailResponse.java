@@ -7,15 +7,15 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/** GET /notes/{noteId} 响应体。 */
+/** GET /notes/{uid} 响应体。 */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class NoteDetailResponse {
-    private Long noteId;
+    /** 对外公开 UID（= content_type_code） */
+    private String uid;
     private String contentType;
-    private String contentTypeCode;
     private String title;
     private String summary;
     private String body;

@@ -3,6 +3,7 @@ package com.example.demo.client.controller;
 import com.example.demo.client.dto.PublishNoteRequest;
 import com.example.demo.client.service.ClientNoteService;
 import com.example.demo.common.Result;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,22 +29,23 @@ public class ClientNoteController {
         return Result.success(clientNoteService.createNote(authorization, request));
     }
 
-    @PutMapping("/{noteId}")
+    @PutMapping("/{uid}")
     public Result updateNote(@RequestHeader(value = "Authorization", required = false) String authorization,
-                             @PathVariable Long noteId,
+                             @PathVariable String uid,
                              @RequestBody PublishNoteRequest request) {
-        return Result.success(clientNoteService.updateNote(authorization, noteId, request));
+        return Result.success(clientNoteService.updateNote(authorization, uid, request));
     }
 
-    @GetMapping("/{noteId}")
+    @GetMapping("/{uid}")
     public Result getNoteDetail(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                @PathVariable Long noteId) {
-        return Result.success(clientNoteService.getNoteDetail(authorization, noteId));
+                                @PathVariable String uid,
+                                HttpServletRequest request) {
+        return Result.success(clientNoteService.getNoteDetail(authorization, uid, request));
     }
 
-    @GetMapping("/{noteId}/draft")
+    @GetMapping("/{uid}/draft")
     public Result getNoteDraft(@RequestHeader(value = "Authorization", required = false) String authorization,
-                               @PathVariable Long noteId) {
-        return Result.success(clientNoteService.getNoteDraft(authorization, noteId));
+                               @PathVariable String uid) {
+        return Result.success(clientNoteService.getNoteDraft(authorization, uid));
     }
 }

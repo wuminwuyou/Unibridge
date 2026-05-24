@@ -7,6 +7,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- =========================
 -- 02）清理旧表（可重复执行）
 -- =========================
+DROP TABLE IF EXISTS file_records;
+DROP TABLE IF EXISTS user_content_interaction;
+DROP TABLE IF EXISTS user_tag_interests;
 DROP TABLE IF EXISTS achievement_archive;
 DROP TABLE IF EXISTS note;
 DROP TABLE IF EXISTS task_card;
@@ -195,6 +198,8 @@ CREATE TABLE team_member (
 -- ===================================================
 CREATE TABLE project (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  -- 对外公开 UID（双 ID 之外层）：API / Feed 仅暴露此字段，防 IDOR 枚举
+  project_uid CHAR(13) NOT NULL COMMENT '对外公开 UID（PR+11位 NanoID，见 ProjectUidGenerator）',
   -- 核心分类：COMMERCIAL(正式商业项目) | RECRUITMENT(招募与实践项目)
   category VARCHAR(32) NOT NULL COMMENT 'COMMERCIAL | RECRUITMENT',
   -- 招募项目的细分子类型，商业项目为 NULL
@@ -218,6 +223,7 @@ CREATE TABLE project (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  UNIQUE KEY uk_project_uid (project_uid),
   KEY idx_project_category (category),
   KEY idx_project_owner (owner_id),
   KEY idx_project_team (team_id),
@@ -228,6 +234,7 @@ CREATE TABLE project (
   CONSTRAINT fk_project_team FOREIGN KEY (team_id) REFERENCES team(id)
     ON DELETE SET NULL ON UPDATE CASCADE, 
   CONSTRAINT chk_project_category CHECK (category IN ('COMMERCIAL', 'RECRUITMENT')),
+  CONSTRAINT chk_project_uid CHECK (project_uid REGEXP '^PR[A-Za-z0-9]{11}$'),
   CONSTRAINT chk_project_recruitment_type CHECK (recruitment_type IN ('LAB_RECRUIT', 'TEAM_RECRUIT', 'CAMPUS_PRACTICE', 'PERSONAL_RECRUIT')),
   CONSTRAINT chk_project_status CHECK (status IN ('DRAFT', 'OPEN', 'ONGOING', 'CLOSED')),
   CONSTRAINT chk_project_level CHECK (level IN ('N','R','SR','SSR','UR')),
@@ -236,6 +243,7 @@ CREATE TABLE project (
 
 -- =========================================================================
 -- 11）商业项目敏感与隐私扩展表（project_commercial_secret）
+-- 🔒 双 ID 安全：本表仅通过内部 project.id 关联；API 禁止暴露 project_id / 自增 id
 -- =========================================================================
 CREATE TABLE project_commercial_secret (
   project_id BIGINT UNSIGNED NOT NULL COMMENT '关联的主项目ID（1:1 关联）',
@@ -332,8 +340,9 @@ CREATE TABLE achievement_archive (
 CREATE TABLE IF NOT EXISTS note (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL COMMENT '发布笔记的用户ID',
+  -- 对外公开 UID（双 ID 之外层）：API / Feed 字段名 uid；与 content_type_code 同值
   -- 类型编码：TX/VD + 11 位 [A-Za-z0-9]，后缀由 NanoID 随机生成（见 NoteContentTypeCodeGenerator）
-  content_type_code VARCHAR(64) NOT NULL COMMENT '内容类型编码（视频:VD+11位编码 | 图文:TX+11位编码）',
+  content_type_code VARCHAR(64) NOT NULL COMMENT '对外 uid + 内容类型编码（视频:VD+11位 | 图文:TX+11位）',
   title VARCHAR(255) NOT NULL COMMENT '笔记标题',
   summary TEXT NOT NULL COMMENT '笔记外部预览摘要（列表页展示）',
   editor_type VARCHAR(32) NOT NULL DEFAULT 'MARKDOWN' COMMENT '编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前前端统一 Milkdown）',
@@ -373,7 +382,56 @@ CREATE TABLE IF NOT EXISTS note (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================================================================
--- 16）文件资产表（file_records：MD5 去重秒传底稿）
+-- 双 ID 设计说明（防 IDOR）
+-- | 表                        | 内部 id     | 对外 uid                          |
+-- |---------------------------|-------------|-----------------------------------|
+-- | project                   | AUTO_INCREMENT | project_uid (PR+11)            |
+-- | note                      | AUTO_INCREMENT | content_type_code (TX/VD+11)   |
+-- | project_commercial_secret | project_id(FK) | 永不对外暴露                    |
+-- | user_content_interaction  | target_id   | API 传 targetUid，服务端解析      |
+-- =========================================================================
+
+-- =========================================================================
+-- 16）用户标签兴趣画像（user_tag_interests：推荐系统权重底稿）
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS user_tag_interests (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '用户 ID',
+  tag VARCHAR(64) NOT NULL COMMENT '兴趣标签',
+  weight DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '累计兴趣权重分',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_tag (user_id, tag),
+  KEY idx_user_tag_interests_user (user_id),
+  KEY idx_user_tag_interests_weight (weight),
+  CONSTRAINT fk_user_tag_interests_user FOREIGN KEY (user_id) REFERENCES `user`(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- =========================================================================
+-- 17）用户内容互动状态（user_content_interaction：点赞/收藏幂等）
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS user_content_interaction (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '用户 ID',
+  target_type VARCHAR(16) NOT NULL COMMENT 'NOTE | PROJECT',
+  target_id BIGINT UNSIGNED NOT NULL COMMENT '目标内容 ID',
+  liked TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1=已点赞 0=未点赞',
+  collected TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1=已收藏 0=未收藏',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_content_target (user_id, target_type, target_id),
+  KEY idx_interaction_target (target_type, target_id),
+  CONSTRAINT fk_user_content_interaction_user FOREIGN KEY (user_id) REFERENCES `user`(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT chk_interaction_target_type CHECK (target_type IN ('NOTE', 'PROJECT')),
+  CONSTRAINT chk_interaction_liked CHECK (liked IN (0, 1)),
+  CONSTRAINT chk_interaction_collected CHECK (collected IN (0, 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- =========================================================================
+-- 18）文件资产表（file_records：MD5 去重秒传底稿）
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS file_records (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '自增主键',
@@ -388,7 +446,7 @@ CREATE TABLE IF NOT EXISTS file_records (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- =========================
--- 17）系统管理员表：完全独立于业务用户体系
+-- 19）系统管理员表：完全独立于业务用户体系
 -- =========================
 CREATE TABLE IF NOT EXISTS system_admin (
   id VARCHAR(32) NOT NULL COMMENT '登录凭证 (管理员账号)',

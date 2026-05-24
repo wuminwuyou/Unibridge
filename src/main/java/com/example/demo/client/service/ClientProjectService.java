@@ -12,9 +12,11 @@ import com.example.demo.client.mapper.ClientProjectCommercialSecretMapper;
 import com.example.demo.client.mapper.ClientProjectMapper;
 import com.example.demo.client.mapper.UserAuthLinkMapper;
 import com.example.demo.common.BusinessException;
+import com.example.demo.util.ProjectUidGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -61,18 +63,23 @@ public class ClientProjectService {
     private final ClientProjectMapper clientProjectMapper;
     private final ClientProjectCommercialSecretMapper commercialSecretMapper;
     private final UserAuthLinkMapper userAuthLinkMapper;
+    private final ContentUidResolver contentUidResolver;
 
     public ClientProjectService(ClientAccessService clientAccessService,
                                 ClientProjectMapper clientProjectMapper,
                                 ClientProjectCommercialSecretMapper commercialSecretMapper,
-                                UserAuthLinkMapper userAuthLinkMapper) {
+                                UserAuthLinkMapper userAuthLinkMapper,
+                                ContentUidResolver contentUidResolver) {
         this.clientAccessService = clientAccessService;
         this.clientProjectMapper = clientProjectMapper;
         this.commercialSecretMapper = commercialSecretMapper;
         this.userAuthLinkMapper = userAuthLinkMapper;
+        this.contentUidResolver = contentUidResolver;
     }
 
     @Transactional
+    @CacheEvict(value = {"home_feed", "similar_notes", "project_feed", "note_feed"}, allEntries = true,
+            condition = "#request.publishAction == 'PUBLISH'")
     public PublishProjectResponse createProject(String authorization, PublishProjectRequest request) {
         Long userId = clientAccessService.requireCurrentUserId(authorization);
         validateRequest(request);
@@ -80,6 +87,7 @@ public class ClientProjectService {
 
         ClientProject project = new ClientProject();
         project.setOwnerId(userId);
+        project.setProjectUid(ProjectUidGenerator.generate(this::isProjectUidUnique));
         applyRequestToProject(project, request);
         clientProjectMapper.insert(project);
 
@@ -89,11 +97,13 @@ public class ClientProjectService {
     }
 
     @Transactional
+    @CacheEvict(value = {"home_feed", "similar_notes", "project_feed", "note_feed"}, allEntries = true,
+            condition = "#request.publishAction == 'PUBLISH'")
     public PublishProjectResponse updateProject(String authorization,
-                                                Long projectId,
+                                                String projectUid,
                                                 PublishProjectRequest request) {
         Long userId = clientAccessService.requireCurrentUserId(authorization);
-        ClientProject project = requireOwnedProject(projectId, userId);
+        ClientProject project = requireOwnedProject(projectUid, userId);
 
         validateRequest(request);
         assertPublishPermission(userId, request.getChannel());
@@ -106,13 +116,13 @@ public class ClientProjectService {
         return buildResponse(persisted, request.getPublishAction());
     }
 
-    public PublishProjectDraftResponse getProjectDraft(String authorization, Long projectId) {
+    public PublishProjectDraftResponse getProjectDraft(String authorization, String projectUid) {
         Long userId = clientAccessService.requireCurrentUserId(authorization);
-        ClientProject project = requireOwnedProject(projectId, userId);
-        ClientProjectCommercialSecret secret = loadCommercialSecret(projectId);
+        ClientProject project = requireOwnedProject(projectUid, userId);
+        ClientProjectCommercialSecret secret = loadCommercialSecret(project.getId());
 
         return PublishProjectDraftResponse.builder()
-                .projectId(project.getId())
+                .uid(project.getProjectUid())
                 .publishAction(STATUS_DRAFT.equals(project.getStatus()) ? PUBLISH_ACTION_DRAFT : PUBLISH_ACTION_PUBLISH)
                 .title(project.getTitle())
                 .summary(project.getPreview())
@@ -136,29 +146,28 @@ public class ClientProjectService {
      *   <li>草稿（DRAFT）：仅 owner 可读；未登录或非 owner 分别返回 404 / 403</li>
      * </ul>
      */
-    public ProjectDetailResponse getProjectDetail(String authorization, Long projectId) {
-        ClientProject project = clientProjectMapper.selectById(projectId);
-        if (project == null) {
-            throw BusinessException.notFound("PROJECT_NOT_FOUND");
-        }
+    public ProjectDetailResponse getProjectDetail(String authorization, String projectUid) {
+        ClientProject project = contentUidResolver.requireProjectByUid(projectUid);
 
         Long currentUserId = clientAccessService.resolveOptionalCurrentUserId(authorization);
         assertProjectReadable(project, currentUserId);
 
-        ClientProjectCommercialSecret secret = loadCommercialSecret(projectId);
-        return buildProjectDetailResponse(project, secret);
+        ClientProjectCommercialSecret secret = loadCommercialSecret(project.getId());
+        return buildProjectDetailResponse(project, secret, currentUserId);
     }
 
     private ProjectDetailResponse buildProjectDetailResponse(ClientProject project,
-                                                             ClientProjectCommercialSecret secret) {
+                                                             ClientProjectCommercialSecret secret,
+                                                             Long currentUserId) {
         String channel = mapCategoryToChannel(project.getCategory());
         String amount = null;
-        if (CATEGORY_COMMERCIAL.equals(project.getCategory()) && secret != null) {
+        boolean isOwner = currentUserId != null && currentUserId.equals(project.getOwnerId());
+        if (CATEGORY_COMMERCIAL.equals(project.getCategory()) && secret != null && isOwner) {
             amount = formatAmount(secret.getTotalBudget());
         }
 
         return ProjectDetailResponse.builder()
-                .projectId(project.getId())
+                .uid(project.getProjectUid())
                 .title(project.getTitle())
                 .summary(project.getPreview())
                 .channel(channel)
@@ -196,15 +205,18 @@ public class ClientProjectService {
         return StringUtils.hasText(editorType) ? editorType : EDITOR_TYPE_MARKDOWN;
     }
 
-    private ClientProject requireOwnedProject(Long projectId, Long userId) {
-        ClientProject project = clientProjectMapper.selectById(projectId);
-        if (project == null) {
-            throw BusinessException.notFound("PROJECT_NOT_FOUND");
-        }
+    private ClientProject requireOwnedProject(String projectUid, Long userId) {
+        ClientProject project = contentUidResolver.requireProjectByUid(projectUid);
         if (!userId.equals(project.getOwnerId())) {
             throw new BusinessException(403, "PROJECT_NOT_OWNER");
         }
         return project;
+    }
+
+    private boolean isProjectUidUnique(String projectUid) {
+        LambdaQueryWrapper<ClientProject> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ClientProject::getProjectUid, projectUid);
+        return clientProjectMapper.selectCount(wrapper) == 0;
     }
 
     private void validateRequest(PublishProjectRequest request) {
@@ -369,7 +381,7 @@ public class ClientProjectService {
 
     private PublishProjectResponse buildResponse(ClientProject project, String publishAction) {
         return PublishProjectResponse.builder()
-                .projectId(project.getId())
+                .uid(project.getProjectUid())
                 .publishAction(publishAction)
                 .status(project.getStatus())
                 .category(project.getCategory())

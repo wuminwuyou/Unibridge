@@ -7,13 +7,13 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/** GET /projects/{projectId}/draft 响应体。 */
+/** GET /projects/{uid}/draft 响应体。 */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class PublishProjectDraftResponse {
-    private Long projectId;
+    private String uid;
     private String publishAction;
     private String title;
     private String summary;

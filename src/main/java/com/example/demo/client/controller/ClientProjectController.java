@@ -28,22 +28,22 @@ public class ClientProjectController {
         return Result.success(clientProjectService.createProject(authorization, request));
     }
 
-    @PutMapping("/{projectId}")
+    @PutMapping("/{uid}")
     public Result updateProject(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                @PathVariable Long projectId,
+                                @PathVariable String uid,
                                 @RequestBody PublishProjectRequest request) {
-        return Result.success(clientProjectService.updateProject(authorization, projectId, request));
+        return Result.success(clientProjectService.updateProject(authorization, uid, request));
     }
 
-    @GetMapping("/{projectId}")
+    @GetMapping("/{uid}")
     public Result getProjectDetail(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                   @PathVariable Long projectId) {
-        return Result.success(clientProjectService.getProjectDetail(authorization, projectId));
+                                   @PathVariable String uid) {
+        return Result.success(clientProjectService.getProjectDetail(authorization, uid));
     }
 
-    @GetMapping("/{projectId}/draft")
+    @GetMapping("/{uid}/draft")
     public Result getProjectDraft(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                    @PathVariable Long projectId) {
-        return Result.success(clientProjectService.getProjectDraft(authorization, projectId));
+                                  @PathVariable String uid) {
+        return Result.success(clientProjectService.getProjectDraft(authorization, uid));
     }
 }

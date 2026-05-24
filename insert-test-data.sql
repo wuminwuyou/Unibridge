@@ -68,18 +68,18 @@ INSERT INTO team_member (id, team_id, user_id, role, lab_user_id) VALUES
 (2, 1, 1, 'MEMBER', 1),
 (3, 2, 1, 'LEADER', NULL);
 
-INSERT INTO project (id, category, recruitment_type, owner_id, team_id, title, preview, editor_type, description, tags, duration, team_size, deadline, level, status, published_at) VALUES
-(1, 'COMMERCIAL', NULL, 3, NULL, '智能客服系统研发',
+INSERT INTO project (id, project_uid, category, recruitment_type, owner_id, team_id, title, preview, editor_type, description, tags, duration, team_size, deadline, level, status, published_at) VALUES
+(1, 'PR20212345678', 'COMMERCIAL', NULL, 3, NULL, '智能客服系统研发',
  '面向客服场景的多轮对话与工单联动系统', 'MARKDOWN',
  '# 项目背景\n\n企业希望建设面向客服场景的多轮对话与工单联动系统。',
  JSON_ARRAY('NLP', '客服', 'SaaS'), '8 周', '3-5 人', '2026-08-31', 'SR', 'OPEN',
  '2026-04-01 10:00:00'),
-(2, 'COMMERCIAL', NULL, 3, 1, '实验室数据管理平台',
+(2, 'PRnews1234567', 'COMMERCIAL', NULL, 3, 1, '实验室数据管理平台',
  '为高校实验室提供项目、成员与成果一体化管理', 'MARKDOWN',
  '# 平台目标\n\n为高校实验室提供一体化管理能力。',
  JSON_ARRAY('数据平台', 'B端', '高校'), '12 周', '5-8 人', '2026-09-15', 'SSR', 'ONGOING',
  '2026-04-15 14:00:00'),
-(3, 'COMMERCIAL', NULL, 3, 2, '校园社交 App 外包',
+(3, 'PR1T1w2K4x6O8', 'COMMERCIAL', NULL, 3, 2, '校园社交 App 外包',
  '面向校园场景的轻量社交与活动发布应用', 'MARKDOWN',
  '# 产品概述\n\n面向校园场景的轻量社交 App。',
  JSON_ARRAY('移动端', '社交', '外包'), '6 周', '2-4 人', '2026-07-01', 'R', 'OPEN',
