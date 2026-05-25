@@ -1,20 +1,16 @@
-package com.example.demo.dto;
+package com.example.demo.media.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * GET /uploads/check-md5 秒传预检响应。
- */
+/** GET /uploads/check-md5 秒传预检响应。 */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class FileMd5CheckResponse {
-    /** 该 MD5 是否已在资产库中 */
     private Boolean exists;
-    /** 已存在时返回可直链访问的 URL；不存在时为 {@code null} */
     private String filePath;
 }

@@ -1,5 +1,6 @@
 package com.example.demo.client.dto;
 
+import com.example.demo.security.xss.XssClean;
 import lombok.Data;
 
 import java.util.List;
@@ -8,10 +9,14 @@ import java.util.List;
 @Data
 public class PublishProjectRequest {
     private String publishAction;
+    @XssClean
     private String title;
+    @XssClean
     private String summary;
     private String channel;
     private String campusRecruitType;
+    /** Markdown/HTML 详情；反序列化时自动 XSS 清洗 */
+    @XssClean
     private String description;
     private String amount;
     private String level;

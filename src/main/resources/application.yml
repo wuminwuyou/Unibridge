@@ -10,6 +10,15 @@ file:
   access-path: /uploads/**
   # 对外可访问的站点根 URL（用于拼装落盘后的完整链接；端口需与 server.port 一致）
   public-base-url: http://localhost:8081
+  security:
+    strip-image-metadata: true
+    sanitize-svg: true
+    video-reencode-enabled: false
+    ffmpeg-path: ffmpeg
+    ffmpeg-timeout-seconds: 600
+    audit-enabled: true
+    cover-max-bytes: 10485760
+    video-max-bytes: 524288000
 
 spring:
   servlet:
