@@ -1,223 +1,291 @@
 # UnibridgeBackend
 
-## 快速运行脚本（Windows PowerShell）
+UniBridge（产学研合作平台）后端服务。基于 **Spring Boot 3.5.x + Java 21 + MyBatis Plus + MySQL**，提供管理端与用户/主体端的 RESTful API。
 
-先初始化数据库（建库 + 导入 `db.sql` + 校验）：
+> 接口契约：[`API.md`](./API.md)（主文档）、[`API-1.md`](./API-1.md)（增量变更）。
+
+---
+
+## 架构迁移说明（重要）
+
+### 已完成一次 Client 域重构
+
+原 `com.example.demo.client` 采用**横向分层**（`controller / service / dto / entity / mapper` 平铺），随着 Feed、笔记、项目、个人空间等模块增多，耦合度上升、跨模块依赖难以管控。
+
+**2026-05 已完成迁移**：业务代码按**领域驱动纵向切片（Vertical Slice / DDD-lite）** 重组至：
+
+```text
+src/main/java/com/unibridge/backend/
+```
+
+| 项 | 说明 |
+| --- | --- |
+| **新入口** | `com.unibridge.backend.UnibridgeBackendApplication` |
+| **旧入口** | `com.example.demo.DemoApplication`（已废弃，不再参与编译与启动） |
+| **API 路径** | **不变**，前端无需因包名迁移而改 URL |
+| **编译范围** | Maven 仅编译 `com/unibridge/**/*.java`（见 `pom.xml`） |
+
+### 为何保留旧 `client` 目录
+
+路径：`src/main/java/com/example/demo/client/`
+
+- **不参与编译、不参与 Spring 扫描**，仅作迁移对照与**应急回滚参考**。
+- 若新架构线上/联调发现问题，可对照旧实现快速定位差异。
+- 验证稳定后，可**手动删除**整个 `com/example/demo/client` 目录（仓库内已附 [`client/README.md`](./src/main/java/com/example/demo/client/README.md) 说明）。
+
+### 旧 Client 包已实现的业务能力（快照清单）
+
+以下为迁移前 `client` 包覆盖的**用户端（/api/v1/client）** 功能，均已迁移至 `com.unibridge.backend` 对应 domain：
+
+| 模块 | 能力 | 主要路径 |
+| --- | --- | --- |
+| **认证 auth** | 个人注册；密码/SMS/邮箱登录；验证码下发；机构两步登录（凭证 + OTP）；Refresh Token；登出 | `/api/v1/client/auth/**` |
+| **笔记 note** | 笔记草稿/发布/更新；图文与视频分栏；详情与草稿读取；XSS 清洗；发布清 Feed 缓存 | `/api/v1/client/notes/**` |
+| **项目 project** | 项目草稿/发布/更新；商业/招募分栏；商业敏感字段隔离；详情与草稿读取 | `/api/v1/client/projects/**` |
+| **个人空间 space** | 个人菜单、空间主页、Home Tab 预览、分页项目/笔记列表 | `/api/v1/client/user-profile/**` |
+| **Feed 推荐 feed** | 首页个性化推送；专区推送（项目/笔记分栏）；换一换（机制 A 分页缓存 / 机制 B `seed` 洗牌）；相似笔记；行为埋点加权 | `/api/v1/client/feed/**` |
+| **互动 interaction** | 点赞/收藏 toggle；播放/阅读计数同步；Feed 缓存失效 | `/api/v1/client/interactions/**` |
+| **公共能力** | 双 UID 解析（笔记 `content_type_code` / 项目 `project_uid`）；JWT 可选/必选解析；卡片组装（作者/发布主体） | 各 Service 内部 |
+| **基础设施** | IP 属地（ip2region）；请求日志；本地文件上传（封面/视频）；上传安全（MIME/魔数/SVG 清洗）；Spring Cache 本地缓存 | `/uploads/**`、`/api/v1/client/uploads/**` |
+
+同步迁移至新架构、但**不在旧 client 包内**的模块：
+
+| 模块 | 路径 | 说明 |
+| --- | --- | --- |
+| **管理端 admin** | `/api/v1/admin/**` | 主体/用户 CRUD、管理员登录 |
+| **遗留登录 legacy** | `/api/v1/user/login` 等 | 早期演示接口，已重命名为 `LegacyAuthController` 避免 Bean 冲突 |
+| **安全 / 媒体 / 配置** | `infrastructure.*` | XSS、上传安全、Cache、CORS、静态资源映射 |
+
+---
+
+## 快速开始
+
+### 前置条件
+
+- **JDK 21+**
+- **MySQL 8.x**（库名默认 `project_cooperation_platform`）
+- 端口 **8081** 未被占用
+
+### 初始化数据库（Windows PowerShell）
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\init-db.ps1
 ```
 
-如果本机 MySQL 密码不是 `111111`：
+密码非默认 `111111` 时：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\init-db.ps1 -MySqlPassword "<你的密码>"
 ```
 
-一键启动后端（默认 `dev` 环境）：
+导入测试数据（可选）：
+
+```powershell
+mysql -uroot -p111111 project_cooperation_platform < insert-test-data.sql
+```
+
+### 启动后端
+
+**推荐：一键脚本（dev 环境）**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start-backend.ps1
 ```
 
-自动监听版本
-
-```
-powershell -ExecutionPolicy Bypass -File .\start-backend-copy.ps1
-```
-
-使用 `prod` 环境启动：
+**Maven 直接启动**
 
 ```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+**指定环境**
+
+```powershell
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.arguments="--spring.profiles.active=prod"
+# 或
 powershell -ExecutionPolicy Bypass -File .\start-backend.ps1 -Profile prod
 ```
 
-UnibridgeBackend 是 UniBridge（产学研合作平台）的后端服务，基于 **Spring Boot 3.5.x** 构建，使用 **MyBatis Plus** 操作 **MySQL** 数据，使用 **JWT** 进行多角色鉴权，统一以 RESTful 接口对接 `apps/web-admin` 管理端与用户/主体端。
+**打包后运行**
 
-接口规范详见仓库根目录的 [`API.md`](./API.md)。
+```powershell
+.\mvnw.cmd clean package -DskipTests
+java -jar target\demo-0.0.1-SNAPSHOT.jar
+```
+
+启动成功后：
+
+```text
+http://localhost:8081
+```
+
+**主类**：`com.unibridge.backend.UnibridgeBackendApplication`
+
+### 常见启动问题
+
+| 现象 | 原因 | 处理 |
+| --- | --- | --- |
+| `Port 8081 was already in use` | 旧 Java 进程未退出 | `netstat -ano \| findstr :8081` → `Stop-Process -Id <PID> -Force` |
+| Maven `exit code: 1` 但日志曾出现 `Tomcat started` | 重复启动或终端中断子进程 | 确认是否已有实例在跑，避免同端口启动两次 |
+| 数据库连接失败 | MySQL 未启动或密码/库名不符 | 检查 `application-dev.properties` |
 
 ---
 
-## 1. 技术栈
+## 技术栈
 
 | 类型 | 选型 | 版本 |
 | --- | --- | --- |
 | 语言 | Java | 21 |
 | 框架 | Spring Boot | 3.5.13 |
 | Web | spring-boot-starter-web | 跟随 Boot |
+| 缓存 | spring-boot-starter-cache（ConcurrentMap，可平滑换 Redis） | 跟随 Boot |
 | ORM | MyBatis Plus (Boot3 Starter) | 3.5.15 |
-| 数据库 | MySQL | 8.x（驱动 `mysql-connector-j`） |
-| 鉴权 | JJWT (`io.jsonwebtoken`) | 0.11.5 |
-| 代码增强 | Lombok | 跟随 Boot |
-| 构建 | Maven (含 `mvnw` Wrapper) | - |
-| 测试 | spring-boot-starter-test / JUnit Jupiter / WebFlux (`WebTestClient`) | 跟随 Boot |
-
-> JDK 要求：**Java 21+**。
-
----
-
-## 2. 项目结构
-
-```
-UnibridgeBackend/
-├── pom.xml                          # Maven 构建配置
-├── mvnw / mvnw.cmd                  # Maven Wrapper
-├── API.md                           # 管理端接口文档（统一约定、分页、鉴权规则、业务接口）
-├── README.md
-└── src/
-    └── main/
-        ├── java/com/example/demo/
-        │   ├── DemoApplication.java          # Spring Boot 启动入口
-        │   ├── admin/                        # admin 领域（已隔离）
-        │   │   ├── controller/
-        │   │   │   ├── AdminAuthController.java  # /api/v1/admin/login
-        │   │   │   └── AdminController.java      # /api/v1/admin 业务接口
-        │   │   ├── service/
-        │   │   │   └── AdminAuthService.java
-        │   │   ├── dto/
-        │   │   │   └── AdminLoginRequest.java
-        │   │   ├── entity/
-        │   │   │   └── SystemAdmin.java
-        │   │   └── mapper/
-        │   │       └── SystemAdminMapper.java
-        │   ├── client/                       # client 领域（登录/注册接口）
-        │   │   ├── controller/
-        │   │   │   └── ClientAuthController.java
-        │   │   ├── service/
-        │   │   │   └── ClientAuthService.java
-        │   │   ├── dto/
-        │   │   │   ├── PersonalRegisterRequest.java
-        │   │   │   ├── PersonalPasswordLoginRequest.java
-        │   │   │   ├── PersonalSmsLoginRequest.java
-        │   │   │   ├── PersonalEmailLoginRequest.java
-        │   │   │   ├── SendCodeRequest.java
-        │   │   │   ├── OrganizationCredentialLoginRequest.java
-        │   │   │   ├── OrganizationOtpLoginRequest.java
-        │   │   │   ├── RegisterResponse.java
-        │   │   │   ├── LoginResponse.java
-        │   │   │   ├── SendCodeResponse.java
-        │   │   │   └── OrganizationCredentialResponse.java
-        │   │   ├── entity/
-        │   │   │   ├── ClientUser.java
-        │   │   │   ├── ClientEntity.java
-        │   │   │   └── UserAuthLink.java
-        │   │   └── mapper/
-        │   │       ├── ClientUserMapper.java
-        │   │       ├── ClientEntityMapper.java
-        │   │       └── UserAuthLinkMapper.java
-        │   ├── common/
-        │   │   └── Result.java               # 统一响应结构 {code, message, data}
-        │   ├── config/
-        │   │   └── WebConfig.java            # 全局 CORS 配置
-        │   ├── controller/
-        │   │   └── AuthController.java       # /api/v1 用户/主体登录、登出
-        │   ├── service/
-        │   │   └── AuthService.java          # 用户/主体登录、登出逻辑
-        │   ├── entity/                       # 数据库实体（MyBatis Plus）
-        │   │   ├── User.java                 # user（个人账号）
-        │   │   └── Entity.java               # entity（主体：高校/企业）
-        │   ├── mapper/                       # MyBatis Plus Mapper
-        │   │   ├── UserProfileMapper.java
-        │   │   └── EntityMapper.java
-        │   ├── dto/                          # 请求 / 响应 DTO
-        │   │   ├── UserLoginRequest.java
-        │   │   ├── EntityLoginRequest.java
-        │   │   ├── UserRegisterRequest.java
-        │   │   ├── EntityCreateRequest.java
-        │   │   └── LoginResponse.java
-        │   ├── util/
-        │   │   └── JwtUtil.java              # JWT 生成 / 解析 / 校验
-        │   └── exception/
-        │       └── GlobalExceptionHandler.java  # 全局异常 → 401 / 403 / 500
-        └── resources/
-            ├── application.properties        # 基础配置（端口、profile、MyBatis Plus）
-            ├── application-dev.properties    # 开发环境数据源
-            └── application-prod.properties   # 生产环境数据源
-```
+| 数据库 | MySQL | 8.x（`mysql-connector-j`） |
+| 鉴权 | JJWT | 0.11.5 |
+| HTML 安全 | Jsoup（XSS 清洗） | 1.22.2 |
+| ID 生成 | jnanoid（笔记 UID 后缀） | 2.0.0 |
+| IP 属地 | ip2region（离线 xdb） | 3.3.7 |
+| 构建 | Maven + Wrapper（`mvnw`） | — |
+| 增强 | Lombok | 跟随 Boot |
 
 ---
 
-## 3. 模块说明
+## 新项目结构（领域纵向切片）
 
-### 3.1 启动入口
-
-`com.example.demo.DemoApplication` 使用 `@SpringBootApplication` 启动，默认监听端口 **8081**（见 `application.properties`）。
-
-### 3.2 统一响应：`common/Result`
-
-所有接口返回统一结构：
-
-```json
-{ "code": 200, "message": "success", "data": {} }
+```text
+src/main/java/com/unibridge/backend/
+│
+├── UnibridgeBackendApplication.java          # 启动入口；scanBasePackages = com.unibridge.backend
+│                                               # MapperScan：persistence + media + admin.mapper
+│
+├── application/                                # 【应用层】跨领域编排 / 共享能力（禁止 domain 间循环依赖）
+│   ├── package-info.java                       # 层职责说明
+│   └── shared/
+│       └── ContentUidResolver.java             # 对外 UID ↔ 内部自增 ID；笔记/项目/互动/Feed 共用
+│
+├── domain/                                     # 【领域层】按业务垂直切片，高内聚
+│   │
+│   ├── auth/                                   # 用户端认证
+│   │   ├── AuthController.java                 # /api/v1/client/auth
+│   │   ├── AuthService.java                    # 注册、多方式登录、OTP、Token 刷新（@Transactional）
+│   │   ├── AccessService.java                  # JWT Bearer 解析（必选 / 可选登录）
+│   │   └── dto/                                # LoginResponse、RegisterRequest 等
+│   │
+│   ├── note/                                   # 笔记生命周期
+│   │   ├── NoteController.java                 # /api/v1/client/notes
+│   │   ├── NoteService.java                    # 草稿/发布/详情；CacheEvict
+│   │   ├── NoteCardAssembler.java              # Feed / 空间卡片 VO
+│   │   ├── NoteAuthorResolver.java             # 作者昵称、机构、头像
+│   │   ├── NoteViewTracker.java                # 阅读去重（内存窗口）
+│   │   └── dto/
+│   │
+│   ├── project/                                # 项目生命周期
+│   │   ├── ProjectController.java              # /api/v1/client/projects
+│   │   ├── ProjectService.java                 # 草稿/发布/详情；商业保密表写入
+│   │   ├── ProjectCardAssembler.java           # 项目卡片（cover/logo 取自主体 profile）
+│   │   ├── ProjectPublisherEntityResolver.java
+│   │   └── dto/
+│   │
+│   ├── space/                                  # 个人空间（原 ClientProfile*）
+│   │   ├── SpaceController.java                # /api/v1/client/user-profile
+│   │   ├── SpaceService.java                   # menu / space / home / 分页 projects & notes
+│   │   └── dto/                                # ProfileSpaceResponse、ProfileNoteItem 等
+│   │
+│   ├── feed/                                   # 推荐与换一换
+│   │   ├── FeedController.java                 # /api/v1/client/feed
+│   │   ├── FeedRecommendationService.java      # 打分、shuffle、相似笔记；@Cacheable
+│   │   ├── FeedShuffleCacheService.java        # 机制 A 分页缓存（独立 Bean + @Lazy 破环）
+│   │   ├── FeedBehaviorService.java            # 行为埋点 → user_tag_interests
+│   │   └── dto/                                # ContentVO、FeedShuffleResponse（含 seed/shuffleMode）
+│   │
+│   ├── interaction/                            # 点赞 / 收藏 / 播放
+│   │   ├── InteractionController.java          # /api/v1/client/interactions
+│   │   ├── InteractionService.java
+│   │   └── dto/
+│   │
+│   ├── admin/                                    # 管理端（Web Admin）
+│   │   ├── controller/                           # AdminAuthController、AdminController
+│   │   ├── service/AdminAuthService.java
+│   │   ├── entity/SystemAdmin.java
+│   │   ├── dto/AdminLoginRequest.java
+│   │   └── mapper/SystemAdminMapper.java         # 由 MapperScan 扫描
+│   │
+│   └── legacy/                                   # 早期 /api/v1 演示登录（与 auth 域隔离命名）
+│       ├── LegacyAuthController.java
+│       ├── LegacyAuthService.java
+│       └── dto/
+│
+└── infrastructure/                               # 【基础设施层】全局共享、与业务解耦
+    │
+    ├── entities/                                 # ORM 实体（统一存放，避免 domain 映射锁死）
+    │   ├── ClientUser.java / ClientNote.java / ClientProject.java
+    │   ├── UserTagInterest.java / UserContentInteraction.java
+    │   └── Entity.java / UserProfile.java        # legacy 管理端表
+    │
+    ├── persistence/mapper/                         # MyBatis Plus Mapper（主持久化）
+    │   ├── ClientNoteMapper.java
+    │   ├── ClientProjectMapper.java
+    │   └── UserAuthLinkMapper.java 等
+    │
+    ├── media/                                    # 本地文件上传（无 OSS 阶段）
+    │   ├── MediaUploadController.java            # /api/v1/client/uploads
+    │   ├── service/MediaUploadService.java
+    │   ├── mapper/FileRecordMapper.java
+    │   └── dto/
+    │
+    ├── config/                                   # 全局配置
+    │   ├── WebConfig.java                        # CORS
+    │   ├── CacheConfig.java                      # home_feed / note_feed / project_feed / similar_notes
+    │   ├── UploadConfig.java                     # /uploads/** 静态映射
+    │   ├── IpRegionConfig.java                   # ip2region xdb 加载
+    │   ├── ApiRequestLoggingFilter.java          # 请求耗时 + IP 日志
+    │   └── IpLocationInterceptor.java
+    │
+    ├── common/                                   # 横切响应与异常
+    │   ├── Result.java                           # { code, message, data }
+    │   ├── BusinessException.java                # 可控业务错误码
+    │   └── GlobalExceptionHandler.java           # 内外隔离：日志详细 / 响应脱敏
+    │
+    ├── security/                                 # 安全专项
+    │   ├── xss/                                  # Jsoup 清洗、JSON 反序列化器
+    │   └── upload/                               # MIME/魔数/SVG/图片重编码/审计
+    │
+    ├── util/                                     # JwtUtil、IpUtil、Uid 生成器等
+    └── web/
+        └── IpLocationDemoController.java         # /api/v1/client/ip-location/demo
 ```
 
-提供工厂方法：`success`、`error`、`unauthorized`（401）、`forbidden`（403），与 `API.md` 中的「通用约定」一一对应。
+### 架构约束（迁移时遵循）
 
-### 3.3 鉴权：`util/JwtUtil`
+1. **纵向切片**：每个 domain 自带 Controller + Service + dto；Mapper/Entity 下沉 `infrastructure`，避免领域间「横向穿透」。
+2. **禁止循环依赖**：例如 `FeedRecommendationService` ⇄ `FeedShuffleCacheService` 通过 `@Lazy` 注入打破；跨域 UID 解析集中在 `application/shared`。
+3. **事务边界**：写操作在 Service 方法上使用 `@Transactional(rollbackFor = Exception.class)`（auth 注册、note/project 发布、互动双写等）。
+4. **缓存一致性**：note/project 发布、`@CacheEvict` 清理 Feed 相关 cache；互动 toggle 同步失效。
+5. **安全响应**：DB/SQL/NPE 等底层异常对外统一模糊话术，详见 `GlobalExceptionHandler`。
 
-- HS256 签名，密钥内置（建议生产环境通过外部配置注入），有效期 **7 天**。
-- Token 中携带 `userId`、`userType`（`ADMIN` / `USER` / `ENTITY`）、`authLevel`。
-- 提供 `generateToken / parseToken / validateToken / getUserId / getUserType / getAuthLevel`。
+### 旧代码对照（迁移映射）
 
-### 3.4 控制器
-
-- `AuthController`（`/api/v1`）
-  - `POST /admin/login`：管理员登录
-  - `POST /user/login`：用户登录
-  - `POST /entity/login`：主体（高校/企业）登录
-  - `POST /logout`：登出，按 `userType` 清理 `last_login_at`
-
-- `AdminController`（`/api/v1/admin`）
-  - 主体：`GET /entities/list`、`GET /entities/{id}`、`POST /entities`、`PUT /entities/{id}`、`DELETE /entities/{id}`
-  - 用户：`GET /users/list`、`GET /users/{id}`、`POST /users`、`PUT /users/{id}`、`DELETE /users/{id}`
-  - 所有接口均先做 `validateToken` → `checkAuth(requiredLevel)`：
-    - 列表 / 详情：`auth_level >= 1`
-    - 新增 / 修改 / 删除：`auth_level >= 2`
-
-### 3.5 服务层：`AuthService`
-
-- `adminLogin`：按 `system_admin.id + password_hash` 校验，更新 `last_login_at`，签发携带 `authLevel` 的 JWT。
-- `userLogin`：按 `userProfile.phone + password_hash` 校验，签发 `USER` 类型 JWT。
-- `entityLogin`：按 `entity.name` 校验，要求 `audit_status = APPROVED`，签发 `ENTITY` 类型 JWT。
-- `logout`：按 `userType` 分支重置 `last_login_at`。
-
-### 3.6 数据层
-
-实体均通过 MyBatis Plus 注解映射，`map-underscore-to-camel-case=true` 自动完成 `snake_case ↔ camelCase` 映射：
-
-| 实体 | 表名 | 主键策略 |
-| --- | --- | --- |
-| `SystemAdmin` | `system_admin` | `IdType.INPUT`（管理员账号字符串） |
-| `UserProfile` | `userProfile` | `IdType.AUTO` |
-| `Entity` | `entity` | `IdType.AUTO` |
-
-Mapper 均继承 `BaseMapper<T>`，无需手写 SQL 即可获得 CRUD + 分页（`Page<T>` + `LambdaQueryWrapper<T>`）。
-
-### 3.7 异常处理
-
-`GlobalExceptionHandler` 拦截 `RuntimeException`：
-
-- 异常信息包含「未授权」或「token错误」→ HTTP 业务码 **401**
-- 异常信息包含「权限不足」→ HTTP 业务码 **403**
-- 其他 → 业务码 **500**
-
-### 3.8 跨域
-
-`WebConfig` 开放以下前端来源（典型 React 开发端口）：
-
-```
-http://localhost:3000
-http://localhost:5173
-http://localhost:5174
-```
-
-允许方法：`GET / POST / PUT / DELETE / OPTIONS`；允许 Header：`Content-Type`、`Authorization`；`allowCredentials = true`。
+| 旧 `com.example.demo.client` | 新 `com.unibridge.backend` |
+| --- | --- |
+| `ClientAuthController` / `ClientAuthService` | `domain/auth/AuthController` / `AuthService` |
+| `ClientAccessService` | `domain/auth/AccessService` |
+| `ClientNoteController` / `ClientNoteService` | `domain/note/NoteController` / `NoteService` |
+| `ClientProjectController` / `ClientProjectService` | `domain/project/ProjectController` / `ProjectService` |
+| `ClientProfileController` / `ClientProfileService` | `domain/space/SpaceController` / `SpaceService` |
+| `FeedRecommendationController` + Services | `domain/feed/FeedController` + Services |
+| `ContentInteractionController` / `Service` | `domain/interaction/*` |
+| `ContentUidResolver` | `application/shared/ContentUidResolver` |
+| `entity/*` + `mapper/*` | `infrastructure/entities/*` + `infrastructure/persistence/mapper/*` |
+| `com.example.demo.common.*` | `infrastructure/common/*` |
+| `com.example.demo.config.*` | `infrastructure/config/*` |
+| `com.example.demo.security.*` | `infrastructure/security/*` |
+| `com.example.demo.media.*` | `infrastructure/media/*` |
 
 ---
 
-## 4. 环境配置
+## 配置说明
 
-### 4.1 基础配置（`src/main/resources/application.properties`）
+### 基础（`src/main/resources/application.properties`）
 
 ```properties
 spring.application.name=demo
@@ -225,159 +293,141 @@ server.port=8081
 spring.profiles.active=dev
 
 mybatis-plus.configuration.map-underscore-to-camel-case=true
-mybatis-plus.configuration.log-impl=org.apache.ibatis.logging.stdout.StdOutImpl
 mybatis-plus.global-config.db-config.id-type=auto
 ```
 
-### 4.2 开发环境（`application-dev.properties`）
+### 开发环境（`application-dev.properties`）
 
-- 数据源：`jdbc:mysql://localhost:3306/project_cooperation_platform`
-- 用户名 / 密码：`root` / `111111`
-
-### 4.3 生产环境（`application-prod.properties`）
-
-- 数据源：`jdbc:mysql://60.205.143.96:3306/project_cooperation_platform`
-- 用户名 / 密码：`project_cooperation_platform` / `111111`
-
-> 切换环境：修改 `spring.profiles.active=dev|prod`，或在启动时使用 `--spring.profiles.active=prod` 覆盖。
-
-### 4.4 数据库
-
-请提前在目标 MySQL 中创建数据库（默认名）：
-
-```sql
-CREATE DATABASE IF NOT EXISTS project_cooperation_platform
-  DEFAULT CHARACTER SET utf8mb4
-  DEFAULT COLLATE utf8mb4_unicode_ci;
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/project_cooperation_platform?...
+spring.datasource.username=root
+spring.datasource.password=111111
 ```
 
-并建立 `system_admin`、`userProfile`、`entity` 等表（字段参见 `API.md` 与 `entity/` 下实体定义）。
+### 生产环境（`application-prod.properties`）
+
+按部署环境修改数据源；启动时 `--spring.profiles.active=prod`。
+
+### 上传与静态资源（`application.yml`）
+
+```yaml
+file:
+  upload-folder: ${user.home}/unibridge/uploads   # 本地落盘目录
+  access-path: /uploads/**                        # 静态访问前缀
+  public-base-url: http://localhost:8081
+```
 
 ---
 
-## 5. 快速开始
+## 统一响应与鉴权
 
-### 5.1 前置条件
-
-- JDK 21+
-- MySQL 8.x（已创建上述数据库）
-- 端口 `8081` 未被占用
-
-### 5.2 拉取依赖与编译
-
-Windows（PowerShell）：
-
-```powershell
-.\mvnw.cmd clean package -DskipTests
-```
-
-Linux / macOS：
-
-```bash
-./mvnw clean package -DskipTests
-```
-
-### 5.3 启动项目
-
-开发模式（默认 `dev` profile）：
-
-```powershell
-.\mvnw.cmd spring-boot:run
-```
-
-或直接运行打包产物：
-
-```powershell
-java -jar target\demo-0.0.1-SNAPSHOT.jar
-```
-
-切换到生产环境：
-
-```powershell
-java -jar target\demo-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
-```
-
-启动成功后，服务监听：
-
-```
-http://localhost:8081
-```
-
-接口基础路径：`/api/v1`（管理端业务为 `/api/v1/admin`）。
-
-### 5.4 冒烟测试：管理员登录
-
-```bash
-curl -X POST http://localhost:8081/api/v1/admin/login ^
-     -H "Content-Type: application/json" ^
-     -d "{\"adminId\":\"admin_master\",\"passwordHash\":\"<前端 SHA256 哈希>\"}"
-```
-
-成功响应：
+### 响应体 `Result<T>`
 
 ```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "token": "<jwt>",
-    "authLevel": 3,
-    "userId": "admin_master",
-    "userType": "ADMIN"
-  }
-}
+{ "code": 200, "message": "success", "data": {} }
 ```
 
-后续请求带上：
+失败时 `code` 与 HTTP 状态对齐（400/401/403/404/500），业务可读错误走 `BusinessException`；底层异常对外脱敏。
 
-```
-Authorization: Bearer <jwt>
-```
+### JWT
+
+- 用户端 Token 类型：`CLIENT_USER`（`AccessService` 解析）
+- 管理端：`ADMIN` + `authLevel`（1/2/3）
+- 请求头：`Authorization: Bearer <token>`
+
+### 权限速查（管理端）
+
+| `auth_level` | 能力 |
+| --- | --- |
+| 1 | 列表 / 详情 GET |
+| 2 | 新增 POST |
+| 3 | 超级管理员操作 |
 
 ---
 
-## 6. 鉴权与权限速查
-
-| 等级 `auth_level` | 含义 | 主要可调用接口 |
-| --- | --- | --- |
-| 1 | 普通审计 | 列表 / 详情类 GET |
-| 2 | 高级管理 | 主体 / 用户的新增（POST） |
-| 3 | 超级管理员 | 管理员相关管理接口（参见 `API.md`） |
-
-错误码：
-
-- `401`：未携带 token / token 失效 / token 错误
-- `403`：权限不足
-- `500`：服务端运行时异常（统一由 `GlobalExceptionHandler` 兜底）
-
----
-
-## 7. 开发约定
-
-1. **数据库字段命名** 使用 `snake_case`，Java 字段使用 `camelCase`，依赖 MyBatis Plus 自动映射，禁止手动重命名表字段以匹配 Java 习惯。
-2. **统一返回** 必须通过 `Result.success / Result.error` 等工厂方法，不直接返回裸数据。
-3. **鉴权位置** 业务接口在进入业务逻辑前调用 `validateToken` + `checkAuth`，禁止漏校验。
-4. **密码** 一律存储为前端 SHA256 哈希结果（`password_hash`），后端不参与明文处理；接口响应**严禁返回 `password_hash`**。
-5. **时间字段** `created_at` / `updated_at` / `audited_at` 等由后端用服务器时间填充，前端不传。
-6. **新增接口** 请同步更新 `API.md`，保持前后端契约一致。
-
----
-
-## 8. 常用命令
+## 常用 Maven 命令
 
 ```powershell
 .\mvnw.cmd clean                  # 清理 target
-.\mvnw.cmd compile                # 仅编译
+.\mvnw.cmd compile                # 编译（仅 com.unibridge.**）
 .\mvnw.cmd test                   # 运行单测
-.\mvnw.cmd package -DskipTests    # 打 jar（跳过测试）
-.\mvnw.cmd spring-boot:run        # 本地运行（dev profile）
+.\mvnw.cmd package -DskipTests    # 打 jar
+.\mvnw.cmd spring-boot:run        # 本地 dev 启动
+```
+
+指定测试：
+
+```powershell
+.\mvnw.cmd test "-Dtest=XssCleanUtilTest,FileNameSanitizerTest,DemoApplicationTests"
 ```
 
 ---
 
-## 9. TODO / 待补充
+## 冒烟示例
 
-- [ ] 接入更安全的 JWT 密钥来源（环境变量 / Vault），移除硬编码
-- [ ] 完善 `API.md` 中除登录、主体、用户之外模块（实验室、团队、项目、里程碑、任务卡、成就归档、管理员）对应的 Controller / Service / Mapper 实现
-- [ ] 增加单元测试与接口集成测试（已引入 `spring-boot-starter-test` 与 `WebTestClient`）
-- [ ] 引入统一日志、请求链路追踪与全局参数校验（`spring-boot-starter-validation`）
+**Feed 笔记列表**
+
+```bash
+curl "http://localhost:8081/api/v1/client/feed/notes?noteType=IMAGE_TEXT&limit=10"
+```
+
+**换一换（机制 B，每次新 seed）**
+
+```bash
+curl "http://localhost:8081/api/v1/client/feed/notes/shuffle?noteType=IMAGE_TEXT&page=1&size=10&seed=1735689600000"
+```
+
+响应关注字段：`shuffleMode`（`RANDOM_SEED` / `CACHE_PAGE`）、`seed`、`items`。
+
+**管理员登录**
+
+```bash
+curl -X POST http://localhost:8081/api/v1/admin/login ^
+  -H "Content-Type: application/json" ^
+  -d "{\"adminId\":\"admin_master\",\"passwordHash\":\"<SHA256>\"}"
+```
+
+---
+
+## 开发约定
+
+1. **库字段** `snake_case`，Java **camelCase**，依赖 MyBatis Plus 映射。
+2. **密码**仅存前端 SHA256 哈希；响应禁止返回 `password_hash`。
+3. **双 ID**：对外 `uid`（笔记 `TX/VD+11位`、项目 `PR+11位`），对内自增 `id`；商业保密表仅通过内部 `project.id` 访问。
+4. **新增/变更接口** 同步更新 `API.md` / `API-1.md`。
+5. **新功能** 只写在 `com.unibridge.backend` 对应 domain，**勿再向** `com.example.demo.client` 追加代码。
+6. **Feed 换一换**：前端刷新请调 `/shuffle` 并传 **新** `seed`（`Long`，可用 `Date.now()`）；`/feed/notes` 为稳定推荐，带缓存。
+
+---
+
+## 测试
+
+| 测试类 | 说明 |
+| --- | --- |
+| `DemoApplicationTests` | Spring 上下文加载（`UnibridgeBackendApplication`） |
+| `XssCleanUtilTest` | XSS 清洗 |
+| `FileNameSanitizerTest` | 上传文件名消毒 |
+| `AdminControllerTest` | 管理端集成测试（需本地 MySQL + 种子数据） |
+
+---
+
+## 相关文档与脚本
+
+| 文件 | 说明 |
+| --- | --- |
+| [`API.md`](./API.md) | 主接口契约 |
+| [`API-1.md`](./API-1.md) | 增量 API（Feed 卡片字段、XSS 等） |
+| [`db.sql`](./db.sql) | 建表脚本 |
+| [`insert-test-data.sql`](./insert-test-data.sql) | 联调测试数据 |
+| [`init-db.ps1`](./init-db.ps1) | 数据库初始化 |
+| [`start-backend.ps1`](./start-backend.ps1) | 一键启动 |
+
+---
+
+## 后续计划
+
+- [ ] 验证新架构稳定后删除 `com/example/demo/client` 快照目录
+- [ ] JWT 密钥外部化（环境变量 / Vault）
+- [ ] Spring Cache 迁移至 Redis（`CacheConfig` 替换 Manager 即可，domain 零改动）
+- [ ] 补充 Feed / Note / Project 接口集成测试
+- [ ] 可选：将 `SpaceService` 对卡片 Assembler 的依赖上提到 `application` 编排层

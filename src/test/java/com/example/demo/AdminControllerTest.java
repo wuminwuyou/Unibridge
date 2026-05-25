@@ -1,10 +1,11 @@
 package com.example.demo;
 
-import com.example.demo.admin.dto.AdminLoginRequest;
-import com.example.demo.admin.entity.SystemAdmin;
-import com.example.demo.admin.mapper.SystemAdminMapper;
-import com.example.demo.dto.EntityCreateRequest;
-import com.example.demo.dto.UserRegisterRequest;
+import com.unibridge.backend.UnibridgeBackendApplication;
+import com.unibridge.backend.domain.admin.dto.AdminLoginRequest;
+import com.unibridge.backend.domain.admin.entity.SystemAdmin;
+import com.unibridge.backend.domain.admin.mapper.SystemAdminMapper;
+import com.unibridge.backend.domain.legacy.dto.EntityCreateRequest;
+import com.unibridge.backend.domain.legacy.dto.UserRegisterRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +18,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(classes = UnibridgeBackendApplication.class)
 @AutoConfigureMockMvc
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class AdminControllerTest {

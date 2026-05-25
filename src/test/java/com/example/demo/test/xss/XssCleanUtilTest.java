@@ -1,6 +1,6 @@
 package com.example.demo.test.xss;
 
-import com.example.demo.security.xss.XssCleanUtil;
+import com.unibridge.backend.infrastructure.security.xss.XssCleanUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

@@ -133,6 +133,10 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <release>${java.version}</release>
+                    <!-- 仅编译新架构；com.example.demo.client 保留为对照快照，不参与编译 -->
+                    <includes>
+                        <include>com/unibridge/**/*.java</include>
+                    </includes>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
@@ -144,6 +148,9 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.unibridge.backend.UnibridgeBackendApplication</mainClass>
+                </configuration>
             </plugin>
         </plugins>
     </build>

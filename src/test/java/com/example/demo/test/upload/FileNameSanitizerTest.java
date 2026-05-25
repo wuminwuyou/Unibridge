@@ -1,6 +1,6 @@
 package com.example.demo.test.upload;
 
-import com.example.demo.security.upload.FileNameSanitizer;
+import com.unibridge.backend.infrastructure.security.upload.FileNameSanitizer;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
