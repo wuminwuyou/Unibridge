@@ -55,11 +55,12 @@ function resolveInitialExperienceNoteLayoutMode(): ExperienceNoteLayoutMode {
  * - 副作用：发起网络请求
  */
 function ExperienceSharePage() {
-  const { loadState, isShuffling, errorMessage, notes, shuffleNotes } = useNoteFeedData({
-    noteType: 'IMAGE_TEXT',
-    limit: 10,
-    shuffleSize: 10,
-  })
+  const { loadState, isShuffling, isShuffleCooldown, shuffleCooldownSeconds, errorMessage, notes, shuffleNotes } =
+    useNoteFeedData({
+      noteType: 'IMAGE_TEXT',
+      limit: 10,
+      shuffleSize: 10,
+    })
 
   const [isSettingPanelOpen, setIsSettingPanelOpen] = useState<boolean>(false)
   const [layoutMode, setLayoutMode] = useState<ExperienceNoteLayoutMode>(resolveInitialExperienceNoteLayoutMode)
@@ -127,6 +128,8 @@ function ExperienceSharePage() {
     return notes.map((note) => <RowNoteCard key={note.uid ?? note.title} note={note} />)
   }, [notes])
 
+  const isShuffleDisabled = loadState !== 'ready' || isShuffling || isShuffleCooldown
+
   return (
     <div className="experience-share-page">
       <TopNavbar />
@@ -191,11 +194,22 @@ function ExperienceSharePage() {
             <button
               type="button"
               className="experience-note-refresh-button"
-              aria-label="换一换推荐笔记"
-              disabled={loadState !== 'ready' || isShuffling}
+              aria-label={
+                isShuffleCooldown
+                  ? `换一换推荐笔记，${shuffleCooldownSeconds} 秒后可再次操作`
+                  : '换一换推荐笔记'
+              }
+              title={
+                isShuffleCooldown
+                  ? `${shuffleCooldownSeconds} 秒后可再次换一换`
+                  : isShuffling
+                    ? '换一换中…'
+                    : undefined
+              }
+              disabled={isShuffleDisabled}
               onClick={shuffleNotes}
             >
-              换一换
+              {isShuffleCooldown ? `${shuffleCooldownSeconds}秒` : '换一换'}
             </button>
 
             <div

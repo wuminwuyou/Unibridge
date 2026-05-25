@@ -4,7 +4,7 @@ import ProjectCard from '../../../../components/ProjectCard'
 import {
   PROFILE_HOME_NOTE_PREVIEW_LIMIT,
   PROFILE_HOME_PROJECT_PREVIEW_LIMIT,
-} from '../../profileSpacePageData'
+} from '../../variants/PersonalView/personalViewPageData'
 import { useProfileHomeData } from './useProfileHomeData'
 import './ProfileHomeTabContent.css'
 

@@ -4,7 +4,7 @@ import type { ProjectItem } from '../../../../types/project'
 import {
   PROFILE_HOME_NOTE_PREVIEW_LIMIT,
   PROFILE_HOME_PROJECT_PREVIEW_LIMIT,
-} from '../../profileSpacePageData'
+} from '../../variants/PersonalView/personalViewPageData'
 import { mapApiNotes, mapApiProjects } from '../mapProfileTabData'
 import type { ProfileTabLoadState } from '../profileTabLoadState'
 import type { ProfileNoteItem } from '../types'

@@ -1,33 +1,45 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import { getUserProfileSpace, UserProfileApiError } from '../../api/userProfile'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { getUserProfileSpace, UserProfileApiError } from '../../../../api/userProfile'
+import type { ProfileSpaceShellLoadState } from '../../profileSpaceShellTypes'
 import { buildAvatarFallbackUrl, mapUserProfileSpaceData } from './mapUserProfileSpaceData'
-import { profileTabs, SIDEBAR_COLLAPSE_DURATION_MS } from './profileSpacePageData'
-import { resolveProfileTabFromSearch } from './resolveProfileTabFromSearch'
+import { personalViewTabs, SIDEBAR_COLLAPSE_DURATION_MS } from './personalViewPageData'
+import {
+  buildProfileTabPath,
+  extractProfileTabRouteSegment,
+  isSupportedProfileTabRouteSegment,
+  resolveProfileTabFromLegacySearch,
+  resolveProfileTabFromPathname,
+} from './personalTabRouting'
 import type {
-  ProfileSpaceShellLoadState,
   ProfileTab,
   UserCoreProfile,
   UserExtendedProfile,
   UserLaboratoryProfile,
 } from './types'
 
-// 01）个人空间页面 Hook（useProfileSpacePage）
+// 01）个人用户空间视图 Hook（usePersonalViewPage）
 /**
- * 函数名：useProfileSpacePage
- * 功能：聚合个人空间页的 Tab 切换、页壳数据加载、侧栏折叠与布局派生状态。
+ * 函数名：usePersonalViewPage
+ * 功能：聚合 PersonalView 的 Tab 切换、页壳数据加载、侧栏折叠与布局派生状态。
  * 实现方法：
  * - 挂载时请求 GET /user-profile/space 并映射视图模型
- * - 同步 URL tab 查询参数与 activeTab
+ * - 由 URL 路径 /profile[/segment] 驱动 activeTab
  * - 项目/笔记 Tab 激活时折叠并延迟卸载右侧栏
  * 输入：无
  * 输出：
- * - 返回值：ProfileSpacePageModel
- * - 副作用：发起网络请求、更新组件状态、控制滚动位置
+ * - 返回值：PersonalViewModel
+ * - 副作用：发起网络请求、路由跳转、控制滚动位置
  */
-export function useProfileSpacePage() {
+export function usePersonalViewPage() {
   const location = useLocation()
-  const [activeTab, setActiveTab] = useState<ProfileTab>(() => resolveProfileTabFromSearch(location.search))
+  const navigate = useNavigate()
+
+  const activeTab = useMemo<ProfileTab>(
+    () => resolveProfileTabFromPathname(location.pathname),
+    [location.pathname],
+  )
+
   const [shellLoadState, setShellLoadState] = useState<ProfileSpaceShellLoadState>('loading')
   const [shellErrorMessage, setShellErrorMessage] = useState<string | null>(null)
   const [userCoreProfile, setUserCoreProfile] = useState<UserCoreProfile | null>(null)
@@ -54,9 +66,17 @@ export function useProfileSpacePage() {
   }, [isSidebarCollapsed, shouldRenderSidebar])
 
   useEffect(() => {
-    const routeTab = resolveProfileTabFromSearch(location.search)
-    setActiveTab(routeTab)
-  }, [location.search])
+    const legacyTab = resolveProfileTabFromLegacySearch(location.search)
+    if (legacyTab != null) {
+      navigate(buildProfileTabPath(legacyTab), { replace: true })
+      return
+    }
+
+    const segment = extractProfileTabRouteSegment(location.pathname)
+    if (!isSupportedProfileTabRouteSegment(segment)) {
+      navigate('/profile', { replace: true })
+    }
+  }, [location.pathname, location.search, navigate])
 
   useEffect(() => {
     if (!isSidebarCollapsed) {
@@ -75,12 +95,12 @@ export function useProfileSpacePage() {
 
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [location.pathname, location.search])
+  }, [location.pathname])
 
   useEffect(() => {
     let isCancelled = false
 
-    async function loadProfileSpaceShell(): Promise<void> {
+    async function loadPersonalViewShell(): Promise<void> {
       setShellLoadState('loading')
       setShellErrorMessage(null)
 
@@ -111,7 +131,7 @@ export function useProfileSpacePage() {
       }
     }
 
-    void loadProfileSpaceShell()
+    void loadPersonalViewShell()
 
     return () => {
       isCancelled = true
@@ -129,13 +149,16 @@ export function useProfileSpacePage() {
     : ''
 
   const handleTabClick = (tab: ProfileTab): void => {
-    setActiveTab(tab)
+    const targetPath = buildProfileTabPath(tab)
+    if (location.pathname !== targetPath) {
+      navigate(targetPath)
+    }
   }
 
   const isHomeLikeTabActive = activeTab === '主页' || activeTab === '收藏' || activeTab === '设置'
 
   return {
-    profileTabs,
+    profileTabs: personalViewTabs,
     activeTab,
     shellLoadState,
     shellErrorMessage,
@@ -156,4 +179,10 @@ export function useProfileSpacePage() {
   }
 }
 
-export type ProfileSpacePageModel = ReturnType<typeof useProfileSpacePage>
+export type PersonalViewModel = ReturnType<typeof usePersonalViewPage>
+
+/** @deprecated 使用 PersonalViewModel */
+export type ProfileSpacePageModel = PersonalViewModel
+
+/** @deprecated 使用 usePersonalViewPage */
+export const useProfileSpacePage = usePersonalViewPage

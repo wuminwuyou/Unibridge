@@ -23,6 +23,7 @@ const appRouter = createBrowserRouter([
   { path: '/note', element: <NoteSharePage /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/profile', element: <ProfileSpacePage /> },
+  { path: '/profile/:profileTab', element: <ProfileSpacePage /> },
   {
     path: '/verify/organization',
     element: (

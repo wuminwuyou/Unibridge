@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import type { AuthStatus, AuthUserRole } from '../../components/AuthModal'
 import { resolveActiveNavByPathname } from './navRoutes'
+import { isProfileSpacePathname } from '../../pages/ProfileSpace/profileTabRouting'
 
 // 01）顶部导航业务 Hook（useTopNavbar）
 /**
@@ -74,7 +75,7 @@ export function useTopNavbar() {
       return
     }
 
-    if (pathname !== '/profile') {
+    if (!isProfileSpacePathname(pathname)) {
       navigate('/profile')
     }
   }

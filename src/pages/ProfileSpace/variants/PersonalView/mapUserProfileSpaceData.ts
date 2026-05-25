@@ -1,5 +1,5 @@
-import type { UserProfileSpaceData } from '../../api/userProfile'
-import type { LevelCode } from '../../types/level'
+import type { UserProfileSpaceData } from '../../../../api/userProfile'
+import type { LevelCode } from '../../../../types/level'
 import type { UserCoreProfile, UserExtendedProfile, UserLaboratoryProfile } from './types'
 
 // 01）个人空间页壳视图模型类型（ProfileSpaceShellViewModel）

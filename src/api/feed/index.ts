@@ -103,7 +103,29 @@ export async function getHomeFeed(): Promise<HomeFeedData> {
   return getFeedApi<HomeFeedData>('/feed/home')
 }
 
-// 06）首页 Feed 换一换（shuffleHomeFeed）
+// 06）生成混排洗牌 seed（createShuffleSeed）
+/**
+ * 函数名：createShuffleSeed
+ * 功能：为 Feed「换一换」机制 B 生成一次性随机 seed，确保每次点击得到不同排序。
+ * 实现方法：
+ * - 优先使用 crypto.getRandomValues 生成 32 位整数
+ * - 不可用时回退 Date.now()
+ * 输入：无
+ * 输出：
+ * - 返回值：number 类型的 seed
+ * - 副作用：无
+ */
+export function createShuffleSeed(): number {
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const buffer = new Uint32Array(1)
+    crypto.getRandomValues(buffer)
+    return buffer[0]
+  }
+
+  return Date.now()
+}
+
+// 07）首页 Feed 换一换（shuffleHomeFeed）
 /**
  * 函数名：shuffleHomeFeed
  * 功能：调用 GET /feed/home/shuffle 获取混排换一换结果。

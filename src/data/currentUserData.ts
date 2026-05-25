@@ -57,7 +57,7 @@ export const userMenuItems: UserMenuItem[] = [
 
 // 08）用户统计入口 -> 个人空间 Tab 映射（userStatTabMap）
 /**
- * 用途：UserProfileMenu 中点击「动态/项目/笔记」快捷入口时跳转 /profile?tab=xxx 用。
+ * 用途：UserProfileMenu 中点击「动态/项目/笔记」快捷入口时跳转 /profile[/segment] 用。
  */
 export const userStatTabMap: Record<string, string> = {
   动态: '主页',

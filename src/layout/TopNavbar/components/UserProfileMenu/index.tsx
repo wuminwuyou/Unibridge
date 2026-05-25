@@ -23,6 +23,8 @@ import { getUserId } from '../../../../auth/tokenStorage'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { currentUser as fallbackCurrentUser, userStatTabMap } from '../../../../data/currentUserData'
 import VerifiedOrgModal, { VerifiedOrgButton } from '../../../../components/common/VerifiedOrgModal'
+import { buildProfileTabPath, isProfileSpacePathname } from '../../../../pages/ProfileSpace/profileTabRouting'
+import type { ProfileTab } from '../../../../pages/ProfileSpace/variants/PersonalView/types'
 
 // 01）用户头像悬浮菜单常量
 const CLOSE_TIMER_DELAY_MS = 180
@@ -118,8 +120,8 @@ function buildDefaultStats(): UserStatViewItem[] {
 function buildDefaultMenuItems(): UserMenuViewItem[] {
   return [
     { key: 'profile', label: '个人中心', icon: UserRound, targetPath: '/profile' },
-    { key: 'publish', label: '发布管理', icon: Send, targetPath: '/profile?tab=发布' },
-    { key: 'favorite', label: '我的收藏', icon: Star, targetPath: '/profile?tab=收藏' },
+    { key: 'publish', label: '发布管理', icon: Send, targetPath: '/profile' },
+    { key: 'favorite', label: '我的收藏', icon: Star, targetPath: buildProfileTabPath('收藏') },
   ]
 }
 
@@ -306,7 +308,7 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
    */
   const handleUserButtonClick = (): void => {
     clearCloseTimer()
-    if (location.pathname !== PROFILE_PATH) {
+    if (!isProfileSpacePathname(location.pathname)) {
       window.open(PROFILE_PATH, '_blank', 'noopener,noreferrer')
       return
     }
@@ -325,7 +327,8 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
    * - 副作用：触发 window.open 与 state 更新
    */
   const handleQuickEntryClick = (targetTab: string): void => {
-    window.open(`${PROFILE_PATH}?tab=${encodeURIComponent(targetTab)}`, '_blank', 'noopener,noreferrer')
+    const tab = (userStatTabMap[targetTab] ?? '主页') as ProfileTab
+    window.open(buildProfileTabPath(tab), '_blank', 'noopener,noreferrer')
     setIsUserPanelOpen(false)
   }
 

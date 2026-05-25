@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ProjectItem } from '../../types/project'
 import type { ProfileNoteItem } from '../../pages/ProfileSpace/components/types'
+import { useActionCooldown } from '../../hooks/useActionCooldown'
+import { FEED_SHUFFLE_COOLDOWN_MS } from '../../api/feed/constants'
 import { EXPERIENCE_NOTE_BATCH_SIZE, PROJECT_BATCH_SIZE } from './constants'
 import { pickRecommendationBatch } from './recommendationUtils'
 
@@ -50,33 +52,56 @@ export function useProjectChannelLayout({ projects, experienceRecommendedNotes }
       : [],
   )
 
+  const {
+    isOnCooldown: isProjectRefreshCooldown,
+    remainingSeconds: projectRefreshCooldownSeconds,
+    startCooldown: startProjectRefreshCooldown,
+    resetCooldown: resetProjectRefreshCooldown,
+  } = useActionCooldown({ cooldownMs: FEED_SHUFFLE_COOLDOWN_MS })
+
+  const {
+    isOnCooldown: isExperienceRefreshCooldown,
+    remainingSeconds: experienceRefreshCooldownSeconds,
+    startCooldown: startExperienceRefreshCooldown,
+    resetCooldown: resetExperienceRefreshCooldown,
+  } = useActionCooldown({ cooldownMs: FEED_SHUFFLE_COOLDOWN_MS })
+
   // 03）项目批次随数据源刷新副作用（useEffect）
   useEffect(() => {
     setRecommendedProjectBatch(pickRecommendationBatch(projects, projectBatchSize))
-  }, [projects, projectBatchSize])
+    resetProjectRefreshCooldown()
+  }, [projects, projectBatchSize, resetProjectRefreshCooldown])
 
   // 04）经验推荐批次随数据源刷新副作用（useEffect）
   useEffect(() => {
     if (!experienceRecommendedNotes || experienceRecommendedNotes.length === 0) {
       setRecommendedNoteBatch([])
+      resetExperienceRefreshCooldown()
       return
     }
 
     setRecommendedNoteBatch(pickRecommendationBatch(experienceRecommendedNotes, experienceNoteBatchSize))
-  }, [experienceRecommendedNotes, experienceNoteBatchSize])
+    resetExperienceRefreshCooldown()
+  }, [experienceRecommendedNotes, experienceNoteBatchSize, resetExperienceRefreshCooldown])
 
   // 05）项目换一换（handleRefreshProjects）
   const handleRefreshProjects = (): void => {
+    if (isProjectRefreshCooldown) {
+      return
+    }
+
     setRecommendedProjectBatch(pickRecommendationBatch(projects, projectBatchSize))
+    startProjectRefreshCooldown()
   }
 
   // 06）经验推荐换一换（handleRefreshExperienceNotes）
   const handleRefreshExperienceNotes = (): void => {
-    if (!experienceRecommendedNotes || experienceRecommendedNotes.length === 0) {
+    if (!experienceRecommendedNotes || experienceRecommendedNotes.length === 0 || isExperienceRefreshCooldown) {
       return
     }
 
     setRecommendedNoteBatch(pickRecommendationBatch(experienceRecommendedNotes, experienceNoteBatchSize))
+    startExperienceRefreshCooldown()
   }
 
   return {
@@ -84,6 +109,10 @@ export function useProjectChannelLayout({ projects, experienceRecommendedNotes }
     recommendedNoteBatch,
     handleRefreshProjects,
     handleRefreshExperienceNotes,
+    isProjectRefreshCooldown,
+    projectRefreshCooldownSeconds,
+    isExperienceRefreshCooldown,
+    experienceRefreshCooldownSeconds,
   }
 }
 

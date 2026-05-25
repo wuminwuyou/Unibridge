@@ -1,0 +1,260 @@
+/* 01）Personal 变体 Hero 用户信息 */
+.personal-view-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transform: translateY(-5px);
+}
+
+.personal-view-hero__avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  background: linear-gradient(135deg, #81a9ff, #6485d7);
+  object-fit: cover;
+}
+
+.personal-view-hero__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.personal-view-hero__name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.personal-view-hero__name-row h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--profile-text);
+}
+
+.personal-view-hero__verified-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: #f4c542;
+}
+
+.personal-view-hero__bio {
+  margin: 0;
+  font-size: 15px;
+  line-height: 24px;
+  color: var(--profile-text-soft);
+  font-style: italic;
+  max-width: 440px;
+}
+
+.personal-view-hero__facts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.personal-view-hero__facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--profile-fact-text);
+}
+
+.personal-view-hero__edit-button {
+  position: absolute;
+  right: 0;
+  bottom: 24px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--profile-card-border);
+  background: var(--profile-card-bg);
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.personal-view-hero__edit-button:hover {
+  transform: translateY(-1px);
+}
+
+/* 02）Personal 变体右侧拓展卡片内容 */
+.personal-view-side-card__notice {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--profile-side-muted);
+  line-height: 1.6;
+}
+
+.personal-view-info-list {
+  margin: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.personal-view-info-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.personal-view-info-list dt {
+  font-size: 13px;
+  color: #475569;
+}
+
+.personal-view-info-list dd {
+  margin: 0;
+  color: var(--profile-side-title);
+  font-size: 13px;
+}
+
+.personal-view-level-badge {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d09a2f;
+  background: rgba(208, 154, 47, 0.15);
+}
+
+.personal-view-verify-badge {
+  border-radius: 999px;
+  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fef3c7;
+  color: #a16207;
+}
+
+.personal-view-skill-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.personal-view-skill-tags span {
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: #eef4ff;
+  color: #35568b;
+  font-size: 12px;
+}
+
+.personal-view-team-card {
+  margin-top: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--profile-card-border);
+  background: var(--profile-team-bg);
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.personal-view-team-card strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--profile-team-title);
+}
+
+.personal-view-team-card p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.personal-view-team-card button {
+  border: none;
+  border-radius: 999px;
+  padding: 0 12px;
+  height: 32px;
+  background: var(--profile-team-btn-bg);
+  color: var(--profile-team-btn-text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.personal-view-side-card--empty > div {
+  min-height: 90px;
+  margin-top: 12px;
+  border-radius: 16px;
+  border: 1px dashed var(--profile-empty-border);
+  display: grid;
+  place-items: center;
+  color: var(--profile-empty-text);
+  gap: 8px;
+}
+
+.personal-view-side-card--empty p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.personal-view-honor-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--profile-text-soft);
+}
+
+.personal-view-heatmap {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 4px;
+}
+
+.personal-view-heatmap span {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--profile-tab-active) 14%, #ffffff);
+}
+
+.personal-view-heatmap span[data-level='1'] {
+  background: #dce9ff;
+}
+
+.personal-view-heatmap span[data-level='2'] {
+  background: #c4dcff;
+}
+
+.personal-view-heatmap span[data-level='3'] {
+  background: #a2c8ff;
+}
+
+.personal-view-heatmap span[data-level='4'] {
+  background: #7aadff;
+}
+
+@media (max-width: 1024px) {
+  .personal-view-hero__edit-button {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .personal-view-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    transform: translateY(0);
+  }
+}

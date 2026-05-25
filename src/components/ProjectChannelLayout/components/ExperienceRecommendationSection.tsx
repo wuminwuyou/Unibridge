@@ -7,6 +7,8 @@ interface ExperienceRecommendationSectionProps {
   notes: ProfileNoteItem[]
   onRefresh: () => void
   sectionTitle?: string
+  refreshDisabled?: boolean
+  refreshCooldownSeconds?: number
 }
 
 // 02）经验推荐区（ExperienceRecommendationSection）
@@ -28,6 +30,8 @@ function ExperienceRecommendationSection({
   notes,
   onRefresh,
   sectionTitle = '经验推荐',
+  refreshDisabled = false,
+  refreshCooldownSeconds = 0,
 }: ExperienceRecommendationSectionProps) {
   const renderedNoteCards = useMemo(() => {
     return notes.map((note) => <GridNoteCard key={`home-experience-${note.title}`} note={note} />)
@@ -41,8 +45,19 @@ function ExperienceRecommendationSection({
     <article className="home-experience-recommendation" aria-label={sectionTitle}>
       <div className="section-title-row">
         <h2 className="section-title">{sectionTitle}</h2>
-        <button type="button" className="section-refresh-button" onClick={onRefresh}>
-          换一换
+        <button
+          type="button"
+          className="section-refresh-button"
+          disabled={refreshDisabled}
+          title={refreshDisabled && refreshCooldownSeconds > 0 ? `${refreshCooldownSeconds} 秒后可再次换一换` : undefined}
+          aria-label={
+            refreshDisabled && refreshCooldownSeconds > 0
+              ? `换一换${sectionTitle}，${refreshCooldownSeconds} 秒后可再次操作`
+              : `换一换${sectionTitle}`
+          }
+          onClick={onRefresh}
+        >
+          {refreshDisabled && refreshCooldownSeconds > 0 ? `${refreshCooldownSeconds}秒` : '换一换'}
         </button>
       </div>
       <div className="home-experience-recommendation__grid grid-note-card-grid--equal-rows">{renderedNoteCards}</div>
