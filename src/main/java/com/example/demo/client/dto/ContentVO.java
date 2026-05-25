@@ -51,9 +51,20 @@ public class ContentVO {
     @JsonIgnore
     private List<ContentTagLabel> projectTags;
     /** 笔记：发布者昵称 */
-    private String authorName;
+    private String authorNickName;
+    /** 笔记：作者所属学校 / 组织 */
+    private String authorOrganization;
+    /** 笔记：作者头像 URL */
+    private String authorAvatar;
+    /** 笔记：视频时长（仅 VIDEO，格式 MM:SS） */
+    private String videoDuration;
     private Integer views;
+    /** 笔记：点赞数 */
     private Integer likes;
+    /** 笔记：收藏数 */
+    private Integer favorites;
+    /** 笔记：评论数 */
+    private Integer comments;
     private String publishTime;
     /** 推荐分（调试/排序透明，前端可忽略） */
     private Double score;

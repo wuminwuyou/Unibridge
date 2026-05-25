@@ -104,6 +104,9 @@ public class ClientProfileService {
     private ProjectCardAssembler projectCardAssembler;
 
     @Autowired
+    private NoteCardAssembler noteCardAssembler;
+
+    @Autowired
     private ClientProjectMapper clientProjectMapper;
 
     @Autowired
@@ -687,19 +690,7 @@ public class ClientProfileService {
     private List<ProfileNoteItem> buildNoteItems(List<ClientNote> notes) {
         List<ProfileNoteItem> items = new ArrayList<>();
         for (ClientNote note : notes) {
-            items.add(ProfileNoteItem.builder()
-                    .uid(note.getContentTypeCode())
-                    .title(nullSafe(note.getTitle()))
-                    .summary(nullSafe(note.getSummary()))
-                    .contentType(mapNoteContentTypeDisplay(note.getContentTypeCode()))
-                    .tags(parseJsonStringList(note.getTags()))
-                    .publishTime(formatNotePublishTime(resolveDisplayTime(note.getPublishedAt(), note.getCreatedAt())))
-                    .updateTime(formatNoteUpdateTime(note.getUpdatedAt()))
-                    .views(note.getViewCount() == null ? 0 : note.getViewCount())
-                    .comments(note.getCommentCount() == null ? 0 : note.getCommentCount())
-                    .favorites(note.getCollectCount() == null ? 0 : note.getCollectCount())
-                    .cover(nullSafe(note.getCoverUrl()))
-                    .build());
+            items.add(noteCardAssembler.toProfileNoteItem(note));
         }
         return items;
     }

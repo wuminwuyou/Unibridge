@@ -23,7 +23,17 @@ public class ProfileNoteItem {
     private String publishTime;
     private String updateTime;
     private Integer views;
+    /** 点赞数（网格页脚 ThumbsUp） */
+    private Integer likes;
     private Integer comments;
     private Integer favorites;
     private String cover;
+    /** 作者昵称 */
+    private String authorNickName;
+    /** 作者所属学校 / 组织 */
+    private String authorOrganization;
+    /** 作者头像 URL */
+    private String authorAvatar;
+    /** 视频时长（仅视频笔记，格式 MM:SS） */
+    private String videoDuration;
 }

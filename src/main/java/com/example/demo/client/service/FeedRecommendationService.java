@@ -6,11 +6,9 @@ import com.example.demo.client.dto.FeedShuffleResponse;
 import com.example.demo.client.dto.HomeFeedResponse;
 import com.example.demo.client.entity.ClientNote;
 import com.example.demo.client.entity.ClientProject;
-import com.example.demo.client.entity.ClientUserProfile;
 import com.example.demo.client.entity.UserTagInterest;
 import com.example.demo.client.mapper.ClientNoteMapper;
 import com.example.demo.client.mapper.ClientProjectMapper;
-import com.example.demo.client.mapper.ClientUserProfileMapper;
 import com.example.demo.client.mapper.UserTagInterestMapper;
 import com.example.demo.common.BusinessException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -91,25 +89,25 @@ public class FeedRecommendationService {
     private final UserTagInterestMapper userTagInterestMapper;
     private final ClientNoteMapper clientNoteMapper;
     private final ClientProjectMapper clientProjectMapper;
-    private final ClientUserProfileMapper clientUserProfileMapper;
     private final FeedShuffleCacheService feedShuffleCacheService;
     private final ContentUidResolver contentUidResolver;
     private final ProjectCardAssembler projectCardAssembler;
+    private final NoteCardAssembler noteCardAssembler;
 
     public FeedRecommendationService(UserTagInterestMapper userTagInterestMapper,
                                      ClientNoteMapper clientNoteMapper,
                                      ClientProjectMapper clientProjectMapper,
-                                     ClientUserProfileMapper clientUserProfileMapper,
                                      @Lazy FeedShuffleCacheService feedShuffleCacheService,
                                      ContentUidResolver contentUidResolver,
-                                     ProjectCardAssembler projectCardAssembler) {
+                                     ProjectCardAssembler projectCardAssembler,
+                                     NoteCardAssembler noteCardAssembler) {
         this.userTagInterestMapper = userTagInterestMapper;
         this.clientNoteMapper = clientNoteMapper;
         this.clientProjectMapper = clientProjectMapper;
-        this.clientUserProfileMapper = clientUserProfileMapper;
         this.feedShuffleCacheService = feedShuffleCacheService;
         this.contentUidResolver = contentUidResolver;
         this.projectCardAssembler = projectCardAssembler;
+        this.noteCardAssembler = noteCardAssembler;
     }
 
     /**
@@ -118,7 +116,7 @@ public class FeedRecommendationService {
      * 缓存键：{@code userId}。匿名用户使用 {@code userId=0} 走冷启动。
      * </p>
      */
-    @Cacheable(value = "home_feed", key = "#userId")
+    @Cacheable(value = "home_feed", key = "#userId != null ? #userId : 0")
     public HomeFeedResponse getHomeFeed(Long userId) {
         long effectiveUserId = userId == null ? 0L : userId;
         Map<String, Double> tagWeights = loadUserTagWeights(effectiveUserId);
@@ -474,38 +472,11 @@ public class FeedRecommendationService {
     }
 
     private ContentVO toNoteVo(ClientNote note, double score) {
-        LocalDateTime publishTime = resolvePublishTime(note.getPublishedAt(), note.getCreatedAt());
-        return ContentVO.builder()
-                .contentType(CONTENT_TYPE_NOTE)
-                .noteType(resolveNoteType(note.getContentTypeCode()))
-                .uid(ContentUidResolver.notePublicUid(note))
-                .title(note.getTitle())
-                .summary(note.getSummary())
-                .coverUrl(note.getCoverUrl())
-                .noteTags(parseTags(note.getTags()))
-                .authorName(resolveAuthorName(note.getUserId()))
-                .views(nullSafe(note.getViewCount()))
-                .likes(nullSafe(note.getLikeCount()))
-                .publishTime(formatPublishTime(publishTime))
-                .score(roundScore(score))
-                .build();
+        return noteCardAssembler.toFeedNoteVo(note, score);
     }
 
     private ContentVO toProjectVo(ClientProject project, double score) {
         return projectCardAssembler.toFeedProjectVo(project, score);
-    }
-
-    private String resolveAuthorName(Long userId) {
-        if (userId == null) {
-            return "用户";
-        }
-        LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUserProfile::getUserId, userId).last("LIMIT 1");
-        ClientUserProfile profile = clientUserProfileMapper.selectOne(wrapper);
-        if (profile != null && StringUtils.hasText(profile.getNickName())) {
-            return profile.getNickName().trim();
-        }
-        return "用户";
     }
 
     private LocalDateTime resolvePublishTime(LocalDateTime publishedAt, LocalDateTime createdAt) {
