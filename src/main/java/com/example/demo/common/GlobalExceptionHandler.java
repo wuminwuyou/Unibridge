@@ -11,6 +11,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -159,6 +160,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result> handleBadRequest(Exception ex, HttpServletRequest request) {
         logInternalWarn(request, "400", HttpStatus.BAD_REQUEST.value(), ex.getMessage(), ex);
         return buildSafeResponse(HttpStatus.BAD_REQUEST.value(), sanitizeClientMessage(ex.getMessage(), "BAD_REQUEST"));
+    }
+
+    /**
+     * 拦截 query/path 参数类型不匹配（如 {@code seed=Date.now()} 传入仍声明为 {@code Integer} 的旧接口）。
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Result> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
+                                                     HttpServletRequest request) {
+        String detail = ex.getName() + " 参数格式无效";
+        logInternalWarn(request, "400", HttpStatus.BAD_REQUEST.value(), detail, ex);
+        return buildSafeResponse(HttpStatus.BAD_REQUEST.value(), "请求参数不合法");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -75,7 +75,7 @@ public class FeedRecommendationService {
     private static final int HOME_SHUFFLE_DEFAULT_SIZE = 15;
     /** 机制 A：Spring Cache 分页 */
     static final String SHUFFLE_MODE_CACHE_PAGE = "CACHE_PAGE";
-    /** 机制 B：MySQL RAND(seed) 实时伪随机，不缓存 */
+    /** 机制 B：Java Collections.shuffle + Random(seed)，不缓存 */
     static final String SHUFFLE_MODE_RANDOM_SEED = "RANDOM_SEED";
     /** 首页候选池上限（单类型） */
     private static final int HOME_CANDIDATE_LIMIT = 400;
@@ -145,7 +145,7 @@ public class FeedRecommendationService {
      * 首页「换一换」混排推送（笔记 + 项目打碎）。
      * <ul>
      *   <li><b>机制 A</b>：{@code seed == null} → {@code @Cacheable(home_feed, userId_page)} 分页缓存滚动</li>
-     *   <li><b>机制 B</b>：{@code seed != null} → SQL {@code ORDER BY RAND(seed)} 实时洗牌，<b>不缓存</b></li>
+     *   <li><b>机制 B</b>：{@code seed != null} → Java {@code Collections.shuffle} 实时洗牌，<b>不缓存</b></li>
      * </ul>
      *
      * @param userId 当前用户；匿名为 {@code null}（内部归一化为 0）
@@ -154,32 +154,32 @@ public class FeedRecommendationService {
      * @param size   每页条数
      * @return 当前页混排 {@link ContentVO} 列表
      */
-    public List<ContentVO> getHomeFeedWithShuffle(Long userId, Integer seed, int page, int size) {
+    public List<ContentVO> getHomeFeedWithShuffle(Long userId, Long seed, int page, int size) {
         return getHomeFeedShuffleResponse(userId, seed, page, size).getItems();
     }
 
     /**
      * 首页「换一换」完整响应（含 {@code pageWrapped} / {@code shuffleMode} 元数据）。
      */
-    public FeedShuffleResponse getHomeFeedShuffleResponse(Long userId, Integer seed, int page, int size) {
+    public FeedShuffleResponse getHomeFeedShuffleResponse(Long userId, Long seed, int page, int size) {
         long effectiveUserId = userId == null ? 0L : userId;
         int safeSize = normalizeShuffleSize(size, HOME_SHUFFLE_DEFAULT_SIZE);
         long total = countHomeFeedTotal();
 
         if (seed != null) {
-            int safeSeed = sanitizeRandSeed(seed);
+            long safeSeed = sanitizeRandSeed(seed);
             PageWindow window = resolvePageWindow(page, safeSize, total);
             List<ContentVO> items = buildHomeFeedRandomPage(effectiveUserId, safeSeed, window.page(), safeSize);
             log.debug("Home shuffle RANDOM_SEED: userId={}, seed={}, page={}, size={}, total={}",
                     effectiveUserId, safeSeed, window.page(), safeSize, total);
-            return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_RANDOM_SEED);
+            return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_RANDOM_SEED, safeSeed);
         }
 
         PageWindow window = resolvePageWindow(page, safeSize, total);
         List<ContentVO> items = feedShuffleCacheService.getHomeFeedCachedPage(effectiveUserId, window.page(), safeSize);
         log.debug("Home shuffle CACHE_PAGE: userId={}, page={}, size={}, total={}, wrapped={}",
                 effectiveUserId, window.page(), safeSize, total, window.wrapped());
-        return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_CACHE_PAGE);
+        return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_CACHE_PAGE, null);
     }
 
     /**
@@ -187,7 +187,7 @@ public class FeedRecommendationService {
      */
     public FeedShuffleResponse getProjectFeedShuffleResponse(Long userId,
                                                              String category,
-                                                             Integer seed,
+                                                             Long seed,
                                                              int page,
                                                              int size) {
         String normalizedCategory = normalizeProjectCategory(category);
@@ -196,17 +196,17 @@ public class FeedRecommendationService {
         long total = countPublicProjects(normalizedCategory);
 
         if (seed != null) {
-            int safeSeed = sanitizeRandSeed(seed);
+            long safeSeed = sanitizeRandSeed(seed);
             PageWindow window = resolvePageWindow(page, safeSize, total);
             List<ContentVO> items = buildProjectFeedRandomPage(
                     effectiveUserId, normalizedCategory, safeSeed, window.page(), safeSize);
-            return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_RANDOM_SEED);
+            return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_RANDOM_SEED, safeSeed);
         }
 
         PageWindow window = resolvePageWindow(page, safeSize, total);
         List<ContentVO> items = feedShuffleCacheService.getProjectFeedCachedPage(
                 effectiveUserId, normalizedCategory, window.page(), safeSize);
-        return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_CACHE_PAGE);
+        return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_CACHE_PAGE, null);
     }
 
     /**
@@ -214,7 +214,7 @@ public class FeedRecommendationService {
      */
     public FeedShuffleResponse getNoteFeedShuffleResponse(Long userId,
                                                           String noteType,
-                                                          Integer seed,
+                                                          Long seed,
                                                           int page,
                                                           int size) {
         String normalizedNoteType = normalizeNoteType(noteType);
@@ -223,17 +223,17 @@ public class FeedRecommendationService {
         long total = countPublishedNotes(normalizedNoteType);
 
         if (seed != null) {
-            int safeSeed = sanitizeRandSeed(seed);
+            long safeSeed = sanitizeRandSeed(seed);
             PageWindow window = resolvePageWindow(page, safeSize, total);
             List<ContentVO> items = buildNoteFeedRandomPage(
                     effectiveUserId, normalizedNoteType, safeSeed, window.page(), safeSize);
-            return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_RANDOM_SEED);
+            return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_RANDOM_SEED, safeSeed);
         }
 
         PageWindow window = resolvePageWindow(page, safeSize, total);
         List<ContentVO> items = feedShuffleCacheService.getNoteFeedCachedPage(
                 effectiveUserId, normalizedNoteType, window.page(), safeSize);
-        return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_CACHE_PAGE);
+        return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_CACHE_PAGE, null);
     }
 
     /**
@@ -576,11 +576,11 @@ public class FeedRecommendationService {
     }
 
     /**
-     * 机制 B：MySQL {@code ORDER BY RAND(seed)} 拉取候选，再 Java 层跨类型混排。
+     * 机制 B：拉取候选后在 Java 层跨类型混排（与首页 shuffle 一致，避免 MySQL {@code RAND(seed)} 排序失效）。
      */
-    private List<ContentVO> buildHomeFeedRandomPage(long userId, int seed, int page, int size) {
-        List<ClientNote> notes = loadPublishedNotesRandom(seed, HOME_CANDIDATE_LIMIT, null);
-        List<ClientProject> projects = loadPublicProjectsRandom(seed, HOME_CANDIDATE_LIMIT, null);
+    private List<ContentVO> buildHomeFeedRandomPage(long userId, long seed, int page, int size) {
+        List<ClientNote> notes = loadPublishedNotes(HOME_CANDIDATE_LIMIT, null);
+        List<ClientProject> projects = loadPublicProjects(HOME_CANDIDATE_LIMIT, null);
         List<ContentVO> pool = new ArrayList<>(notes.size() + projects.size());
         for (ClientNote note : notes) {
             pool.add(toNoteVo(note, 0.0));
@@ -594,23 +594,25 @@ public class FeedRecommendationService {
 
     private List<ContentVO> buildProjectFeedRandomPage(long userId,
                                                        String category,
-                                                       int seed,
+                                                       long seed,
                                                        int page,
                                                        int size) {
-        List<ContentVO> pool = loadPublicProjectsRandom(seed, HOME_CANDIDATE_LIMIT, category).stream()
+        List<ContentVO> pool = loadPublicProjects(HOME_CANDIDATE_LIMIT, category).stream()
                 .map(project -> toProjectVo(project, 0.0))
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(ArrayList::new));
+        Collections.shuffle(pool, new Random(seed));
         return slicePage(pool, page, size);
     }
 
     private List<ContentVO> buildNoteFeedRandomPage(long userId,
                                                     String noteType,
-                                                    int seed,
+                                                    long seed,
                                                     int page,
                                                     int size) {
-        List<ContentVO> pool = loadPublishedNotesRandom(seed, HOME_CANDIDATE_LIMIT, noteType).stream()
+        List<ContentVO> pool = loadPublishedNotes(HOME_CANDIDATE_LIMIT, noteType).stream()
                 .map(note -> toNoteVo(note, 0.0))
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(ArrayList::new));
+        Collections.shuffle(pool, new Random(seed));
         return slicePage(pool, page, size);
     }
 
@@ -643,7 +645,8 @@ public class FeedRecommendationService {
                                                   PageWindow window,
                                                   int size,
                                                   long total,
-                                                  String shuffleMode) {
+                                                  String shuffleMode,
+                                                  Long seed) {
         return FeedShuffleResponse.builder()
                 .items(items)
                 .page(window.page())
@@ -651,6 +654,7 @@ public class FeedRecommendationService {
                 .total(total)
                 .pageWrapped(window.wrapped())
                 .shuffleMode(shuffleMode)
+                .seed(seed)
                 .build();
     }
 
@@ -676,26 +680,6 @@ public class FeedRecommendationService {
         return clientProjectMapper.selectCount(wrapper);
     }
 
-    private List<ClientNote> loadPublishedNotesRandom(int seed, int limit, String noteType) {
-        LambdaQueryWrapper<ClientNote> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientNote::getStatus, NOTE_STATUS_PUBLISHED);
-        if (noteType != null) {
-            wrapper.likeRight(ClientNote::getContentTypeCode, noteTypeToCodePrefix(noteType));
-        }
-        wrapper.last("ORDER BY RAND(" + seed + ") LIMIT " + limit);
-        return clientNoteMapper.selectList(wrapper);
-    }
-
-    private List<ClientProject> loadPublicProjectsRandom(int seed, int limit, String category) {
-        LambdaQueryWrapper<ClientProject> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(ClientProject::getStatus, PUBLIC_PROJECT_STATUS);
-        if (category != null) {
-            wrapper.eq(ClientProject::getCategory, category);
-        }
-        wrapper.last("ORDER BY RAND(" + seed + ") LIMIT " + limit);
-        return clientProjectMapper.selectList(wrapper);
-    }
-
     private int normalizeShuffleSize(int size, int defaultSize) {
         if (size <= 0) {
             return defaultSize;
@@ -703,8 +687,8 @@ public class FeedRecommendationService {
         return Math.min(size, FEED_MAX_LIMIT);
     }
 
-    /** 将 seed 归一化为非负 int，防止 SQL 注入（仅允许数字常量进入 RAND）。 */
-    private int sanitizeRandSeed(Integer seed) {
+    /** 将 seed 归一化为非负 long，供 {@link Random} 使用。 */
+    private long sanitizeRandSeed(Long seed) {
         return Math.abs(seed);
     }
 

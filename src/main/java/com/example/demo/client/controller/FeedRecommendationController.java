@@ -52,7 +52,7 @@ public class FeedRecommendationController {
     public Result getHomeFeedShuffle(@RequestHeader(value = "Authorization", required = false) String authorization,
                                      @RequestParam(value = "page", defaultValue = "1") int page,
                                      @RequestParam(value = "size", defaultValue = "15") int size,
-                                     @RequestParam(value = "seed", required = false) Integer seed) {
+                                     @RequestParam(value = "seed", required = false) Long seed) {
         Long userId = clientAccessService.resolveOptionalCurrentUserId(authorization);
         FeedShuffleResponse response = feedRecommendationService.getHomeFeedShuffleResponse(
                 userId, seed, page, size);
@@ -78,7 +78,7 @@ public class FeedRecommendationController {
                                         @RequestParam("category") String category,
                                         @RequestParam(value = "page", defaultValue = "1") int page,
                                         @RequestParam(value = "size", defaultValue = "10") int size,
-                                        @RequestParam(value = "seed", required = false) Integer seed) {
+                                        @RequestParam(value = "seed", required = false) Long seed) {
         Long userId = clientAccessService.resolveOptionalCurrentUserId(authorization);
         FeedShuffleResponse response = feedRecommendationService.getProjectFeedShuffleResponse(
                 userId, category, seed, page, size);
@@ -104,7 +104,7 @@ public class FeedRecommendationController {
                                      @RequestParam("noteType") String noteType,
                                      @RequestParam(value = "page", defaultValue = "1") int page,
                                      @RequestParam(value = "size", defaultValue = "10") int size,
-                                     @RequestParam(value = "seed", required = false) Integer seed) {
+                                     @RequestParam(value = "seed", required = false) Long seed) {
         Long userId = clientAccessService.resolveOptionalCurrentUserId(authorization);
         FeedShuffleResponse response = feedRecommendationService.getNoteFeedShuffleResponse(
                 userId, noteType, seed, page, size);

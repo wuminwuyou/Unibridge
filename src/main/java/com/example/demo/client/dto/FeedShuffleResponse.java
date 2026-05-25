@@ -35,7 +35,10 @@ public class FeedShuffleResponse {
 
     /**
      * 打散机制：{@code CACHE_PAGE}（机制 A，走 Spring Cache）|
-     * {@code RANDOM_SEED}（机制 B，MySQL {@code RAND(seed)} 实时洗牌，不缓存）。
+     * {@code RANDOM_SEED}（机制 B，Java {@code Collections.shuffle} + {@code Random(seed)}，不缓存）。
      */
     private String shuffleMode;
+
+    /** 机制 B 实际生效的随机种子（便于前端调试；机制 A 为 {@code null}） */
+    private Long seed;
 }
