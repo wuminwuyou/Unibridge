@@ -116,7 +116,7 @@ export const homePageExperienceNotes: ProfileNoteItem[] = [
     comments: 88,
     favorites: 203,
     cover: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=600&q=80',
-    authorName: '李学长',
+    authorNickname: '李学长',
     authorOrganization: '清华大学',
   },
   {
@@ -154,7 +154,7 @@ export const homePageExperienceNotes: ProfileNoteItem[] = [
     comments: 49,
     favorites: 121,
     cover: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=600&q=80',
-    authorName: '王老师',
+    authorNickname: '王老师',
     authorOrganization: '深圳技术大学',
     videoDuration: '08:16',
   },

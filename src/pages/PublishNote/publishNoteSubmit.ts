@@ -2,6 +2,9 @@ import type { NotePublishAction, UpsertNoteRequest } from '../../api/notes/types
 import { NotesApiError, uploadNoteCover } from '../../api/notes'
 import { pickNoteCoverUrlFromUploadData } from '../../api/notes/payload'
 import type { ContentLongtext } from '../../components/Reader'
+import {
+  resolvePublishNoteSummary,
+} from '../../utils/publishSummary'
 import type { PublishNoteCoverModel, PublishNoteCoverSource } from './usePublishNoteCover'
 import type { PublishNoteFormDraft } from './publishNotePageData'
 
@@ -39,6 +42,7 @@ export function validatePublishNoteSubmit(
   videoFile: File | null,
   persistedMedia: PublishNoteMediaPersist | null,
   publishAction: NotePublishAction,
+  videoDescription: string,
 ): string | null {
   if (!draft.title.trim()) {
     return '请填写笔记标题'
@@ -52,8 +56,20 @@ export function validatePublishNoteSubmit(
     return null
   }
 
-  if (!draft.summary.trim()) {
-    return '请填写一句话摘要'
+  if (draft.contentType === '图文') {
+    if (!bodyContent.longtext.trim()) {
+      return '请填写图文正文'
+    }
+
+    const resolvedSummary = resolvePublishNoteSummary(
+      draft.summary,
+      draft.contentType,
+      bodyContent.longtext,
+      videoDescription,
+    )
+    if (!resolvedSummary) {
+      return '请填写一句话摘要，或确保正文含有可提取的文字内容'
+    }
   }
 
   if (draft.tags.length === 0) {
@@ -61,9 +77,6 @@ export function validatePublishNoteSubmit(
   }
 
   if (draft.contentType === '图文') {
-    if (!bodyContent.longtext.trim()) {
-      return '请填写图文正文'
-    }
     return null
   }
 
@@ -86,17 +99,22 @@ export function buildUpsertNoteRequest(
   publishAction: NotePublishAction,
   videoUrl?: string | null,
   videoDuration = 0,
+  videoDescription = '',
 ): UpsertNoteRequest {
   const normalizedCoverUrl = coverUrl.trim()
   if (!normalizedCoverUrl) {
     throw new NotesApiError(400, '缺少笔记封面 coverUrl')
   }
 
+  const resolvedSummary =
+    resolvePublishNoteSummary(draft.summary, draft.contentType, bodyContent.longtext, videoDescription) ||
+    '暂无摘要'
+
   if (draft.contentType === '图文') {
     return {
       publishAction,
       title: draft.title.trim(),
-      summary: draft.summary.trim() || '暂无摘要',
+      summary: resolvedSummary,
       contentType: draft.contentType,
       tags: draft.tags,
       coverUrl: normalizedCoverUrl,
@@ -112,7 +130,7 @@ export function buildUpsertNoteRequest(
   return {
     publishAction,
     title: draft.title.trim(),
-    summary: draft.summary.trim() || '暂无摘要',
+    summary: resolvedSummary,
     contentType: draft.contentType,
     tags: draft.tags,
     coverUrl: normalizedCoverUrl,

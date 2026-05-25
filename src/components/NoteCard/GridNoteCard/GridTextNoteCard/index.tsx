@@ -1,4 +1,4 @@
-import { buildNoteDetailHref } from '../../../../pages/NoteDetailPage/shared/noteDetailRouting'
+import { buildNoteDetailHref } from '../../../../pages/NoteReader/shared/noteDetailRouting'
 import { MessageCircleMore } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
@@ -22,6 +22,7 @@ export type GridTextNoteCardNote = GridNoteCardNote
 // 02）图文网格笔记卡片参数（GridTextNoteCardProps）
 interface GridTextNoteCardProps {
   note: GridTextNoteCardNote
+  showAuthor?: boolean
 }
 
 // 03）图文网格笔记卡片组件（GridTextNoteCard）
@@ -33,19 +34,20 @@ interface GridTextNoteCardProps {
  * - 下方 grid-note-card__body：全宽页脚（社交指标 + 发布时间）
  * 输入：
  * - note：笔记卡片数据对象
+ * - showAuthor：是否展示作者信息，默认 true
  * 输出：
  * - 返回值：JSX.Element
  * - 副作用：无
  */
-function GridTextNoteCard({ note }: GridTextNoteCardProps) {
+function GridTextNoteCard({ note, showAuthor = true }: GridTextNoteCardProps) {
   const noteDetailPath = buildNoteDetailHref({
     uid: note.uid,
     title: note.title,
     contentType: note.contentType,
   })
   const typeBadgeLabel = resolveGridNoteTypeBadge('图文')
-  const authorText = resolveGridNoteAuthorText(note)
-  const authorFallback = resolveGridNoteAuthorFallback(note.authorName)
+  const authorText = showAuthor ? resolveGridNoteAuthorText(note) : ''
+  const authorFallback = showAuthor ? resolveGridNoteAuthorFallback(note.authorNickname) : ''
 
   return (
     <Link
@@ -63,11 +65,13 @@ function GridTextNoteCard({ note }: GridTextNoteCardProps) {
             {typeBadgeLabel}
           </span>
           <h3 className="grid-note-card__title grid-text-note-card__title">{note.title}</h3>
-          <GridNoteCardAuthor
-            authorAvatar={note.authorAvatar}
-            authorFallback={authorFallback}
-            authorText={authorText}
-          />
+          {showAuthor ? (
+            <GridNoteCardAuthor
+              authorAvatar={note.authorAvatar}
+              authorFallback={authorFallback}
+              authorText={authorText}
+            />
+          ) : null}
           <p className="grid-text-note-card__summary">{note.summary}</p>
         </div>
 

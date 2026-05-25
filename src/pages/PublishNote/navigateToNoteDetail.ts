@@ -4,8 +4,8 @@ import {
   buildNoteDetailFromPublishNote,
   buildNoteDetailFromPublishNoteVideo,
   saveNoteDetailPreview,
-} from '../NoteDetailPage'
-import type { NoteDetailLocationState, NoteDetailPublishStatus } from '../NoteDetailPage/types'
+} from '../NoteReader'
+import type { NoteDetailLocationState, NoteDetailPublishStatus } from '../NoteReader/types'
 import type { PublishNoteFormDraft } from './publishNotePageData'
 
 // 01）跳转笔记详情（navigateToNoteArticleDetail）
@@ -29,10 +29,18 @@ export function navigateToNoteArticleDetail(
   publishStatus: NoteDetailPublishStatus,
   videoPreviewUrl: string | null = null,
   videoDuration = 0,
+  videoDescription = '',
 ): void {
   const payload =
     draft.contentType === '视频'
-      ? buildNoteDetailFromPublishNoteVideo(draft, coverUrl, videoPreviewUrl, videoDuration, publishStatus)
+      ? buildNoteDetailFromPublishNoteVideo(
+          draft,
+          coverUrl,
+          videoPreviewUrl,
+          videoDuration,
+          publishStatus,
+          videoDescription,
+        )
       : buildNoteDetailFromPublishNote(draft, bodyContent, coverUrl, publishStatus)
 
   saveNoteDetailPreview(payload)

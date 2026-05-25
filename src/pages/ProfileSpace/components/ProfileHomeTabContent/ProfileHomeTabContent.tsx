@@ -1,6 +1,10 @@
 import RowNoteCard from '../../../../components/NoteCard/RowNoteCard'
 import LoadingSpinner from '../../../../components/common/LoadingSpinner'
 import ProjectCard from '../../../../components/ProjectCard'
+import {
+  PROFILE_HOME_NOTE_PREVIEW_LIMIT,
+  PROFILE_HOME_PROJECT_PREVIEW_LIMIT,
+} from '../../profileSpacePageData'
 import { useProfileHomeData } from './useProfileHomeData'
 import './ProfileHomeTabContent.css'
 
@@ -44,10 +48,17 @@ function ProfileHomeTabContent({ onViewAllProjects, onViewAllNotes }: ProfileHom
     )
   }
 
+  const previewProjects = projects.slice(0, PROFILE_HOME_PROJECT_PREVIEW_LIMIT)
+  const previewNotes = notes.slice(0, PROFILE_HOME_NOTE_PREVIEW_LIMIT)
+
   const projectViewAllLabel =
-    projectTotal != null && projectTotal > projects.length ? `查看全部（${projectTotal}）` : '查看全部'
+    projectTotal != null && projectTotal > previewProjects.length
+      ? `查看全部（${projectTotal}）`
+      : '查看全部'
   const noteViewAllLabel =
-    noteTotal != null && noteTotal > notes.length ? `查看全部（${noteTotal}）` : '查看全部'
+    noteTotal != null && noteTotal > previewNotes.length
+      ? `查看全部（${noteTotal}）`
+      : '查看全部'
 
   return (
     <>
@@ -59,8 +70,8 @@ function ProfileHomeTabContent({ onViewAllProjects, onViewAllNotes }: ProfileHom
           </button>
         </header>
         <div className="profile-project-grid">
-          {projects.length > 0 ? (
-            projects.map((project) => (
+          {previewProjects.length > 0 ? (
+            previewProjects.map((project) => (
               <ProjectCard key={`${project.title}-${project.publishTime}`} project={project} />
             ))
           ) : (
@@ -77,8 +88,8 @@ function ProfileHomeTabContent({ onViewAllProjects, onViewAllNotes }: ProfileHom
           </button>
         </header>
         <div className="profile-note-list">
-          {notes.length > 0 ? (
-            notes.map((note) => <RowNoteCard key={note.title} note={note} />)
+          {previewNotes.length > 0 ? (
+            previewNotes.map((note) => <RowNoteCard key={note.title} note={note} />)
           ) : (
             <p className="profile-tab-empty">暂无笔记内容</p>
           )}

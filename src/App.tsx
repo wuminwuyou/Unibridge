@@ -4,7 +4,7 @@ import CampusCoCreationPage from './pages/CampusCoCreation/index.tsx'
 import ProfileSpacePage from './pages/ProfileSpace/index.tsx'
 import NoteSharePage from './pages/NoteShare/index.tsx'
 import ProjectDetailPage from './pages/ProjectDetailPage/ProjectDetailPage.tsx'
-import NoteDetailPage from './pages/NoteDetailPage'
+import NoteReaderPage from './pages/NoteReader'
 import InstantMessagePage from './pages/InstantMessagePage/InstantMessagePage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import OrganizationVerificationPage from './pages/VerificationPage/OrganizationVerificationPage.tsx'
@@ -40,7 +40,7 @@ const appRouter = createBrowserRouter([
     ),
   },
   { path: '/project-detail', element: <ProjectDetailPage /> },
-  { path: '/note-detail', element: <NoteDetailPage /> },
+  { path: '/note-detail', element: <NoteReaderPage /> },
   { path: '/messages', element: <InstantMessagePage /> },
   {
     path: '/publish/project',

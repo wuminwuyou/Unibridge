@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { getUserProfileHome, UserProfileApiError } from '../../../../api/userProfile'
 import type { ProjectItem } from '../../../../types/project'
+import {
+  PROFILE_HOME_NOTE_PREVIEW_LIMIT,
+  PROFILE_HOME_PROJECT_PREVIEW_LIMIT,
+} from '../../profileSpacePageData'
 import { mapApiNotes, mapApiProjects } from '../mapProfileTabData'
 import type { ProfileTabLoadState } from '../profileTabLoadState'
 import type { ProfileNoteItem } from '../types'
@@ -44,13 +48,18 @@ export function useProfileHomeData(): UseProfileHomeDataResult {
       setErrorMessage(null)
 
       try {
-        const homeData = await getUserProfileHome({ projectLimit: 4, noteLimit: 3 })
+        const homeData = await getUserProfileHome({
+          projectLimit: PROFILE_HOME_PROJECT_PREVIEW_LIMIT,
+          noteLimit: PROFILE_HOME_NOTE_PREVIEW_LIMIT,
+        })
         if (isCancelled) {
           return
         }
 
-        setProjects(mapApiProjects(homeData.projects))
-        setNotes(mapApiNotes(homeData.notes))
+        setProjects(
+          mapApiProjects(homeData.projects).slice(0, PROFILE_HOME_PROJECT_PREVIEW_LIMIT),
+        )
+        setNotes(mapApiNotes(homeData.notes).slice(0, PROFILE_HOME_NOTE_PREVIEW_LIMIT))
         setProjectTotal(homeData.projectTotal ?? null)
         setNoteTotal(homeData.noteTotal ?? null)
         setLoadState('ready')

@@ -180,9 +180,148 @@
 
 ---
 
-## 02）文档索引
+## 02）网格笔记卡片字段（GridNoteCard UI 改版，待后端同步）
+
+### 2.1 背景
+
+`GridTextNoteCard` / `GridVideoNoteCard` 已改版，除封面与标题外还需**作者栏**与**页脚社交指标**。前端类型 `ProfileNoteItem`（`GridNoteCard` / `RowNoteCard` 共用）已预留字段，**Feed / 个人空间读接口待补齐**。
+
+> **隐私约定**：笔记为公共区域内容，作者展示名统一使用 **`authorNickname`（昵称）**，**禁止**返回实名 `name` / `realName` / `authorName`。详情页作者信息策略见 `API.md` 第三部分。
+
+| UI 区域 | 使用字段 |
+|---------|----------|
+| 封面 | `coverUrl` → 前端 `cover` |
+| 标题 / 摘要（图文） | `title`、`summary` |
+| 作者栏 | `authorNickname`、`authorOrganization`、`authorAvatar` |
+| 视频时长角标 | `videoDuration`（仅 `noteType=VIDEO`） |
+| 页脚 Eye | `views` |
+| 页脚 Heart | `favorites`（收藏数） |
+| 页脚 ThumbsUp | `likes` → 前端 `comments` |
+| 页脚时间 | `publishTime` |
+
+> **命名说明**：Feed 响应使用 `likes` / `favorites`；前端 `ProfileNoteItem.comments` 承接 **点赞数**（网格页脚 ThumbsUp），`favorites` 承接 **收藏数**（Heart）。行卡片元信息中的「评论」仍用 `comments` 字段，后端若区分评论与点赞请同时返回 `comments`（评论数）与 `likes`（点赞数）。
+
+### 2.2 需跟进的 API
+
+| # | 分类 | Method | Path | 后端 | 前端 mapper |
+|---|------|--------|------|------|-------------|
+| 1 | Feed | GET | `/feed/home` | 待补 `notes[]` 字段 | `mapFeedNoteToProfileNoteItem` 已接 |
+| 2 | Feed | GET | `/feed/notes` | 待补 | 同上 |
+| 3 | Feed | GET | `/feed/notes/shuffle` | 待补 `items[]`（NOTE） | 同上 |
+| 4 | Feed | GET | `/feed/home/shuffle` | 待补 | 同上 |
+| 5 | Feed | GET | `/feed/notes/{uid}/similar` | 待补 | 同上 |
+| 6 | 个人空间 | GET | `/user-profile/home` | 待补 `notes[]` | `mapApiNotes` 已接 |
+| 7 | 个人空间 | GET | `/user-profile/notes` | 待补 | 同上 |
+
+### 2.3 字段契约（Feed 笔记 ContentVO）
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `uid` | string | 是 | 笔记对外 uid（`TX` / `VD` + 11 位） |
+| `noteType` | string | 是 | `IMAGE_TEXT` \| `VIDEO` |
+| `title` | string | 是 | 标题 |
+| `summary` | string | 是 | 摘要（图文卡片正文区） |
+| `coverUrl` | string | 是 | 封面绝对 URL |
+| `tags` | string[] | 是 | 标签（埋点 / 筛选） |
+| `authorNickname` | string | 否 | 作者**昵称**（禁止返回实名 `name`） |
+| `authorOrganization` | string | 否 | 学校 / 组织（作者栏「昵称 · 组织」） |
+| `authorAvatar` | string \| null | 否 | 作者头像 URL |
+| `videoDuration` | string \| number \| null | 否 | 仅视频；推荐 `"MM:SS"` 或秒数 |
+| `views` | number | 否 | 浏览量 |
+| `likes` | number | 否 | 点赞数 → 前端 `comments`（页脚 ThumbsUp） |
+| `favorites` | number | 否 | 收藏数 → 前端 `favorites`（页脚 Heart） |
+| `comments` | number | 否 | 评论数（行卡片元信息；与点赞区分时返回） |
+| `publishTime` | string | 是 | 发布时间 |
+
+个人空间 `notes[]` 使用相同语义；封面字段名为 **`cover`**（非 `coverUrl`），其余作者 / 时长 / 互动字段与上表一致。
+
+### 2.4 Response 示例
+
+#### GET `/feed/home` → `data.notes[]`（图文）
+
+```json
+{
+  "contentType": "NOTE",
+  "noteType": "IMAGE_TEXT",
+  "uid": "TX20212345678",
+  "title": "Spring Boot 实战笔记",
+  "summary": "实践经验总结",
+  "coverUrl": "http://localhost:8081/uploads/covers/xxx.jpg",
+  "tags": ["Spring Boot", "后端"],
+  "authorNickname": "代码小能手",
+  "authorOrganization": "清华大学",
+  "authorAvatar": "http://localhost:8081/uploads/avatars/user.jpg",
+  "views": 128,
+  "likes": 24,
+  "favorites": 9,
+  "comments": 6,
+  "publishTime": "2026-05-10 14:20",
+  "score": 2.415
+}
+```
+
+#### GET `/feed/notes?noteType=VIDEO` → `data[]`（视频）
+
+```json
+{
+  "contentType": "NOTE",
+  "noteType": "VIDEO",
+  "uid": "VD1T1w2K4x6O8",
+  "title": "项目复盘视频",
+  "summary": "5 分钟讲清交付流程",
+  "coverUrl": "http://localhost:8081/uploads/covers/video.jpg",
+  "tags": ["项目管理"],
+  "authorNickname": "复盘君",
+  "authorOrganization": "北京大学",
+  "authorAvatar": null,
+  "videoDuration": "05:12",
+  "views": 256,
+  "likes": 18,
+  "favorites": 12,
+  "publishTime": "2026-05-12 09:00",
+  "score": 2.103
+}
+```
+
+#### GET `/user-profile/home` → `data.notes[]`
+
+```json
+{
+  "uid": "TX20212345678",
+  "title": "大模型 RAG 系统：从原理到项目落地",
+  "summary": "本文梳理检索增强生成系统的关键链路…",
+  "contentType": "图文",
+  "tags": ["人工智能", "RAG"],
+  "cover": "http://localhost:8081/uploads/covers/rag.jpg",
+  "authorNickname": "RAG探索者",
+  "authorOrganization": "复旦大学",
+  "authorAvatar": null,
+  "views": 532,
+  "comments": 36,
+  "favorites": 28,
+  "publishTime": "2024-05-18 19:36",
+  "updateTime": "2024-05-19"
+}
+```
+
+### 2.5 后端实现建议
+
+1. 作者信息 JOIN `user`；列表 Assembler **仅输出 `authorNickname`**，勿暴露 `user.name` / 实名。
+2. `videoDuration`：数据库存秒数时，Assembler 可格式化为 `"MM:SS"` 再返回。
+3. `likes` / `favorites` 与 `note.like_count` / `note.collect_count` 对齐；Feed 排序热度公式仍用 `likes`。
+4. Feed 与个人空间笔记列表建议共用「笔记卡片」Assembler，仅封面字段名不同（`coverUrl` vs `cover`）。
+
+### 2.6 前端跟进清单
+
+- [x] `FeedContentVo` / `mapFeedNoteToProfileNoteItem` 映射作者与时长
+- [x] `UserProfileNoteDto` / `mapApiNotes` 映射作者与时长
+- [ ] 后端按 §2.3 返回字段并联调 GridNoteCard 展示
+
+---
+
+## 03）文档索引
 
 | 文档 | 用途 |
 |------|------|
 | [`API.md`](./API.md) | 全量接口契约（认证、个人空间、发布详情、Feed 与互动） |
-| [`API-request.md`](./API-request.md) | **本文档**：当前迭代待跟进项 |
+| [`API-request.md`](./API-request.md) | **本文档**：当前迭代待跟进项（§01 项目 `coverUrl`、§02 网格笔记卡片） |

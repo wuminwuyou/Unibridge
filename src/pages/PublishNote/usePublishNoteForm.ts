@@ -25,9 +25,10 @@ import {
 import type { NoteResourceUid } from '../../api/resourceUid'
 import { hasPublishNoteUserInput } from './publishNoteFormUtils'
 import { navigateToNoteArticleDetail } from './navigateToNoteDetail'
-import { clearNoteDetailPreview } from '../NoteDetailPage/shared/noteDetailPreviewSession'
+import { clearNoteDetailPreview } from '../NoteReader/shared/noteDetailPreviewSession'
 import type { PublishNoteMediaPersist } from './publishNoteSubmit'
 import { NotesApiError, submitPublishNote, type PublishNoteSubmitPhase } from './submitPublishNote'
+import { resolvePublishNoteSummary } from '../../utils/publishSummary'
 import { usePublishNoteCover, type PublishNoteCoverModel } from './usePublishNoteCover'
 
 export type { PublishNoteCoverModel }
@@ -121,9 +122,14 @@ export function usePublishNoteForm() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitPhase, setSubmitPhase] = useState<PublishNoteSubmitPhase>('idle')
 
+  const displaySummary = useMemo(
+    () => resolvePublishNoteSummary(draft.summary, draft.contentType, bodyContent.longtext, videoDescription),
+    [bodyContent.longtext, draft.contentType, draft.summary, videoDescription],
+  )
+
   const cover = usePublishNoteCover({
     contentType: draft.contentType,
-    summary: draft.summary,
+    summary: displaySummary,
     title: draft.title,
     videoPreviewUrl,
   })
@@ -245,13 +251,13 @@ export function usePublishNoteForm() {
 
     const checkpoints = [
       draft.title.trim().length > 0,
-      draft.summary.trim().length > 0,
+      draft.contentType === '视频' || displaySummary.length > 0,
       hasContent,
       draft.tags.length > 0,
     ]
     const completedCount = checkpoints.filter(Boolean).length
     return Math.round((completedCount / checkpoints.length) * 100)
-  }, [bodyContent.longtext, draft, mediaPersist?.videoUrl, videoFile])
+  }, [bodyContent.longtext, displaySummary, draft, mediaPersist?.videoUrl, videoFile])
 
   const updateField = <K extends keyof PublishNoteFormDraft>(key: K, value: PublishNoteFormDraft[K]): void => {
     setDraft((previous) => ({
@@ -410,6 +416,7 @@ export function usePublishNoteForm() {
           bodyContent,
           cover,
           videoFile,
+          videoDescription,
           noteUid,
           mediaPersist,
           publishAction,
@@ -441,6 +448,7 @@ export function usePublishNoteForm() {
           'PREVIEW',
           previewVideoUrl,
           previewDuration,
+          videoDescription,
         )
         return true
       }
@@ -479,6 +487,7 @@ export function usePublishNoteForm() {
 
   return {
     draft,
+    displaySummary,
     bodyMeta,
     bodyContent,
     tagInput,

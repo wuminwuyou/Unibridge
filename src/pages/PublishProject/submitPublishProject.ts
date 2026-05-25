@@ -4,6 +4,7 @@ import type { ProjectPublishAction } from '../../api/projects/types'
 import { isProjectResourceUid } from '../../api/resourceUid'
 import type { ProjectResourceUid } from '../../api/resourceUid'
 import type { ContentLongtext } from '../../components/Reader'
+import { resolvePublishSummary } from '../../utils/publishSummary'
 import type { PublishProjectFormDraft } from './publishProjectPageData'
 
 // 01）校验项目提交表单（validatePublishProjectSubmit）
@@ -24,12 +25,13 @@ export function validatePublishProjectSubmit(
     return null
   }
 
-  if (!draft.summary.trim()) {
-    return '请填写项目摘要'
-  }
-
   if (!descriptionContent.longtext.trim()) {
     return '请填写项目需求说明'
+  }
+
+  const resolvedSummary = resolvePublishSummary(draft.summary, descriptionContent.longtext)
+  if (!resolvedSummary) {
+    return '请填写项目摘要，或确保需求说明含有可提取的文字内容'
   }
 
   if (!draft.amount.trim()) {

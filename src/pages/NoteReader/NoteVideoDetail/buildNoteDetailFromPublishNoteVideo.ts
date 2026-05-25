@@ -1,3 +1,4 @@
+import { resolvePublishNoteSummary } from '../../../utils/publishSummary'
 import type { PublishNoteFormDraft } from '../../PublishNote/publishNotePageData'
 import type { NoteDetailPublishStatus } from '../shared/noteDetailCommon'
 import type { NoteVideoDetailPayload } from './types'
@@ -21,11 +22,13 @@ export function buildNoteDetailFromPublishNoteVideo(
   videoUrl: string | null,
   videoDuration: number,
   publishStatus: NoteDetailPublishStatus,
+  videoDescription = '',
 ): NoteVideoDetailPayload {
   return {
     contentType: '视频',
     title: draft.title.trim() || '未命名视频笔记',
-    summary: draft.summary.trim() || '暂无简介',
+    summary:
+      resolvePublishNoteSummary(draft.summary, '视频', '', videoDescription) || '暂无简介',
     tags: draft.tags,
     coverUrl,
     videoUrl: videoUrl ?? '',

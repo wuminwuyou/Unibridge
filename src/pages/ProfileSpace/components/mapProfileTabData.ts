@@ -56,6 +56,27 @@ function normalizeNoteContentType(contentType: string): ProfileNoteItem['content
   return contentType === '视频' ? '视频' : '图文'
 }
 
+// 04.1）格式化个人空间笔记视频时长（formatProfileNoteVideoDuration）
+function formatProfileNoteVideoDuration(value: string | number | null | undefined): string | undefined {
+  if (value == null) {
+    return undefined
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed || undefined
+  }
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return undefined
+  }
+
+  const totalSeconds = Math.floor(value)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
 // 03）映射接口项目列表（mapApiProjects）
 /**
  * 函数名：mapApiProjects
@@ -116,5 +137,9 @@ export function mapApiNotes(notes: UserProfileNoteDto[]): ProfileNoteItem[] {
     comments: note.comments,
     favorites: note.favorites,
     cover: note.cover,
+    authorNickname: (note.authorNickname ?? note.authorName)?.trim() || undefined,
+    authorOrganization: note.authorOrganization?.trim() || undefined,
+    authorAvatar: note.authorAvatar?.trim() || undefined,
+    videoDuration: formatProfileNoteVideoDuration(note.videoDuration),
   }))
 }

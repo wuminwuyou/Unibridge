@@ -9,3 +9,10 @@ export const supportedProfileTabs: ReadonlySet<(typeof profileTabs)[number]> = n
 
 // 04）右侧栏折叠动画时长（SIDEBAR_COLLAPSE_DURATION_MS）
 export const SIDEBAR_COLLAPSE_DURATION_MS = 280
+
+// 05）主页 Tab 预览条数上限（PROFILE_HOME_*_PREVIEW_LIMIT）
+/** 个人空间「主页」Tab 项目预览最多展示条数 */
+export const PROFILE_HOME_PROJECT_PREVIEW_LIMIT = 3
+
+/** 个人空间「主页」Tab 笔记预览最多展示条数 */
+export const PROFILE_HOME_NOTE_PREVIEW_LIMIT = 4

@@ -136,16 +136,22 @@
 
 .project-card__tags {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   margin-top: 2px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .project-card__tag {
+  flex-shrink: 0;
   border-radius: 999px;
   padding: 3px 10px;
   font-size: 12px;
   font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
   background: var(--project-card-tag-bg);
   color: var(--project-card-tag-text);
 }

@@ -715,8 +715,8 @@ Authorization: Bearer <access_token>
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `userId` | number | 否 | 目标用户 ID |
-| `projectLimit` | number | 否 | 项目预览条数，默认 `4` |
-| `noteLimit` | number | 否 | 笔记预览条数，默认 `3` |
+| `projectLimit` | number | 否 | 项目预览条数，默认 `3` |
+| `noteLimit` | number | 否 | 笔记预览条数，默认 `4` |
 
 #### Request Data（联调示意）
 
@@ -724,8 +724,8 @@ Authorization: Bearer <access_token>
 {
   "userId": 10001,
   "accessToken": "<access_token>",
-  "projectLimit": 4,
-  "noteLimit": 3
+  "projectLimit": 3,
+  "noteLimit": 4
 }
 ```
 
@@ -793,20 +793,27 @@ Authorization: Bearer <access_token>
 
 > 兼容说明：后端可短期同时返回旧字段 `summary` / `company`；前端 `mapApiProjects` 会映射为 `preview` / `ownerOrganization`。列表**无需** `publisher` / `ownerName`、`amount`（卡片不展示；详情见 `GET /projects/{uid}`）。
 
-**notes[]（ProfileNoteItem）**
+**notes[]（ProfileNoteItem / GridNoteCard / RowNoteCard）**
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
+| `uid` | string | 笔记对外 uid（`TX` / `VD` + 11 位） |
 | `title` | string | 笔记标题 |
 | `summary` | string | 笔记摘要 |
-| `contentType` | string | 内容类型：`图文` / `视频`（笔记 Tab 筛选用） |
+| `contentType` | string | 内容类型：`图文` / `视频` |
 | `tags` | string[] | 话题标签 |
 | `publishTime` | string | 发布时间 |
 | `updateTime` | string | 最近更新时间 |
 | `views` | number | 浏览量 |
-| `comments` | number | 评论数 |
-| `favorites` | number | 收藏数 |
+| `comments` | number | 评论数（行卡片）；Feed 点赞数亦映射至此（网格 ThumbsUp） |
+| `favorites` | number | 收藏数（网格 Heart） |
 | `cover` | string | 封面图 URL |
+| `authorNickname` | string | 作者昵称（网格作者栏；禁止实名） |
+| `authorOrganization` | string | 学校 / 组织 |
+| `authorAvatar` | string \| null | 作者头像 URL |
+| `videoDuration` | string | 视频时长 `MM:SS`（仅视频笔记） |
+
+> 网格卡片增量字段详见 [`API-request.md`](./API-request.md) §02。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -2017,9 +2024,12 @@ sequenceDiagram
       "summary": "实践经验总结",
       "coverUrl": "http://localhost:8081/uploads/covers/xxx.jpg",
       "tags": ["Spring Boot", "后端"],
-      "authorName": "张明",
+      "authorNickname": "代码小能手",
+      "authorOrganization": "清华大学",
+      "authorAvatar": "http://localhost:8081/uploads/avatars/user.jpg",
       "views": 128,
       "likes": 24,
+      "favorites": 9,
       "publishTime": "2026-05-10 14:20",
       "score": 2.415
     }
@@ -2065,7 +2075,13 @@ sequenceDiagram
 | `projectCategory` | 项目 | `COMMERCIAL` \| `RECRUITMENT`；映射前端 `ProjectItem.category` |
 | `recruitmentType` | 项目 | 仅 `RECRUITMENT` 有效，商业为 `null` |
 | `preview` | 项目 | 卡片摘要 → `project.preview` |
-| `coverUrl` | 笔记 / 项目 | 卡片封面图 URL；项目见 [`API-request.md`](./API-request.md) §01 |
+| `coverUrl` | 笔记 / 项目 | 卡片封面图 URL |
+| `authorNickname` | 笔记 | 作者昵称 → `ProfileNoteItem.authorNickname`（**禁止**实名 `name`） |
+| `authorOrganization` | 笔记 | 学校 / 组织 → 作者栏 |
+| `authorAvatar` | 笔记 | 作者头像 URL |
+| `videoDuration` | 笔记 | 仅 `VIDEO`；`MM:SS` 或秒数 |
+| `likes` | 笔记 | 点赞数 → 前端 `comments`（网格 ThumbsUp） |
+| `favorites` | 笔记 | 收藏数 → 前端 `favorites`（网格 Heart） |
 | `tags` | 项目 | `{ label: string }[]`；笔记为 `string[]` |
 | `ownerOrganization` | 项目 | 发布主体名称 |
 | `logoSvgUrl` | 项目 | 主体 Logo SVG；`coverUrl` 缺失时可作回退 |
@@ -2142,7 +2158,7 @@ sequenceDiagram
     "summary": "5 分钟讲清交付流程",
     "coverUrl": "http://localhost:8081/uploads/covers/xxx.jpg",
     "tags": ["项目管理"],
-    "authorName": "李同学",
+    "authorNickname": "复盘君",
     "views": 256,
     "likes": 18,
     "publishTime": "2026-05-12 09:00",

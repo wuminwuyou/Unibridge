@@ -27,6 +27,7 @@ import {
 } from './publishFormSession'
 import type { ProjectResourceUid } from '../../api/resourceUid'
 import { hasPublishProjectUserInput } from './publishProjectFormUtils'
+import { resolvePublishSummary } from '../../utils/publishSummary'
 
 // 01）同步需求说明 longtext 到 draft（syncDraftDescription）
 function syncDraftDescription(draft: PublishProjectFormDraft, descriptionContent: ContentLongtext): PublishProjectFormDraft {
@@ -198,17 +199,22 @@ export function usePublishProjectForm() {
     onConfirmLeave: clearPublishProjectSession,
   })
 
+  const displaySummary = useMemo(
+    () => resolvePublishSummary(draft.summary, descriptionContent.longtext),
+    [descriptionContent.longtext, draft.summary],
+  )
+
   const completionPercent = useMemo<number>(() => {
     const checkpoints = [
       draft.title.trim().length > 0,
-      draft.summary.trim().length > 0,
+      displaySummary.length > 0,
       descriptionContent.longtext.trim().length > 0,
       draft.amount.trim().length > 0,
       draft.skillTags.length > 0,
     ]
     const completedCount = checkpoints.filter(Boolean).length
     return Math.round((completedCount / checkpoints.length) * 100)
-  }, [descriptionContent.longtext, draft])
+  }, [descriptionContent.longtext, displaySummary, draft])
 
   const updateField = <K extends keyof PublishProjectFormDraft>(key: K, value: PublishProjectFormDraft[K]): void => {
     setDraft((previous) => ({
@@ -358,6 +364,7 @@ export function usePublishProjectForm() {
 
   return {
     draft,
+    displaySummary,
     descriptionMeta,
     descriptionContent,
     tagInput,

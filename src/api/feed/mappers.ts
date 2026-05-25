@@ -87,6 +87,38 @@ function mapFeedNoteTypeToContentType(noteType: FeedNoteType | undefined): Profi
   return noteType === 'VIDEO' ? '视频' : '图文'
 }
 
+// 06.1）格式化 Feed 视频时长（formatFeedVideoDuration）
+/**
+ * 函数名：formatFeedVideoDuration
+ * 功能：将 Feed 返回的视频时长转为网格卡片 MM:SS 展示文案。
+ * 实现方法：
+ * - 已是 MM:SS 字符串则直接返回
+ * - 数字按秒数格式化为 MM:SS
+ * 输入：
+ * - value：后端 videoDuration
+ * 输出：
+ * - 返回值：MM:SS 或 undefined
+ */
+function formatFeedVideoDuration(value: string | number | null | undefined): string | undefined {
+  if (value == null) {
+    return undefined
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed || undefined
+  }
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return undefined
+  }
+
+  const totalSeconds = Math.floor(value)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
 // 07）映射 Feed 项目卡片（mapFeedProjectToProjectItem）
 /**
  * 函数名：mapFeedProjectToProjectItem
@@ -146,9 +178,13 @@ export function mapFeedNoteToProfileNoteItem(item: FeedContentVo): ProfileNoteIt
     publishTime,
     updateTime: publishTime,
     views: item.views ?? 0,
-    comments: 0,
-    favorites: item.likes ?? 0,
+    comments: item.likes ?? item.comments ?? 0,
+    favorites: item.favorites ?? 0,
     cover: item.coverUrl?.trim() || '',
+    authorNickname: (item.authorNickname ?? item.authorName)?.trim() || undefined,
+    authorOrganization: item.authorOrganization?.trim() || undefined,
+    authorAvatar: item.authorAvatar?.trim() || undefined,
+    videoDuration: formatFeedVideoDuration(item.videoDuration),
   }
 }
 

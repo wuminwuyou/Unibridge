@@ -39,7 +39,6 @@ export function PublishNoteCoverPicker({ cover, isVideoNote, summary }: PublishN
 
   return (
     <div className="cover-picker">
-      <span className="label-text">封面设置</span>
 
       <div className="cover-picker__options">
         <button

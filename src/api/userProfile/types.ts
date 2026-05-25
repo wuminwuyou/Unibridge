@@ -93,6 +93,14 @@ export interface UserProfileNoteDto {
   comments: number
   favorites: number
   cover: string
+  /** 作者昵称（公共区域禁止返回实名 name） */
+  authorNickname?: string
+  /** @deprecated 请改用 authorNickname */
+  authorName?: string
+  authorOrganization?: string
+  authorAvatar?: string | null
+  /** 视频笔记时长；推荐 `MM:SS` 或秒数 */
+  videoDuration?: string | number | null
 }
 
 // 08）个人空间主页 Tab 响应（UserProfileHomeData）

@@ -1,5 +1,6 @@
 import type { CampusRecruitType, PublishProjectFormDraft } from '../../pages/PublishProject/publishProjectPageData'
 import type { ProjectResourceUid } from '../resourceUid'
+import { resolvePublishSummary } from '../../utils/publishSummary'
 
 // 01）项目发布动作（ProjectPublishAction）
 export type ProjectPublishAction = 'DRAFT' | 'PUBLISH'
@@ -65,7 +66,7 @@ export function buildUpsertProjectRequest(
   return {
     publishAction,
     title: draft.title.trim(),
-    summary: draft.summary.trim(),
+    summary: resolvePublishSummary(draft.summary, description),
     channel: draft.channel,
     campusRecruitType: draft.channel === 'campus' ? draft.campusRecruitType : null,
     description,

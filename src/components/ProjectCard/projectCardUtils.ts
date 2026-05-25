@@ -6,8 +6,8 @@ const SIMPLE_ICONS_CDN_BASE = 'https://cdn.jsdelivr.net/npm/simple-icons@v11/ico
 
 // 02）主体名称 → Logo 图标映射（organizationLogoIconMap）
 const organizationLogoIconMap: Record<string, string> = {
-  腾讯: 'tencent',
-  Tencent: 'tencent',
+  腾讯: 'tencentqq',
+  Tencent: 'tencentqq',
   阿里云: 'alibabacloud',
   Alibaba: 'alibabacloud',
   英伟达: 'nvidia',

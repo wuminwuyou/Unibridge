@@ -27,9 +27,22 @@ export interface FeedContentVo {
   teamSize?: string | null
   duration?: string | null
   coverUrl?: string | null
+  /** 作者昵称（公共区域禁止返回实名 name） */
+  authorNickname?: string
+  /** @deprecated 请改用 authorNickname */
+  authorName?: string
+  authorOrganization?: string
+  authorAvatar?: string | null
+  /** 视频笔记时长；推荐 `MM:SS` 字符串，或秒数 number */
+  videoDuration?: string | number | null
   publishTime?: string
   views?: number
+  /** 点赞数 → 网格卡片页脚 ThumbsUp */
   likes?: number
+  /** 收藏数 → 网格卡片页脚 Heart */
+  favorites?: number
+  /** 评论数 → 行卡片元信息（可选） */
+  comments?: number
   score?: number
 }
 

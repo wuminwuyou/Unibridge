@@ -1,4 +1,4 @@
-export { NoteArticleDetailView } from './NoteArticleDetailView'
+export { TextNoteReaderView } from './TextNoteReaderView'
 export { buildNoteArticleDetailFallback } from './buildNoteArticleDetailFallback'
 export { buildNoteDetailFromProfileNote } from './buildNoteDetailFromProfileNote'
 export { buildNoteDetailFromPublishNote } from './buildNoteDetailFromPublishNote'

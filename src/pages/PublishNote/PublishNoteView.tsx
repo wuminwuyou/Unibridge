@@ -40,6 +40,7 @@ interface PublishNoteViewProps {
 export function PublishNoteView({ form }: PublishNoteViewProps) {
   const {
     draft,
+    displaySummary,
     tagInput,
     suggestedNoteTags,
     completionPercent,
@@ -125,13 +126,22 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
 
               <label className="block space-y-2">
                 <span className="label-text">
-                  一句话摘要 <span className="text-danger">*</span>
+                  一句话摘要{' '}
+                  {isVideoNote ? (
+                    <span className="text-muted">（选填）</span>
+                  ) : (
+                    <span className="text-danger">*</span>
+                  )}
                 </span>
                 <input
                   type="text"
                   value={draft.summary}
                   onChange={(event) => updateField('summary', event.target.value)}
-                  placeholder="概括核心观点，便于列表快速浏览"
+                  placeholder={
+                    isVideoNote
+                      ? '可选；留空时不强制要求简介'
+                      : '可留空，未填写时将自动从正文提取前 50 字'
+                  }
                   className="input-field"
                 />
               </label>
@@ -205,7 +215,7 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
               title="封面"
               description="系统生成或自行上传，选用结果见右侧卡片预览"
             >
-              <PublishNoteCoverPicker cover={cover} isVideoNote={isVideoNote} summary={draft.summary} />
+              <PublishNoteCoverPicker cover={cover} isVideoNote={isVideoNote} summary={displaySummary} />
             </PublishFormSection>
 
             <PublishFormSection
@@ -215,7 +225,7 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
             >
               <div className="space-y-3">
                 <span className="label-text">
-                  话题标签 <span className="text-danger">*</span>
+                  话题标签（请按照重要程度由深入浅排序）<span className="text-danger">*</span>
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {draft.tags.map((tag) => (
@@ -278,7 +288,7 @@ export function PublishNoteView({ form }: PublishNoteViewProps) {
                   {draft.title.trim() || '笔记标题将显示在这里'}
                 </h3>
                 <p className="mt-2 line-clamp-3 text-sm text-muted">
-                  {draft.summary.trim() || '摘要将显示在卡片副标题区域'}
+                  {displaySummary || '摘要将显示在卡片副标题区域'}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {(draft.tags.length > 0 ? draft.tags : ['话题']).slice(0, 3).map((tag) => (

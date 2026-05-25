@@ -1,4 +1,5 @@
 import type { ContentLongtext } from '../../components/Reader'
+import { resolvePublishSummary } from '../../utils/publishSummary'
 import { resolveProjectChannelLabel } from '../PublishProject/publishProjectPageData'
 import type { PublishProjectFormDraft } from '../PublishProject/publishProjectPageData'
 import type { ProjectDetailPayload, ProjectDetailPublishStatus } from './types'
@@ -24,7 +25,7 @@ export function buildProjectDetailPayload(
 ): ProjectDetailPayload {
   return {
     title: draft.title.trim() || '未命名项目',
-    summary: draft.summary.trim() || '暂无摘要',
+    summary: resolvePublishSummary(draft.summary, descriptionContent.longtext) || '暂无摘要',
     channel: draft.channel,
     channelLabel: resolveProjectChannelLabel(draft.channel, draft.campusRecruitType),
     campusRecruitType: draft.campusRecruitType,

@@ -13,7 +13,7 @@ export interface GridNoteCardItem {
   comments: number
   favorites: number
   cover: string
-  authorName?: string
+  authorNickname?: string
   authorOrganization?: string
   authorAvatar?: string
   videoDuration?: string
@@ -41,28 +41,28 @@ export function resolveGridNoteTypeBadge(contentType: NoteContentType): string {
 // 04）解析作者身份展示文案（resolveGridNoteAuthorText）
 /**
  * 函数名：resolveGridNoteAuthorText
- * 功能：合并作者名与学校/组织信息为单行身份栏文案。
+ * 功能：合并作者昵称与学校/组织信息为单行身份栏文案（公共区域不使用实名）。
  * 输入：
- * - note：含 authorName、authorOrganization 的笔记数据
+ * - note：含 authorNickname、authorOrganization 的笔记数据
  * 输出：
  * - 返回值：如「李学长 · 清华大学」
  */
 export function resolveGridNoteAuthorText(
-  note: Pick<GridNoteCardItem, 'authorName' | 'authorOrganization'>,
+  note: Pick<GridNoteCardItem, 'authorNickname' | 'authorOrganization'>,
 ): string {
-  const authorName = note.authorName?.trim() || '匿名作者'
+  const authorNickname = note.authorNickname?.trim() || '匿名用户'
   const organization = note.authorOrganization?.trim()
 
-  return organization ? `${authorName} · ${organization}` : authorName
+  return organization ? `${authorNickname} · ${organization}` : authorNickname
 }
 
 // 05）解析作者头像占位缩写（resolveGridNoteAuthorFallback）
 /**
  * 函数名：resolveGridNoteAuthorFallback
- * 功能：无头像 URL 时取作者名前一字作为圆形占位。
+ * 功能：无头像 URL 时取昵称首字作为圆形占位。
  */
-export function resolveGridNoteAuthorFallback(authorName: string | undefined): string {
-  const trimmed = authorName?.trim()
+export function resolveGridNoteAuthorFallback(authorNickname: string | undefined): string {
+  const trimmed = authorNickname?.trim()
   if (!trimmed) {
     return 'U'
   }

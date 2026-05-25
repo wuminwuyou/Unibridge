@@ -44,6 +44,7 @@ interface PublishProjectViewProps {
 export function PublishProjectView({ form }: PublishProjectViewProps) {
   const {
     draft,
+    displaySummary,
     tagInput,
     suggestedSkillTags,
     completionPercent,
@@ -121,7 +122,7 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
                   type="text"
                   value={draft.summary}
                   onChange={(event) => updateField('summary', event.target.value)}
-                  placeholder="80 字以内，突出价值与交付物"
+                  placeholder="可留空，未填写时将自动从需求说明提取前 50 字"
                   className="input-field"
                 />
               </label>
@@ -155,9 +156,8 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
                       {campusRecruitOptions.map((option) => (
                         <label
                           key={option.value}
-                          className={`campus-recruit-card ${
-                            draft.campusRecruitType === option.value ? 'campus-recruit-card--active' : ''
-                          }`}
+                          className={`campus-recruit-card ${draft.campusRecruitType === option.value ? 'campus-recruit-card--active' : ''
+                            }`}
                         >
                           <input
                             type="radio"
@@ -198,7 +198,7 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
 
               <div className="space-y-3">
                 <span className="label-text">
-                  技能标签 <span className="text-danger">*</span>
+                  技能标签（请按照重要程度由深入浅排序）<span className="text-danger">*</span>
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {draft.skillTags.map((tag) => (
@@ -328,7 +328,7 @@ export function PublishProjectView({ form }: PublishProjectViewProps) {
                   {draft.title.trim() || '项目标题将显示在这里'}
                 </h3>
                 <p className="mt-2 line-clamp-3 text-sm text-muted">
-                  {draft.summary.trim() || '摘要将显示在卡片副标题区域'}
+                  {displaySummary || '摘要将显示在卡片副标题区域'}
                 </p>
                 <p className="mt-4 text-sm font-semibold text-accent">
                   {draft.amount.trim() || '预算待填写'}

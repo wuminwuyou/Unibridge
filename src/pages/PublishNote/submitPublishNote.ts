@@ -19,6 +19,7 @@ export interface SubmitPublishNoteOptions {
   bodyContent: ContentLongtext
   cover: PublishNoteCoverModel
   videoFile: File | null
+  videoDescription: string
   noteUid?: NoteResourceUid | null
   mediaPersist?: PublishNoteMediaPersist | null
   publishAction: NotePublishAction
@@ -88,6 +89,7 @@ export async function submitPublishNote(
     options.videoFile,
     options.mediaPersist ?? null,
     options.publishAction,
+    options.videoDescription,
   )
   if (validationError) {
     throw new NotesApiError(400, validationError)
@@ -114,6 +116,7 @@ export async function submitPublishNote(
     options.publishAction,
     videoUrl,
     videoDuration,
+    options.videoDescription,
   )
 
   const response =

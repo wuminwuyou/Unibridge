@@ -1,4 +1,5 @@
 import type { ContentLongtext } from '../../../components/Reader'
+import { resolvePublishNoteSummary } from '../../../utils/publishSummary'
 import type { PublishNoteFormDraft } from '../../PublishNote/publishNotePageData'
 import type { NoteDetailPublishStatus } from '../shared/noteDetailCommon'
 import type { NoteArticleDetailPayload } from './types'
@@ -24,7 +25,8 @@ export function buildNoteDetailFromPublishNote(
   return {
     contentType: '图文',
     title: draft.title.trim() || '未命名笔记',
-    summary: draft.summary.trim() || '暂无摘要',
+    summary:
+      resolvePublishNoteSummary(draft.summary, '图文', bodyContent.longtext, '') || '暂无摘要',
     body: bodyContent.longtext,
     editorType: bodyContent.editorType,
     tags: draft.tags,

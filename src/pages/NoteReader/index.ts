@@ -1,26 +1,27 @@
-export { default } from './NoteDetailPage'
-export { default as NoteDetailPage } from './NoteDetailPage'
+export { default } from './NoteReaderPage'
+export { default as NoteReaderPage } from './NoteReaderPage'
+export { default as NoteDetailPage } from './NoteReaderPage'
 
 export type {
   NoteDetailContentType,
   NoteDetailPublishStatus,
   NoteDetailAuthor,
-} from './shared/noteDetailCommon'
-export type {
+  NoteArticleDetailPayload,
+  NoteVideoDetailPayload,
   NoteDetailPayload,
   NoteDetailLocationState,
-} from './shared/noteDetailPayload'
+} from './types'
 export { isNoteArticleDetailPayload, isNoteVideoDetailPayload } from './shared/noteDetailPayload'
 export { saveNoteDetailPreview, loadNoteDetailPreview } from './shared/noteDetailPreviewSession'
+export { buildNoteDetailHref, parseNoteDetailUidFromQuery } from './shared/noteDetailRouting'
 
 export {
-  NoteArticleDetailView,
+  TextNoteReaderView,
   buildNoteArticleDetailFallback,
   buildNoteDetailFromProfileNote,
   buildNoteDetailFromPublishNote,
   resolveNoteArticleDetail,
 } from './NoteArticleDetail'
-export type { NoteArticleDetailPayload } from './NoteArticleDetail'
 
 export {
   NoteVideoDetailView,
@@ -29,4 +30,7 @@ export {
   resolveNoteVideoDetail,
   formatVideoDurationLabel,
 } from './NoteVideoDetail'
-export type { NoteVideoDetailPayload } from './NoteVideoDetail'
+
+export { useNoteReaderPage } from './useNoteReaderPage'
+export { useNoteReaderFromApi } from './useNoteReaderFromApi'
+export type { NoteReaderApiLoadState, UseNoteReaderFromApiResult } from './useNoteReaderFromApi'

@@ -1,5 +1,5 @@
 import pauseIconUrl from '../../../../assets/Pause.svg'
-import { buildNoteDetailHref } from '../../../../pages/NoteDetailPage/shared/noteDetailRouting'
+import { buildNoteDetailHref } from '../../../../pages/NoteReader/shared/noteDetailRouting'
 import { Video } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
@@ -22,17 +22,29 @@ export type GridVideoNoteCardNote = GridNoteCardNote
 
 interface GridVideoNoteCardProps {
   note: GridVideoNoteCardNote
+  showAuthor?: boolean
 }
 
-function GridVideoNoteCard({ note }: GridVideoNoteCardProps) {
+// 03）视频网格笔记卡片组件（GridVideoNoteCard）
+/**
+ * 函数名：GridVideoNoteCard
+ * 功能：渲染视频笔记网格卡片；封面区展示时长与播放图标，正文区展示标题与页脚。
+ * 输入：
+ * - note：笔记卡片数据对象
+ * - showAuthor：是否展示作者信息，默认 true
+ * 输出：
+ * - 返回值：JSX.Element
+ * - 副作用：无
+ */
+function GridVideoNoteCard({ note, showAuthor = true }: GridVideoNoteCardProps) {
   const noteDetailPath = buildNoteDetailHref({
     uid: note.uid,
     title: note.title,
     contentType: note.contentType,
   })
   const typeBadgeLabel = resolveGridNoteTypeBadge('视频')
-  const authorText = resolveGridNoteAuthorText(note)
-  const authorFallback = resolveGridNoteAuthorFallback(note.authorName)
+  const authorText = showAuthor ? resolveGridNoteAuthorText(note) : ''
+  const authorFallback = showAuthor ? resolveGridNoteAuthorFallback(note.authorNickname) : ''
   const videoDuration = resolveGridNoteVideoDuration(note.videoDuration)
 
   return (
@@ -57,11 +69,13 @@ function GridVideoNoteCard({ note }: GridVideoNoteCardProps) {
 
       <div className="grid-note-card__body grid-video-note-card__body">
         <h3 className="grid-note-card__title">{note.title}</h3>
-        <GridNoteCardAuthor
-          authorAvatar={note.authorAvatar}
-          authorFallback={authorFallback}
-          authorText={authorText}
-        />
+        {showAuthor ? (
+          <GridNoteCardAuthor
+            authorAvatar={note.authorAvatar}
+            authorFallback={authorFallback}
+            authorText={authorText}
+          />
+        ) : null}
         <GridNoteCardFooter
           views={note.views}
           comments={note.comments}

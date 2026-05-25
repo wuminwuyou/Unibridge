@@ -8,6 +8,10 @@ import type {
   UserProfileSpaceData,
 } from './types'
 
+// 01.1）个人空间主页预览条数（与 profileSpacePageData 保持一致，供 API 默认参数使用）
+export const USER_PROFILE_HOME_PROJECT_LIMIT = 3
+export const USER_PROFILE_HOME_NOTE_LIMIT = 4
+
 // 01）用户资料接口异常类型定义（UserProfileApiError）
 export class UserProfileApiError extends HttpApiError {}
 
@@ -195,8 +199,8 @@ export async function getUserProfileSpace(): Promise<UserProfileSpaceData> {
  * - 调用 GET /user-profile/home
  * - 支持 projectLimit、noteLimit 查询参数
  * 输入：
- * - options.projectLimit：项目预览条数，默认 4
- * - options.noteLimit：笔记预览条数，默认 3
+ * - options.projectLimit：项目预览条数，默认 3
+ * - options.noteLimit：笔记预览条数，默认 4
  * 输出：
  * - 返回值：UserProfileHomeData
  * - 副作用：发起网络请求
@@ -207,8 +211,8 @@ export async function getUserProfileHome(options?: {
 }): Promise<UserProfileHomeData> {
   return getUserProfileApi<UserProfileHomeData>(
     buildUserProfileQueryPath('/user-profile/home', {
-      projectLimit: options?.projectLimit ?? 4,
-      noteLimit: options?.noteLimit ?? 3,
+      projectLimit: options?.projectLimit ?? USER_PROFILE_HOME_PROJECT_LIMIT,
+      noteLimit: options?.noteLimit ?? USER_PROFILE_HOME_NOTE_LIMIT,
     }),
   )
 }

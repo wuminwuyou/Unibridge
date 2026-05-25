@@ -41,7 +41,8 @@ export const suggestedNoteTags: string[] = [
 // 07）发布检查清单（publishNoteChecklistItems）
 export const publishNoteChecklistItems: string[] = [
   '标题简洁且能概括核心观点',
-  '摘要适合在卡片列表中快速浏览',
+  '图文笔记未填摘要时将自动从正文提取前 50 字',
+  '视频笔记简介为选填项',
   '图文需填写正文，视频需上传视频文件',
   '封面可选用系统生成或自行上传',
   '至少添加 1 个话题标签便于检索',

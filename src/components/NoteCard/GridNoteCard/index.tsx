@@ -12,6 +12,8 @@ export { default as GridVideoNoteCard } from './GridVideoNoteCard'
 // 01）网格笔记卡片参数（GridNoteCardProps）
 interface GridNoteCardProps {
   note: GridNoteCardNote
+  /** 是否展示作者头像与昵称，默认 true */
+  showAuthor?: boolean
 }
 
 // 02）网格笔记卡片分发组件（GridNoteCard）
@@ -21,18 +23,20 @@ interface GridNoteCardProps {
  * 实现方法：
  * - contentType 为「视频」时渲染 GridVideoNoteCard
  * - 其余情况渲染 GridTextNoteCard
+ * - showAuthor 为 false 时不渲染作者栏（如个人空间）
  * 输入：
  * - note：笔记卡片数据对象
+ * - showAuthor：是否展示作者信息，默认 true
  * 输出：
  * - 返回值：JSX.Element
  * - 副作用：无
  */
-function GridNoteCard({ note }: GridNoteCardProps) {
+function GridNoteCard({ note, showAuthor = true }: GridNoteCardProps) {
   if (note.contentType === '视频') {
-    return <GridVideoNoteCard note={note} />
+    return <GridVideoNoteCard note={note} showAuthor={showAuthor} />
   }
 
-  return <GridTextNoteCard note={note} />
+  return <GridTextNoteCard note={note} showAuthor={showAuthor} />
 }
 
 export default memo(GridNoteCard)

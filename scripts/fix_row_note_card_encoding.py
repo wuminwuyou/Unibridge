@@ -1,4 +1,14 @@
-import { buildNoteDetailHref } from '../../../pages/NoteReader/shared/noteDetailRouting'
+# 01）修复 RowNoteCard 中文编码（fix_row_note_card_encoding）
+"""
+函数名：fix_row_note_card_encoding
+功能：将 RowNoteCard/index.tsx 以 UTF-8 重写，修复乱码中文注释与字符串字面量。
+"""
+
+from pathlib import Path
+
+TARGET = Path(__file__).resolve().parents[1] / "src/components/NoteCard/RowNoteCard/index.tsx"
+
+CONTENT = '''import { buildNoteDetailHref } from '../../../pages/NoteReader/shared/noteDetailRouting'
 import type { ProfileNoteItem } from '../../../pages/ProfileSpace/components/types'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
@@ -93,3 +103,14 @@ function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
 }
 
 export default memo(RowNoteCard)
+'''
+
+
+def main() -> None:
+    TARGET.parent.mkdir(parents=True, exist_ok=True)
+    TARGET.write_text(CONTENT, encoding="utf-8", newline="\n")
+    print(f"Fixed UTF-8 content written to: {TARGET}")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { clearNoteDetailPreview } from '../../../../pages/NoteReader/shared/noteDetailPreviewSession'
+import { clearPublishNoteSession } from '../../../../pages/PublishNote/publishNoteFormSession'
+import { clearProjectDetailPreview } from '../../../../pages/ProjectDetailPage/projectDetailPreviewSession'
+import { clearPublishProjectSession } from '../../../../pages/PublishProject/publishFormSession'
+import { createPublishEntryFreshLocationState } from './publishEntryNavigation'
 import type { PublishEntryType } from './publishEntryMenuData'
 import { publishEntryMenuOptions } from './publishEntryMenuData'
 
@@ -27,7 +32,7 @@ export interface UsePublishEntryMenuResult {
  * - 未登录时点击触发 onRequireAuth，不展开菜单
  * - 已登录时切换 isMenuOpen 展示向下弹层
  * - 监听 document 点击与 Escape 关闭菜单
- * - 选择 project/note 后跳转对应发布路径并关闭菜单
+ * - 选择 project/note 后清除 session 表单缓存并跳转（携带 publishEntryFresh 标记）
  * 输入：
  * - isAuthenticated：是否已登录
  * - onRequireAuth：未登录时的鉴权回调（通常打开登录弹窗）
@@ -62,8 +67,16 @@ export function usePublishEntryMenu({
       return
     }
 
+    if (type === 'project') {
+      clearPublishProjectSession()
+      clearProjectDetailPreview()
+    } else {
+      clearPublishNoteSession()
+      clearNoteDetailPreview()
+    }
+
     closePublishMenu()
-    navigate(matchedOption.path)
+    navigate(matchedOption.path, { state: createPublishEntryFreshLocationState() })
   }
 
   useEffect(() => {

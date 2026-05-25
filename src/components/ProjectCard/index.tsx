@@ -1,7 +1,7 @@
 import type { ProjectItem } from '../../types/project'
 import LevelBadge from '../common/LevelBadge'
 import { Link } from 'react-router-dom'
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import {
   resolveProjectCardMetaText,
   resolveProjectCardTypeBadge,
@@ -36,13 +36,23 @@ function ProjectCard({ project }: ProjectCardProps) {
   const metaText = resolveProjectCardMetaText(project)
   const logoSvgUrl = resolveProjectLogoSvgUrl(project)
   const logoFallbackText = resolveProjectLogoFallbackText(project.ownerOrganization)
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false)
+
+  const showLogoImage = Boolean(logoSvgUrl) && !logoLoadFailed
 
   return (
     <Link className="project-card project-card--link" to={projectDetailPath} target="_blank" rel="noopener noreferrer">
       <div className="project-card__inner">
         <div className="project-card__logo" aria-hidden="true">
-          {logoSvgUrl ? (
-            <img className="project-card__logo-image" src={logoSvgUrl} alt="" loading="lazy" decoding="async" />
+          {showLogoImage ? (
+            <img
+              className="project-card__logo-image"
+              src={logoSvgUrl ?? undefined}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              onError={() => setLogoLoadFailed(true)}
+            />
           ) : (
             <span className="project-card__logo-fallback">{logoFallbackText}</span>
           )}

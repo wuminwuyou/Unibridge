@@ -14,7 +14,8 @@ export interface ProfileNoteItem {
   comments: number
   favorites: number
   cover: string
-  authorName?: string
+  /** 作者昵称；Feed / 笔记列表等公共区域展示，禁止使用实名 */
+  authorNickname?: string
   authorOrganization?: string
   authorAvatar?: string
   videoDuration?: string

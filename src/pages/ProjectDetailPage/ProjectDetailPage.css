@@ -130,10 +130,18 @@
   overflow: hidden;
 }
 
-/* 02）侧栏：合作信息 */
+/* 02）侧栏：合作信息（桌面端 sticky 固定左侧顶部） */
 .project-detail-sidebar {
   align-self: start;
   min-width: 0;
+}
+
+@media (min-width: 901px) {
+  .project-detail-sidebar {
+    position: sticky;
+    top: var(--detail-sticky-top, 6rem);
+    z-index: 10;
+  }
 }
 
 @media (max-width: 900px) {

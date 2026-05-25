@@ -100,7 +100,9 @@ function ProfileNotesTabContent() {
 
   const isGridMode: boolean = layoutMode === 'grid'
   const renderedGridNoteCards = useMemo(() => {
-    return filteredNotes.map((note) => <GridNoteCard key={note.title} note={note} />)
+    return filteredNotes.map((note) => (
+      <GridNoteCard key={note.title} note={note} showAuthor={false} />
+    ))
   }, [filteredNotes])
 
   const renderedRowNoteCards = useMemo(() => {

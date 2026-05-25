@@ -11,8 +11,8 @@ export interface NoteCardMetaFields {
 
 // 03）笔记内容类型展示文案（noteContentTypeLabelMap）
 const noteContentTypeLabelMap: Record<NoteContentType, string> = {
-  图文: '图文笔记',
-  视频: '视频笔记',
+  图文: '图文',
+  视频: '视频',
 }
 
 // 04）解析笔记卡片类型标签（resolveNoteCardTypeBadge）
