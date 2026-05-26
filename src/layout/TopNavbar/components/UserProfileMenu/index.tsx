@@ -1,60 +1,33 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import {
-  BookOpenText,
-  ChevronRight,
-  FolderKanban,
-  LogOut,
-  MessageCircleMore,
-  Send,
-  Star,
-  UserRound,
-  type LucideIcon,
-} from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronRight, LogOut } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import LevelBadge from '../../../../components/common/LevelBadge'
 import type { LevelCode } from '../../../../types/level'
-import {
-  getCachedUserProfileMenu,
-  getUserProfileMenu,
-  setCachedUserProfileMenu,
-  type UserProfileMenuData,
-} from '../../../../api'
-import { getUserUid, setUserUid } from '../../../../auth/tokenStorage'
 import { useAuth } from '../../../../contexts/AuthContext'
-import { currentUser as fallbackCurrentUser, userStatTabMap } from '../../../../data/currentUserData'
+import { useProfileMenu } from '../../../../contexts/ProfileMenuContext'
+import { currentUser as fallbackCurrentUser } from '../../../../data/currentUserData'
 import VerifiedOrgModal, { VerifiedOrgButton } from '../../../../components/common/VerifiedOrgModal'
-import { buildProfileTabPath, isProfileSpacePathname } from '../../../../pages/ProfileSpace/profileTabRouting'
-import type { ProfileTab } from '../../../../pages/ProfileSpace/variants/PersonalView/types'
+import { isOrganizationAdminRole, resolveSessionEntityCode } from '../../../../auth/organizationSession'
+import { isProfileSpacePathname } from '../../../../pages/ProfileSpace/profileTabRouting'
+import {
+  buildOrganizationSpacePath,
+  extractEntityCodeFromPathname,
+  isOrganizationSpacePathname,
+} from '../../../../pages/ProfileSpace/variants/OrganizationView/organizationTabRouting'
+import {
+  buildDefaultStats,
+  buildOrganizationDefaultMenuItems,
+  buildPersonalDefaultMenuItems,
+  resolveProfileMenuStatPath,
+  type UserMenuViewItem,
+  type UserStatViewItem,
+} from './profileMenuViewUtils'
 
 // 01）用户头像悬浮菜单常量
 const CLOSE_TIMER_DELAY_MS = 180
 const PROFILE_PATH = '/profile'
 
-// 02）用户统计入口视图类型（UserStatViewItem）
-interface UserStatViewItem {
-  label: string
-  icon: LucideIcon
-  targetTab: string
-}
-
-// 03）用户菜单入口视图类型（UserMenuViewItem）
-interface UserMenuViewItem {
-  key: string
-  label: string
-  icon: LucideIcon
-  targetPath: string
-}
-
-// 04）用户头部展示信息类型（UserProfileViewState）
-interface UserProfileViewState {
-  nickname: string
-  verifiedOrganization: string | null
-  level: LevelCode | null
-  avatarUrl: string | null
-  avatarText: string
-}
-
-// 05）用户头像悬浮菜单参数（UserProfileMenuProps）
+// 02）用户头像悬浮菜单参数（UserProfileMenuProps）
 interface UserProfileMenuProps {
   onLogout: () => void
 }
@@ -83,105 +56,7 @@ function normalizeLevelCode(level: string | null): LevelCode | null {
   return levelWhitelist.includes(normalizedLevel as LevelCode) ? (normalizedLevel as LevelCode) : null
 }
 
-// 07）构建默认统计入口（buildDefaultStats）
-/**
- * 函数名：buildDefaultStats
- * 功能：在接口未返回统计项时构建可用的默认统计入口数据。
- * 实现方法：
- * - 读取既有 userStatTabMap 映射，保证跳转行为与旧逻辑一致
- * - 逐项填充图标与目标 tab
- * - 返回固定顺序的“动态/项目/笔记”
- * 输入：无
- * 输出：
- * - 返回值：UserStatViewItem[]
- * - 副作用：无
- */
-function buildDefaultStats(): UserStatViewItem[] {
-  return [
-    { label: '动态', icon: MessageCircleMore, targetTab: userStatTabMap.动态 ?? '主页' },
-    { label: '项目', icon: FolderKanban, targetTab: userStatTabMap.项目 ?? '项目' },
-    { label: '笔记', icon: BookOpenText, targetTab: userStatTabMap.笔记 ?? '笔记' },
-  ]
-}
-
-// 08）构建默认菜单入口（buildDefaultMenuItems）
-/**
- * 函数名：buildDefaultMenuItems
- * 功能：在接口未返回菜单项时构建可用的默认功能菜单数据。
- * 实现方法：
- * - 提供个人中心、发布管理、我的收藏三个默认菜单
- * - 统一补齐 key、图标与目标路由
- * - 返回固定顺序以保持交互一致性
- * 输入：无
- * 输出：
- * - 返回值：UserMenuViewItem[]
- * - 副作用：无
- */
-function buildDefaultMenuItems(): UserMenuViewItem[] {
-  return [
-    { key: 'profile', label: '个人中心', icon: UserRound, targetPath: '/profile' },
-    { key: 'publish', label: '发布管理', icon: Send, targetPath: '/profile' },
-    { key: 'favorite', label: '我的收藏', icon: Star, targetPath: buildProfileTabPath('收藏') },
-  ]
-}
-
-// 09）归一化可空文本（normalizeNullableText）
-/**
- * 函数名：normalizeNullableText
- * 功能：将接口返回的可空文本归一化为可渲染值或 null。
- * 实现方法：
- * - 统一处理 null / undefined / 空字符串
- * - 过滤字符串 "null" / "undefined" 等无效占位值
- * - 返回有效文本，否则返回 null
- * 输入：
- * - value：接口返回的字符串或 null
- * 输出：
- * - 返回值：string | null
- * - 副作用：无
- */
-function normalizeNullableText(value: string | null): string | null {
-  const normalizedValue = (value ?? '').trim()
-  if (!normalizedValue) {
-    return null
-  }
-  const normalizedLowerCaseValue = normalizedValue.toLowerCase()
-  if (normalizedLowerCaseValue === 'null' || normalizedLowerCaseValue === 'undefined') {
-    return null
-  }
-  return normalizedValue
-}
-
-// 10）应用用户菜单数据到页面状态（applyUserProfileMenuData）
-/**
- * 函数名：applyUserProfileMenuData
- * 功能：将接口返回的用户菜单数据转换并写入组件状态。
- * 实现方法：
- * - 按字段优先级更新昵称、等级、头像地址、头像文本与认证主体
- * - 对 level 与 verifiedOrganization 做空值归一化，不可用时置为 null
- * - 保持统计入口和菜单入口使用前端固定配置，不依赖接口字段
- * 输入：
- * - menuData：用户菜单接口数据
- * - setCurrentUserProfile：用户信息状态更新函数
- * 输出：
- * - 返回值：void
- * - 副作用：更新 React 组件状态
- */
-function applyUserProfileMenuData(
-  menuData: UserProfileMenuData,
-  setCurrentUserProfile: Dispatch<SetStateAction<UserProfileViewState>>,
-): void {
-  const normalizedNickname = normalizeNullableText(menuData.nickname) ?? fallbackCurrentUser.nickname
-  const normalizedAvatarUrl = normalizeNullableText(menuData.avatarUrl)
-  setCurrentUserProfile({
-    nickname: normalizedNickname,
-    verifiedOrganization: normalizeNullableText(menuData.verifiedOrganization),
-    level: normalizeLevelCode(menuData.level),
-    avatarUrl: normalizedAvatarUrl,
-    avatarText: normalizedAvatarUrl ? '' : (normalizedNickname || '无').slice(0, 1),
-  })
-}
-
-// 11）用户头像悬浮菜单组件（UserProfileMenu）
+// 03）用户头像悬浮菜单组件（UserProfileMenu）
 /**
  * 函数名：UserProfileMenu
  * 功能：顶部导航右侧的"已登录用户"入口：渲染头像按钮 + 悬停展开的功能面板
@@ -198,20 +73,28 @@ function applyUserProfileMenuData(
  * - 副作用：组件内部 state 与 window.open 跳转
  */
 function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
-  const { isLoggedIn, isHydrated, userProfile, setUserProfile } = useAuth()
+  const { userProfile } = useAuth()
+  const { channel, menuData, isLoading, errorMessage } = useProfileMenu()
+  const isOrganizationAccount = isOrganizationAdminRole(userProfile?.userRole)
+  const sessionEntityCode = resolveSessionEntityCode(userProfile) ?? menuData?.entityCode ?? null
   const [isUserPanelOpen, setIsUserPanelOpen] = useState<boolean>(false)
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false)
-  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfileViewState>({
-    nickname: fallbackCurrentUser.nickname,
-    verifiedOrganization: fallbackCurrentUser.verifiedOrganization,
-    level: fallbackCurrentUser.level,
-    avatarUrl: null,
-    avatarText: fallbackCurrentUser.avatarText,
-  })
-  const [stats, setStats] = useState<UserStatViewItem[]>(() => buildDefaultStats())
-  const [menuItems, setMenuItems] = useState<UserMenuViewItem[]>(() => buildDefaultMenuItems())
   const closeTimerRef = useRef<number | null>(null)
   const location = useLocation()
+
+  const displayTitle = menuData?.title ?? fallbackCurrentUser.nickname
+  const displayAvatarUrl = menuData?.avatarUrl ?? null
+  const displayAvatarText = menuData?.avatarText ?? fallbackCurrentUser.avatarText
+  const displayLevel = (menuData?.level ? normalizeLevelCode(menuData.level) : null) as LevelCode | null
+  const verifiedOrganization = isOrganizationAccount ? null : menuData?.verifiedOrganization ?? null
+
+  const stats = useMemo<UserStatViewItem[]>(() => buildDefaultStats(), [])
+  const menuItems = useMemo<UserMenuViewItem[]>(() => {
+    if (channel === 'organization' && sessionEntityCode) {
+      return buildOrganizationDefaultMenuItems(sessionEntityCode)
+    }
+    return buildPersonalDefaultMenuItems()
+  }, [channel, sessionEntityCode])
 
   // 03）清理延迟关闭定时器（clearCloseTimer）
   const clearCloseTimer = (): void => {
@@ -228,59 +111,7 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
     }
   }, [])
 
-  // 05）菜单数据加载副作用（useEffect）
-  useEffect(() => {
-    if (!isHydrated || !isLoggedIn) {
-      return
-    }
-    let isComponentActive = true
-    const currentUserUid = userProfile?.uid ?? getUserUid()
-
-    void (async () => {
-      try {
-        const cachedMenuData = getCachedUserProfileMenu(currentUserUid)
-        if (cachedMenuData && isComponentActive) {
-          applyUserProfileMenuData(cachedMenuData, setCurrentUserProfile)
-        }
-
-        const menuData = await getUserProfileMenu()
-        if (!isComponentActive) {
-          return
-        }
-        applyUserProfileMenuData(menuData, setCurrentUserProfile)
-
-        const effectiveUserUid = menuData.uid || currentUserUid
-        if (effectiveUserUid) {
-          setUserUid(effectiveUserUid)
-          setCachedUserProfileMenu(effectiveUserUid, menuData)
-          setUserProfile({
-            uid: effectiveUserUid,
-            userRole: userProfile?.userRole,
-            authStatus: userProfile?.authStatus,
-          })
-        }
-      } catch (_error) {
-        if (!isComponentActive) {
-          return
-        }
-        setCurrentUserProfile({
-          nickname: '？未知用户？',
-          verifiedOrganization: null,
-          level: null,
-          avatarUrl: null,
-          avatarText: '无',
-        })
-        setStats(buildDefaultStats())
-        setMenuItems(buildDefaultMenuItems())
-      }
-    })()
-
-    return () => {
-      isComponentActive = false
-    }
-  }, [isHydrated, isLoggedIn, setUserProfile, userProfile?.uid])
-
-  // 06）鼠标移入处理（handleUserMenuMouseEnter）
+  // 04）鼠标移入处理（handleUserMenuMouseEnter）
   const handleUserMenuMouseEnter = (): void => {
     clearCloseTimer()
     setIsUserPanelOpen(true)
@@ -309,6 +140,26 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
    */
   const handleUserButtonClick = (): void => {
     clearCloseTimer()
+
+    if (isOrganizationAccount) {
+      if (!sessionEntityCode) {
+        return
+      }
+
+      const organizationSpacePath = buildOrganizationSpacePath(sessionEntityCode)
+      const currentPathEntityCode = extractEntityCodeFromPathname(location.pathname)
+      const isOnCurrentOrganizationSpace =
+        isOrganizationSpacePathname(location.pathname) && currentPathEntityCode === sessionEntityCode
+
+      if (!isOnCurrentOrganizationSpace) {
+        window.open(organizationSpacePath, '_blank', 'noopener,noreferrer')
+        return
+      }
+
+      setIsUserPanelOpen((previousState) => !previousState)
+      return
+    }
+
     if (!isProfileSpacePathname(location.pathname)) {
       window.open(PROFILE_PATH, '_blank', 'noopener,noreferrer')
       return
@@ -328,8 +179,11 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
    * - 副作用：触发 window.open 与 state 更新
    */
   const handleQuickEntryClick = (targetTab: string): void => {
-    const tab = (userStatTabMap[targetTab] ?? '主页') as ProfileTab
-    window.open(buildProfileTabPath(tab), '_blank', 'noopener,noreferrer')
+    if (!channel) {
+      return
+    }
+    const targetPath = resolveProfileMenuStatPath(channel, targetTab, sessionEntityCode)
+    window.open(targetPath, '_blank', 'noopener,noreferrer')
     setIsUserPanelOpen(false)
   }
 
@@ -382,11 +236,11 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
       onMouseLeave={handleUserMenuMouseLeave}
     >
       <button className="user-button" type="button" aria-label="用户菜单" onClick={handleUserButtonClick}>
-        {currentUserProfile.avatarUrl ? (
-          <img className="user-avatar user-avatar--image" src={currentUserProfile.avatarUrl} alt={`${currentUserProfile.nickname}头像`} />
+        {displayAvatarUrl ? (
+          <img className="user-avatar user-avatar--image" src={displayAvatarUrl} alt={`${displayTitle}头像`} />
         ) : (
           <span className="user-avatar user-avatar--fallback" aria-hidden="true">
-            {currentUserProfile.avatarText}
+            {displayAvatarText}
           </span>
         )}
       </button>
@@ -394,14 +248,18 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
       <div className="user-panel" role="menu" aria-label="用户功能面板">
         <div className="user-panel__header">
           <div className="user-panel__name-row">
-            <strong>{currentUserProfile.nickname}</strong>
-            {currentUserProfile.level ? <LevelBadge level={currentUserProfile.level} className="user-level-badge" /> : null}
+            <strong>{isLoading ? '加载中…' : displayTitle}</strong>
+            {displayLevel ? <LevelBadge level={displayLevel} className="user-level-badge" /> : null}
           </div>
-          {currentUserProfile.verifiedOrganization ? (
-            <VerifiedOrgModal organization={currentUserProfile.verifiedOrganization} />
-          ) : (
-            <VerifiedOrgButton onNavigate={() => setIsUserPanelOpen(false)} />
-          )}
+          {menuData?.subtitle ? <p className="auth-helper-tip">{menuData.subtitle}</p> : null}
+          {!isOrganizationAccount ? (
+            verifiedOrganization ? (
+              <VerifiedOrgModal organization={verifiedOrganization} />
+            ) : (
+              <VerifiedOrgButton onNavigate={() => setIsUserPanelOpen(false)} />
+            )
+          ) : null}
+          {errorMessage ? <p className="auth-helper-tip auth-helper-tip--error">{errorMessage}</p> : null}
         </div>
 
         <div className="user-panel__stats">

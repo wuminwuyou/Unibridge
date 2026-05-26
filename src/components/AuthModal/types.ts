@@ -8,7 +8,7 @@ export type AuthUserRole = 'student' | 'mentor' | 'pm' | 'organization-admin'
 export type AuthTabType = 'personal' | 'organization'
 
 // 04）主体登录步骤类型定义（OrganizationLoginStep）
-export type OrganizationLoginStep = 'credentials' | 'otp'
+export type OrganizationLoginStep = 'credentials' | 'admin-select' | 'admin-register' | 'otp' | 'totp-setup'
 
 // 05）身份认证引导页子 Tab 类型定义（VerificationGuideTab）
 export type VerificationGuideTab = 'edu-mail' | 'credentials-upload'

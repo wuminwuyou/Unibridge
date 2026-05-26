@@ -2,6 +2,10 @@ import { createPortal } from 'react-dom'
 import type { MouseEvent } from 'react'
 import CloseIconButton from '../common/CloseIconButton'
 import InstitutionForm from './components/InstitutionForm'
+import EntityTotpBindModal from './components/EntityTotpBindModal'
+import EntityTotpSetupNoticeForm from './components/EntityTotpSetupNoticeForm'
+import OrganizationAdminRegisterForm from './components/OrganizationAdminRegisterForm'
+import OrganizationAdminSelectForm from './components/OrganizationAdminSelectForm'
 import PersonalForm from './components/PersonalForm'
 import TwoFactorAuthForm from './components/TwoFactorAuthForm'
 import VerificationStep from './components/VerificationStep'
@@ -40,7 +44,9 @@ export function AuthModalView({ onClose, model }: AuthModalViewProps) {
     event.stopPropagation()
   }
 
-  return createPortal(
+  return (
+    <>
+      {createPortal(
     <div className="auth-modal-mask" onClick={handleMaskClick} role="presentation" aria-hidden={false}>
       <div
         className="auth-modal auth-modal--full"
@@ -144,6 +150,46 @@ export function AuthModalView({ onClose, model }: AuthModalViewProps) {
                         onToggleOrganizationPasswordVisibility={model.handleToggleOrganizationPasswordVisibility}
                         onSubmit={model.handleOrganizationCredentialsSubmit}
                       />
+                    ) : model.organizationStep === 'admin-select' ? (
+                      <OrganizationAdminSelectForm
+                        entityName={model.organizationEntityName}
+                        admins={model.organizationAdminOptions}
+                        selectedAdminUid={model.organizationSelectedAdminUid}
+                        isSubmitting={model.isSubmitting}
+                        authErrorMessage={model.authErrorMessage}
+                        onSelectedAdminChange={model.setOrganizationSelectedAdminUid}
+                        onSubmit={model.handleOrganizationAdminSelectSubmit}
+                        onBackToCredentials={model.handleBackToOrganizationCredentials}
+                      />
+                    ) : model.organizationStep === 'admin-register' ? (
+                      <OrganizationAdminRegisterForm
+                        entityName={model.organizationEntityName}
+                        currentAdminOrder={model.organizationCurrentAdminOrder}
+                        boundAdminCount={model.organizationBoundAdminCount}
+                        minAdminCount={model.organizationMinAdminCount}
+                        maxAdminCount={model.organizationMaxAdminCount}
+                        displayName={model.organizationAdminDisplayName}
+                        adminPassword={model.organizationAdminPassword}
+                        isAdminPasswordVisible={model.isOrganizationAdminPasswordVisible}
+                        isSubmitting={model.isSubmitting}
+                        authErrorMessage={model.authErrorMessage}
+                        successMessage={model.totpSetupSuccessMessage}
+                        onDisplayNameChange={model.setOrganizationAdminDisplayName}
+                        onAdminPasswordChange={model.setOrganizationAdminPassword}
+                        onToggleAdminPasswordVisibility={model.handleToggleOrganizationAdminPasswordVisibility}
+                        onSubmit={model.handleOrganizationAdminRegisterSubmit}
+                        onBack={model.handleBackFromOrganizationAdminRegister}
+                      />
+                    ) : model.organizationStep === 'totp-setup' ? (
+                      <EntityTotpSetupNoticeForm
+                        entityName={model.organizationEntityName}
+                        currentAdminOrder={model.organizationCurrentAdminOrder}
+                        boundAdminCount={model.organizationBoundAdminCount}
+                        minAdminCount={model.organizationMinAdminCount}
+                        maxAdminCount={model.organizationMaxAdminCount}
+                        onConfirm={model.handleOpenEntityTotpBindModal}
+                        onBackToCredentials={model.handleBackToOrganizationCredentials}
+                      />
                     ) : (
                       <TwoFactorAuthForm
                         organizationOtpCode={model.organizationOtpCode}
@@ -151,7 +197,7 @@ export function AuthModalView({ onClose, model }: AuthModalViewProps) {
                         authErrorMessage={model.authErrorMessage}
                         onOtpChange={model.setOrganizationOtpCode}
                         onSubmit={model.handleOrganizationOtpSubmit}
-                        onBackToCredentials={model.handleBackToOrganizationCredentials}
+                        onBackToCredentials={model.handleBackFromOrganizationOtp}
                       />
                     )}
                   </div>
@@ -172,5 +218,25 @@ export function AuthModalView({ onClose, model }: AuthModalViewProps) {
       </div>
     </div>,
     document.body,
+      )}
+
+      <EntityTotpBindModal
+        open={model.isEntityTotpBindModalOpen}
+        entityName={model.organizationEntityName}
+        qrCodeDataUrl={model.totpSetupQrCodeDataUrl}
+        qrCodeCountdownSec={model.totpSetupQrCountdownSec}
+        qrCodeExpireTotalSec={model.totpSetupQrExpireTotalSec}
+        isQrExpired={model.isTotpSetupQrExpired}
+        isQrLoading={model.isTotpSetupQrLoading}
+        totpSetupOtpCode={model.totpSetupOtpCode}
+        isSubmitting={model.isSubmitting}
+        authErrorMessage={model.authErrorMessage}
+        successMessage={model.totpSetupSuccessMessage}
+        onTotpSetupOtpChange={model.setTotpSetupOtpCode}
+        onRefreshQrCode={model.loadEntityTotpSetupQr}
+        onSubmit={model.handleOrganizationTotpSetupConfirm}
+        onClose={model.handleCloseEntityTotpBindModal}
+      />
+    </>
   )
 }

@@ -34,16 +34,23 @@ function resolveInitialNoteCardLayoutMode(): NoteCardLayoutMode {
   return 'grid'
 }
 
-// 06）个人笔记 Tab 内容（PersonalNotesTabContent）
+// 06）个人笔记 Tab 内容 Props（PersonalNotesTabContentProps）
+interface PersonalNotesTabContentProps {
+  profileUid?: string | null
+}
+
+// 07）个人笔记 Tab 内容（PersonalNotesTabContent）
 /**
  * 函数名：PersonalNotesTabContent
  * 功能：渲染个人空间「笔记」Tab，含筛选、Grid/Row 布局切换与数据拉取。
+ * 输入：
+ * - profileUid：目标用户 uid（查看他人空间时由 ?uid= 传入）
  * 输出：
  * - 返回值：React 节点
  * - 副作用：发起网络请求、读写 localStorage
  */
-export function PersonalNotesTabContent() {
-  const { loadState, errorMessage, notes, total } = usePersonalNotesTabData()
+export function PersonalNotesTabContent({ profileUid }: PersonalNotesTabContentProps = {}) {
+  const { loadState, errorMessage, notes, total } = usePersonalNotesTabData(profileUid)
   const [activeFilter, setActiveFilter] = useState<NoteFilterType>('全部')
   const [layoutMode, setLayoutMode] = useState<NoteCardLayoutMode>(resolveInitialNoteCardLayoutMode)
 

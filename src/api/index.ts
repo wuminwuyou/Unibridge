@@ -16,5 +16,8 @@ export * from './projects'
 // 06）Feed 接口模块导出（Feed API Exports）
 export * from './feed'
 
-// 07）资源 uid 工具（Resource UID）
+// 07）机构空间接口模块导出（EntityProfile API Exports）
+export * from './entityProfile'
+
+// 08）资源 uid 工具（Resource UID）
 export * from './resourceUid'

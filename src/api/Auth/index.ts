@@ -1,10 +1,17 @@
 import { HttpApiError, postApi } from '../http'
-import { normalizePersonalRegisterData, normalizeTokenAuthData } from './normalizeAuthData'
+import { normalizeOrganizationCredentialChallengeData, normalizeOrganizationTotpSetupConfirmData, normalizeOrganizationTotpSetupInitData, normalizePersonalRegisterData, normalizeTokenAuthData } from './normalizeAuthData'
 import type {
   LogoutRequest,
+  OrganizationAdminOption,
+  OrganizationAdminRegisterRequest,
   OrganizationCredentialsLoginRequest,
   OrganizationCredentialChallengeData,
   OrganizationOtpLoginRequest,
+  OrganizationSelectAdminRequest,
+  OrganizationTotpSetupConfirmData,
+  OrganizationTotpSetupConfirmRequest,
+  OrganizationTotpSetupInitData,
+  OrganizationTotpSetupInitRequest,
   PersonalEmailLoginRequest,
   PersonalPasswordLoginRequest,
   PersonalRegisterData,
@@ -130,10 +137,51 @@ export async function loginPersonalByEmail(payload: PersonalEmailLoginRequest): 
 export async function loginOrganizationByCredentials(
   payload: OrganizationCredentialsLoginRequest,
 ): Promise<OrganizationCredentialChallengeData> {
-  return postAuthApi<OrganizationCredentialsLoginRequest, OrganizationCredentialChallengeData>(
-    '/auth/organization/login/credentials',
-    payload,
-  )
+  const data = await postAuthApi<
+    OrganizationCredentialsLoginRequest,
+    OrganizationCredentialChallengeData & Record<string, unknown>
+  >('/auth/organization/login/credentials', payload)
+  return normalizeOrganizationCredentialChallengeData(data)
+}
+
+// 08.1）主体选择管理员（selectOrganizationAdmin）
+/**
+ * 函数名：selectOrganizationAdmin
+ * 功能：在 loginMode=admin_select 时选定管理员，返回后续 totp_setup / totp_verify 挑战。
+ * 输入：
+ * - payload：challengeId、adminUid
+ * 输出：
+ * - 返回值：OrganizationCredentialChallengeData
+ * - 副作用：发起网络请求
+ */
+export async function selectOrganizationAdmin(
+  payload: OrganizationSelectAdminRequest,
+): Promise<OrganizationCredentialChallengeData> {
+  const data = await postAuthApi<
+    OrganizationSelectAdminRequest,
+    OrganizationCredentialChallengeData & Record<string, unknown>
+  >('/auth/organization/login/select-admin', payload)
+  return normalizeOrganizationCredentialChallengeData(data)
+}
+
+// 08.2）主体登记管理员（registerOrganizationAdmin）
+/**
+ * 函数名：registerOrganizationAdmin
+ * 功能：在主体根密码 challenge 下登记一名新管理员（displayName + 密码），进入 TOTP 绑定。
+ * 输入：
+ * - payload：challengeId、displayName、password（SHA256）
+ * 输出：
+ * - 返回值：OrganizationCredentialChallengeData
+ * - 副作用：发起网络请求
+ */
+export async function registerOrganizationAdmin(
+  payload: OrganizationAdminRegisterRequest,
+): Promise<OrganizationCredentialChallengeData> {
+  const data = await postAuthApi<
+    OrganizationAdminRegisterRequest,
+    OrganizationCredentialChallengeData & Record<string, unknown>
+  >('/auth/organization/admin/register', payload)
+  return normalizeOrganizationCredentialChallengeData(data)
 }
 
 // 09）主体 OTP 登录接口（loginOrganizationByOtp）
@@ -152,6 +200,46 @@ export async function loginOrganizationByCredentials(
 export async function loginOrganizationByOtp(payload: OrganizationOtpLoginRequest): Promise<TokenAuthData> {
   const data = await postAuthApi<OrganizationOtpLoginRequest, TokenAuthData>('/auth/organization/login/otp', payload)
   return normalizeTokenAuthData(data)
+}
+
+// 09.1）主体 TOTP 绑定初始化（initOrganizationTotpSetup）
+/**
+ * 函数名：initOrganizationTotpSetup
+ * 功能：首次登录管理员获取 TOTP 绑定 QR 码与 otpauth 链接。
+ * 输入：
+ * - payload：含 challengeId
+ * 输出：
+ * - 返回值：OrganizationTotpSetupInitData
+ * - 副作用：发起网络请求
+ */
+export async function initOrganizationTotpSetup(
+  payload: OrganizationTotpSetupInitRequest,
+): Promise<OrganizationTotpSetupInitData> {
+  const data = await postAuthApi<
+    OrganizationTotpSetupInitRequest,
+    OrganizationTotpSetupInitData & Record<string, unknown>
+  >('/auth/organization/totp/setup/init', payload)
+  return normalizeOrganizationTotpSetupInitData(data)
+}
+
+// 09.2）主体 TOTP 绑定确认（confirmOrganizationTotpSetup）
+/**
+ * 函数名：confirmOrganizationTotpSetup
+ * 功能：提交 6 位 TOTP 验证码完成首次绑定，账号 FROZEN → ACTIVE。
+ * 输入：
+ * - payload：含 challengeId 与 totpCode
+ * 输出：
+ * - 返回值：OrganizationTotpSetupConfirmData（含 token 与主体激活状态）
+ * - 副作用：发起网络请求
+ */
+export async function confirmOrganizationTotpSetup(
+  payload: OrganizationTotpSetupConfirmRequest,
+): Promise<OrganizationTotpSetupConfirmData> {
+  const data = await postAuthApi<OrganizationTotpSetupConfirmRequest, OrganizationTotpSetupConfirmData & Record<string, unknown>>(
+    '/auth/organization/totp/setup/confirm',
+    payload,
+  )
+  return normalizeOrganizationTotpSetupConfirmData(data)
 }
 
 // 10）退出登录接口（logoutByTokens）
@@ -177,9 +265,17 @@ export type {
   AuthStatus,
   AuthUserRole,
   LogoutRequest,
+  OrganizationAdminOption,
   OrganizationCredentialsLoginRequest,
   OrganizationCredentialChallengeData,
+  OrganizationAdminRegisterRequest,
+  OrganizationLoginMode,
   OrganizationOtpLoginRequest,
+  OrganizationSelectAdminRequest,
+  OrganizationTotpSetupConfirmData,
+  OrganizationTotpSetupConfirmRequest,
+  OrganizationTotpSetupInitData,
+  OrganizationTotpSetupInitRequest,
   PersonalEmailLoginRequest,
   PersonalPasswordLoginRequest,
   PersonalRegisterData,

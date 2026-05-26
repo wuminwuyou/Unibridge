@@ -129,7 +129,8 @@
 }
 
 .auth-modal-auth-view {
-  padding: 24px 52px 8px;
+  padding: 24px 52px 16px;
+  min-height: 0;
 }
 
 .auth-modal-verification-view {
@@ -346,6 +347,11 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.auth-channel-slide__pane > .auth-form {
+  flex: 1;
+  min-height: 0;
 }
 
 .auth-personal-form-stage {
@@ -1023,6 +1029,236 @@
 
 :root[data-theme='dark'] .auth-helper-tip--error {
   color: #ff7a7a;
+}
+
+/* 11.9）主体管理员登记 */
+.auth-organization-admin-register {
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+}
+
+/* 12.0）主体管理员选择 */
+.auth-organization-admin-select {
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+}
+
+.auth-organization-admin-select__list {
+  margin: 0;
+  padding: 0;
+  border: none;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-organization-admin-select__legend {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3a4f73;
+  margin-bottom: 8px;
+}
+
+.auth-organization-admin-select__item {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #dbe5f8;
+  background: #fafcff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.auth-organization-admin-select__item.is-selected {
+  border-color: #2b6af8;
+  background: #eef4ff;
+}
+
+.auth-organization-admin-select__item input {
+  margin: 0;
+}
+
+.auth-organization-admin-select__icon {
+  color: #5a6f94;
+  display: inline-flex;
+}
+
+.auth-organization-admin-select__meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.auth-organization-admin-select__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f3358;
+}
+
+.auth-organization-admin-select__uid {
+  font-size: 11px;
+  color: #8d9db9;
+}
+
+.auth-organization-admin-select__badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e8f0ff;
+  color: #2b6af8;
+  white-space: nowrap;
+}
+
+.auth-organization-admin-select__badge--secondary {
+  background: #f0f3f8;
+  color: #5a6f94;
+}
+
+:root[data-theme='dark'] .auth-organization-admin-select__legend {
+  color: #b7c6e4;
+}
+
+:root[data-theme='dark'] .auth-organization-admin-select__item {
+  border-color: #2f4368;
+  background: rgba(16, 26, 46, 0.55);
+}
+
+:root[data-theme='dark'] .auth-organization-admin-select__item.is-selected {
+  border-color: #4d7fff;
+  background: rgba(36, 58, 102, 0.55);
+}
+
+:root[data-theme='dark'] .auth-organization-admin-select__name {
+  color: #e8f0ff;
+}
+
+/* 12.1）主体首次 TOTP 绑定须知（登录弹窗内） */
+.auth-entity-totp-notice {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.auth-entity-totp-notice > .auth-auth-intro {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.auth-entity-totp-notice__main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-entity-totp-notice__footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.auth-entity-totp-setup__notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #dbe5f8;
+  background: #f5f8ff;
+}
+
+.auth-entity-totp-setup__notice-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f3358;
+}
+
+.auth-entity-totp-setup__notice-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #4f6285;
+}
+
+.auth-entity-totp-setup__notice-list li + li {
+  margin-top: 6px;
+}
+
+.auth-entity-totp-setup__section-label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3a4f73;
+}
+
+.auth-entity-totp-setup__apps {
+  margin: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-entity-totp-setup__app-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.auth-entity-totp-setup__app-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #4f6285;
+}
+
+.auth-entity-totp-setup__app-name {
+  color: #1f3358;
+  font-weight: 500;
+}
+
+.auth-entity-totp-setup__app-platform {
+  color: #8d9db9;
+  white-space: nowrap;
+}
+
+:root[data-theme='dark'] .auth-entity-totp-setup__notice {
+  border-color: #2f4368;
+  background: rgba(24, 38, 66, 0.55);
+}
+
+:root[data-theme='dark'] .auth-entity-totp-setup__notice-title,
+:root[data-theme='dark'] .auth-entity-totp-setup__section-label,
+:root[data-theme='dark'] .auth-entity-totp-setup__app-name {
+  color: #e8f0ff;
+}
+
+:root[data-theme='dark'] .auth-entity-totp-setup__notice-list,
+:root[data-theme='dark'] .auth-entity-totp-setup__app-list li {
+  color: #b7c6e4;
 }
 
 /* 13）减少动画模式兼容 */

@@ -1,0 +1,65 @@
+/* 01）机构下属团队卡片 */
+.organization-team-card {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 88px;
+  border: 1px solid var(--profile-card-border);
+  border-radius: 14px;
+  background: var(--profile-card-bg);
+  padding: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.organization-team-card:hover {
+  border-color: color-mix(in srgb, var(--profile-tab-active) 45%, var(--profile-card-border));
+  box-shadow: var(--profile-card-shadow);
+}
+
+.organization-team-card__logo {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #e2e8f0;
+}
+
+.organization-team-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.organization-team-card__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--profile-text);
+}
+
+.organization-team-card__description {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--profile-side-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  word-break: break-word;
+}
+
+.organization-team-card__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--profile-note-meta);
+}

@@ -26,7 +26,25 @@ export interface ProfileNoteItem {
 // 02）团队成员 role（TeamMemberRole）
 export type { TeamMemberRole } from '../../../api/teamProfile/types'
 
-// 03）空间成员项（ProfileMemberItem）
+// 01）机构认证 role（OrgAuthRole，含 user_auth_link 全量枚举）
+export type OrgAuthRole = 'PM' | 'MENTOR' | 'STUDENT'
+
+// 02）机构公开展示人员 role（OrgPublicMemberRole）
+/** 机构空间「人员」区块仅展示 PM / MENTOR，不含 STUDENT */
+export type OrgPublicMemberRole = 'PM' | 'MENTOR'
+
+// 03）机构关联人员项（ProfileOrgMemberItem）
+export interface ProfileOrgMemberItem {
+  uid: UserResourceUid
+  nickname: string
+  realName?: string | null
+  /** user_auth_link.role，仅 PM | MENTOR */
+  orgRole: OrgPublicMemberRole
+  avatarUrl: string | null
+  level: LevelCode | null
+}
+
+// 04）空间成员项（ProfileMemberItem）
 export interface ProfileMemberItem {
   uid: UserResourceUid
   nickname: string
@@ -44,7 +62,19 @@ export interface ProfileMemberItem {
   level: LevelCode | null
 }
 
-// 04）空间成果项（ProfileAchievementItem）
+// 04）机构主体代码类型（EntityCode）
+export type { EntityCode } from '../../../api/resourceUid'
+
+// 04）机构下属团队预览项（ProfileTeamPreviewItem）
+export interface ProfileTeamPreviewItem {
+  teamUid: string
+  name: string
+  description: string | null
+  logoUrl: string | null
+  memberCount: number
+}
+
+// 06）空间成果项（ProfileAchievementItem）
 export interface ProfileAchievementItem {
   achievementUid: string
   maskedProjectName: string

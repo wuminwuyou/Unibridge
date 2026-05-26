@@ -14,6 +14,10 @@ export type UserResourceUid = string
 /** 格式：后端 `team_uid` 对外字符串标识 */
 export type TeamResourceUid = string
 
+// 04.1）机构主体代码类型（EntityCode）
+/** 格式：高校代码或社会统一信用代码（entity.entity_code） */
+export type EntityCode = string
+
 // 05）资源 uid 正则（PROJECT_RESOURCE_UID_REGEXP / NOTE_RESOURCE_UID_REGEXP）
 const PROJECT_RESOURCE_UID_REGEXP = /^PR[A-Za-z0-9]{11}$/
 const NOTE_RESOURCE_UID_REGEXP = /^(TX|VD)[A-Za-z0-9]{11}$/

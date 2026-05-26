@@ -1,5 +1,6 @@
 import { supportedPersonalViewTabs } from './personalViewPageData'
 import type { ProfileTab } from './types'
+import { isUserResourceUid, type UserResourceUid } from '../../../../api/resourceUid'
 
 // 01）Tab 对应 URL 路径段（profileTabRouteSegmentByTab）
 export const profileTabRouteSegmentByTab: Record<ProfileTab, string | null> = {
@@ -62,6 +63,47 @@ export function buildProfileTabPath(tab: ProfileTab): string {
   }
 
   return `/profile/${segment}`
+}
+
+// 05.1）从查询参数解析目标用户 uid（extractProfileUidFromSearch）
+/**
+ * 函数名：extractProfileUidFromSearch
+ * 功能：从 /profile?uid= 解析要查看的个人空间目标用户 uid。
+ * 输入：
+ * - search：location.search
+ * 输出：
+ * - 返回值：UserResourceUid | null
+ * - 副作用：无
+ */
+export function extractProfileUidFromSearch(search: string): UserResourceUid | null {
+  const searchParams = new URLSearchParams(search)
+  const uid = searchParams.get('uid')?.trim()
+  return uid && isUserResourceUid(uid) ? uid : null
+}
+
+// 05.2）构建个人空间路径（buildPersonalSpacePath）
+/**
+ * 函数名：buildPersonalSpacePath
+ * 功能：构建个人空间路径；查看他人空间时在查询串携带 uid。
+ * 输入：
+ * - profileUid：目标用户 uid，缺省时为当前登录用户空间
+ * - tab：ProfileTab，默认主页
+ * 输出：
+ * - 返回值：路径字符串（含可选 ?uid=）
+ * - 副作用：无
+ */
+export function buildPersonalSpacePath(
+  profileUid?: UserResourceUid | null,
+  tab: ProfileTab = '主页',
+): string {
+  const basePath = buildProfileTabPath(tab)
+  if (!profileUid || !isUserResourceUid(profileUid)) {
+    return basePath
+  }
+
+  const searchParams = new URLSearchParams()
+  searchParams.set('uid', profileUid)
+  return `${basePath}?${searchParams.toString()}`
 }
 
 // 06）由 pathname 解析 Tab（resolveProfileTabFromPathname）

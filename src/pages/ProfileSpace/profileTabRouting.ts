@@ -4,6 +4,8 @@ export {
   extractProfileTabRouteSegment,
   isProfileSpacePathname,
   buildProfileTabPath,
+  buildPersonalSpacePath,
+  extractProfileUidFromSearch,
   resolveProfileTabFromPathname,
   isSupportedProfileTabRouteSegment,
   resolveProfileTabFromLegacySearch,

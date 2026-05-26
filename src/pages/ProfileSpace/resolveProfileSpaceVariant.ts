@@ -12,6 +12,14 @@ import type { ProfileSpaceVariant } from './profileSpaceShellTypes'
  * 输出：
  * - 返回值：ProfileSpaceVariant
  */
-export function resolveProfileSpaceVariant(_pathname: string): ProfileSpaceVariant {
+export function resolveProfileSpaceVariant(pathname: string): ProfileSpaceVariant {
+  if (pathname === '/org' || pathname.startsWith('/org/')) {
+    return 'organization'
+  }
+
+  if (pathname === '/team' || pathname.startsWith('/team/')) {
+    return 'team'
+  }
+
   return 'personal'
 }

@@ -3,6 +3,7 @@ import CommercialProjectsPage from './pages/CommercialProjects/index.tsx'
 import CampusCoCreationPage from './pages/CampusCoCreation/index.tsx'
 import ProfileSpacePage from './pages/ProfileSpace/index.tsx'
 import { TeamViewPage } from './pages/ProfileSpace/variants/TeamView'
+import { OrganizationViewPage } from './pages/ProfileSpace/variants/OrganizationView'
 import NoteSharePage from './pages/NoteShare/index.tsx'
 import ProjectDetailPage from './pages/ProjectDetailPage/ProjectDetailPage.tsx'
 import NoteReaderPage from './pages/NoteReader'
@@ -27,6 +28,8 @@ const appRouter = createBrowserRouter([
   { path: '/team/:teamUid', element: <TeamViewPage /> },
   { path: '/team/:teamUid/:teamTab', element: <TeamViewPage /> },
   { path: '/team/:teamUid/:teamTab/:teamSubTab', element: <TeamViewPage /> },
+  { path: '/org/:entityCode', element: <OrganizationViewPage /> },
+  { path: '/org/:entityCode/:orgTab', element: <OrganizationViewPage /> },
   {
     path: '/verify/organization',
     element: (

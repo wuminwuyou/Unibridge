@@ -318,17 +318,18 @@ export async function getUserProfileMenu(): Promise<UserProfileMenuData> {
  * 函数名：getUserProfileSpace
  * 功能：获取个人空间 Hero 区与右侧信息侧栏所需的页壳数据。
  * 实现方法：
- * - 从本地读取 uid 并拼接查询参数
+ * - 从 profileUid 或本地 uid 拼接查询参数
  * - 调用 GET /user-profile/space 接口
  * - 复用统一鉴权拦截器自动注入 accessToken
- * 输入：无
+ * 输入：
+ * - profileUid：目标用户 uid；缺省时读取当前登录用户 uid
  * 输出：
  * - 返回值：UserProfileSpaceData
  * - 副作用：发起网络请求
  */
-export async function getUserProfileSpace(): Promise<UserProfileSpaceData> {
+export async function getUserProfileSpace(profileUid?: UserResourceUid): Promise<UserProfileSpaceData> {
   const rawSpaceData = await getUserProfileApi<UserProfileSpaceData & Record<string, unknown>>(
-    buildUserProfileQueryPath('/user-profile/space'),
+    buildUserProfileQueryPath('/user-profile/space', undefined, profileUid),
   )
   return normalizeUserProfileSpaceData(rawSpaceData)
 }
@@ -383,12 +384,17 @@ export async function getUserProfileHome(options?: {
 export async function getUserProfileProjects(options?: {
   page?: number
   pageSize?: number
+  profileUid?: UserResourceUid
 }): Promise<UserProfileProjectsData> {
   const rawProjectsData = await getUserProfileApi<UserProfileProjectsData & Record<string, unknown>>(
-    buildUserProfileQueryPath('/user-profile/projects', {
-      page: options?.page ?? 1,
-      pageSize: options?.pageSize ?? 20,
-    }),
+    buildUserProfileQueryPath(
+      '/user-profile/projects',
+      {
+        page: options?.page ?? 1,
+        pageSize: options?.pageSize ?? 20,
+      },
+      options?.profileUid,
+    ),
   )
   return normalizeUserProfileUidResponse(rawProjectsData)
 }
@@ -412,13 +418,18 @@ export async function getUserProfileNotes(options?: {
   page?: number
   pageSize?: number
   contentType?: '图文' | '视频'
+  profileUid?: UserResourceUid
 }): Promise<UserProfileNotesData> {
   const rawNotesData = await getUserProfileApi<UserProfileNotesData & Record<string, unknown>>(
-    buildUserProfileQueryPath('/user-profile/notes', {
-      page: options?.page ?? 1,
-      pageSize: options?.pageSize ?? 20,
-      contentType: options?.contentType,
-    }),
+    buildUserProfileQueryPath(
+      '/user-profile/notes',
+      {
+        page: options?.page ?? 1,
+        pageSize: options?.pageSize ?? 20,
+        contentType: options?.contentType,
+      },
+      options?.profileUid,
+    ),
   )
   return normalizeUserProfileUidResponse(rawNotesData)
 }

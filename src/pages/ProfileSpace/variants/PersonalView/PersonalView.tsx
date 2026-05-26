@@ -264,6 +264,7 @@ export function PersonalView({ model }: PersonalViewProps) {
     isHomeLikeTabActive,
     isShellReady,
     userCoreProfile,
+    profileUidFromQuery,
     handleTabClick,
   } = model
 
@@ -294,8 +295,10 @@ export function PersonalView({ model }: PersonalViewProps) {
               onViewAllNotes={() => handleTabClick('笔记')}
             />
           ) : null}
-          {activeTab === '项目' ? <PersonalProjectsTabContent /> : null}
-          {activeTab === '笔记' ? <PersonalNotesTabContent /> : null}
+          {activeTab === '项目' ? (
+            <PersonalProjectsTabContent profileUid={profileUidFromQuery} />
+          ) : null}
+          {activeTab === '笔记' ? <PersonalNotesTabContent profileUid={profileUidFromQuery} /> : null}
         </>
       }
       sidebar={<PersonalViewSidebar model={model} />}

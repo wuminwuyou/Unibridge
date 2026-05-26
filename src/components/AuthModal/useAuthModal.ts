@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   AuthApiError,
+  confirmOrganizationTotpSetup,
+  initOrganizationTotpSetup,
   loginOrganizationByCredentials,
   loginOrganizationByOtp,
   loginPersonalByPassword,
   loginPersonalBySms,
   registerPersonalAccount,
+  registerOrganizationAdmin,
+  selectOrganizationAdmin,
   type AuthChannel,
+  type OrganizationAdminOption,
+  type OrganizationCredentialChallengeData,
 } from '../../api/Auth'
+import { ENTITY_TOTP_DEFAULT_QR_EXPIRE_SEC } from './components/EntityTotpSetupForm/entityTotpSetupConstants'
 import { CommonApiError, sendVerificationCode } from '../../api/common'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth, type AuthUserProfile } from '../../contexts/AuthContext'
 import { hashPassword } from '../../utils/crypto'
 import type {
   AuthModalProps,
@@ -129,6 +136,21 @@ function mapAuthApiErrorMessage(error: unknown, fallbackMessage: string): string
       return '动态验证码错误，请重试'
     case 'OTP_FORMAT_INVALID':
       return '请输入 6 位数字动态验证码'
+    case 'TOTP_SETUP_QR_EXPIRED':
+    case 'CHALLENGE_EXPIRED':
+      return '绑定会话或二维码已过期，请刷新二维码后重试'
+    case 'TOTP_ALREADY_BOUND':
+      return '当前管理员已完成 TOTP 绑定，请直接登录'
+    case 'ENTITY_ADMIN_LIMIT_REACHED':
+      return '主体管理员已达上限（最多 3 名），请联系平台运营'
+    case 'ORGANIZATION_ACCOUNT_DISABLED':
+      return '主体账号已停用，请联系平台运营'
+    case 'ORGANIZATION_ACCOUNT_FROZEN':
+      return '主体或管理员账号处于冻结状态，请联系平台运营'
+    case 'ORGANIZATION_ACCOUNT_DEACTIVATED':
+      return '主体账号已注销，无法登录'
+    case 'ADMIN_ACCOUNT_FROZEN':
+      return '管理员账号尚未完成 TOTP 绑定激活'
     case 'ORGANIZATION_FIELDS_REQUIRED':
       return '服务端校验未通过：缺少机构代码或登录凭证字段（请联系后端核对请求体字段名）'
     case 'ACCOUNT_ALREADY_EXISTS':
@@ -193,6 +215,27 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
   const [organizationPassword, setOrganizationPassword] = useState<string>('')
   const [organizationOtpCode, setOrganizationOtpCode] = useState<string>('')
   const [organizationChallengeId, setOrganizationChallengeId] = useState<string>('')
+  const [organizationEntityName, setOrganizationEntityName] = useState<string | null>(null)
+  const [organizationBoundAdminCount, setOrganizationBoundAdminCount] = useState<number>(0)
+  const [organizationMinAdminCount, setOrganizationMinAdminCount] = useState<number>(2)
+  const [organizationMaxAdminCount, setOrganizationMaxAdminCount] = useState<number>(3)
+  const [organizationCurrentAdminOrder, setOrganizationCurrentAdminOrder] = useState<number | null>(1)
+  const [organizationAdminOptions, setOrganizationAdminOptions] = useState<OrganizationAdminOption[]>([])
+  const [organizationSelectedAdminUid, setOrganizationSelectedAdminUid] = useState<string>('')
+  const [organizationRequiresAdminSelectionBack, setOrganizationRequiresAdminSelectionBack] =
+    useState<boolean>(false)
+  const [organizationAdminDisplayName, setOrganizationAdminDisplayName] = useState<string>('')
+  const [organizationAdminPassword, setOrganizationAdminPassword] = useState<string>('')
+  const [isOrganizationAdminPasswordVisible, setIsOrganizationAdminPasswordVisible] = useState<boolean>(false)
+  const [totpSetupQrCodeDataUrl, setTotpSetupQrCodeDataUrl] = useState<string | null>(null)
+  const [totpSetupQrCountdownSec, setTotpSetupQrCountdownSec] = useState<number>(0)
+  const [totpSetupQrExpireTotalSec, setTotpSetupQrExpireTotalSec] = useState<number>(
+    ENTITY_TOTP_DEFAULT_QR_EXPIRE_SEC,
+  )
+  const [totpSetupOtpCode, setTotpSetupOtpCode] = useState<string>('')
+  const [isTotpSetupQrLoading, setIsTotpSetupQrLoading] = useState<boolean>(false)
+  const [totpSetupSuccessMessage, setTotpSetupSuccessMessage] = useState<string>('')
+  const [isEntityTotpBindModalOpen, setIsEntityTotpBindModalOpen] = useState<boolean>(false)
   const [rememberMe, setRememberMe] = useState<boolean>(cachedPersonalAccount.length > 0)
   const [personalLoginMode, setPersonalLoginMode] = useState<PersonalLoginMode>('password')
   const [personalPanelView, setPersonalPanelView] = useState<PersonalPanelView>('login')
@@ -213,6 +256,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
   const registerTransitionTimerRef = useRef<number | null>(null)
   const PERSONAL_PANEL_TRANSITION_MS = 360
   const eduMailboxMatched = useMemo<boolean>(() => isEduCnMailbox(eduMailbox), [eduMailbox])
+  const isTotpSetupQrExpired = totpSetupQrCountdownSec <= 0 && totpSetupQrCodeDataUrl != null && !isTotpSetupQrLoading
 
   // 10）页面副作用：锁滚动和 ESC 监听
   useEffect(() => {
@@ -261,7 +305,26 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setPersonalLoginCodeCooldownSec(0)
     setRegisterCodeCooldownSec(0)
     setAuthErrorMessage('')
+    setOrganizationStep('credentials')
     setOrganizationChallengeId('')
+    setOrganizationEntityName(null)
+    setOrganizationBoundAdminCount(0)
+    setOrganizationMinAdminCount(2)
+    setOrganizationMaxAdminCount(3)
+    setOrganizationCurrentAdminOrder(1)
+    setOrganizationAdminOptions([])
+    setOrganizationSelectedAdminUid('')
+    setOrganizationRequiresAdminSelectionBack(false)
+    setOrganizationAdminDisplayName('')
+    setOrganizationAdminPassword('')
+    setIsOrganizationAdminPasswordVisible(false)
+    setTotpSetupQrCodeDataUrl(null)
+    setTotpSetupQrCountdownSec(0)
+    setTotpSetupQrExpireTotalSec(ENTITY_TOTP_DEFAULT_QR_EXPIRE_SEC)
+    setTotpSetupOtpCode('')
+    setIsTotpSetupQrLoading(false)
+    setTotpSetupSuccessMessage('')
+    setIsEntityTotpBindModalOpen(false)
   }, [open])
 
   // 12）页面副作用：个人账号缓存同步
@@ -294,6 +357,21 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
       window.clearInterval(countdownTimerId)
     }
   }, [registerCodeCooldownSec])
+
+  // 14.1）页面副作用：TOTP 绑定 QR 倒计时
+  useEffect(() => {
+    if (!isEntityTotpBindModalOpen || totpSetupQrCountdownSec <= 0) {
+      return undefined
+    }
+
+    const countdownTimerId = window.setInterval(() => {
+      setTotpSetupQrCountdownSec((previousValue) => Math.max(previousValue - 1, 0))
+    }, 1000)
+
+    return () => {
+      window.clearInterval(countdownTimerId)
+    }
+  }, [isEntityTotpBindModalOpen, totpSetupQrCountdownSec])
 
   // 15）页面副作用：卸载清理
   useEffect(() => {
@@ -449,6 +527,83 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     })()
   }
 
+  // 18.1）应用主体登录挑战响应（applyOrganizationLoginChallenge）
+  /**
+   * 函数名：applyOrganizationLoginChallenge
+   * 功能：根据 credentials / select-admin 返回的 loginMode 切换主体登录步骤。
+   * 输入：
+   * - challengeData：归一化后的挑战响应
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新主体登录相关状态与步骤
+   */
+  const buildOrganizationAuthUserProfile = (loginProfile: {
+    uid: AuthUserProfile['uid']
+    userRole: AuthUserProfile['userRole']
+    authStatus: AuthUserProfile['authStatus']
+  }): AuthUserProfile => ({
+    uid: loginProfile.uid,
+    userRole: loginProfile.userRole,
+    authStatus: loginProfile.authStatus,
+    entityCode: organizationCode.trim(),
+    entityName: organizationEntityName,
+  })
+
+  const applyOrganizationLoginChallenge = (challengeData: OrganizationCredentialChallengeData): void => {
+    setOrganizationChallengeId(challengeData.challengeId)
+    setOrganizationEntityName(challengeData.entityName ?? null)
+    setOrganizationBoundAdminCount(challengeData.boundAdminCount)
+    setOrganizationMinAdminCount(challengeData.minAdminCount)
+    setOrganizationMaxAdminCount(challengeData.maxAdminCount)
+    setOrganizationCurrentAdminOrder(challengeData.currentAdminOrder)
+
+    if (challengeData.loginMode === 'admin_register') {
+      setOrganizationAdminOptions([])
+      setOrganizationStep('admin-register')
+      setIsEntityTotpBindModalOpen(false)
+      setOrganizationOtpCode('')
+      setTotpSetupOtpCode('')
+      setTotpSetupQrCodeDataUrl(null)
+      setTotpSetupQrCountdownSec(0)
+      return
+    }
+
+    if (challengeData.loginMode === 'admin_select') {
+      const adminList = challengeData.admins ?? []
+      setOrganizationAdminOptions(adminList)
+      setOrganizationRequiresAdminSelectionBack(true)
+      setOrganizationSelectedAdminUid((previousUid) => {
+        if (previousUid && adminList.some((admin) => admin.adminUid === previousUid)) {
+          return previousUid
+        }
+        return adminList[0]?.adminUid ?? ''
+      })
+      setOrganizationStep('admin-select')
+      setIsEntityTotpBindModalOpen(false)
+      setOrganizationOtpCode('')
+      setTotpSetupOtpCode('')
+      setTotpSetupQrCodeDataUrl(null)
+      setTotpSetupQrCountdownSec(0)
+      return
+    }
+
+    setOrganizationAdminOptions([])
+
+    if (challengeData.loginMode === 'totp_setup') {
+      setOrganizationStep('totp-setup')
+      setIsEntityTotpBindModalOpen(false)
+      setOrganizationOtpCode('')
+      setTotpSetupOtpCode('')
+      setTotpSetupQrCodeDataUrl(null)
+      setTotpSetupQrCountdownSec(0)
+      return
+    }
+
+    setOrganizationStep('otp')
+    setIsEntityTotpBindModalOpen(false)
+    setTotpSetupOtpCode('')
+  }
+
   // 19）主体第一步提交（handleOrganizationCredentialsSubmit）
   /**
    * 函数名：handleOrganizationCredentialsSubmit
@@ -482,8 +637,9 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
           institutionCode: normalizedInstitutionCode,
           password: hashPassword(normalizedPassword),
         })
-        setOrganizationChallengeId(challengeData.challengeId)
-        setOrganizationStep('otp')
+        setTotpSetupSuccessMessage('')
+        setOrganizationRequiresAdminSelectionBack(false)
+        applyOrganizationLoginChallenge(challengeData)
       } catch (error) {
         if (error instanceof AuthApiError) {
           console.warn('[OrganizationLogin] 后端返回错误：', {
@@ -497,6 +653,146 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
         setIsSubmitting(false)
       }
     })()
+  }
+
+  // 18.2）部分绑定后继续下一位管理员（continueOrganizationOnboardingAfterPartialBind）
+  /**
+   * 函数名：continueOrganizationOnboardingAfterPartialBind
+   * 功能：首位管理员绑定成功但主体未达标时，留在弹窗内登记下一位管理员，不写入登录态。
+   * 输入：
+   * - confirmData：TOTP 绑定确认响应
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新步骤与 challenge，关闭 QR 弹窗
+   */
+  const continueOrganizationOnboardingAfterPartialBind = (
+    confirmData: Awaited<ReturnType<typeof confirmOrganizationTotpSetup>>,
+  ): void => {
+    setOrganizationBoundAdminCount(confirmData.boundAdminCount)
+    setOrganizationMinAdminCount(confirmData.minAdminCount)
+
+    if (confirmData.nextChallengeId) {
+      setOrganizationChallengeId(confirmData.nextChallengeId)
+    }
+
+    setIsEntityTotpBindModalOpen(false)
+    setTotpSetupQrCodeDataUrl(null)
+    setTotpSetupQrCountdownSec(0)
+    setTotpSetupOtpCode('')
+    setOrganizationAdminDisplayName('')
+    setOrganizationAdminPassword('')
+    setOrganizationCurrentAdminOrder(Math.min(confirmData.boundAdminCount + 1, organizationMaxAdminCount))
+    setOrganizationStep('admin-register')
+    setTotpSetupSuccessMessage(
+      confirmData.activationHint ??
+        `第 ${confirmData.boundAdminCount} 位管理员 TOTP 已绑定。请继续登记第 ${confirmData.boundAdminCount + 1} 位管理员（${confirmData.boundAdminCount}/${confirmData.minAdminCount}）。`,
+    )
+    setAuthErrorMessage('')
+  }
+
+  // 19.1）主体管理员选择提交（handleOrganizationAdminSelectSubmit）
+  /**
+   * 函数名：handleOrganizationAdminSelectSubmit
+   * 功能：提交选定的管理员 UID，获取后续 TOTP 绑定或验证挑战。
+   * 输入：
+   * - event：React 表单提交事件
+   * 输出：
+   * - 返回值：void
+   * - 副作用：调用 select-admin 并更新登录步骤
+   */
+  const handleOrganizationAdminSelectSubmit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault()
+
+    if (!organizationSelectedAdminUid.trim()) {
+      setAuthErrorMessage('请选择一名管理员后继续')
+      return
+    }
+    if (!organizationChallengeId) {
+      setAuthErrorMessage('登录会话已失效，请返回上一步重新校验凭证')
+      return
+    }
+
+    void (async () => {
+      try {
+        setAuthErrorMessage('')
+        setIsSubmitting(true)
+
+        const challengeData = await selectOrganizationAdmin({
+          challengeId: organizationChallengeId,
+          adminUid: organizationSelectedAdminUid.trim(),
+        })
+        setTotpSetupSuccessMessage('')
+        applyOrganizationLoginChallenge(challengeData)
+      } catch (error) {
+        setAuthErrorMessage(mapAuthApiErrorMessage(error, '选择管理员失败，请稍后重试'))
+      } finally {
+        setIsSubmitting(false)
+      }
+    })()
+  }
+
+  // 19.2）主体管理员登记提交（handleOrganizationAdminRegisterSubmit）
+  /**
+   * 函数名：handleOrganizationAdminRegisterSubmit
+   * 功能：提交 displayName + 密码登记新管理员，并进入 TOTP 绑定须知步骤。
+   * 输入：
+   * - event：React 表单提交事件
+   * 输出：
+   * - 返回值：void
+   * - 副作用：调用 registerOrganizationAdmin 并更新登录步骤
+   */
+  const handleOrganizationAdminRegisterSubmit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault()
+
+    const normalizedDisplayName = organizationAdminDisplayName.trim()
+    const normalizedPassword = organizationAdminPassword.trim()
+
+    if (!normalizedDisplayName) {
+      setAuthErrorMessage('请填写管理员展示名')
+      return
+    }
+    if (!normalizedPassword) {
+      setAuthErrorMessage('请设置管理员登录密码')
+      return
+    }
+    if (!organizationChallengeId) {
+      setAuthErrorMessage('登记会话已失效，请返回上一步重新校验凭证')
+      return
+    }
+
+    void (async () => {
+      try {
+        setAuthErrorMessage('')
+        setTotpSetupSuccessMessage('')
+        setIsSubmitting(true)
+
+        const challengeData = await registerOrganizationAdmin({
+          challengeId: organizationChallengeId,
+          displayName: normalizedDisplayName,
+          password: hashPassword(normalizedPassword),
+        })
+
+        applyOrganizationLoginChallenge(challengeData)
+      } catch (error) {
+        setAuthErrorMessage(mapAuthApiErrorMessage(error, '管理员登记失败，请稍后重试'))
+      } finally {
+        setIsSubmitting(false)
+      }
+    })()
+  }
+
+  const handleBackFromOrganizationAdminRegister = (): void => {
+    setAuthErrorMessage('')
+    setTotpSetupSuccessMessage('')
+    if (organizationRequiresAdminSelectionBack) {
+      setOrganizationStep('admin-select')
+      return
+    }
+    handleBackToOrganizationCredentials()
+  }
+
+  const handleToggleOrganizationAdminPasswordVisibility = (): void => {
+    setIsOrganizationAdminPasswordVisible((previousValue) => !previousValue)
   }
 
   // 20）主体 TOTP 校验（handleOrganizationOtpSubmit）
@@ -535,11 +831,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
         commitAuthLogin({
           accessToken: loginData.accessToken,
           refreshToken: loginData.refreshToken,
-          userProfile: {
-            uid: loginData.uid,
-            userRole: loginData.userRole,
-            authStatus: loginData.authStatus,
-          },
+          userProfile: buildOrganizationAuthUserProfile(loginData),
         })
         onSuccess?.(loginData.userRole, loginData.authStatus)
         setOrganizationStep('credentials')
@@ -566,11 +858,192 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
    * - 返回值：void
    * - 副作用：更新组件状态
    */
+  const handleBackFromOrganizationOtp = (): void => {
+    setAuthErrorMessage('')
+    setOrganizationOtpCode('')
+    if (organizationRequiresAdminSelectionBack) {
+      setOrganizationStep('admin-select')
+      return
+    }
+    handleBackToOrganizationCredentials()
+  }
+
   const handleBackToOrganizationCredentials = (): void => {
     setOrganizationStep('credentials')
     setOrganizationOtpCode('')
     setOrganizationChallengeId('')
+    setOrganizationEntityName(null)
+    setOrganizationBoundAdminCount(0)
+    setOrganizationMinAdminCount(2)
+    setOrganizationMaxAdminCount(3)
+    setOrganizationCurrentAdminOrder(1)
+    setOrganizationAdminOptions([])
+    setOrganizationSelectedAdminUid('')
+    setOrganizationRequiresAdminSelectionBack(false)
+    setOrganizationAdminDisplayName('')
+    setOrganizationAdminPassword('')
+    setIsOrganizationAdminPasswordVisible(false)
+    setTotpSetupQrCodeDataUrl(null)
+    setTotpSetupQrCountdownSec(0)
+    setTotpSetupQrExpireTotalSec(ENTITY_TOTP_DEFAULT_QR_EXPIRE_SEC)
+    setTotpSetupOtpCode('')
+    setIsTotpSetupQrLoading(false)
+    setTotpSetupSuccessMessage('')
+    setIsEntityTotpBindModalOpen(false)
     setAuthErrorMessage('')
+  }
+
+  // 21.0）打开主体 TOTP 二维码绑定弹窗（handleOpenEntityTotpBindModal）
+  /**
+   * 函数名：handleOpenEntityTotpBindModal
+   * 功能：在用户确认绑定须知后打开二维码绑定弹窗并拉取 QR。
+   * 输入：无
+   * 输出：
+   * - 返回值：void
+   * - 副作用：打开绑定弹窗、清空 OTP 与 QR 缓存后请求新二维码
+   */
+  const handleOpenEntityTotpBindModal = (): void => {
+    setAuthErrorMessage('')
+    setTotpSetupSuccessMessage('')
+    setTotpSetupOtpCode('')
+    setTotpSetupQrCodeDataUrl(null)
+    setTotpSetupQrCountdownSec(0)
+    setIsEntityTotpBindModalOpen(true)
+  }
+
+  // 21.0.1）关闭主体 TOTP 二维码绑定弹窗（handleCloseEntityTotpBindModal）
+  /**
+   * 函数名：handleCloseEntityTotpBindModal
+   * 功能：关闭二维码绑定弹窗并清理 QR 相关临时状态，保留登录 challenge。
+   * 输入：无
+   * 输出：
+   * - 返回值：void
+   * - 副作用：更新弹窗与 QR 状态
+   */
+  const handleCloseEntityTotpBindModal = (): void => {
+    if (isSubmitting) {
+      return
+    }
+    setIsEntityTotpBindModalOpen(false)
+    setTotpSetupOtpCode('')
+    setTotpSetupQrCodeDataUrl(null)
+    setTotpSetupQrCountdownSec(0)
+    setIsTotpSetupQrLoading(false)
+    setAuthErrorMessage('')
+    setTotpSetupSuccessMessage('')
+  }
+
+  // 21.1）加载 TOTP 绑定二维码（loadEntityTotpSetupQr）
+  /**
+   * 函数名：loadEntityTotpSetupQr
+   * 功能：为主体首次登录绑定流程请求 QR 码并启动展示倒计时。
+   * 输入：无
+   * 输出：
+   * - 返回值：void
+   * - 副作用：发起网络请求并更新 QR 相关状态
+   */
+  const loadEntityTotpSetupQr = (): void => {
+    if (!organizationChallengeId || isTotpSetupQrLoading) {
+      return
+    }
+
+    void (async () => {
+      try {
+        setIsTotpSetupQrLoading(true)
+        setAuthErrorMessage('')
+        setTotpSetupSuccessMessage('')
+
+        const initData = await initOrganizationTotpSetup({ challengeId: organizationChallengeId })
+        const expireSec =
+          initData.qrCodeExpireInSec > 0 ? initData.qrCodeExpireInSec : ENTITY_TOTP_DEFAULT_QR_EXPIRE_SEC
+
+        setTotpSetupQrCodeDataUrl(initData.qrCodeDataUrl)
+        setTotpSetupQrExpireTotalSec(expireSec)
+        setTotpSetupQrCountdownSec(expireSec)
+        setOrganizationBoundAdminCount(initData.boundAdminCount)
+        setOrganizationMinAdminCount(initData.minAdminCount)
+        setOrganizationMaxAdminCount(initData.maxAdminCount)
+        setOrganizationCurrentAdminOrder(initData.currentAdminOrder)
+      } catch (error) {
+        setAuthErrorMessage(mapAuthApiErrorMessage(error, '获取绑定二维码失败，请稍后重试'))
+        setTotpSetupQrCodeDataUrl(null)
+        setTotpSetupQrCountdownSec(0)
+      } finally {
+        setIsTotpSetupQrLoading(false)
+      }
+    })()
+  }
+
+  // 21.2）打开二维码绑定弹窗时自动拉取二维码
+  useEffect(() => {
+    if (!open || !isEntityTotpBindModalOpen || !organizationChallengeId) {
+      return
+    }
+
+    if (totpSetupQrCodeDataUrl && totpSetupQrCountdownSec > 0) {
+      return
+    }
+
+    loadEntityTotpSetupQr()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在打开绑定弹窗或 challenge 变化时初始化 QR
+  }, [open, isEntityTotpBindModalOpen, organizationChallengeId])
+
+  // 21.3）主体 TOTP 绑定确认（handleOrganizationTotpSetupConfirm）
+  /**
+   * 函数名：handleOrganizationTotpSetupConfirm
+   * 功能：提交 6 位 TOTP 完成首次绑定并激活管理员账号。
+   * 输入：
+   * - event：React 表单提交事件
+   * 输出：
+   * - 返回值：void
+   * - 副作用：完成登录态写入并关闭弹窗
+   */
+  const handleOrganizationTotpSetupConfirm = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault()
+
+    if (!/^\d{6}$/.test(totpSetupOtpCode.trim())) {
+      setAuthErrorMessage('请输入 6 位数字 TOTP 验证码')
+      return
+    }
+    if (!organizationChallengeId) {
+      setAuthErrorMessage('绑定会话已失效，请返回上一步重新校验凭证')
+      return
+    }
+    if (!totpSetupQrCodeDataUrl || isTotpSetupQrExpired) {
+      setAuthErrorMessage('二维码已失效，请先刷新二维码')
+      return
+    }
+
+    void (async () => {
+      try {
+        setAuthErrorMessage('')
+        setTotpSetupSuccessMessage('')
+        setIsSubmitting(true)
+
+        const confirmData = await confirmOrganizationTotpSetup({
+          challengeId: organizationChallengeId,
+          totpCode: totpSetupOtpCode.trim(),
+        })
+
+        if (!confirmData.entityFullyActivated) {
+          continueOrganizationOnboardingAfterPartialBind(confirmData)
+          return
+        }
+
+        commitAuthLogin({
+          accessToken: confirmData.accessToken,
+          refreshToken: confirmData.refreshToken,
+          userProfile: buildOrganizationAuthUserProfile(confirmData),
+        })
+        onSuccess?.(confirmData.userRole, confirmData.authStatus)
+        handleBackToOrganizationCredentials()
+        onClose()
+      } catch (error) {
+        setAuthErrorMessage(mapAuthApiErrorMessage(error, 'TOTP 绑定失败，请稍后重试'))
+      } finally {
+        setIsSubmitting(false)
+      }
+    })()
   }
 
   // 22）个人通道模式切换
@@ -721,6 +1194,23 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     setOrganizationPassword,
     organizationOtpCode,
     setOrganizationOtpCode,
+    organizationEntityName,
+    organizationBoundAdminCount,
+    organizationMinAdminCount,
+    organizationMaxAdminCount,
+    organizationCurrentAdminOrder,
+    organizationAdminOptions,
+    organizationSelectedAdminUid,
+    setOrganizationSelectedAdminUid,
+    totpSetupQrCodeDataUrl,
+    totpSetupQrCountdownSec,
+    totpSetupQrExpireTotalSec,
+    isTotpSetupQrExpired,
+    isTotpSetupQrLoading,
+    totpSetupOtpCode,
+    setTotpSetupOtpCode,
+    totpSetupSuccessMessage,
+    isEntityTotpBindModalOpen,
     rememberMe,
     setRememberMe,
     personalLoginMode,
@@ -746,8 +1236,22 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     handleSendRegisterCode,
     handlePersonalSubmit,
     handleOrganizationCredentialsSubmit,
+    handleOrganizationAdminSelectSubmit,
+    organizationAdminDisplayName,
+    setOrganizationAdminDisplayName,
+    organizationAdminPassword,
+    setOrganizationAdminPassword,
+    isOrganizationAdminPasswordVisible,
+    handleOrganizationAdminRegisterSubmit,
+    handleBackFromOrganizationAdminRegister,
+    handleToggleOrganizationAdminPasswordVisibility,
     handleOrganizationOtpSubmit,
+    handleBackFromOrganizationOtp,
+    handleOrganizationTotpSetupConfirm,
     handleBackToOrganizationCredentials,
+    handleOpenEntityTotpBindModal,
+    handleCloseEntityTotpBindModal,
+    loadEntityTotpSetupQr,
     handleSwitchToSmsLoginMode,
     handleSwitchToPasswordLoginMode,
     handleSwitchToRegisterForm,

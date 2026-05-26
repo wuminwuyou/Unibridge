@@ -1,6 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AUTH_FORCE_LOGOUT_EVENT, AUTH_TOKENS_UPDATED_EVENT, type AuthTokensUpdatedDetail } from '../auth/authEvents'
-import { clearAuthTokens, getAccessToken, getRefreshToken, getUserUid, setAuthTokens, setUserUid } from '../auth/tokenStorage'
+import {
+  clearAuthTokens,
+  clearEntitySession,
+  getAccessToken,
+  getEntityCode,
+  getEntityName,
+  getRefreshToken,
+  getUserRole,
+  getUserUid,
+  setAuthTokens,
+  setEntityCode,
+  setEntityName,
+  setUserRole,
+  setUserUid,
+} from '../auth/tokenStorage'
 import type { UserResourceUid } from '../api/resourceUid'
 
 // 01）认证用户档案类型定义（AuthUserProfile）
@@ -8,6 +22,10 @@ export interface AuthUserProfile {
   uid?: UserResourceUid
   userRole?: string
   authStatus?: string
+  /** 主体 entity_code，主体通道登录时写入 */
+  entityCode?: string
+  /** 主体展示名称 */
+  entityName?: string | null
 }
 
 // 02）认证状态类型定义（AuthState）
@@ -59,13 +77,53 @@ function createInitialAuthState(): AuthState {
   const initialAccessToken = getAccessToken()
   const initialRefreshToken = getRefreshToken()
   const initialUserUid = getUserUid()
+  const initialUserRole = getUserRole()
+  const initialEntityCode = getEntityCode()
+  const initialEntityName = getEntityName()
   return {
     isLoggedIn: Boolean(initialAccessToken),
     token: initialAccessToken,
     refreshToken: initialRefreshToken,
-    userProfile: initialUserUid ? { uid: initialUserUid } : null,
+    userProfile: initialUserUid
+      ? {
+          uid: initialUserUid,
+          userRole: initialUserRole ?? undefined,
+          entityCode: initialEntityCode ?? undefined,
+          entityName: initialEntityName,
+        }
+      : null,
     isHydrated: true,
   }
+}
+
+// 07.1）同步用户档案到本地存储（persistAuthUserProfileMeta）
+/**
+ * 函数名：persistAuthUserProfileMeta
+ * 功能：将 uid、角色与主体代码等字段写入 localStorage，供刷新后恢复。
+ * 输入：
+ * - profile：认证用户档案，可为 null
+ * 输出：
+ * - 返回值：void
+ * - 副作用：读写 localStorage
+ */
+function persistAuthUserProfileMeta(profile: AuthUserProfile | null | undefined): void {
+  if (!profile) {
+    return
+  }
+
+  if (profile.uid) {
+    setUserUid(profile.uid)
+  }
+  setUserRole(profile.userRole ?? null)
+  const normalizedEntityCode = profile.entityCode?.trim() ?? ''
+  if (normalizedEntityCode) {
+    setEntityCode(normalizedEntityCode)
+    setEntityName(profile.entityName ?? null)
+    return
+  }
+
+  setEntityName(null)
+  clearEntitySession()
 }
 
 // 08）全局认证状态提供器（AuthProvider）
@@ -91,9 +149,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       accessToken: payload.accessToken,
       refreshToken: payload.refreshToken,
     })
-    if (payload.userProfile?.uid) {
-      setUserUid(payload.userProfile.uid)
-    }
+    persistAuthUserProfileMeta(payload.userProfile)
     setAuthState((previousState) => ({
       ...previousState,
       isLoggedIn: true,
@@ -130,9 +186,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // 12）用户档案更新处理（setUserProfile）
   const setUserProfile = useCallback((profile: AuthUserProfile | null): void => {
-    if (profile?.uid) {
-      setUserUid(profile.uid)
-    }
+    persistAuthUserProfileMeta(profile)
     setAuthState((previousState) => ({
       ...previousState,
       userProfile: profile,

@@ -7,8 +7,10 @@ import type { ProfileSpaceShellLoadState } from '../../profileSpaceShellTypes'
 import { buildAvatarFallbackUrl, mapUserProfileSpaceData } from './mapUserProfileSpaceData'
 import { personalViewTabs, SIDEBAR_COLLAPSE_DURATION_MS } from './personalViewPageData'
 import {
+  buildPersonalSpacePath,
   buildProfileTabPath,
   extractProfileTabRouteSegment,
+  extractProfileUidFromSearch,
   isSupportedProfileTabRouteSegment,
   resolveProfileTabFromLegacySearch,
   resolveProfileTabFromPathname,
@@ -42,6 +44,11 @@ export function usePersonalViewPage() {
     [location.pathname],
   )
 
+  const profileUidFromQuery = useMemo(
+    () => extractProfileUidFromSearch(location.search),
+    [location.search],
+  )
+
   const [shellLoadState, setShellLoadState] = useState<ProfileSpaceShellLoadState>('loading')
   const [shellErrorMessage, setShellErrorMessage] = useState<string | null>(null)
   const [userCoreProfile, setUserCoreProfile] = useState<UserCoreProfile | null>(null)
@@ -70,15 +77,15 @@ export function usePersonalViewPage() {
   useEffect(() => {
     const legacyTab = resolveProfileTabFromLegacySearch(location.search)
     if (legacyTab != null) {
-      navigate(buildProfileTabPath(legacyTab), { replace: true })
+      navigate(buildPersonalSpacePath(profileUidFromQuery, legacyTab), { replace: true })
       return
     }
 
     const segment = extractProfileTabRouteSegment(location.pathname)
     if (!isSupportedProfileTabRouteSegment(segment)) {
-      navigate('/profile', { replace: true })
+      navigate(buildPersonalSpacePath(profileUidFromQuery), { replace: true })
     }
-  }, [location.pathname, location.search, navigate])
+  }, [location.pathname, location.search, navigate, profileUidFromQuery])
 
   useEffect(() => {
     if (!isSidebarCollapsed) {
@@ -97,7 +104,7 @@ export function usePersonalViewPage() {
 
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [location.pathname])
+  }, [location.pathname, location.search])
 
   useEffect(() => {
     let isCancelled = false
@@ -107,13 +114,16 @@ export function usePersonalViewPage() {
       setShellErrorMessage(null)
 
       try {
-        const spaceData = await getUserProfileSpace()
+        const spaceData = await getUserProfileSpace(profileUidFromQuery ?? undefined)
         if (isCancelled) {
           return
         }
 
         const mappedSpaceData = mapUserProfileSpaceData(spaceData)
-        if (isUserResourceUid(mappedSpaceData.userCoreProfile.uid)) {
+        if (
+          !profileUidFromQuery &&
+          isUserResourceUid(mappedSpaceData.userCoreProfile.uid)
+        ) {
           setUserUid(mappedSpaceData.userCoreProfile.uid)
         }
         setUserCoreProfile(mappedSpaceData.userCoreProfile)
@@ -141,7 +151,7 @@ export function usePersonalViewPage() {
     return () => {
       isCancelled = true
     }
-  }, [])
+  }, [profileUidFromQuery])
 
   const isShellReady =
     shellLoadState === 'ready' &&
@@ -153,8 +163,9 @@ export function usePersonalViewPage() {
     : ''
 
   const handleTabClick = (tab: ProfileTab): void => {
-    const targetPath = buildProfileTabPath(tab)
-    if (location.pathname !== targetPath) {
+    const targetPath = buildPersonalSpacePath(profileUidFromQuery, tab)
+    const currentPath = `${location.pathname}${location.search}`
+    if (currentPath !== targetPath) {
       navigate(targetPath)
     }
   }
@@ -164,6 +175,7 @@ export function usePersonalViewPage() {
   return {
     profileTabs: personalViewTabs,
     activeTab,
+    profileUidFromQuery,
     shellLoadState,
     shellErrorMessage,
     userCoreProfile,

@@ -20,7 +20,7 @@ export interface UsePersonalNotesTabDataResult {
  * - 返回值：UsePersonalNotesTabDataResult
  * - 副作用：发起网络请求
  */
-export function usePersonalNotesTabData(): UsePersonalNotesTabDataResult {
+export function usePersonalNotesTabData(profileUid?: string | null): UsePersonalNotesTabDataResult {
   const [loadState, setLoadState] = useState<ProfileTabLoadState>('loading')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [notes, setNotes] = useState<ProfileNoteItem[]>([])
@@ -34,7 +34,11 @@ export function usePersonalNotesTabData(): UsePersonalNotesTabDataResult {
       setErrorMessage(null)
 
       try {
-        const notesData = await getUserProfileNotes({ page: 1, pageSize: 20 })
+        const notesData = await getUserProfileNotes({
+          page: 1,
+          pageSize: 20,
+          profileUid: profileUid ?? undefined,
+        })
         if (isCancelled) {
           return
         }
@@ -59,7 +63,7 @@ export function usePersonalNotesTabData(): UsePersonalNotesTabDataResult {
     return () => {
       isCancelled = true
     }
-  }, [])
+  }, [profileUid])
 
   return {
     loadState,

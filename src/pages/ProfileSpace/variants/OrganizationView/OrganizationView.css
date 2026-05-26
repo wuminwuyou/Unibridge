@@ -1,0 +1,146 @@
+/* 01）Organization 变体 Hero Banner */
+.organization-view-hero__banner {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.28;
+}
+
+/* 02）Organization 变体 Hero */
+.organization-view-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transform: translateY(-5px);
+  position: relative;
+  z-index: 1;
+}
+
+.organization-view-hero__logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+  object-fit: cover;
+}
+
+.organization-view-hero__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.organization-view-hero__name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.organization-view-hero__name-row h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--profile-text);
+}
+
+.organization-view-hero__type-badge {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #7c3aed;
+  background: color-mix(in srgb, #8b5cf6 12%, var(--profile-card-bg));
+  border: 1px solid color-mix(in srgb, #8b5cf6 35%, var(--profile-card-border));
+}
+
+.organization-view-hero__description {
+  margin: 0;
+  font-size: 15px;
+  line-height: 24px;
+  color: var(--profile-text-soft);
+  max-width: 520px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  word-break: break-word;
+}
+
+.organization-view-hero__facts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.organization-view-hero__facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--profile-fact-text);
+}
+
+.organization-view-hero__edit-button {
+  position: absolute;
+  right: 0;
+  bottom: 24px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--profile-card-border);
+  background: var(--profile-card-bg);
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* 03）机构侧栏 */
+.organization-view-side-card__notice {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--profile-side-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.organization-view-info-table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.organization-view-info-table th,
+.organization-view-info-table td {
+  border-bottom: 1px solid var(--profile-card-border);
+  padding: 10px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.organization-view-info-table th {
+  width: 34%;
+  color: var(--profile-side-muted);
+  font-weight: 500;
+}
+
+.organization-view-info-table td {
+  color: var(--profile-text);
+  word-break: break-word;
+}
+
+.organization-view-info-table tr:last-child th,
+.organization-view-info-table tr:last-child td {
+  border-bottom: none;
+}

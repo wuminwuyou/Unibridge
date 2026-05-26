@@ -20,7 +20,7 @@ export interface UsePersonalProjectsTabDataResult {
  * - 返回值：UsePersonalProjectsTabDataResult
  * - 副作用：发起网络请求
  */
-export function usePersonalProjectsTabData(): UsePersonalProjectsTabDataResult {
+export function usePersonalProjectsTabData(profileUid?: string | null): UsePersonalProjectsTabDataResult {
   const [loadState, setLoadState] = useState<ProfileTabLoadState>('loading')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [projects, setProjects] = useState<ProjectItem[]>([])
@@ -34,7 +34,11 @@ export function usePersonalProjectsTabData(): UsePersonalProjectsTabDataResult {
       setErrorMessage(null)
 
       try {
-        const projectsData = await getUserProfileProjects({ page: 1, pageSize: 20 })
+        const projectsData = await getUserProfileProjects({
+          page: 1,
+          pageSize: 20,
+          profileUid: profileUid ?? undefined,
+        })
         if (isCancelled) {
           return
         }
@@ -59,7 +63,7 @@ export function usePersonalProjectsTabData(): UsePersonalProjectsTabDataResult {
     return () => {
       isCancelled = true
     }
-  }, [])
+  }, [profileUid])
 
   return {
     loadState,
