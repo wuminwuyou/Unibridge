@@ -1,8 +1,12 @@
 package com.unibridge.backend.domain.auth;
 
 import com.unibridge.backend.domain.auth.dto.HandleLogoutRequest;
+import com.unibridge.backend.domain.auth.dto.OrganizationAdminRegisterRequest;
 import com.unibridge.backend.domain.auth.dto.OrganizationCredentialLoginRequest;
 import com.unibridge.backend.domain.auth.dto.OrganizationOtpLoginRequest;
+import com.unibridge.backend.domain.auth.dto.OrganizationSelectAdminRequest;
+import com.unibridge.backend.domain.auth.dto.OrganizationTotpSetupConfirmRequest;
+import com.unibridge.backend.domain.auth.dto.OrganizationTotpSetupInitRequest;
 import com.unibridge.backend.domain.auth.dto.PersonalEmailLoginRequest;
 import com.unibridge.backend.domain.auth.dto.PersonalPasswordLoginRequest;
 import com.unibridge.backend.domain.auth.dto.PersonalRegisterRequest;
@@ -61,16 +65,40 @@ public class AuthController {
         return Result.success(authService.sendPersonalCode(request));
     }
 
-    @Operation(summary = "机构凭证登录（第一步）", description = "entity_code + password，返回 OTP 挑战信息")
+    @Operation(summary = "机构凭证登录（第一步）", description = "支持主体根密码或管理员密码；根密码且已有管理员时返回 admin_select")
     @PostMapping("/organization/login/credentials")
     public Result organizationLoginByCredentials(@RequestBody OrganizationCredentialLoginRequest request) {
         return Result.success(authService.loginOrganizationCredentials(request));
     }
 
-    @Operation(summary = "机构 OTP 登录（第二步）")
+    @Operation(summary = "登记主体管理员", description = "loginMode=admin_register 时调用；成功后 loginMode=totp_setup")
+    @PostMapping("/organization/admin/register")
+    public Result registerOrganizationAdmin(@RequestBody OrganizationAdminRegisterRequest request) {
+        return Result.success(authService.registerOrganizationAdmin(request));
+    }
+
+    @Operation(summary = "主体根密码登录后选择管理员", description = "loginMode=admin_select 时调用")
+    @PostMapping("/organization/login/select-admin")
+    public Result selectOrganizationAdmin(@RequestBody OrganizationSelectAdminRequest request) {
+        return Result.success(authService.selectOrganizationAdmin(request));
+    }
+
+    @Operation(summary = "机构 OTP 登录（第二步）", description = "已绑定 TOTP 的管理员或主体根账号校验验证码")
     @PostMapping("/organization/login/otp")
     public Result organizationLoginByOtp(@RequestBody OrganizationOtpLoginRequest request) {
         return Result.success(authService.loginOrganizationOtp(request));
+    }
+
+    @Operation(summary = "机构 TOTP 首次绑定初始化", description = "返回 QR 码与 otpauth URL")
+    @PostMapping("/organization/totp/setup/init")
+    public Result initOrganizationTotpSetup(@RequestBody OrganizationTotpSetupInitRequest request) {
+        return Result.success(authService.initOrganizationTotpSetup(request));
+    }
+
+    @Operation(summary = "机构 TOTP 首次绑定确认", description = "校验 TOTP 并签发 token")
+    @PostMapping("/organization/totp/setup/confirm")
+    public Result confirmOrganizationTotpSetup(@RequestBody OrganizationTotpSetupConfirmRequest request) {
+        return Result.success(authService.confirmOrganizationTotpSetup(request));
     }
 
     @Operation(summary = "刷新 access_token")

@@ -185,6 +185,25 @@ public class GlobalExceptionHandler {
         return buildSafeResponse(status, sanitizeClientMessage(message, "BAD_REQUEST"));
     }
 
+    /**
+     * 业务层以 {@code throw new RuntimeException("ERROR_CODE")} 抛出的可控错误（全大写下划线错误码）。
+     * 与 {@link IllegalArgumentException} 分支一致，对外返回 4xx + 错误码，避免误报 500。
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Result> handleRuntime(RuntimeException ex, HttpServletRequest request) {
+        if (ex instanceof BusinessException business) {
+            return handleBusiness(business, request);
+        }
+        String message = ex.getMessage();
+        if (message != null && message.matches("^[A-Z][A-Z0-9_]+$")) {
+            int status = resolveStatus(message);
+            logInternalWarn(request, "BIZ-RUNTIME", status, message, ex);
+            return buildSafeResponse(status, message);
+        }
+        logInternalError(request, "UNKNOWN-RUNTIME", ex);
+        return buildSafeResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), MSG_UNKNOWN_SAFE);
+    }
+
     // =========================================================================
     // 🔴 C. 全局未知异常（终极防漏斗 —— 必须洗白）
     // =========================================================================

@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS user_auth_link;
 DROP TABLE IF EXISTS user_profile;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS entity_profile;
+DROP TABLE IF EXISTS sys_entity_totp_credentials;
 DROP TABLE IF EXISTS entity;
 DROP TABLE IF EXISTS sys_credit_logs;
 DROP TABLE IF EXISTS sys_credit_profiles;
@@ -83,6 +84,47 @@ CREATE TABLE IF NOT EXISTS entity_profile (
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT chk_entity_profile_type CHECK (type IN ('ENTERPRISE', 'UNIVERSITY'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- =========================================================================
+-- 04.1）主体管理员与 TOTP 凭证（sys_entity_totp_credentials）
+-- 同一 entity_code 最多 3 名 ACTIVE 管理员；主体启用管理端前至少配置 2 名（应用层校验）
+-- admin_uid 格式：EA + 11 位 [A-Za-z0-9]（见 EntityAdminUidGenerator）
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS sys_entity_totp_credentials (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  admin_uid CHAR(13) NOT NULL COMMENT '主体管理员 UID（EA+11位 NanoID）',
+  entity_code VARCHAR(32) NOT NULL COMMENT '所属主体代码',
+  password_hash VARCHAR(255) NOT NULL COMMENT '管理员登录密码哈希',
+  totp_secret VARCHAR(255) NULL COMMENT 'TOTP 二次验证密钥（AES对称加密密文）',
+  display_name VARCHAR(128) NULL COMMENT '管理员展示名/备注（便于主体后台识别）',
+  is_primary TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否主管理员：1=拥有移出/新增管理员、转移主管理员绑定等关键权限',
+  account_status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE(已激活) | PENDING(待绑定TOTP) | FROZEN | DEACTIVATED',
+  account_status_changed_at DATETIME NULL COMMENT '账号状态最近变更时间',
+  last_login_at DATETIME NULL COMMENT '管理员上次登录时间',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_entity_admin_uid (admin_uid),
+  KEY idx_entity_totp_entity_code (entity_code),
+  KEY idx_entity_totp_entity_status (entity_code, account_status),
+  KEY idx_entity_totp_entity_primary (entity_code, is_primary),
+  CONSTRAINT fk_entity_totp_entity FOREIGN KEY (entity_code) REFERENCES entity(entity_code)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT chk_entity_admin_uid CHECK (admin_uid REGEXP '^EA[A-Za-z0-9]{11}$'),
+  CONSTRAINT chk_entity_totp_is_primary CHECK (is_primary IN (0, 1)),
+  CONSTRAINT chk_entity_totp_account_status CHECK (account_status IN ('ACTIVE', 'PENDING', 'FROZEN', 'DEACTIVATED'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 主体管理员数量规则（应用层事务校验，非 DB CHECK）：
+--   · 同一 entity_code 下 account_status=ACTIVE 的管理员 ≤ 3
+--   · 主体开通机构管理端前须 ≥ 2 名 ACTIVE 管理员（含 TOTP 绑定完成）
+--   · 注销/冻结管理员后若 ACTIVE 数 < 2，应阻断或要求先补员
+--   · 同一 entity_code 在 ACTIVE 管理员中须且仅有 1 名 is_primary=1（主管理员）
+--   · is_primary=1 方可：移出其他管理员、新增管理员、发起/确认主管理员转移（TOTP 绑定变更）
+--   · 同一 entity_code 下 ACTIVE 管理员 password_hash 须两两不同，且不得与 entity.password_hash 相同（登录按密码识别管理员）
+--   · admin/register 写入 PENDING；totp/setup/confirm 成功后转 ACTIVE，此前不计入 3 人名额与 is_primary
+--   · 转移主管理员：单事务内将原主 is_primary=0、新主 is_primary=1，并更新 totp_secret 归属
 
 
 -- =========================================================================
@@ -154,6 +196,8 @@ CREATE TABLE user_auth_link (
   proof_artifact_url VARCHAR(512) NULL COMMENT '认证证明材料URL（如学生证、工作证截图，供后台审核）',
   -- 区分两层状态机：审核状态 vs 物理生效状态
   audit_status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING(待审核) | APPROVED(审核通过) | REJECTED(审核拒绝)',
+  audit_uid CHAR(13) NULL COMMENT '审核通过的主体管理员 admin_uid（EA+11）',
+  audited_at DATETIME NULL COMMENT '主体管理员审核时间',
   is_active TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1(当前活跃身份) | 0(历史失效/毕业离职归档)',
   remark VARCHAR(255) NULL COMMENT '审核拒绝原因或备注说明',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -162,12 +206,15 @@ CREATE TABLE user_auth_link (
   KEY idx_user_auth_link_user_uid (user_uid),
   KEY idx_user_auth_link_entity_code (entity_code),
   KEY idx_user_auth_link_status (audit_status, is_active),
+  KEY idx_user_auth_link_audit_uid (audit_uid),
   -- 联合唯一索引保持不变，依然完美锁死“同机构同角色只能申请一次”
   UNIQUE KEY uk_user_auth_link_unique (user_uid, entity_code, role),
   CONSTRAINT fk_user_auth_link_user FOREIGN KEY (user_uid) REFERENCES `user`(user_uid)
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_user_auth_link_entity FOREIGN KEY (entity_code) REFERENCES entity(entity_code)
-    ON DELETE RESTRICT ON UPDATE CASCADE, 
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_user_auth_link_audit_admin FOREIGN KEY (audit_uid) REFERENCES sys_entity_totp_credentials(admin_uid)
+    ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT chk_user_auth_link_role CHECK (role IN ('PM','MENTOR','STUDENT')),
   CONSTRAINT chk_user_auth_link_audit CHECK (audit_status IN ('PENDING','APPROVED','REJECTED')),
   CONSTRAINT chk_user_auth_link_active CHECK (is_active IN (0, 1))
@@ -191,6 +238,7 @@ CREATE TABLE team (
   contact_email VARCHAR(128) NULL COMMENT '对外联系邮箱',
   -- 实验室(LAB)：须所属 entity 审核通过后方可对外展示；学生团队(STUDENT_TEAM)创建即 APPROVED
   audit_status VARCHAR(32) NOT NULL DEFAULT 'APPROVED' COMMENT 'LAB: PENDING|APPROVED|REJECTED；STUDENT_TEAM 固定 APPROVED',
+  audit_uid CHAR(13) NULL COMMENT '审核通过的主体管理员 admin_uid（仅 LAB，EA+11）',
   audited_at DATETIME NULL COMMENT '所属主体审核通过时间（仅 LAB）',
   audit_remark VARCHAR(255) NULL COMMENT '审核拒绝/备注（仅 LAB）',
   -- 团队账号生命周期：活跃 ⇄ 冻结 → 解散/注销
@@ -205,9 +253,12 @@ CREATE TABLE team (
   KEY idx_team_owner_uid (owner_uid),
   KEY idx_team_entity_code (entity_code),
   KEY idx_team_audit_status (audit_status),
+  KEY idx_team_audit_uid (audit_uid),
   KEY idx_team_account_status (account_status),
   CONSTRAINT fk_team_owner FOREIGN KEY (owner_uid) REFERENCES `user`(user_uid) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT fk_team_entity FOREIGN KEY (entity_code) REFERENCES entity(entity_code) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_team_audit_admin FOREIGN KEY (audit_uid) REFERENCES sys_entity_totp_credentials(admin_uid)
+    ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT chk_team_audit_status CHECK (audit_status IN ('PENDING', 'APPROVED', 'REJECTED')),
   CONSTRAINT chk_team_account_status CHECK (account_status IN ('ACTIVE', 'FROZEN', 'DISBANDED', 'DEACTIVATED')),
   CONSTRAINT chk_team_type CHECK (type IN ('LAB', 'STUDENT_TEAM')),
@@ -533,7 +584,8 @@ CREATE TABLE IF NOT EXISTS sys_approval_flows (
   approval_key VARCHAR(64) NOT NULL COMMENT '对外公开审批单 Key（APP+11位 [A-Za-z0-9]，如 app_aB7x9K2mN4pQ）',
   business_type VARCHAR(32) NOT NULL COMMENT 'PROJECT_FUND | LAB_CREATE | MENTOR_AUTH，可后续拓展：USER_AUTH | ENTITY_AUTH | TEAM_AUTH',
   applicant_key VARCHAR(64) NOT NULL COMMENT '申请人 Key（通常为 user_uid 或 entity_code，分库友好不设 FK）',
-  target_entity_key VARCHAR(64) NOT NULL COMMENT '审批主体 Key：entity_code；特殊值 0 表示平台官方审批',
+  target_key VARCHAR(64) NOT NULL COMMENT '目标主体 Key：entity_code 或 team_uid；特殊值 0 表示平台官方审批',
+  audit_uid CHAR(13) NULL COMMENT '审核通过的平台管理员 admin_uid/ 团队管理员 team_uid（LB/ST+11） / 主体账号管理员 admin_uid（EA+11）',
   status TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0:待审批 1:已批准 2:已驳回 3:已撤回',
   payload JSON NOT NULL COMMENT '业务差异化数据（各 business_type 自定义 JSON 结构）',
   remark VARCHAR(255) NULL COMMENT '审批意见/驳回理由',
@@ -541,9 +593,9 @@ CREATE TABLE IF NOT EXISTS sys_approval_flows (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_approval_key (approval_key),
-  KEY idx_approval_target_entity (target_entity_key),
+  KEY idx_approval_target_key (target_key),
   KEY idx_approval_applicant (applicant_key),
-  KEY idx_approval_target_status (target_entity_key, status),
+  KEY idx_approval_target_status (target_key, status),
   KEY idx_approval_business_type (business_type),
   CONSTRAINT chk_approval_key CHECK (approval_key REGEXP '^APP[A-Za-z0-9]{11}$'),
   CONSTRAINT chk_approval_business_type CHECK (business_type IN ('PROJECT_FUND', 'LAB_CREATE', 'MENTOR_AUTH')),
@@ -552,13 +604,15 @@ CREATE TABLE IF NOT EXISTS sys_approval_flows (
 
 -- -------------------------------------------------------------------------
 -- sys_approval_flows 说明
--- | target_entity_key | 含义                                      |
--- |-------------------|-------------------------------------------|
--- | entity_code       | 由对应学校/企业管理员在其空间内审批          |
--- | '0'               | 平台官方审批（system_admin 侧处理）         |
--- | applicant_key     | 通常为 user_uid(US...) 或 entity_code     |
--- | payload           | 按 business_type 存放专属字段，避免宽表膨胀  |
--- 待办列表查询：WHERE target_entity_key = ? AND status = 0
+-- | target_key    | 含义                                              |
+-- |---------------|---------------------------------------------------|
+-- | entity_code   | 由对应学校/企业管理员在其空间内审批                  |
+-- | team_uid      | 由团队侧审批（如 LAB 创建）                          |
+-- | '0'           | 平台官方审批（system_admin 侧处理）                 |
+-- | applicant_key | 通常为 user_uid(US...) 或 entity_code             |
+-- | audit_uid     | 多态审核人：system_admin.id / team_uid / EA+11 等  |
+-- | payload       | 按 business_type 存放专属字段，避免宽表膨胀          |
+-- 待办列表查询：WHERE target_key = ? AND status = 0
 -- 我的申请查询：WHERE applicant_key = ? ORDER BY created_at DESC
 -- -------------------------------------------------------------------------
 
@@ -631,13 +685,14 @@ CREATE TABLE IF NOT EXISTS sys_credit_logs (
 -- | user                      | AUTO_INCREMENT | user_uid (US+11)                     |
 -- | user_profile              | AUTO_INCREMENT | 无独立 uid，关联 user_uid            |
 -- | entity                    | AUTO_INCREMENT | entity_code（社会统一信用代码）      |
+-- | sys_entity_totp_credentials | AUTO_INCREMENT | admin_uid (EA+11)                  |
 -- | team                      | AUTO_INCREMENT | team_uid (LB/ST+11)                  |
 -- | project                   | AUTO_INCREMENT | project_uid (PR+11)                  |
 -- | project                   | extended_uid   | entity_code 或 team_uid：代发归属（招募/主体项目，可空） |
 -- | note                      | AUTO_INCREMENT | content_type_code (TX/VD+11)         |
 -- | note                      | extended_uid   | entity_code 或 team_uid：联合投稿代发（可空） |
 -- | achievement_archive       | AUTO_INCREMENT | achievement_uid (AC+11)              |
--- | sys_approval_flows        | AUTO_INCREMENT | approval_key (app_+11)             |
+-- | sys_approval_flows        | AUTO_INCREMENT | approval_key (APP+11)              |
 -- | sys_credit_profiles     | AUTO_INCREMENT | user_uid（1:1 主档，无独立对外 uid） |
 -- | sys_credit_logs         | AUTO_INCREMENT | 内部 id 流水，不对外暴露             |
 -- | project_commercial_secret | project_uid PK | 永不对外暴露                         |
@@ -665,8 +720,11 @@ CREATE TABLE IF NOT EXISTS sys_credit_logs (
 -- | entity_profile      | entity_code        | entity(entity_code)     |
 -- | user_auth_link      | user_uid           | user(user_uid)          |
 -- | user_auth_link      | entity_code        | entity(entity_code)     |
+-- | user_auth_link      | audit_uid          | sys_entity_totp_credentials(admin_uid) |
+-- | sys_entity_totp_credentials | entity_code | entity(entity_code)     |
 -- | team                | owner_uid          | user(user_uid)          |
 -- | team                | entity_code        | entity(entity_code)     |
+-- | team                | audit_uid          | sys_entity_totp_credentials(admin_uid) |
 -- | team_member         | team_uid           | team(team_uid)          |
 -- | team_member         | user_uid           | user(user_uid)          |
 -- | team_member         | invited_by_uid     | user(user_uid)          |
@@ -680,7 +738,7 @@ CREATE TABLE IF NOT EXISTS sys_credit_logs (
 -- | note                | user_uid           | user(user_uid)          |
 -- | user_tag_interests  | user_uid           | user(user_uid)          |
 -- | user_content_interaction | user_uid    | user(user_uid)          |
--- | sys_approval_flows       | （无 FK）   | applicant_key / target_entity_key 为多态 Key；target_entity_key='0'→平台 |
+-- | sys_approval_flows       | （无 FK）   | applicant_key / target_key 为多态 Key；target_key='0'→平台 |
 -- | sys_credit_profiles      | user_uid    | user(user_uid)                          |
 -- | sys_credit_logs          | user_uid    | user(user_uid)                          |
 -- =========================
@@ -694,7 +752,7 @@ CREATE TABLE IF NOT EXISTS sys_credit_logs (
 --
 -- education_history 元素示例（JSON 对象）：
 -- {
---   "entity_code": "4144010598",
+--   "entity_code": "10598",
 --   "entity_name": "深圳大学",
 --   "graduation_year": 2026,
 --   "alumni_label": "深圳大学2026届校友",
@@ -711,13 +769,13 @@ CREATE TABLE IF NOT EXISTS sys_credit_logs (
 -- -------------------------------------------------------------------------
 
 -- =========================
--- 17）补充外键：主体审核管理员（entity.audit_admin_id -> system_admin.id）
+-- 22）补充外键：平台审核管理员（entity.audit_admin_id -> system_admin.id）
 -- =========================
 -- ALTER TABLE entity
 --   ADD CONSTRAINT fk_entity_audit_admin FOREIGN KEY (audit_admin_id) REFERENCES system_admin(id)
 --     ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- =========================
--- 17）收尾
+-- 23）收尾
 -- =========================
 SET FOREIGN_KEY_CHECKS = 1;

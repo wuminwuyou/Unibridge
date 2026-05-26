@@ -3,9 +3,15 @@ package com.unibridge.backend.domain.auth;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.unibridge.backend.domain.auth.dto.HandleLogoutRequest;
 import com.unibridge.backend.domain.auth.dto.LoginResponse;
+import com.unibridge.backend.domain.auth.dto.OrganizationAdminOption;
+import com.unibridge.backend.domain.auth.dto.OrganizationAdminRegisterRequest;
 import com.unibridge.backend.domain.auth.dto.OrganizationCredentialLoginRequest;
 import com.unibridge.backend.domain.auth.dto.OrganizationCredentialResponse;
-import com.unibridge.backend.domain.auth.dto.OrganizationOtpLoginRequest;
+import com.unibridge.backend.domain.auth.dto.OrganizationSelectAdminRequest;
+import com.unibridge.backend.domain.auth.dto.OrganizationTotpSetupConfirmRequest;
+import com.unibridge.backend.domain.auth.dto.OrganizationTotpSetupConfirmResponse;
+import com.unibridge.backend.domain.auth.dto.OrganizationTotpSetupInitRequest;
+import com.unibridge.backend.domain.auth.dto.OrganizationTotpSetupInitResponse;
 import com.unibridge.backend.domain.auth.dto.PersonalEmailLoginRequest;
 import com.unibridge.backend.domain.auth.dto.PersonalPasswordLoginRequest;
 import com.unibridge.backend.domain.auth.dto.PersonalRegisterRequest;
@@ -28,6 +34,12 @@ import com.unibridge.backend.infrastructure.persistence.mapper.SysCreditLogMappe
 import com.unibridge.backend.infrastructure.persistence.mapper.SysCreditProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
+import com.unibridge.backend.domain.auth.dto.OrganizationOtpLoginRequest;
+import com.unibridge.backend.infrastructure.entities.ClientEntityProfile;
+import com.unibridge.backend.infrastructure.entities.SysEntityTotpCredentials;
+import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.SysEntityTotpCredentialsMapper;
+import com.unibridge.backend.infrastructure.util.TotpUtils;
 import com.unibridge.backend.infrastructure.util.UserUidGenerator;
 import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
@@ -35,8 +47,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -58,15 +73,24 @@ public class AuthService {
     private static final int CODE_EXPIRE_SEC = 300;
     private static final int CODE_RETRY_AFTER_SEC = 60;
     private static final int OTP_EXPIRE_SEC = 300;
+    private static final int TOTP_QR_EXPIRE_SEC = 300;
+    private static final int ORG_CHALLENGE_EXPIRE_SEC = 1800;
+    private static final int MIN_ENTITY_ADMIN_COUNT = 2;
+    private static final int MAX_ENTITY_ADMIN_COUNT = 3;
     private static final int ACCESS_TOKEN_EXPIRE_SEC = 30 * 60;
     private static final int REFRESH_TOKEN_EXPIRE_SEC = 7 * 24 * 60 * 60;
     private static final long REFRESH_TOKEN_EXPIRE_MS = REFRESH_TOKEN_EXPIRE_SEC * 1000L;
     private static final int DEFAULT_CREDIT_SCORE = 600;
     private static final String CREDIT_BIZ_REGISTER = "REGISTER";
     private static final String CREDIT_OPERATOR_SYSTEM = "SYSTEM";
+    private static final String LOGIN_MODE_TOTP_SETUP = "totp_setup";
+    private static final String LOGIN_MODE_TOTP_VERIFY = "totp_verify";
+    private static final String LOGIN_MODE_ADMIN_SELECT = "admin_select";
+    private static final String LOGIN_MODE_ADMIN_REGISTER = "admin_register";
+    private static final String TOTP_ISSUER = "UniBridge";
 
     private final Map<String, CodeRecord> codeStore = new ConcurrentHashMap<>();
-    private final Map<String, ChallengeRecord> challengeStore = new ConcurrentHashMap<>();
+    private final Map<String, OrgChallengeRecord> orgChallengeStore = new ConcurrentHashMap<>();
     private final Map<String, String> activeRefreshTokenStore = new ConcurrentHashMap<>();
     private final Map<String, LocalDateTime> revokedTokenStore = new ConcurrentHashMap<>();
     private final AtomicLong requestCounter = new AtomicLong(1);
@@ -79,6 +103,15 @@ public class AuthService {
 
     @Autowired
     private ClientEntityMapper clientEntityMapper;
+
+    @Autowired
+    private ClientEntityProfileMapper clientEntityProfileMapper;
+
+    @Autowired
+    private SysEntityTotpCredentialsMapper sysEntityTotpCredentialsMapper;
+
+    @Autowired
+    private EntityAdminCredentialService entityAdminCredentialService;
 
     @Autowired
     private UserAuthLinkMapper userAuthLinkMapper;
@@ -184,17 +217,16 @@ public class AuthService {
         return new SendCodeResponse(requestId, CODE_EXPIRE_SEC, CODE_RETRY_AFTER_SEC);
     }
 
-    /** 主体登录第一步：机构代码 + 密码校验，返回 challenge。 */
+    /** 主体登录第一步：机构代码 + 密码（主体根密码或管理员密码）。 */
     public OrganizationCredentialResponse loginOrganizationCredentials(OrganizationCredentialLoginRequest request) {
         if (isBlank(request.getInstitutionCode()) || isBlank(request.getPassword())) {
             throw new RuntimeException("ORGANIZATION_FIELDS_REQUIRED");
         }
 
-        LambdaQueryWrapper<ClientEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientEntity::getEntityCode, request.getInstitutionCode());
-        ClientEntity entity = clientEntityMapper.selectOne(wrapper);
-
-        if (entity == null || !Objects.equals(entity.getPasswordHash(), request.getPassword())) {
+        String entityCode = normalize(request.getInstitutionCode());
+        String passwordHash = request.getPassword();
+        ClientEntity entity = loadEntityByCode(entityCode);
+        if (entity == null) {
             throw new RuntimeException("ORGANIZATION_CREDENTIAL_INVALID");
         }
         if (!"APPROVED".equalsIgnoreCase(entity.getAuditStatus())) {
@@ -202,45 +234,328 @@ public class AuthService {
         }
         assertEntityAccountActive(entity);
 
-        String otpCode = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1000000));
-        String challengeId = "chl_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-        challengeStore.put(challengeId, new ChallengeRecord(entity.getId(), otpCode, LocalDateTime.now().plusSeconds(OTP_EXPIRE_SEC)));
-        log.info("[ClientAuth] organization otp challengeId={}, otpCode={}", challengeId, otpCode);
+        boolean entityPasswordMatch = Objects.equals(entity.getPasswordHash(), passwordHash);
+        // 先按 institutionCode 定位主体，再在该主体活跃管理员列表中比对密码（非全表 password_hash 查询）
+        SysEntityTotpCredentials adminByPassword =
+                entityAdminCredentialService.matchActiveAdminByPassword(entityCode, passwordHash);
+        boolean adminPasswordMatch = adminByPassword != null;
 
-        return new OrganizationCredentialResponse(challengeId, digestPreview(request.getPassword()), OTP_EXPIRE_SEC, maskInstitutionCode(request.getInstitutionCode()));
+        if (!entityPasswordMatch && !adminPasswordMatch) {
+            throw new RuntimeException("ORGANIZATION_CREDENTIAL_INVALID");
+        }
+
+        boolean adminPasswordAllowed = isAdminPasswordLoginAllowed(entityCode);
+        // 测试/初始化场景下主体根密码与管理员密码可能相同；主体密码匹配时走主体分支，勿误判为管理员密码登录
+        if (adminPasswordMatch && !adminPasswordAllowed && !entityPasswordMatch) {
+            throw new RuntimeException("ORGANIZATION_CREDENTIAL_INVALID");
+        }
+
+        String challengeId = "chl_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        int boundAdminCount = countBoundEntityAdmins(entityCode);
+        String entityName = resolveEntityName(entityCode);
+        LocalDateTime expireAt = LocalDateTime.now().plusSeconds(ORG_CHALLENGE_EXPIRE_SEC);
+
+        if (entityPasswordMatch) {
+            String loginMode = resolveEntityRootLoginMode(entityCode);
+            boolean requiresSelection = LOGIN_MODE_ADMIN_SELECT.equals(loginMode);
+            List<OrganizationAdminOption> adminOptions = requiresSelection
+                    ? toAdminOptions(entityAdminCredentialService.listBindableEntityAdmins(entityCode))
+                    : null;
+            orgChallengeStore.put(challengeId, OrgChallengeRecord.forEntityRoot(
+                    entityCode, loginMode, null, null, expireAt));
+            log.info("[ClientAuth] organization entity-root challengeId={}, loginMode={}, entityCode={}",
+                    challengeId, loginMode, entityCode);
+            return buildOrganizationCredentialResponse(
+                    challengeId, passwordHash, entityCode, entityName, boundAdminCount,
+                    null, loginMode, requiresSelection, adminOptions, null);
+        }
+
+        boolean isFirstLogin = !StringUtils.hasText(adminByPassword.getTotpSecret());
+        if (isFirstLogin) {
+            assertEntityAdminCanBindTotp(adminByPassword);
+        } else {
+            assertEntityAdminActive(adminByPassword);
+        }
+        String loginMode = isFirstLogin ? LOGIN_MODE_TOTP_SETUP : LOGIN_MODE_TOTP_VERIFY;
+        int currentAdminOrder = isFirstLogin
+                ? entityAdminCredentialService.countBoundEntityAdmins(entityCode) + 1
+                : resolveAdminOrder(adminByPassword, entityAdminCredentialService.listActiveEntityAdmins(entityCode));
+        orgChallengeStore.put(challengeId, OrgChallengeRecord.forAdmin(
+                adminByPassword.getAdminUid(), entityCode, loginMode, null, null, expireAt));
+        log.info("[ClientAuth] organization admin-password challengeId={}, adminUid={}, loginMode={}",
+                challengeId, adminByPassword.getAdminUid(), loginMode);
+        return buildOrganizationCredentialResponse(
+                challengeId, passwordHash, entityCode, entityName, boundAdminCount,
+                isFirstLogin, loginMode, false, null, currentAdminOrder);
     }
 
-    /**
-     * 主体登录第二步：challenge + OTP 校验，签发 token。
-     * TODO: 后续补齐首次登录绑定 totp_secret 流程；当前为模拟 TOTP 验证。
-     */
-    public LoginResponse loginOrganizationOtp(OrganizationOtpLoginRequest request) {
-        ChallengeRecord challenge = challengeStore.get(request.getChallengeId());
-        if (challenge == null) {
-            throw new RuntimeException("CHALLENGE_NOT_FOUND");
+    /** 主体根密码 challenge 下登记新管理员，随后进入 {@code totp_setup}。 */
+    @Transactional(rollbackFor = Exception.class)
+    public OrganizationCredentialResponse registerOrganizationAdmin(OrganizationAdminRegisterRequest request) {
+        if (request == null || isBlank(request.getChallengeId()) || isBlank(request.getDisplayName())
+                || isBlank(request.getPassword())) {
+            throw new RuntimeException("ORGANIZATION_FIELDS_REQUIRED");
         }
-        if (challenge.expireAt.isBefore(LocalDateTime.now())) {
-            challengeStore.remove(request.getChallengeId());
-            throw new RuntimeException("CHALLENGE_EXPIRED");
-        }
-        if (!Objects.equals(challenge.otpCode, request.getOtpCode())) {
-            throw new RuntimeException("OTP_INVALID");
+        OrgChallengeRecord challenge = requireOrgChallenge(request.getChallengeId());
+        if (!challenge.entityRootAuthenticated() || !LOGIN_MODE_ADMIN_REGISTER.equals(challenge.loginMode())) {
+            throw new RuntimeException("ORGANIZATION_LOGIN_MODE_INVALID");
         }
 
-        ClientEntity entity = clientEntityMapper.selectById(challenge.entityId);
+        ClientEntity entity = loadEntityByCode(challenge.entityCode());
         if (entity == null) {
             throw new RuntimeException("CHALLENGE_NOT_FOUND");
         }
         assertEntityAccountActive(entity);
 
-        entity.setLastLoginAt(LocalDateTime.now());
-        clientEntityMapper.updateById(entity);
-        challengeStore.remove(request.getChallengeId());
+        if (entityAdminCredentialService.countActiveEntityAdmins(challenge.entityCode()) >= MAX_ENTITY_ADMIN_COUNT) {
+            throw new RuntimeException("ORGANIZATION_ADMIN_LIMIT_REACHED");
+        }
 
-        TokenPair tokenPair = issueTokenPair(entity.getEntityCode(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
-        String accessToken = tokenPair.accessToken();
-        String refreshToken = tokenPair.refreshToken();
-        return new LoginResponse(entity.getEntityCode(), "organization-admin", "verified", accessToken, refreshToken, ACCESS_TOKEN_EXPIRE_SEC);
+        String passwordHash = request.getPassword().trim();
+        entityAdminCredentialService.assertAdminPasswordAvailable(
+                challenge.entityCode(), passwordHash, entity.getPasswordHash(), null);
+
+        String adminUid = entityAdminCredentialService.generateAdminUid();
+        entityAdminCredentialService.deactivateStalePendingAdmins(challenge.entityCode(), null);
+
+        SysEntityTotpCredentials admin = new SysEntityTotpCredentials();
+        admin.setAdminUid(adminUid);
+        admin.setEntityCode(challenge.entityCode());
+        admin.setPasswordHash(passwordHash);
+        admin.setDisplayName(request.getDisplayName().trim());
+        admin.setIsPrimary(0);
+        admin.setAccountStatus(EntityAdminAccountStatus.PENDING);
+        entityAdminCredentialService.createEntityAdmin(admin, entity.getPasswordHash());
+
+        int currentAdminOrder = entityAdminCredentialService.countBoundEntityAdmins(challenge.entityCode()) + 1;
+        orgChallengeStore.put(request.getChallengeId(), OrgChallengeRecord.forAdmin(
+                adminUid, challenge.entityCode(), LOGIN_MODE_TOTP_SETUP, null, null, challenge.expireAt()));
+
+        log.info("[ClientAuth] organization admin-register challengeId={}, adminUid={}, entityCode={}",
+                request.getChallengeId(), adminUid, challenge.entityCode());
+
+        return buildOrganizationCredentialResponse(
+                request.getChallengeId(),
+                null,
+                challenge.entityCode(),
+                resolveEntityName(challenge.entityCode()),
+                countBoundEntityAdmins(challenge.entityCode()),
+                true,
+                LOGIN_MODE_TOTP_SETUP,
+                false,
+                null,
+                currentAdminOrder);
+    }
+
+    /** 主体根密码登录后选择管理员，进入 TOTP 绑定或校验。 */
+    public OrganizationCredentialResponse selectOrganizationAdmin(OrganizationSelectAdminRequest request) {
+        if (request == null || isBlank(request.getChallengeId()) || isBlank(request.getAdminUid())) {
+            throw new RuntimeException("ORGANIZATION_FIELDS_REQUIRED");
+        }
+        OrgChallengeRecord challenge = requireOrgChallenge(request.getChallengeId());
+        if (!challenge.entityRootAuthenticated() || !LOGIN_MODE_ADMIN_SELECT.equals(challenge.loginMode())) {
+            throw new RuntimeException("ORGANIZATION_LOGIN_MODE_INVALID");
+        }
+
+        SysEntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
+                challenge.entityCode(), request.getAdminUid().trim());
+        if (admin == null) {
+            throw new RuntimeException("ORGANIZATION_ADMIN_NOT_FOUND");
+        }
+        assertEntityAdminCanBindTotp(admin);
+
+        boolean isFirstLogin = !StringUtils.hasText(admin.getTotpSecret());
+        String loginMode = isFirstLogin ? LOGIN_MODE_TOTP_SETUP : LOGIN_MODE_TOTP_VERIFY;
+        int currentAdminOrder = isFirstLogin
+                ? entityAdminCredentialService.countBoundEntityAdmins(challenge.entityCode()) + 1
+                : resolveAdminOrder(admin, entityAdminCredentialService.listActiveEntityAdmins(challenge.entityCode()));
+        orgChallengeStore.put(request.getChallengeId(), OrgChallengeRecord.forAdmin(
+                admin.getAdminUid(),
+                challenge.entityCode(),
+                loginMode,
+                challenge.pendingTotpSecret(),
+                challenge.totpSetupExpireAt(),
+                challenge.expireAt()));
+
+        return buildOrganizationCredentialResponse(
+                request.getChallengeId(),
+                null,
+                challenge.entityCode(),
+                resolveEntityName(challenge.entityCode()),
+                countBoundEntityAdmins(challenge.entityCode()),
+                isFirstLogin,
+                loginMode,
+                false,
+                null,
+                currentAdminOrder);
+    }
+
+    /** 主体登录第二步：challenge + TOTP 验证码（已绑定）。 */
+    public LoginResponse loginOrganizationOtp(OrganizationOtpLoginRequest request) {
+        OrgChallengeRecord challenge = requireOrgChallenge(request.getChallengeId());
+        if (!LOGIN_MODE_TOTP_VERIFY.equals(challenge.loginMode())) {
+            throw new RuntimeException("ORGANIZATION_LOGIN_MODE_INVALID");
+        }
+
+        ClientEntity entity = loadEntityByCode(challenge.entityCode());
+        if (entity == null) {
+            throw new RuntimeException("CHALLENGE_NOT_FOUND");
+        }
+        assertEntityAccountActive(entity);
+
+        if (challenge.entityRootAuthenticated() && !StringUtils.hasText(challenge.adminUid())) {
+            if (!StringUtils.hasText(entity.getTotpSecret())
+                    || !TotpUtils.verifyCode(entity.getTotpSecret(), request.getOtpCode())) {
+                throw new RuntimeException("OTP_INVALID");
+            }
+            orgChallengeStore.remove(request.getChallengeId());
+            return completeEntityRootLogin(entity);
+        }
+
+        SysEntityTotpCredentials admin = entityAdminCredentialService.loadActiveAdmin(
+                challenge.entityCode(), challenge.adminUid());
+        if (admin == null) {
+            throw new RuntimeException("CHALLENGE_NOT_FOUND");
+        }
+        assertEntityAdminActive(admin);
+
+        if (!TotpUtils.verifyCode(admin.getTotpSecret(), request.getOtpCode())) {
+            throw new RuntimeException("OTP_INVALID");
+        }
+
+        orgChallengeStore.remove(request.getChallengeId());
+        return completeOrganizationLogin(admin);
+    }
+
+    /** 首次 TOTP 绑定：生成 QR 码。 */
+    public OrganizationTotpSetupInitResponse initOrganizationTotpSetup(OrganizationTotpSetupInitRequest request) {
+        if (request == null || isBlank(request.getChallengeId())) {
+            throw new RuntimeException("CHALLENGE_NOT_FOUND");
+        }
+        OrgChallengeRecord challenge = requireOrgChallenge(request.getChallengeId());
+        if (!LOGIN_MODE_TOTP_SETUP.equals(challenge.loginMode())) {
+            throw new RuntimeException("ORGANIZATION_LOGIN_MODE_INVALID");
+        }
+
+        ClientEntity entity = loadEntityByCode(challenge.entityCode());
+        if (entity == null) {
+            throw new RuntimeException("CHALLENGE_NOT_FOUND");
+        }
+
+        String secret = TotpUtils.generateSecret();
+        String accountLabel;
+        if (challenge.entityRootAuthenticated() && !StringUtils.hasText(challenge.adminUid())) {
+            if (StringUtils.hasText(entity.getTotpSecret())) {
+                throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
+            }
+            accountLabel = resolveEntityName(challenge.entityCode()) + ":root";
+        } else {
+            SysEntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
+                    challenge.entityCode(), challenge.adminUid());
+            if (admin == null) {
+                throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
+            }
+            accountLabel = resolveEntityName(challenge.entityCode()) + ":" + admin.getAdminUid();
+        }
+
+        String otpAuthUrl = TotpUtils.buildOtpAuthUrl(TOTP_ISSUER, accountLabel, secret);
+        String qrCodeDataUrl = TotpUtils.generateQrCodeDataUrl(TOTP_ISSUER, accountLabel, secret);
+
+        orgChallengeStore.put(request.getChallengeId(), challenge.withPendingTotp(
+                secret, LocalDateTime.now().plusSeconds(TOTP_QR_EXPIRE_SEC)));
+
+        Integer currentAdminOrder = null;
+        if (StringUtils.hasText(challenge.adminUid())) {
+            SysEntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
+                    challenge.entityCode(), challenge.adminUid());
+            currentAdminOrder = admin == null
+                    ? 1
+                    : entityAdminCredentialService.countBoundEntityAdmins(challenge.entityCode()) + 1;
+        }
+
+        return OrganizationTotpSetupInitResponse.builder()
+                .qrCodeDataUrl(qrCodeDataUrl)
+                .qrCodeExpireInSec(TOTP_QR_EXPIRE_SEC)
+                .otpAuthUrl(otpAuthUrl)
+                .currentAdminOrder(currentAdminOrder == null ? 1 : currentAdminOrder)
+                .build();
+    }
+
+    /** 首次 TOTP 绑定：确认验证码并签发 token。 */
+    @Transactional(rollbackFor = Exception.class)
+    public OrganizationTotpSetupConfirmResponse confirmOrganizationTotpSetup(OrganizationTotpSetupConfirmRequest request) {
+        if (request == null || isBlank(request.getChallengeId()) || isBlank(request.getTotpCode())) {
+            throw new RuntimeException("ORGANIZATION_FIELDS_REQUIRED");
+        }
+        OrgChallengeRecord challenge = requireOrgChallenge(request.getChallengeId());
+        if (!LOGIN_MODE_TOTP_SETUP.equals(challenge.loginMode())) {
+            throw new RuntimeException("ORGANIZATION_LOGIN_MODE_INVALID");
+        }
+        if (!StringUtils.hasText(challenge.pendingTotpSecret())) {
+            throw new RuntimeException("ORGANIZATION_TOTP_SETUP_NOT_INITIALIZED");
+        }
+        if (challenge.totpSetupExpireAt() == null || challenge.totpSetupExpireAt().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("ORGANIZATION_TOTP_QR_EXPIRED");
+        }
+        if (!TotpUtils.verifyCode(challenge.pendingTotpSecret(), request.getTotpCode())) {
+            throw new RuntimeException("OTP_INVALID");
+        }
+
+        ClientEntity entity = loadEntityByCode(challenge.entityCode());
+        if (entity == null) {
+            throw new RuntimeException("CHALLENGE_NOT_FOUND");
+        }
+        assertEntityAccountActive(entity);
+
+        LocalDateTime now = LocalDateTime.now();
+        String boundSecret = challenge.pendingTotpSecret().trim();
+        TokenPair tokenPair;
+        int boundAdminCount;
+
+        if (challenge.entityRootAuthenticated() && !StringUtils.hasText(challenge.adminUid())) {
+            if (StringUtils.hasText(entity.getTotpSecret())) {
+                throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
+            }
+            entity.setTotpSecret(boundSecret);
+            entity.setLastLoginAt(now);
+            clientEntityMapper.updateById(entity);
+            boundAdminCount = entityAdminCredentialService.countBoundEntityAdmins(entity.getEntityCode());
+            tokenPair = issueTokenPair(entity.getEntityCode(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
+        } else {
+            SysEntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
+                    challenge.entityCode(), challenge.adminUid());
+            if (admin == null) {
+                throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
+            }
+            activateEntityAdminAfterTotpBind(admin, boundSecret, now);
+            boundAdminCount = entityAdminCredentialService.countBoundEntityAdmins(admin.getEntityCode());
+            tokenPair = issueTokenPair(admin.getAdminUid(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
+        }
+
+        orgChallengeStore.remove(request.getChallengeId());
+        boolean entityFullyActivated = boundAdminCount >= MIN_ENTITY_ADMIN_COUNT;
+
+        String nextChallengeId = null;
+        String nextLoginMode = null;
+        if (!entityFullyActivated) {
+            FollowUpChallenge followUp = createFollowUpEntityRootChallenge(challenge.entityCode());
+            nextChallengeId = followUp.challengeId();
+            nextLoginMode = followUp.loginMode();
+        }
+
+        return OrganizationTotpSetupConfirmResponse.builder()
+                .accessToken(tokenPair.accessToken())
+                .refreshToken(tokenPair.refreshToken())
+                .expiresIn(ACCESS_TOKEN_EXPIRE_SEC)
+                .entityFullyActivated(entityFullyActivated)
+                .boundAdminCount(boundAdminCount)
+                .minAdminCount(MIN_ENTITY_ADMIN_COUNT)
+                .activationHint(entityFullyActivated
+                        ? null
+                        : buildActivationHint(challenge.entityCode(), boundAdminCount))
+                .nextChallengeId(nextChallengeId)
+                .nextLoginMode(nextLoginMode)
+                .build();
     }
 
     /** 使用 refreshToken 换取新的 accessToken（并轮换 refreshToken）。 */
@@ -281,13 +596,27 @@ public class AuthService {
             }
             assertUserAccountActive(user);
         } else {
-            LambdaQueryWrapper<ClientEntity> entityWrapper = new LambdaQueryWrapper<>();
-            entityWrapper.eq(ClientEntity::getEntityCode, subject.trim()).last("LIMIT 1");
-            ClientEntity entity = clientEntityMapper.selectOne(entityWrapper);
-            if (entity == null) {
-                throw new RuntimeException("CHALLENGE_NOT_FOUND");
+            if (isEntityAdminUid(subject.trim())) {
+                SysEntityTotpCredentials admin = loadEntityAdminByUid(subject.trim());
+                if (admin == null) {
+                    throw new RuntimeException("CHALLENGE_NOT_FOUND");
+                }
+                assertEntityAdminActive(admin);
+                ClientEntity entity = loadEntityByCode(admin.getEntityCode());
+                if (entity == null) {
+                    throw new RuntimeException("CHALLENGE_NOT_FOUND");
+                }
+                assertEntityAccountActive(entity);
+            } else {
+                ClientEntity entity = loadEntityByCode(subject.trim());
+                if (entity == null) {
+                    throw new RuntimeException("CHALLENGE_NOT_FOUND");
+                }
+                assertEntityAccountActive(entity);
+                if (!StringUtils.hasText(entity.getTotpSecret())) {
+                    throw new RuntimeException("ORGANIZATION_TOTP_NOT_BOUND");
+                }
             }
-            assertEntityAccountActive(entity);
         }
 
         TokenPair tokenPair = issueTokenPair(subject.trim(), accessTokenType, userType);
@@ -484,6 +813,226 @@ public class AuthService {
         return value == null || value.trim().isEmpty();
     }
 
+    private LoginResponse completeOrganizationLogin(SysEntityTotpCredentials admin) {
+        LocalDateTime now = LocalDateTime.now();
+        admin.setLastLoginAt(now);
+        sysEntityTotpCredentialsMapper.updateById(admin);
+        TokenPair tokenPair = issueTokenPair(admin.getAdminUid(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
+        return new LoginResponse(admin.getAdminUid(), "organization-admin", "verified",
+                tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC);
+    }
+
+    private LoginResponse completeEntityRootLogin(ClientEntity entity) {
+        LocalDateTime now = LocalDateTime.now();
+        entity.setLastLoginAt(now);
+        clientEntityMapper.updateById(entity);
+        TokenPair tokenPair = issueTokenPair(entity.getEntityCode(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
+        return new LoginResponse(entity.getEntityCode(), "organization-admin", "verified",
+                tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC);
+    }
+
+    private OrganizationCredentialResponse buildOrganizationCredentialResponse(String challengeId,
+                                                                               String password,
+                                                                               String entityCode,
+                                                                               String entityName,
+                                                                               int boundAdminCount,
+                                                                               Boolean isFirstLogin,
+                                                                               String loginMode,
+                                                                               boolean requiresAdminSelection,
+                                                                               List<OrganizationAdminOption> admins,
+                                                                               Integer currentAdminOrder) {
+        return OrganizationCredentialResponse.builder()
+                .challengeId(challengeId)
+                .passwordDigestPreview(password == null ? null : digestPreview(password))
+                .otpExpireInSec(OTP_EXPIRE_SEC)
+                .maskedTarget(maskInstitutionCode(entityCode))
+                .isFirstLogin(isFirstLogin)
+                .loginMode(loginMode)
+                .requiresAdminSelection(requiresAdminSelection)
+                .admins(admins)
+                .boundAdminCount(boundAdminCount)
+                .minAdminCount(MIN_ENTITY_ADMIN_COUNT)
+                .maxAdminCount(MAX_ENTITY_ADMIN_COUNT)
+                .currentAdminOrder(currentAdminOrder)
+                .entityName(entityName)
+                .build();
+    }
+
+    private List<OrganizationAdminOption> toAdminOptions(List<SysEntityTotpCredentials> admins) {
+        if (admins.isEmpty()) {
+            return List.of();
+        }
+        return admins.stream()
+                .map(admin -> OrganizationAdminOption.builder()
+                        .adminUid(admin.getAdminUid())
+                        .displayName(resolveAdminDisplayName(admin))
+                        .isPrimary(admin.getIsPrimary() != null && admin.getIsPrimary() == 1)
+                        .build())
+                .toList();
+    }
+
+    private String resolveAdminDisplayName(SysEntityTotpCredentials admin) {
+        if (admin == null) {
+            return "";
+        }
+        if (StringUtils.hasText(admin.getDisplayName())) {
+            return admin.getDisplayName().trim();
+        }
+        return admin.getAdminUid();
+    }
+
+    private boolean hasActiveEntityAdmins(String entityCode) {
+        return entityAdminCredentialService.countActiveEntityAdmins(entityCode) > 0;
+    }
+
+    /**
+     * 主体根密码登录后的下一步模式：登记新管理员、选择已有管理员绑定/登录。
+     */
+    private String resolveEntityRootLoginMode(String entityCode) {
+        int activeCount = entityAdminCredentialService.countActiveEntityAdmins(entityCode);
+        int boundCount = entityAdminCredentialService.countBoundEntityAdmins(entityCode);
+
+        if (activeCount == 0 && entityAdminCredentialService.listBindableEntityAdmins(entityCode).isEmpty()) {
+            return LOGIN_MODE_ADMIN_REGISTER;
+        }
+
+        if (boundCount < MIN_ENTITY_ADMIN_COUNT) {
+            if (!entityAdminCredentialService.listBindableEntityAdmins(entityCode).isEmpty()) {
+                return LOGIN_MODE_ADMIN_SELECT;
+            }
+            if (activeCount < MAX_ENTITY_ADMIN_COUNT) {
+                return LOGIN_MODE_ADMIN_REGISTER;
+            }
+            return LOGIN_MODE_ADMIN_SELECT;
+        }
+
+        return LOGIN_MODE_ADMIN_SELECT;
+    }
+
+    private FollowUpChallenge createFollowUpEntityRootChallenge(String entityCode) {
+        String nextChallengeId = "chl_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        String nextLoginMode = resolveEntityRootLoginMode(entityCode);
+        LocalDateTime expireAt = LocalDateTime.now().plusSeconds(ORG_CHALLENGE_EXPIRE_SEC);
+        orgChallengeStore.put(nextChallengeId, OrgChallengeRecord.forEntityRoot(
+                entityCode, nextLoginMode, null, null, expireAt));
+        return new FollowUpChallenge(nextChallengeId, nextLoginMode);
+    }
+
+    private String buildActivationHint(String entityCode, int boundAdminCount) {
+        int remaining = MIN_ENTITY_ADMIN_COUNT - boundAdminCount;
+        if (remaining <= 0) {
+            return "请继续完成管理员绑定";
+        }
+        int activeCount = entityAdminCredentialService.countActiveEntityAdmins(entityCode);
+        if (activeCount < MIN_ENTITY_ADMIN_COUNT && activeCount < MAX_ENTITY_ADMIN_COUNT) {
+            return "还需登记并绑定 " + remaining + " 名管理员后方可正式启用机构管理端";
+        }
+        return "请通知其他管理员登录并完成 TOTP 绑定（还需 " + remaining + " 人）";
+    }
+
+    /** 至少一名管理员已完成 TOTP 绑定后，才允许使用管理员独立密码登录。 */
+    private boolean isAdminPasswordLoginAllowed(String entityCode) {
+        return countBoundEntityAdmins(entityCode) > 0;
+    }
+
+    private boolean isEntityAdminUid(String subject) {
+        return StringUtils.hasText(subject) && subject.trim().matches("^EA[A-Za-z0-9]{11}$");
+    }
+
+    private OrgChallengeRecord requireOrgChallenge(String challengeId) {
+        OrgChallengeRecord challenge = orgChallengeStore.get(challengeId);
+        if (challenge == null) {
+            throw new RuntimeException("CHALLENGE_NOT_FOUND");
+        }
+        if (challenge.expireAt().isBefore(LocalDateTime.now())) {
+            orgChallengeStore.remove(challengeId);
+            throw new RuntimeException("CHALLENGE_EXPIRED");
+        }
+        return challenge;
+    }
+
+    private ClientEntity loadEntityByCode(String entityCode) {
+        LambdaQueryWrapper<ClientEntity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ClientEntity::getEntityCode, entityCode).last("LIMIT 1");
+        return clientEntityMapper.selectOne(wrapper);
+    }
+
+    private SysEntityTotpCredentials loadEntityAdminByUid(String adminUid) {
+        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysEntityTotpCredentials::getAdminUid, adminUid).last("LIMIT 1");
+        return sysEntityTotpCredentialsMapper.selectOne(wrapper);
+    }
+
+    private int countBoundEntityAdmins(String entityCode) {
+        return entityAdminCredentialService.countBoundEntityAdmins(entityCode);
+    }
+
+    private void activateEntityAdminAfterTotpBind(SysEntityTotpCredentials admin, String totpSecret, LocalDateTime now) {
+        admin.setTotpSecret(totpSecret);
+        admin.setAccountStatus(EntityAdminAccountStatus.ACTIVE);
+        admin.setAccountStatusChangedAt(now);
+        if (!entityAdminCredentialService.hasActivePrimaryAdmin(admin.getEntityCode())) {
+            admin.setIsPrimary(1);
+        }
+        admin.setLastLoginAt(now);
+        sysEntityTotpCredentialsMapper.updateById(admin);
+    }
+
+    private int resolveAdminOrder(SysEntityTotpCredentials admin, List<SysEntityTotpCredentials> admins) {
+        List<SysEntityTotpCredentials> sorted = admins.stream()
+                .sorted(Comparator
+                        .comparing((SysEntityTotpCredentials item) -> item.getIsPrimary() != null && item.getIsPrimary() == 1)
+                        .reversed()
+                        .thenComparing(SysEntityTotpCredentials::getId))
+                .toList();
+        for (int i = 0; i < sorted.size(); i++) {
+            if (Objects.equals(sorted.get(i).getAdminUid(), admin.getAdminUid())) {
+                return i + 1;
+            }
+        }
+        return 1;
+    }
+
+    private String resolveEntityName(String entityCode) {
+        LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
+        ClientEntityProfile profile = clientEntityProfileMapper.selectOne(wrapper);
+        if (profile == null || !StringUtils.hasText(profile.getName())) {
+            return entityCode;
+        }
+        return profile.getName().trim();
+    }
+
+    /** 允许进入 TOTP 绑定流程（PENDING 或 ACTIVE 未绑定）。 */
+    private void assertEntityAdminCanBindTotp(SysEntityTotpCredentials admin) {
+        String status = admin.getAccountStatus() == null ? "" : admin.getAccountStatus().trim().toUpperCase(Locale.ROOT);
+        if (EntityAdminAccountStatus.DEACTIVATED.equals(status)) {
+            throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
+        }
+        if (EntityAdminAccountStatus.FROZEN.equals(status)) {
+            throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
+        }
+        if (StringUtils.hasText(admin.getTotpSecret())) {
+            throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
+        }
+    }
+
+    private void assertEntityAdminActive(SysEntityTotpCredentials admin) {
+        String status = admin.getAccountStatus() == null ? "ACTIVE" : admin.getAccountStatus().trim().toUpperCase(Locale.ROOT);
+        if ("FROZEN".equals(status)) {
+            throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
+        }
+        if ("DEACTIVATED".equals(status)) {
+            throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
+        }
+        if (!"ACTIVE".equals(status)) {
+            throw new RuntimeException("ORGANIZATION_ACCOUNT_DISABLED");
+        }
+        if (!StringUtils.hasText(admin.getTotpSecret())) {
+            throw new RuntimeException("ORGANIZATION_TOTP_NOT_BOUND");
+        }
+    }
+
     private String digestPreview(String password) {
         String normalized = normalize(password);
         if (normalized.length() <= 12) {
@@ -559,9 +1108,42 @@ public class AuthService {
     private record CodeRecord(String requestId, String code, LocalDateTime createdAt, LocalDateTime expireAt) {
     }
 
-    private record ChallengeRecord(Long entityId, String otpCode, LocalDateTime expireAt) {
+    private record OrgChallengeRecord(String adminUid,
+                                      String entityCode,
+                                      String loginMode,
+                                      boolean entityRootAuthenticated,
+                                      String pendingTotpSecret,
+                                      LocalDateTime totpSetupExpireAt,
+                                      LocalDateTime expireAt) {
+
+        static OrgChallengeRecord forEntityRoot(String entityCode,
+                                              String loginMode,
+                                              String pendingTotpSecret,
+                                              LocalDateTime totpSetupExpireAt,
+                                              LocalDateTime expireAt) {
+            return new OrgChallengeRecord(null, entityCode, loginMode, true,
+                    pendingTotpSecret, totpSetupExpireAt, expireAt);
+        }
+
+        static OrgChallengeRecord forAdmin(String adminUid,
+                                           String entityCode,
+                                           String loginMode,
+                                           String pendingTotpSecret,
+                                           LocalDateTime totpSetupExpireAt,
+                                           LocalDateTime expireAt) {
+            return new OrgChallengeRecord(adminUid, entityCode, loginMode, false,
+                    pendingTotpSecret, totpSetupExpireAt, expireAt);
+        }
+
+        OrgChallengeRecord withPendingTotp(String pendingTotpSecret, LocalDateTime totpSetupExpireAt) {
+            return new OrgChallengeRecord(adminUid, entityCode, loginMode, entityRootAuthenticated,
+                    pendingTotpSecret, totpSetupExpireAt, expireAt);
+        }
     }
 
     private record TokenPair(String accessToken, String refreshToken) {
+    }
+
+    private record FollowUpChallenge(String challengeId, String loginMode) {
     }
 }

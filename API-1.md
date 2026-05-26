@@ -1,239 +1,465 @@
-# UniBridge 前端 API 后端同步（待跟进）
+# UniBridge 前端 API 同步文档
 
-> **完整 API 契约**已合并至 [`API.md`](./API.md)。  
-> 团队空间 TeamView 读接口见 [`API.md` 第二部分 §08 团队空间](./API.md#08团队空间team-profile)。
-
----
-
-## 当前状态
-
-| 模块 | 状态 |
-|------|------|
-| 团队空间 `/team-profile/*` 读接口 | 后端 ✅ 已实现；前端 ✅ 已接入 |
-| 团队成员 `members[]` 读字段（`role` / `career` / `isAdmin` / `isOwner`） | 后端 ✅ 已实现 |
-| **管理成员** `PUT /team-profile/members` | 后端 ✅ 已实现；前端 ⏳ 待接入 |
-| 用户预览 `GET /users/{uid}/public-preview` | 后端 ✅ 已实现（可选 UX） |
+> **用途**：前端联调增量契约（覆盖旧版「待跟进」草稿）。  
+> **全量契约**：[`API.md`](./API.md)  
+> **Swagger**：`http://localhost:8080/swagger-ui.html` → `Client - 认证` / `Client - 机构空间`
 
 ---
 
-## 01）团队成员读字段扩展（与写接口共用）
+## 当前状态（请前端按此表改）
 
-> 影响：`GET /team-profile/space`、`GET /team-profile/members` 的 `members[]` 单条结构。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `nickname` | string | 展示名（字段名不变）：**当前请求用户为该团队成员**（解码 `Authorization` 得 uid，含 `owner_uid`）时填 `real_name`（无则回退 nickname），否则仅填 nickname |
-| `role` | string | **枚举**：`LEADER` \| `MENTOR` \| `MEMBER`（禁止返回中文「队长」「导师」） |
-| `career` | string \| null | 团队内定位/职位补充，如 `前端开发`、`NLP · 知识图谱` |
-| `isAdmin` | boolean | 是否具备团队管理权限；`team.owner_uid` 对应成员**必须**返回 `true` |
-| `isOwner` | boolean | 是否为 `team.owner_uid` |
-
-**前端展示逻辑（只读，不变）：**
-
-```ts
-// 导师 / 学生
-const isMentor = member.role === 'MENTOR'
-// LEADER 仍按「学生」大类展示，可带「负责人」标签（见 isOwner / members[0]）
-
-// 是否显示「管理成员」入口
-const canManageTeam = members.some(
-  (m) => m.uid === currentUserUid && m.isAdmin === true,
-)
-```
-
-**破坏性变更**：管理权限请改用 `isAdmin`，勿用 `role === 'LEADER'` 推断是否可管理。
-
-> 联调完成后，请将 §08.3 / §08.5 的 `members[]` 表同步写入 [`API.md`](./API.md)。
+| 模块 | 后端 | 前端需同步 |
+|------|------|------------|
+| 团队空间 `/team-profile/*` | ✅ | 已完成 |
+| 机构空间 `/entity-profile/*` | ✅ | 路径/Query 见 §09 |
+| **主体登录** `/auth/organization/*` | ✅ | **§10**（含 `select-admin`、`admin/register`、多管理员绑定） |
+| **主体顶栏菜单** `/entity-profile/menu` | ✅ | **§09.4** + `ProfileMenuContext` |
 
 ---
 
-## 02）管理成员写接口（`ManageMembersForm`）
+## 通用约定
 
-### 02.1）消费页面与交互
+### Base URL
 
-| 项 | 说明 |
-|----|------|
-| 页面 | `apps/web-client/src/pages/ProfileSpace/tabs/MembersTab/ManageMembersForm.tsx` |
-| 路由 | `/team/:teamUid/member/manage` |
-| 入口 | 成员 Tab 右上角「管理成员」；**仅**当前登录用户在该团队 `members[]` 中且 `isAdmin === true` 时展示 |
-| 加载 | 进入表单前已通过 `GET /team-profile/members?teamUid=` 拉取成员列表（建议 `pageSize` ≥ 100） |
-| 保存 | 用户编辑后点击「保存」，**一次性提交**所有变更（非逐行即时写库） |
+| 环境 | `axios` baseURL 示例 | 机构登录完整路径示例 |
+|------|----------------------|----------------------|
+| 本地 | `/api/v1/client` | `POST /api/v1/client/auth/organization/login/credentials` |
+| 经网关 | 按网关配置 | 禁止只写 `/login/credentials`（会 404/超时） |
 
-### 02.2）表单可编辑范围
+### 响应包装 `Result`
 
-| 操作 | UI | 是否写库 | 说明 |
-|------|-----|----------|------|
-| 修改团队定位 | 每行 `career` 输入框 | ✅ | 所有成员必填，非空字符串 |
-| 设置/取消协助管理员 | 「管理员」列按钮 | ✅ | 切换 `isAdmin`；**不涉及负责人转让** |
-| 移除成员 | 「移除」 | ✅ | 不可移除负责人（`isOwner` / `team.owner_uid`） |
-| 添加成员 | 底部添加区 | ✅ | 需 `uid`、`role`（`MEMBER`/`MENTOR`）、`career` |
-| 修改身份 `role` | 身份列只读 | ❌ | 添加时选定，之后不可改 |
-| 转让负责人 | 无入口 | ❌ | **本期不做**（含学生团队队长交接） |
-
-**添加成员区说明：**
-
-- 前端「昵称」字段仅用于添加前人工核对，**请求体不传 nickname**；展示昵称以服务端用户资料为准。
-- 新成员 `role` 仅允许 `MEMBER`（学生）或 `MENTOR`（导师），禁止通过本接口创建 `LEADER`。
-- 新成员默认 `isAdmin: false`。
-
-### 02.3）建议接口：批量同步成员
-
-为匹配「保存」一次提交的前端 UX，建议新增：
-
-#### `PUT /team-profile/members`
-
-| 项 | 说明 |
-|----|------|
-| **Auth** | **必须登录** |
-| **权限** | 调用者须为该团队成员，且 `isAdmin === true`（负责人天然具备） |
-| **Query** | `teamUid`（`LB`/`ST` + 11 位） |
-
-#### Request Body
+所有接口 HTTP 200 时 body 仍为：
 
 ```json
 {
-  "updates": [
-    {
-      "uid": "US00000001002",
-      "career": "前端开发",
-      "isAdmin": true
-    },
-    {
-      "uid": "US00000001003",
-      "career": "NLP · 知识图谱",
-      "isAdmin": false
-    }
-  ],
-  "additions": [
-    {
-      "uid": "US00000001009",
-      "role": "MEMBER",
-      "career": "后端开发"
-    }
-  ],
-  "removals": [
-    { "uid": "US00000001008" }
-  ]
+  "code": 200,
+  "message": "success",
+  "data": { }
+}
+```
+
+业务字段在 **`data`** 内；错误时 `code` 为 4xx/5xx，`message` 为错误码字符串（如 `ORGANIZATION_CREDENTIAL_INVALID`）。
+
+### 密码字段
+
+| 字段 | 说明 |
+|------|------|
+| `password` | **SHA256 十六进制小写**（与个人登录一致），**不是明文** |
+| 主体根密码 | 对应 `entity.password_hash` |
+| 管理员密码 | 对应 `sys_entity_totp_credentials.password_hash` |
+
+### 测试账号（`insert-test-data.sql`）
+
+| 主体代码 | 类型 | 主体根密码 | 管理员示例 |
+|----------|------|------------|------------|
+| `10598` | 高校 | `123456` → SHA256 | `EA00000000001` 深大教务管理员 |
+| `10003` | 高校 | 同上 | `EA00000000003` 清华教务管理员 |
+| `91440300708461136T` | 企业 | 同上 | `EA00000000005` 腾讯 HR 管理员 |
+
+SHA256(`123456`) = `8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92`
+
+---
+
+## 10）主体登录（`EntityTotpSetupForm` / 机构登录）— 前端同步重点
+
+> **模块**：`apps/web-client/src/api/Auth`（或等价封装）  
+> **页面**：`EntityTotpSetupForm`、`TwoFactorAuthForm`、机构登录弹窗  
+> **Base**：`/api/v1/client/auth`
+
+### 10.0）与旧版差异（超时/卡死常见原因）
+
+| 旧行为（请废弃） | 新行为 |
+|------------------|--------|
+| 仅校验 `sys_entity_totp_credentials` 密码 | **同时支持** `entity.password_hash` 与管理员密码 |
+| `credentials` 后直接调 `/login/otp` 用 6 位「短信码」 | `loginMode=totp_setup` 须走 **`totp/setup/init` → `confirm`**；`totp_verify` 才走 **`login/otp`** |
+| 无 `select-admin` | 主体根密码 + 已有管理员 → **`loginMode=admin_select`**，必须先选管理员 |
+| 请求字段 `entityCode` | 请求字段为 **`institutionCode`**（主体代码） |
+| 响应扁平无 `data` 包装 | 必须从 **`response.data.data`** 取业务对象 |
+
+### 10.1）业务规则摘要
+
+1. **尚无管理员行**（`sys_entity_totp_credentials` 为空）：仅接受主体根密码 → `totp_setup` / `totp_verify` 绑定 **`entity.totp_secret`**。
+2. **有管理员但 `boundAdminCount === 0`**：仅接受主体根密码 → `admin_select` → 选管理员 → 该管理员的 `totp_setup`。
+3. **`boundAdminCount > 0`**：  
+   - 主体根密码 → `admin_select` → `select-admin` → `totp_verify`（或该管理员未绑定则 `totp_setup`）。  
+   - 管理员密码 → 跳过选管理员，直接 `totp_setup` / `totp_verify`。
+4. 至少 **2** 名、最多 **3** 名管理员完成 TOTP 后，主体视为 fully activated（`entityFullyActivated=true`）。
+
+### 10.2）接口列表
+
+| # | Method | Path（相对 `/api/v1/client/auth`） | 前端建议函数名 |
+|---|--------|-----------------------------------|----------------|
+| 1 | POST | `/organization/login/credentials` | `loginOrganizationByCredentials` |
+| 2 | POST | `/organization/login/select-admin` | `selectOrganizationAdmin` |
+| 3 | POST | `/organization/totp/setup/init` | `initOrganizationTotpSetup` |
+| 4 | POST | `/organization/totp/setup/confirm` | `confirmOrganizationTotpSetup` |
+| 5 | POST | `/organization/login/otp` | `loginOrganizationByOtp` |
+| 6 | POST | `/organization/admin/register` | `registerOrganizationAdmin` |
+
+---
+
+### 10.3）`POST /organization/login/credentials`
+
+**Request**
+
+```json
+{
+  "institutionCode": "10598",
+  "password": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"
 }
 ```
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `updates` | array | 否 | 已存在成员的变更；至少含 `uid`，可改 `career`、`isAdmin` |
-| `updates[].uid` | string | 是 | 成员 `userUid` |
-| `updates[].career` | string | 是* | 团队定位；*若出现在 `updates` 中则必填且 trim 后非空 |
-| `updates[].isAdmin` | boolean | 否 | 协助管理权限；负责人行忽略（恒为 `true`） |
-| `additions` | array | 否 | 新加入成员 |
-| `additions[].uid` | string | 是 | 待加入用户的 `userUid`，须已注册且未在本团队 |
-| `additions[].role` | string | 是 | `MEMBER` \| `MENTOR` |
-| `additions[].career` | string | 是 | 非空 |
-| `removals` | array | 否 | 待移除成员 |
-| `removals[].uid` | string | 是 | 不可为 `team.owner_uid` |
+| `institutionCode` | string | 是 | `entity.entity_code`（高校 5 位数字 / 企业统一社会信用代码） |
+| `password` | string | 是 | SHA256 哈希，匹配主体根密码或某一管理员密码 |
 
-**空数组**可省略；三项全空时返回 `400`（无有效变更）。
+**Response `data`（`OrganizationCredentialResponse`）**
 
-#### Response Data
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `challengeId` | string | 后续步骤必传，内存 challenge，约 30 分钟有效 |
+| `passwordDigestPreview` | string | 可选展示 |
+| `otpExpireInSec` | number | 建议 300 |
+| `maskedTarget` | string | 脱敏主体代码 |
+| `isFirstLogin` | boolean \| null | 当前路径是否首次绑定 TOTP；`admin_select` 时为 `null` |
+| `loginMode` | string | **`admin_select` \| `admin_register` \| `totp_setup` \| `totp_verify`** |
+| `requiresAdminSelection` | boolean | `loginMode=admin_select` 时为 `true` |
+| `admins` | array \| null | `admin_select` 时管理员列表 |
+| `admins[].adminUid` | string | `EA` + 11 位 |
+| `admins[].displayName` | string | 展示名 |
+| `admins[].isPrimary` | boolean | 是否主管理员 |
+| `boundAdminCount` | number | 已完成 TOTP 绑定的管理员数 |
+| `minAdminCount` | number | 固定 2 |
+| `maxAdminCount` | number | 固定 3 |
+| `currentAdminOrder` | number \| null | 绑定顺序 1/2/3 |
+| `entityName` | string | 主体名称 |
 
-```json
-{
-  "teamUid": "LB00000001001",
-  "members": [
-    {
-      "uid": "US00000001001",
-      "nickname": "李老师",
-      "role": "MENTOR",
-      "career": "人工智能",
-      "isOwner": true,
-      "isAdmin": true,
-      "avatarUrl": null,
-      "level": "SR"
-    }
-  ],
-  "total": 4
+**`loginMode` 分支示例**
+
+```ts
+// credentials 成功后
+const d = res.data.data
+
+switch (d.loginMode) {
+  case 'admin_select':
+    // 展示 d.admins，用户选 displayName
+    // → POST select-admin { challengeId, adminUid }
+    break
+  case 'admin_register':
+    // → 登记表单 displayName + password → POST admin/register
+    break
+  case 'totp_setup':
+    // → init → 展示 QR → confirm（不要调 login/otp）
+    break
+  case 'totp_verify':
+    // → TwoFactorAuthForm → POST login/otp { challengeId, otpCode }
+    break
 }
 ```
 
-- 返回**保存后**的完整成员列表（排序规则与 §08.3 一致：负责人 → 导师 → 学生）。
-- 前端保存成功后刷新成员 Tab，并返回列表页（`/team/:teamUid/member`）。
+**示例 A：主体根密码 + 待选管理员**
 
-#### 服务端校验规则（必须）
+```json
+{
+  "challengeId": "chl_a1b2c3d4e5f6g7h8",
+  "loginMode": "admin_select",
+  "requiresAdminSelection": true,
+  "admins": [
+    { "adminUid": "EA00000000001", "displayName": "深大教务管理员", "isPrimary": true },
+    { "adminUid": "EA00000000002", "displayName": "深大学工管理员", "isPrimary": false }
+  ],
+  "boundAdminCount": 0,
+  "minAdminCount": 2,
+  "maxAdminCount": 3,
+  "entityName": "深圳大学",
+  "otpExpireInSec": 300,
+  "maskedTarget": "1***8"
+}
+```
 
-1. **权限**：非 `isAdmin` 成员调用 → `403 TEAM_MEMBER_FORBIDDEN`。
-2. **负责人不可移除**：`removals` 含 `owner_uid` → `400 TEAM_MEMBER_OWNER_IMMUTABLE`。
-3. **负责人 `isAdmin` 不可关闭**：`updates` 中对负责人设 `isAdmin: false` 时忽略或报错（建议忽略并强制 `true`）。
-4. **至少保留一名成员**：移除后团队无成员 → `400 TEAM_MEMBER_LAST_ONE`。
-5. **`career` 必填**：任一成员（含新增）`career` 为空 → `400 TEAM_MEMBER_CAREER_REQUIRED`。
-6. **重复成员**：`additions` 中 uid 已在团队 → `409 TEAM_MEMBER_ALREADY_EXISTS`。
-7. **用户不存在**：`additions` / `updates` / `removals` 中 uid 无效 → `404 USER_NOT_FOUND` 或 `404 TEAM_MEMBER_NOT_FOUND`（移除时）。
-8. **`role` 不可通过 updates 修改**；若请求体携带 `role` 字段应忽略。
-9. **学生单实验室**（若业务启用 `lab_user_uid` 约束）：违反唯一约束时返回 `409 TEAM_MEMBER_LAB_CONFLICT`。
-10. **事务**：同一请求内 additions / updates / removals 应在单事务中执行，失败整体回滚。
+**示例 B：管理员密码 + 已绑定 TOTP**
 
-#### 常见错误码
+```json
+{
+  "challengeId": "chl_xxx",
+  "isFirstLogin": false,
+  "loginMode": "totp_verify",
+  "requiresAdminSelection": false,
+  "admins": null,
+  "boundAdminCount": 2,
+  "currentAdminOrder": 1,
+  "entityName": "深圳大学"
+}
+```
 
-| code | HTTP | 说明 |
-|------|------|------|
-| `TEAM_NOT_FOUND` | 404 | 团队不存在 |
-| `TEAM_NOT_ACCESSIBLE` | 403 | 团队冻结/解散 |
-| `TEAM_MEMBER_FORBIDDEN` | 403 | 当前用户无管理权限（`isAdmin !== true`） |
-| `TEAM_MEMBER_OWNER_IMMUTABLE` | 400 | 不可移除负责人 |
-| `TEAM_MEMBER_LAST_ONE` | 400 | 不可移除最后一名成员 |
-| `TEAM_MEMBER_CAREER_REQUIRED` | 400 | career 为空 |
-| `TEAM_MEMBER_ALREADY_EXISTS` | 409 | 成员已在团队 |
-| `TEAM_MEMBER_NOT_FOUND` | 404 | 移除/更新目标不在团队 |
-| `TEAM_MEMBER_LAB_CONFLICT` | 409 | 学生实验室唯一约束冲突 |
-| `USER_NOT_FOUND` | 404 | 添加时 uid 对应用户不存在 |
-| `INVALID_TEAM_UID` | 400 | teamUid 格式错误 |
-| `INVALID_USER_UID` | 400 | userUid 格式错误 |
+**常见错误 `message`**
 
-### 02.4）可选：添加成员前用户校验（提升 UX）
-
-当前添加区需手填 UID + 昵称。若后端提供只读校验接口，前端可在「添加进团队」前自动回填昵称：
-
-#### `GET /users/{uid}/public-preview`（可选）
-
-| 项 | 说明 |
-|----|------|
-| **Auth** | 登录可选 |
-| **Response** | `{ uid, nickname, avatarUrl }` — `nickname` 优先 `real_name`（管理表单核对用） |
-| **用途** | 管理表单添加成员时校验 UID 是否存在；**nickname 以本接口为准** |
-
-> 若本期不实现，前端可继续手填昵称，保存时以 `PUT /team-profile/members` 的 `additions` 为准。
+| message | HTTP | 说明 |
+|---------|------|------|
+| `ORGANIZATION_FIELDS_REQUIRED` | 400 | 缺 institutionCode / password |
+| `ORGANIZATION_CREDENTIAL_INVALID` | 400 | 密码错误或首次阶段用了管理员密码 |
+| `ORGANIZATION_ACCOUNT_DISABLED` | 400 | 主体未审核 |
+| `ORGANIZATION_ACCOUNT_FROZEN` | 400 | 主体或管理员冻结 |
+| `ORGANIZATION_ACCOUNT_DEACTIVATED` | 400 | 已注销 |
 
 ---
 
-## 03）数据库参考（`team_member`）
+### 10.4）`POST /organization/admin/register`
 
-当前 `db.sql` 中 `team_member` 需支持管理成员能力，建议字段：
+在主体根密码 challenge 下**登记新管理员**（`displayName` + 登录密码），随后进入 `totp_setup`。
 
-| 列 | 类型 | 说明 |
-|----|------|------|
-| `role` | VARCHAR(32) | 已有；`LEADER` \| `MEMBER` \| `MENTOR` |
-| `career` | VARCHAR(255) NULL | 团队内定位（**待加列**若尚未迁移） |
-| `is_admin` | TINYINT(1) NOT NULL DEFAULT 0 | 协助管理权限（**待加列**）；`team.owner_uid` 对应行恒为 `1` |
+**Request**
 
-负责人身份仍以 `team.owner_uid` 为准，**不**通过 `PUT /team-profile/members` 变更。
+```json
+{
+  "challengeId": "chl_xxx",
+  "displayName": "深大教务管理员",
+  "password": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"
+}
+```
+
+**Response `data`**：与 `credentials` 相同；通常 `loginMode=totp_setup`，`currentAdminOrder` 为 1/2/3。
+
+**前端流程**：`admin_register` 或 `boundAdminCount < minAdminCount` 时展示登记表单 → 本接口 → 绑定须知 → QR 弹窗 → `confirm`；若 `entityFullyActivated=false` **不得** `commitAuthLogin`，应继续登记下一位管理员。
 
 ---
 
-## 04）前端接入计划（后端就绪后）
+### 10.5）`POST /organization/login/select-admin`
 
-| 步骤 | 文件 | 动作 |
+仅在 `loginMode === 'admin_select'` 后调用。
+
+**Request**
+
+```json
+{
+  "challengeId": "chl_a1b2c3d4e5f6g7h8",
+  "adminUid": "EA00000000001"
+}
+```
+
+**Response `data`**
+
+与 `credentials` 相同结构；此时 `loginMode` 变为 `totp_setup` 或 `totp_verify`，`requiresAdminSelection=false`，`admins=null`。
+
+---
+
+### 10.6）`POST /organization/totp/setup/init`
+
+仅在 `loginMode === 'totp_setup'` 时调用（**不要**先调 `login/otp`）。
+
+**Request**
+
+```json
+{
+  "challengeId": "chl_xxx"
+}
+```
+
+**Response `data`**
+
+| 字段 | 类型 | 说明 |
 |------|------|------|
-| 1 | `api/teamProfile/types.ts` | 增加 `UpdateTeamMembersRequest` / `UpdateTeamMembersResponse` |
-| 2 | `api/teamProfile/index.ts` | 新增 `updateTeamProfileMembers(teamUid, body)` → `PUT /team-profile/members` |
-| 3 | `useMembersManageForm.ts` | `handleSubmit` 对比初始列表生成 `updates` / `additions` / `removals` 并调用写接口 |
-| 4 | `ManageMembersForm.tsx` | 传入 `teamUid`；保存成功后 invalidate 成员列表 |
-| 5 | `API.md` §08 | 合并读字段 `isAdmin` 与写接口 §08.9（或等价章节） |
+| `qrCodeDataUrl` | string | `data:image/png;base64,...`，可直接赋给 `<img src>` |
+| `qrCodeExpireInSec` | number | 300，超时需重新 init |
+| `otpAuthUrl` | string | `otpauth://totp/...` |
+| `currentAdminOrder` | number | 1 / 2 / 3 |
 
-**前端 diff 生成规则（`handleSubmit`）：**
+---
+
+### 10.7）`POST /organization/totp/setup/confirm`
+
+**Request**
+
+```json
+{
+  "challengeId": "chl_xxx",
+  "totpCode": "123456"
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `totpCode` | 验证器 6 位动态码（非短信 OTP） |
+
+**Response `data`**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `accessToken` | string | Bearer Token |
+| `refreshToken` | string | 刷新用 |
+| `expiresIn` | number | 秒，通常 1800 |
+| `entityFullyActivated` | boolean | `boundAdminCount >= 2` |
+| `boundAdminCount` | number | 当前已绑定人数 |
+| `minAdminCount` | number | 2 |
+| `activationHint` | string \| null | 未达标时的提示文案 |
+| `nextChallengeId` | string \| null | 未达标时继续下一位管理员绑定的 challenge |
+| `nextLoginMode` | string \| null | 常为 `admin_register` |
+
+仅当 `entityFullyActivated=true` 时前端写入登录态并关闭弹窗；否则留在弹窗内进入「登记下一位管理员」。
+
+登录成功后：`Authorization: Bearer <accessToken>`。JWT `sub` 为 **`EA...`（管理员）** 或 **`entityCode`（无管理员时的主体根绑定）**。
+
+---
+
+### 10.8）`POST /organization/login/otp`
+
+仅在 `loginMode === 'totp_verify'` 时调用。
+
+**Request**
+
+```json
+{
+  "challengeId": "chl_xxx",
+  "otpCode": "123456"
+}
+```
+
+**Response `data`（`LoginResponse`）**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `userUid` | string | 管理员 `EA...` 或主体 `entityCode` |
+| `userRole` | string | `organization-admin` |
+| `authStatus` | string | `verified` |
+| `accessToken` | string | |
+| `refreshToken` | string | |
+| `expiresIn` | number | |
+
+---
+
+### 10.9）前端状态机（推荐实现）
+
+```mermaid
+stateDiagram-v2
+  [*] --> Credentials: institutionCode+password
+  Credentials --> AdminSelect: loginMode=admin_select
+  Credentials --> TotpSetup: loginMode=totp_setup
+  Credentials --> TotpVerify: loginMode=totp_verify
+  AdminSelect --> TotpSetup: select-admin, totp_setup
+  AdminSelect --> TotpVerify: select-admin, totp_verify
+  Credentials --> AdminRegister: loginMode=admin_register
+  AdminRegister --> TotpSetup: admin/register
+  TotpSetup --> InitQR: totp/setup/init
+  Confirm --> AdminRegister: !entityFullyActivated
+  InitQR --> Confirm: 用户扫码输入 totpCode
+  Confirm --> Done: totp/setup/confirm
+  TotpVerify --> Done: login/otp
+  Done --> [*]
+```
+
+### 10.9）`loginOrganizationByCredentials` 参考实现（TypeScript）
 
 ```ts
-// 相对 initialMembers 计算：
-// updates: uid 仍存在且 career 或 isAdmin 变化
-// additions: 仅在表单中新出现、初始列表没有的 uid
-// removals: 初始有、提交时已删除的 uid（且非 isOwner）
+const ORG_AUTH = '/auth/organization'
+
+export async function loginOrganizationByCredentials(institutionCode: string, passwordSha256: string) {
+  const { data: body } = await client.post(`${ORG_AUTH}/login/credentials`, {
+    institutionCode,
+    password: passwordSha256,
+  })
+  if (body.code !== 200) throw new Error(body.message)
+  return body.data as OrganizationCredentialResponse
+}
+
+export async function selectOrganizationAdmin(challengeId: string, adminUid: string) {
+  const { data: body } = await client.post(`${ORG_AUTH}/login/select-admin`, {
+    challengeId,
+    adminUid,
+  })
+  if (body.code !== 200) throw new Error(body.message)
+  return body.data as OrganizationCredentialResponse
+}
 ```
+
+---
+
+## 09）机构空间（`OrganizationView`）
+
+> **Base**：`/api/v1/client/entity-profile`  
+> **Query**：`entityCode`（注意：机构空间用 `entityCode`，登录第一步用 `institutionCode`，值相同）
+
+### 09.0）实验室展示规则
+
+| `entityCode`（仅数字位数） | 展示实验室 Tab |
+|---------------------------|----------------|
+| **5 位** | ✅ |
+| **非 5 位**（18 位信用代码等） | ❌ `teams` / `teamsPreview` 为空 |
+
+### 09.1）接口列表
+
+| Method | Path | Query |
+|--------|------|-------|
+| GET | `/entity-profile/space` | `entityCode` |
+| GET | `/entity-profile/home` | `entityCode`, `teamLimit?`, `projectLimit?`, `noteLimit?` |
+| GET | `/entity-profile/teams` | `entityCode`, `page?`, `pageSize?` |
+| GET | `/entity-profile/members` | `entityCode`, `page?`, `pageSize?` |
+| GET | `/entity-profile/projects` | `entityCode`, `page?`, `pageSize?` |
+| GET | `/entity-profile/notes` | `entityCode`, `page?`, `pageSize?`, `contentType?`（`图文`/`视频`） |
+
+### 09.2）`GET /entity-profile/space` 响应结构（摘要）
+
+```json
+{
+  "entityCode": "10598",
+  "coreProfile": {
+    "entityCode": "10598",
+    "name": "深圳大学",
+    "intro": "...",
+    "location": "广东·深圳",
+    "type": "UNIVERSITY",
+    "logoUrl": null,
+    "bannerUrl": null,
+    "teamCount": 3
+  },
+  "extendedProfile": { "announcement": "..." },
+  "teamsPreview": [{ "teamUid": "LB...", "name": "...", "description": "...", "logoUrl": null, "memberCount": 2 }],
+  "membersPreview": [{ "uid": "US...", "nickname": "...", "realName": "...", "role": "MENTOR", "avatarUrl": null, "level": "UR" }],
+  "infoRows": [{ "label": "主体代码", "value": "10598" }]
+}
+```
+
+`membersPreview` / `members`：仅 `user_auth_link` 中 **`role` 为 `PM` 或 `MENTOR`** 且 `audit_status=APPROVED`、`is_active=1`。
+
+### 09.4）`GET /entity-profile/menu`
+
+**Query**：`entityCode`（与登录 `institutionCode` 相同）
+
+**Response `data`（摘要）**
+
+| 字段 | 说明 |
+|------|------|
+| `entityCode` | 主体代码 |
+| `entityName` | 展示名 |
+| `logoUrl` | 头像/Logo |
+| `boundAdminCount` | 已绑定 TOTP 管理员数 |
+| `minAdminCount` | 2 |
+| `maxAdminCount` | 3 |
+| `entityFullyActivated` | 是否已达标 |
+
+前端：`ProfileMenuContext` 在 `userRole=organization-admin` 时调用 `getEntityProfileMenu`，个人账号仍走 `GET /user-profile/menu`。
+
+---
+
+### 09.5）错误码
+
+| message | HTTP |
+|---------|------|
+| `ENTITY_NOT_FOUND` | 404 |
+| `ENTITY_NOT_ACCESSIBLE` | 403 |
+| `INVALID_ENTITY_CODE` | 400 |
+
+---
+
+## 联调自检清单
+
+- [ ] `baseURL` 含 `/api/v1/client`，完整路径为 `.../auth/organization/login/credentials`
+- [ ] 请求体使用 `institutionCode`，密码为 SHA256
+- [ ] 解析 `res.data.data`，不是 `res.data` 直接当业务对象
+- [ ] `admin_select` 时先 `select-admin`，再 TOTP
+- [ ] `totp_setup` 走 `init` + `confirm`，**不**走 `login/otp`
+- [ ] `totp_verify` 才走 `login/otp`，`otpCode` 为验证器 6 位码
+- [ ] Network 面板确认非 404（404 常被代理表现为超时）
 
 ---
 
@@ -241,5 +467,5 @@ const canManageTeam = members.some(
 
 | 文档 | 用途 |
 |------|------|
-| [`API.md`](./API.md) | 全量接口契约（认证、个人/团队空间、发布详情、Feed 与互动） |
-| [`API-request.md`](./API-request.md) | **本文档**：待跟进增量与联调需求 |
+| [`API.md`](./API.md) | 全量接口 |
+| **本文档 `API-1.md`** | 机构登录 + 机构空间前端同步（覆盖维护） |

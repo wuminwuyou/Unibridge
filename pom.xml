@@ -114,6 +114,13 @@
             <version>1.22.2</version>
         </dependency>
 
+        <!-- TOTP（主体管理员 Google Authenticator 绑定） -->
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
+        </dependency>
+
         <!-- OpenAPI 3 + Swagger UI（Spring Boot 3 使用 starter-webmvc-ui） -->
         <dependency>
             <groupId>org.springdoc</groupId>
