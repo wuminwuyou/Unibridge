@@ -43,6 +43,7 @@ src/main/java/com/unibridge/backend/
 | **笔记 note** | 笔记草稿/发布/更新；图文与视频分栏；详情与草稿读取；XSS 清洗；发布清 Feed 缓存 | `/api/v1/client/notes/**` |
 | **项目 project** | 项目草稿/发布/更新；商业/招募分栏；商业敏感字段隔离；详情与草稿读取 | `/api/v1/client/projects/**` |
 | **个人空间 space** | 个人菜单、空间主页、Home Tab 预览、分页项目/笔记列表 | `/api/v1/client/user-profile/**` |
+| **团队空间 space** | TeamView 页壳、主页预览、成员/项目/笔记/成果 Tab（游客只读） | `/api/v1/client/team-profile/**` |
 | **Feed 推荐 feed** | 首页个性化推送；专区推送（项目/笔记分栏）；换一换（机制 A 分页缓存 / 机制 B `seed` 洗牌）；相似笔记；行为埋点加权 | `/api/v1/client/feed/**` |
 | **互动 interaction** | 点赞/收藏 toggle；播放/阅读计数同步；Feed 缓存失效 | `/api/v1/client/interactions/**` |
 | **公共能力** | 双 UID 解析（笔记 `content_type_code` / 项目 `project_uid`）；JWT 可选/必选解析；卡片组装（作者/发布主体） | 各 Service 内部 |
@@ -77,11 +78,27 @@ powershell -ExecutionPolicy Bypass -File .\init-db.ps1
 powershell -ExecutionPolicy Bypass -File .\init-db.ps1 -MySqlPassword "<你的密码>"
 ```
 
-导入测试数据（可选）：
+导入测试数据（可选，推荐脚本）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\insert-test-data.ps1
+```
+
+或手动导入：
 
 ```powershell
 mysql -uroot -p111111 project_cooperation_platform < insert-test-data.sql
 ```
+
+测试账号（密码均为 SHA256(`123456`)）：
+
+| 用户 | 手机号 | 说明 |
+| --- | --- | --- |
+| US00000000001 | 13800001001 | 学生 |
+| US00000000002 | 13800001002 | 导师 |
+| US00000000003 | 13800001003 | 企业 PM |
+
+团队 UID 示例：`LB00000000001`（深大 AI 实验室）、`ST00000000001`（极客创新队）。
 
 ### 启动后端
 
@@ -120,6 +137,17 @@ http://localhost:8081
 
 **主类**：`com.unibridge.backend.UnibridgeBackendApplication`
 
+### API 文档（OpenAPI / Swagger UI）
+
+项目已集成 **springdoc-openapi**（Spring Boot 3 使用 `springdoc-openapi-starter-webmvc-ui`）：
+
+| 地址 | 说明 |
+| --- | --- |
+| http://localhost:8081/swagger-ui.html | Swagger UI 交互文档 |
+| http://localhost:8081/v3/api-docs | OpenAPI 3 JSON |
+
+在 Swagger UI 右上角 **Authorize** 填入 `Bearer {access_token}` 可测试需登录接口。配置见 `OpenApiConfig.java`。
+
 ### 常见启动问题
 
 | 现象 | 原因 | 处理 |
@@ -144,6 +172,7 @@ http://localhost:8081
 | HTML 安全 | Jsoup（XSS 清洗） | 1.22.2 |
 | ID 生成 | jnanoid（笔记 UID 后缀） | 2.0.0 |
 | IP 属地 | ip2region（离线 xdb） | 3.3.7 |
+| API 文档 | springdoc-openapi-starter-webmvc-ui | 2.8.6 |
 | 构建 | Maven + Wrapper（`mvnw`） | — |
 | 增强 | Lombok | 跟随 Boot |
 
@@ -185,10 +214,12 @@ src/main/java/com/unibridge/backend/
 │   │   ├── ProjectPublisherEntityResolver.java
 │   │   └── dto/
 │   │
-│   ├── space/                                  # 个人空间（原 ClientProfile*）
+│   ├── space/                                  # 个人空间 + 团队空间
 │   │   ├── SpaceController.java                # /api/v1/client/user-profile
 │   │   ├── SpaceService.java                   # menu / space / home / 分页 projects & notes
-│   │   └── dto/                                # ProfileSpaceResponse、ProfileNoteItem 等
+│   │   ├── TeamSpaceController.java            # /api/v1/client/team-profile
+│   │   ├── TeamSpaceService.java               # TeamView 页壳 / home / 各 Tab 分页
+│   │   └── dto/                                # Profile* / TeamProfile* 响应体
 │   │
 │   ├── feed/                                   # 推荐与换一换
 │   │   ├── FeedController.java                 # /api/v1/client/feed
@@ -231,6 +262,7 @@ src/main/java/com/unibridge/backend/
     │
     ├── config/                                   # 全局配置
     │   ├── WebConfig.java                        # CORS
+    │   ├── OpenApiConfig.java                    # OpenAPI 3 + JWT Bearer 方案
     │   ├── CacheConfig.java                      # home_feed / note_feed / project_feed / similar_notes
     │   ├── UploadConfig.java                     # /uploads/** 静态映射
     │   ├── IpRegionConfig.java                   # ip2region xdb 加载
@@ -290,6 +322,11 @@ spring.profiles.active=dev
 
 mybatis-plus.configuration.map-underscore-to-camel-case=true
 mybatis-plus.global-config.db-config.id-type=auto
+
+# OpenAPI / Swagger UI
+springdoc.api-docs.path=/v3/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html
+springdoc.packages-to-scan=com.unibridge.backend
 ```
 
 ### 开发环境（`application-dev.properties`）
@@ -361,6 +398,16 @@ file:
 
 ## 冒烟示例
 
+**Swagger UI（推荐）**
+
+浏览器打开 http://localhost:8081/swagger-ui.html ，按 Tag 浏览并在线调试。
+
+**团队空间页壳**
+
+```bash
+curl "http://localhost:8081/api/v1/client/team-profile/space?teamUid=LB00000000001"
+```
+
 **Feed 笔记列表**
 
 ```bash
@@ -389,8 +436,8 @@ curl -X POST http://localhost:8081/api/v1/admin/login ^
 
 1. **库字段** `snake_case`，Java **camelCase**，依赖 MyBatis Plus 映射。
 2. **密码**仅存前端 SHA256 哈希；响应禁止返回 `password_hash`。
-3. **双 ID**：对外 `uid`（笔记 `TX/VD+11位`、项目 `PR+11位`），对内自增 `id`；商业保密表仅通过内部 `project.id` 访问。
-4. **新增/变更接口** 同步更新 `API.md` / `API-1.md`。
+3. **双 ID**：对外 `uid`（用户 `US+11`、团队 `LB/ST+11`、笔记 `TX/VD+11`、项目 `PR+11`、成果 `AC+11`），对内自增 `id`；`project.extended_uid` / `note.extended_uid` 存代发归属（`entity_code` 或 `team_uid`，非独立 EX UID）。
+4. **新增/变更接口** 同步更新 `API.md` / `API-1.md`，Controller 补充 OpenAPI 注解（`@Tag` / `@Operation`）。
 5. **新功能** 只写在 `com.unibridge.backend` 对应 domain，**勿再向** `com.example.demo.client` 追加代码。
 6. **Feed 换一换**：前端刷新请调 `/shuffle` 并传 **新** `seed`（`Long`，可用 `Date.now()`）；`/feed/notes` 为稳定推荐，带缓存。
 
@@ -412,10 +459,11 @@ curl -X POST http://localhost:8081/api/v1/admin/login ^
 | 文件 | 说明 |
 | --- | --- |
 | [`API.md`](./API.md) | 主接口契约 |
-| [`API-1.md`](./API-1.md) | 增量 API（Feed 卡片字段、XSS 等） |
-| [`db.sql`](./db.sql) | 建表脚本 |
+| [`API-1.md`](./API-1.md) | 增量 API（团队空间 TeamView、Feed 卡片字段等） |
+| [`db.sql`](./db.sql) | 建表脚本（含信用体系 `sys_credit_*`、团队/成果表） |
 | [`insert-test-data.sql`](./insert-test-data.sql) | 联调测试数据 |
 | [`init-db.ps1`](./init-db.ps1) | 数据库初始化 |
+| [`insert-test-data.ps1`](./insert-test-data.ps1) | 导入测试数据并校验行数 |
 | [`start-backend.ps1`](./start-backend.ps1) | 一键启动 |
 
 ---
@@ -425,5 +473,6 @@ curl -X POST http://localhost:8081/api/v1/admin/login ^
 - [ ] 验证新架构稳定后删除 `com/example/demo/client` 快照目录
 - [ ] JWT 密钥外部化（环境变量 / Vault）
 - [ ] Spring Cache 迁移至 Redis（`CacheConfig` 替换 Manager 即可，domain 零改动）
-- [ ] 补充 Feed / Note / Project 接口集成测试
+- [ ] 补充 Feed / Note / Project / TeamProfile 接口集成测试
+- [ ] 前端 TeamView 对接 `/team-profile/*`（后端已实现，见 `API-1.md` §03）
 - [ ] 可选：将 `SpaceService` 对卡片 Assembler 的依赖上提到 `application` 编排层
