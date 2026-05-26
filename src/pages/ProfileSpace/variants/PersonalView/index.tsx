@@ -19,4 +19,4 @@ export function PersonalViewPage() {
 export { PersonalView } from './PersonalView'
 export { usePersonalViewPage } from './usePersonalViewPage'
 export type { PersonalViewModel, ProfileSpacePageModel } from './usePersonalViewPage'
-export type { ProfileTab, UserCoreProfile, UserExtendedProfile, UserLaboratoryProfile } from './types'
+export type { ProfileTab, UserAssociatedTeam, UserCoreProfile, UserExtendedProfile } from './types'

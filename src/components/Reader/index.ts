@@ -1,5 +1,3 @@
-export { MarkdownMdPreviewReader } from './MarkdownMdPreviewReader'
-export type { MarkdownMdPreviewReaderProps, MarkdownCatalogPlacement } from './MarkdownMdPreviewReader'
 export { MarkdownMdPreview } from './MarkdownMdPreview'
 export type { MarkdownMdPreviewProps } from './MarkdownMdPreview'
 export { MarkdownMdCatalogPanel } from './MarkdownMdCatalogPanel'

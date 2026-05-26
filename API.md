@@ -3,7 +3,7 @@
 > **本机联调地址**：`http://localhost:8081/api/v1/client`  
 > **前端 baseURL**：`/api/v1/client`（`apps/web-client/src/api/http.ts`）  
 > **路径约定**：下文所有 Path 均相对 `/api/v1/client`。  
-> **待跟进增量**：见 [`API-request.md`](./API-request.md)（当前为项目卡片 `coverUrl` 联调项）。
+> **待跟进增量**：见 [`API-request.md`](./API-request.md)（当前无待办项；历史增量已合并至本文档）。
 
 本文档汇总 Web 客户端已对接的后端接口，按业务模块分四部分编写。前端封装位于 `apps/web-client/src/api/`。
 
@@ -53,6 +53,14 @@
 | 33 | 互动 | PUT | `/interactions/like` | 点赞 / 取消 | `putInteractionLike` |
 | 34 | 互动 | PUT | `/interactions/collect` | 收藏 / 取消 | `putInteractionCollect` |
 | 35 | 互动 | POST | `/interactions/view` | 浏览计次（视频播放等） | `postInteractionView` |
+| 36 | 团队空间 | GET | `/team-profile/space` | 团队空间页壳（Hero + 侧栏 + 成员预览） | `getTeamProfileSpace` |
+| 37 | 团队空间 | GET | `/team-profile/home` | 团队空间「主页」Tab 预览 | `getTeamProfileHome` |
+| 38 | 团队空间 | GET | `/team-profile/members` | 团队空间「成员」Tab | `getTeamProfileMembers` |
+| 39 | 团队空间 | PUT | `/team-profile/members` | 批量管理团队成员 | `updateTeamProfileMembers` |
+| 40 | 团队空间 | GET | `/team-profile/projects` | 团队空间「项目」Tab | `getTeamProfileProjects` |
+| 41 | 团队空间 | GET | `/team-profile/notes` | 团队空间「笔记」Tab | `getTeamProfileNotes` |
+| 42 | 团队空间 | GET | `/team-profile/achievements` | 团队空间「成果」Tab | `getTeamProfileAchievements` |
+| 43 | 用户 | GET | `/users/{uid}/public-preview` | 用户公开预览（管理成员添加校验） | `getUserPublicPreview` |
 
 ### 页面与接口映射
 
@@ -61,6 +69,7 @@
 | `AuthModal` | 弹窗 | 认证 #1–#8 |
 | `UserProfileMenu` | 顶栏 | `GET /user-profile/menu` |
 | `ProfileSpacePage` | `/profile` | `GET /user-profile/space`、`/home`、`/projects`、`/notes` |
+| `TeamView` | `/team/:teamUid` | `GET /team-profile/space`、`/home`、`/members`、`PUT /team-profile/members`、`/projects`、`/notes`、`/achievements` |
 | `HomePage` | `/` | `GET /feed/home` |
 | `CommercialProjectsPage` | `/commercial` | `GET /feed/projects?category=COMMERCIAL` |
 | `CampusCoCreationPage` | `/campus` | `GET /feed/projects?category=RECRUITMENT` |
@@ -75,7 +84,7 @@
 | 部分 | 内容 |
 |------|------|
 | [第一部分：认证 API](#第一部分认证-api) | 注册、登录、验证码、退出 |
-| [第二部分：个人空间与用户资料](#第二部分个人空间与用户资料) | 个人空间页与顶栏菜单 |
+| [第二部分：个人空间与用户资料](#第二部分个人空间与用户资料) | 个人空间页、顶栏菜单、**团队空间** |
 | [第三部分：发布与详情](#第三部分发布与详情) | 项目/笔记发布、上传、详情读 |
 | [第四部分：Feed 推荐与互动](#第四部分feed-推荐与互动) | Feed 读接口、埋点、互动、双 ID 约定 |
 
@@ -1053,6 +1062,374 @@ sequenceDiagram
 - **前端封装**：`getUserProfileMenu`（`api/userProfile`）
 
 响应字段：`userId`、`nickname`、`level`、`avatarUrl`、`verifiedOrganization` 等。
+
+---
+
+## 08）团队空间（`/team-profile/*`）
+
+> 消费页面：`TeamView`（`apps/web-client/src/pages/ProfileSpace/variants/TeamView/`）  
+> 前端模块：`apps/web-client/src/api/teamProfile`  
+> 后端实现：`TeamSpaceController` / `TeamSpaceService`（`domain/space/`）  
+> 数据库参考：`db.sql` — `team`、`team_member`、`project`、`note`、`achievement_archive`
+
+### 08.1）通用约定
+
+| 项 | 说明 |
+|----|------|
+| 路由 | `/team/:teamUid`（主页）、`/team/:teamUid/{member\|achievement\|project\|note}` |
+| 身份参数 | Query **`teamUid`**（`LB`/`ST` + 11 位），**禁止**使用自增 id |
+| Auth | 已审核（`audit_status=APPROVED`）且活跃（`account_status=ACTIVE`）的团队支持**游客只读**；冻结/解散返回 `403 TEAM_NOT_ACCESSIBLE` |
+| 隐私 | 成员/笔记作者仅返回 **昵称**；成果字段均为脱敏展示 |
+
+### 08.2）接口总览
+
+| # | Method | Path | 说明 | 前端封装 |
+|---|--------|------|------|----------|
+| 1 | GET | `/team-profile/space` | 页壳：Hero + 侧栏 + 成员预览 | `getTeamProfileSpace` |
+| 2 | GET | `/team-profile/home` | 主页 Tab：项目/笔记/成果预览 | `getTeamProfileHome` |
+| 3 | GET | `/team-profile/members` | 成员 Tab 分页列表 | `getTeamProfileMembers` |
+| 4 | PUT | `/team-profile/members` | 批量管理成员（career / isAdmin / 增删） | `updateTeamProfileMembers` |
+| 5 | GET | `/team-profile/projects` | 项目 Tab 分页列表 | `getTeamProfileProjects` |
+| 6 | GET | `/team-profile/notes` | 笔记 Tab 分页列表 | `getTeamProfileNotes` |
+| 7 | GET | `/team-profile/achievements` | 成果 Tab 分页列表 | `getTeamProfileAchievements` |
+
+### 08.3）GET `/team-profile/space`
+
+- **Auth**：否（游客只读，见 §08.1）
+- **说明**：进入 `/team/:teamUid` 时调用，返回 Hero、右侧信息表、主页成员预览。
+
+#### Query Parameters
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `teamUid` | string | 是 | 团队对外 uid |
+
+#### Response Data
+
+```json
+{
+  "teamUid": "LB00000001001",
+  "coreProfile": {
+    "teamUid": "LB00000001001",
+    "name": "智能计算与应用实验室",
+    "description": "以工程项目驱动实践，聚焦智能系统与大数据分析方向。",
+    "organizationName": "深圳技术大学",
+    "logoUrl": "http://localhost:8081/uploads/teams/lab-logo.png",
+    "memberCount": 4,
+    "foundedAt": "2023.09.01"
+  },
+  "extendedProfile": {
+    "notice": "本团队采用项目制协作，每周固定进行进度复盘与代码评审。",
+    "researchDirection": "智能系统 · 大数据分析 · 工程实践",
+    "contactEmail": "lab-contact@example.com"
+  },
+  "members": [
+    {
+      "uid": "US00000001001",
+      "nickname": "李老师",
+      "realName": "李晓明",
+      "role": "MENTOR",
+      "career": "人工智能",
+      "isOwner": true,
+      "isAdmin": true,
+      "avatarUrl": null,
+      "level": "SR"
+    },
+    {
+      "uid": "US00000001002",
+      "nickname": "王同学",
+      "realName": "王磊",
+      "role": "MEMBER",
+      "career": "前端开发",
+      "isOwner": false,
+      "isAdmin": false,
+      "avatarUrl": null,
+      "level": "R"
+    }
+  ],
+  "infoRows": [
+    { "label": "团队 UID", "value": "LB00000001001" },
+    { "label": "所属主体", "value": "深圳技术大学" },
+    { "label": "加入时间", "value": "2023.09.01" },
+    { "label": "成员规模", "value": "4 人" },
+    { "label": "研究方向", "value": "智能系统 · 大数据分析" },
+    { "label": "联系邮箱", "value": "lab-contact@example.com" }
+  ]
+}
+```
+
+**coreProfile**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `teamUid` | string | 团队 uid |
+| `name` | string | `team.team_name` |
+| `description` | string | `team.intro` |
+| `organizationName` | string \| null | LAB 所属主体名；学生团队可为 null |
+| `logoUrl` | string \| null | `team.team_logo` |
+| `memberCount` | number | 成员总数 |
+| `foundedAt` | string | 创建时间展示文案 |
+
+**extendedProfile**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `notice` | string | `team.announcement` |
+| `researchDirection` | string | 由 `team.tag` JSON 拼接 |
+| `contactEmail` | string \| null | `team.contact_email` |
+
+**members[]**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `uid` | string | 成员 `userUid` |
+| `nickname` | string | 昵称（公共区域默认展示） |
+| `realName` | string \| null | 实名；管理成员表单与实验室成员可见场景使用 |
+| `role` | string | 团队身份枚举：`LEADER` \| `MEMBER` \| `MENTOR` |
+| `career` | string \| null | 团队在组内定位展示文案，如「人工智能」「前端开发」 |
+| `isOwner` | boolean | 可选；是否为 `team.owner_uid`。**未返回时**前端将排序后 `members[0]` 视为负责人 |
+| `isAdmin` | boolean | 是否具备团队管理权限；`team.owner_uid` 对应成员必须为 `true` |
+| `avatarUrl` | string \| null | 头像 URL |
+| `level` | string \| null | `N`/`R`/`SR`/`SSR`/`UR` |
+
+**前端 MemberCard 展示规则**（`ProfileSpace`）：
+
+- 片段顺序：`负责人`（可选）· `导师`/`学生` · `career`
+- `role=MENTOR` → 「导师」；`role=LEADER`/`MEMBER` → 「学生」
+- `members[0]`（接口已排序）或 `isOwner=true` 或 `role=LEADER` → 科技蓝「负责人」标签
+- **名称字段**：公共实验室（`teamUid` 以 `LB` 开头）且登录用户为团队成员 → 优先 `realName`，否则 `nickname`；**管理成员表单**始终优先 `realName`
+- **管理入口**：当前登录用户 `uid` 在 `members[]` 中且 `isAdmin=true` 时展示「管理成员」
+- 示例：`负责人 · 导师 · 人工智能`；`学生 · 前端开发`
+
+成员排序：负责人（`team.owner_uid`）→ 导师 → 学生；同层按能力等级、加入时间排序。
+
+**infoRows[]**：`{ label, value }[]`，供侧栏「团队信息」表格直接渲染。
+
+#### 常见错误码
+
+- `TEAM_NOT_FOUND`（404）
+- `TEAM_NOT_ACCESSIBLE`（403）
+- `INVALID_TEAM_UID`（400）
+
+### 08.4）GET `/team-profile/home`
+
+#### Query Parameters
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `teamUid` | string | 是 | 团队 uid |
+| `projectLimit` | number | 否 | 默认 `3` |
+| `noteLimit` | number | 否 | 默认 `3` |
+| `achievementLimit` | number | 否 | 默认 `3` |
+
+#### Response Data
+
+```json
+{
+  "teamUid": "LB00000001001",
+  "projects": [],
+  "notes": [],
+  "achievements": [
+    {
+      "achievementUid": "AC00000005001",
+      "maskedProjectName": "智能数据分析平台",
+      "taskDescription": "完成核心指标看板与周报自动化导出模块…",
+      "technicalTags": ["React", "ECharts", "SpringBoot"],
+      "completedAt": "2026-04-30"
+    }
+  ],
+  "projectTotal": 4,
+  "noteTotal": 5,
+  "achievementTotal": 4
+}
+```
+
+- **projects[]**：与个人空间 `projects[]` 同构（`ProjectItem` / `ProjectCard`），筛选 `project.team_uid = teamUid`。
+- **notes[]**：与个人空间 `notes[]` 同构（`ProfileNoteItem` / `GridNoteCard`），封面字段名为 `cover`。
+- **achievements[]**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `achievementUid` | string | `AC` + 11 位 |
+| `maskedProjectName` | string | 脱敏项目名 |
+| `taskDescription` | string | 脱敏工作总结 |
+| `technicalTags` | string[] | 技术标签 |
+| `completedAt` | string | 完成时间 |
+
+### 08.5）GET `/team-profile/members`
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `teamUid` | string | 是 | 团队 uid |
+| `page` | number | 否 | 默认 `1` |
+| `pageSize` | number | 否 | 默认 `50` |
+
+响应：`{ teamUid, members[], total, page, pageSize }`；`members[]` 同 §08.3。
+
+| `pageSize` | number | 否 | 默认 `50`（管理成员页建议 `100`） |
+
+响应：`{ teamUid, members[], total, page, pageSize }`；`members[]` 同 §08.3。
+
+### 08.6）PUT `/team-profile/members`
+
+- **Auth**：是（须登录）
+- **权限**：调用者须为该团队成员且 `isAdmin=true`（负责人天然具备）
+- **说明**：`ManageMembersForm` 保存时一次性提交成员变更；不涉及负责人转让。
+
+#### Query Parameters
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `teamUid` | string | 是 | 团队对外 uid |
+
+#### Request Body
+
+```json
+{
+  "updates": [
+    { "uid": "US00000001002", "career": "前端开发", "isAdmin": true }
+  ],
+  "additions": [
+    { "uid": "US00000001009", "role": "MEMBER", "career": "后端开发" }
+  ],
+  "removals": [
+    { "uid": "US00000001008" }
+  ]
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `updates` | array | 否 | 已存在成员变更；含 `uid`、`career`（非空）、可选 `isAdmin` |
+| `additions` | array | 否 | 新成员；`role` 仅 `MEMBER` \| `MENTOR`；不传 `nickname` |
+| `removals` | array | 否 | 移除成员；不可移除 `team.owner_uid` |
+
+三项全空 → `400`。`updates` 中不可修改 `role`；负责人 `isAdmin` 恒为 `true`。
+
+#### Response Data
+
+```json
+{
+  "teamUid": "LB00000001001",
+  "members": [],
+  "total": 4
+}
+```
+
+`members[]` 结构与 §08.3 一致，为保存后完整列表。
+
+#### 常见错误码
+
+| code | HTTP | 说明 |
+|------|------|------|
+| `TEAM_MEMBER_FORBIDDEN` | 403 | 当前用户无管理权限 |
+| `TEAM_MEMBER_OWNER_IMMUTABLE` | 400 | 不可移除负责人 |
+| `TEAM_MEMBER_LAST_ONE` | 400 | 不可移除最后一名成员 |
+| `TEAM_MEMBER_CAREER_REQUIRED` | 400 | career 为空 |
+| `TEAM_MEMBER_ALREADY_EXISTS` | 409 | 成员已在团队 |
+| `TEAM_MEMBER_NOT_FOUND` | 404 | 移除/更新目标不在团队 |
+| `TEAM_MEMBER_LAB_CONFLICT` | 409 | 学生单实验室约束冲突 |
+| `USER_NOT_FOUND` | 404 | 添加时用户不存在 |
+
+### 08.7）GET `/team-profile/projects`
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `teamUid` | string | 是 | 团队 uid |
+| `page` | number | 否 | 默认 `1` |
+| `pageSize` | number | 否 | 默认 `20` |
+
+响应：`{ teamUid, projects[], total, page, pageSize }`；`projects[]` 同个人空间项目 Tab。
+
+### 08.8）GET `/team-profile/notes`
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `teamUid` | string | 是 | 团队 uid |
+| `page` | number | 否 | 默认 `1` |
+| `pageSize` | number | 否 | 默认 `21`（建议 3 的倍数） |
+| `contentType` | string | 否 | `图文` / `视频` |
+
+响应：`{ teamUid, notes[], total, page, pageSize }`；`notes[]` 同个人空间笔记 Tab。
+
+### 08.9）GET `/team-profile/achievements`
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `teamUid` | string | 是 | 团队 uid |
+| `page` | number | 否 | 默认 `1` |
+| `pageSize` | number | 否 | 默认 `20` |
+
+响应：`{ teamUid, achievements[], total, page, pageSize }`；`achievements[]` 同 §08.4。
+
+### 08.10）GET `/users/{uid}/public-preview`
+
+- **Auth**：否（登录可选）
+- **说明**：管理成员表单输入 UID 后校验用户并自动填充姓名；**请求体不传 nickname**。
+
+#### Path Parameters
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `uid` | string | 是 | 用户对外 uid |
+
+#### Response Data
+
+```json
+{
+  "uid": "US00000001009",
+  "nickname": "新同学",
+  "realName": "张三",
+  "avatarUrl": null
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `uid` | string | 用户 uid |
+| `nickname` | string | 昵称 |
+| `realName` | string \| null | 实名 |
+| `avatarUrl` | string \| null | 头像 |
+
+前端 `ManageMembersForm`：UID 失焦调用本接口；管理场景姓名优先 `realName`。
+
+#### 常见错误码
+
+- `USER_NOT_FOUND`（404）
+- `INVALID_USER_UID`（400）
+
+### 08.11）前端调用时序（TeamView）
+
+```mermaid
+sequenceDiagram
+  participant Page as TeamView
+  participant API as /team-profile/*
+
+  Page->>API: GET /team-profile/space?teamUid=
+  Note over Page: Hero + 侧栏 + 成员预览
+
+  alt 主页 Tab
+    Page->>API: GET /team-profile/home?teamUid=
+  else 成员 Tab
+    Page->>API: GET /team-profile/members?teamUid=
+  else 成员管理页
+    Page->>API: GET /users/{uid}/public-preview
+    Page->>API: PUT /team-profile/members?teamUid=
+  else 成果 Tab
+    Page->>API: GET /team-profile/achievements?teamUid=
+  else 项目 Tab
+    Page->>API: GET /team-profile/projects?teamUid=
+  else 笔记 Tab
+    Page->>API: GET /team-profile/notes?teamUid=
+  end
+```
+
+| 场景 | 调用接口 | 消费组件 |
+|------|----------|----------|
+| 进入 `/team/:teamUid` | `GET /team-profile/space` | `TeamViewHeroContent`、`TeamViewSidebar`、主页成员预览 |
+| 激活「主页」Tab | `GET /team-profile/home` | `TeamViewMainContent` 预览区 |
+| 激活「成员/成果/项目/笔记」Tab | 对应 §08.5–§08.9 | `TeamViewMainContent` |
+| 管理成员保存 | `PUT /team-profile/members` | `ManageMembersForm` |
 
 ---
 

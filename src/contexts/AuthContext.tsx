@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AUTH_FORCE_LOGOUT_EVENT, AUTH_TOKENS_UPDATED_EVENT, type AuthTokensUpdatedDetail } from '../auth/authEvents'
-import { clearAuthTokens, getAccessToken, getRefreshToken, getUserId, setAuthTokens, setUserId } from '../auth/tokenStorage'
+import { clearAuthTokens, getAccessToken, getRefreshToken, getUserUid, setAuthTokens, setUserUid } from '../auth/tokenStorage'
+import type { UserResourceUid } from '../api/resourceUid'
 
 // 01）认证用户档案类型定义（AuthUserProfile）
 export interface AuthUserProfile {
-  userId?: number
+  uid?: UserResourceUid
   userRole?: string
   authStatus?: string
 }
@@ -57,12 +58,12 @@ interface AuthProviderProps {
 function createInitialAuthState(): AuthState {
   const initialAccessToken = getAccessToken()
   const initialRefreshToken = getRefreshToken()
-  const initialUserId = getUserId()
+  const initialUserUid = getUserUid()
   return {
     isLoggedIn: Boolean(initialAccessToken),
     token: initialAccessToken,
     refreshToken: initialRefreshToken,
-    userProfile: initialUserId ? { userId: initialUserId } : null,
+    userProfile: initialUserUid ? { uid: initialUserUid } : null,
     isHydrated: true,
   }
 }
@@ -90,8 +91,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       accessToken: payload.accessToken,
       refreshToken: payload.refreshToken,
     })
-    if (payload.userProfile?.userId) {
-      setUserId(payload.userProfile.userId)
+    if (payload.userProfile?.uid) {
+      setUserUid(payload.userProfile.uid)
     }
     setAuthState((previousState) => ({
       ...previousState,
@@ -129,8 +130,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // 12）用户档案更新处理（setUserProfile）
   const setUserProfile = useCallback((profile: AuthUserProfile | null): void => {
-    if (profile?.userId) {
-      setUserId(profile.userId)
+    if (profile?.uid) {
+      setUserUid(profile.uid)
     }
     setAuthState((previousState) => ({
       ...previousState,

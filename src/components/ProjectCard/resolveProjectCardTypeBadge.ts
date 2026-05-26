@@ -1,1 +1,0 @@
-export { resolveProjectCardTypeBadge } from './projectCardUtils'

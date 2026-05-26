@@ -1,5 +1,7 @@
 import { HttpApiError, getApi } from '../http'
-import { getUserId } from '../../auth/tokenStorage'
+import { getUserUid, setUserUid } from '../../auth/tokenStorage'
+import { isUserResourceUid, normalizeUserResourceUid } from '../resourceUid'
+import type { UserResourceUid } from '../resourceUid'
 import type {
   UserProfileHomeData,
   UserProfileMenuData,
@@ -13,10 +15,127 @@ export const USER_PROFILE_HOME_PROJECT_LIMIT = 3
 export const USER_PROFILE_HOME_NOTE_LIMIT = 4
 
 // 01）用户资料接口异常类型定义（UserProfileApiError）
-export class UserProfileApiError extends HttpApiError {}
+export class UserProfileApiError extends HttpApiError { }
 
 // 02）用户资料缓存键常量（USER_PROFILE_MENU_CACHE_KEY）
 const USER_PROFILE_MENU_CACHE_KEY = 'user_profile_menu_cache'
+
+// 02.1）菜单缓存结构（UserProfileMenuCachePayload）
+interface UserProfileMenuCachePayload {
+  user_uid?: UserResourceUid
+  /** @deprecated 旧版缓存字段 */
+  uid?: UserResourceUid
+  /** @deprecated 旧版缓存字段（可能为数字 id 或字符串 uid） */
+  userId?: unknown
+  data: UserProfileMenuData
+}
+
+// 02.2）归一化菜单接口响应（normalizeUserProfileMenuData）
+/**
+ * 函数名：normalizeUserProfileMenuData
+ * 功能：将 /user-profile/menu 响应中的用户标识统一映射为 uid 字段。
+ * 输入：
+ * - raw：接口原始 data
+ * 输出：
+ * - 返回值：UserProfileMenuData
+ * - 副作用：无
+ */
+function normalizeUserProfileMenuData(raw: UserProfileMenuData & Record<string, unknown>): UserProfileMenuData {
+  const uid = normalizeUserResourceUid(raw) ?? raw.uid
+  return {
+    nickname: raw.nickname,
+    level: raw.level,
+    avatarUrl: raw.avatarUrl,
+    verifiedOrganization: raw.verifiedOrganization,
+    uid,
+  }
+}
+
+// 02.2.1）归一化个人空间页壳响应（normalizeUserProfileSpaceData）
+/**
+ * 函数名：normalizeUserProfileSpaceData
+ * 功能：将 /user-profile/space 响应中的 userUid 等字段统一映射为 uid。
+ * 输入：
+ * - raw：接口原始 data
+ * 输出：
+ * - 返回值：UserProfileSpaceData
+ * - 副作用：无
+ */
+function normalizeUserProfileSpaceData(raw: UserProfileSpaceData & Record<string, unknown>): UserProfileSpaceData {
+  const uid =
+    normalizeUserResourceUid(raw) ??
+    normalizeUserResourceUid(raw.baseInfo as unknown as Record<string, unknown>) ??
+    raw.uid ??
+    raw.baseInfo?.uid ??
+    ''
+
+  return {
+    ...raw,
+    uid,
+    baseInfo: {
+      ...raw.baseInfo,
+      uid,
+    },
+  }
+}
+
+// 02.2.2）归一化带 uid 的用户资料响应（normalizeUserProfileUidResponse）
+/**
+ * 函数名：normalizeUserProfileUidResponse
+ * 功能：将 home/projects/notes 等响应顶层的 userUid 统一映射为 uid。
+ * 输入：
+ * - raw：含 uid 字段的接口 data
+ * 输出：
+ * - 返回值：归一化后的同类型对象
+ * - 副作用：无
+ */
+function normalizeUserProfileUidResponse<T extends { uid: UserResourceUid }>(
+  raw: T & Record<string, unknown>,
+): T {
+  const uid = normalizeUserResourceUid(raw) ?? raw.uid
+  return {
+    ...raw,
+    uid,
+  }
+}
+
+// 02.3）解析菜单缓存中的 user_uid（resolveMenuCacheUserUid）
+/**
+ * 函数名：resolveMenuCacheUserUid
+ * 功能：从菜单 localStorage 缓存中解析 user_uid，兼容旧版 uid / userId 字段。
+ * 输入：
+ * - payload：解析后的缓存对象
+ * 输出：
+ * - 返回值：UserResourceUid | null
+ * - 副作用：无
+ */
+function resolveMenuCacheUserUid(payload: UserProfileMenuCachePayload): UserResourceUid | null {
+  if (payload.user_uid && isUserResourceUid(payload.user_uid)) {
+    return payload.user_uid.trim()
+  }
+
+  if (payload.uid && isUserResourceUid(payload.uid)) {
+    return payload.uid.trim()
+  }
+
+  return normalizeUserResourceUid(payload as unknown as Record<string, unknown>)
+}
+
+// 02.4）持久化 user_uid 到 tokenStorage（persistUserUidIfValid）
+/**
+ * 函数名：persistUserUidIfValid
+ * 功能：在菜单缓存读写或接口返回后，将有效 uid 同步写入 localStorage.user_uid。
+ * 输入：
+ * - uid：用户对外 uid
+ * 输出：
+ * - 返回值：void
+ * - 副作用：写入 localStorage
+ */
+function persistUserUidIfValid(uid: UserResourceUid | null | undefined): void {
+  if (uid && isUserResourceUid(uid)) {
+    setUserUid(uid)
+  }
+}
 
 // 03）用户资料 GET 请求封装（getUserProfileApi）
 /**
@@ -35,9 +154,9 @@ const USER_PROFILE_MENU_CACHE_KEY = 'user_profile_menu_cache'
 // 03.1）拼接用户资料查询路径（buildUserProfileQueryPath）
 /**
  * 函数名：buildUserProfileQueryPath
- * 功能：为个人空间相关 GET 接口拼接 userId 与其它查询参数。
+ * 功能：为个人空间相关 GET 接口拼接 uid 与其它查询参数。
  * 实现方法：
- * - 从 localStorage 读取 userId 写入查询串
+ * - 从 localStorage 读取 user_uid 写入查询串
  * - 合并调用方传入的额外参数
  * 输入：
  * - basePath：接口相对路径
@@ -49,12 +168,13 @@ const USER_PROFILE_MENU_CACHE_KEY = 'user_profile_menu_cache'
 function buildUserProfileQueryPath(
   basePath: string,
   extraParams?: Record<string, string | number | undefined>,
+  profileUid?: UserResourceUid,
 ): string {
   const searchParams = new URLSearchParams()
-  const currentUserId = getUserId()
+  const resolvedUid = profileUid ?? getUserUid()
 
-  if (currentUserId && Number.isInteger(currentUserId)) {
-    searchParams.set('userId', String(currentUserId))
+  if (resolvedUid && isUserResourceUid(resolvedUid)) {
+    searchParams.set('uid', resolvedUid)
   }
 
   if (extraParams) {
@@ -83,31 +203,37 @@ async function getUserProfileApi<TData>(path: string): Promise<TData> {
 // 04）读取本地缓存的用户菜单数据（getCachedUserProfileMenu）
 /**
  * 函数名：getCachedUserProfileMenu
- * 功能：读取本地缓存的顶部用户菜单数据，并校验 userId 一致性。
+ * 功能：读取本地缓存的顶部用户菜单数据，并校验 uid 一致性。
  * 实现方法：
  * - 从 localStorage 读取 JSON 缓存
- * - 解析后校验缓存中的 userId 与当前 userId 是否一致
+ * - 解析后校验缓存中的 uid 与当前 uid 是否一致
  * - 校验通过返回缓存 data，否则返回 null
  * 输入：
- * - userId：当前登录用户 ID，可选
+ * - uid：当前登录用户 uid，可选
  * 输出：
  * - 返回值：UserProfileMenuData | null
  * - 副作用：读取 localStorage
  */
-export function getCachedUserProfileMenu(userId?: number | null): UserProfileMenuData | null {
+export function getCachedUserProfileMenu(uid?: UserResourceUid | null): UserProfileMenuData | null {
   const rawCache = window.localStorage.getItem(USER_PROFILE_MENU_CACHE_KEY)
   if (!rawCache) {
     return null
   }
   try {
-    const parsedCache = JSON.parse(rawCache) as { userId: number; data: UserProfileMenuData }
-    if (!parsedCache?.data || !parsedCache?.userId) {
+    const parsedCache = JSON.parse(rawCache) as UserProfileMenuCachePayload
+    const cachedUserUid = resolveMenuCacheUserUid(parsedCache)
+    if (!parsedCache?.data || !cachedUserUid) {
       return null
     }
-    if (userId && parsedCache.userId !== userId) {
+    if (uid && cachedUserUid !== uid) {
       return null
     }
-    return parsedCache.data
+
+    persistUserUidIfValid(cachedUserUid)
+    return normalizeUserProfileMenuData({
+      ...parsedCache.data,
+      uid: cachedUserUid,
+    } as UserProfileMenuData & Record<string, unknown>)
   } catch {
     return null
   }
@@ -118,26 +244,34 @@ export function getCachedUserProfileMenu(userId?: number | null): UserProfileMen
  * 函数名：setCachedUserProfileMenu
  * 功能：将最新用户菜单数据写入 localStorage 缓存。
  * 实现方法：
- * - 使用 userId + data 组合写入统一缓存键
- * - 写入前校验 userId 为正整数
+ * - 使用 user_uid + data 组合写入统一缓存键
+ * - 同步写入 localStorage.user_uid
+ * - 写入前校验 uid 为非空字符串
  * - 覆盖旧缓存，保证刷新后读取的是最新结构
  * 输入：
- * - userId：当前登录用户 ID
+ * - uid：当前登录用户 uid
  * - data：用户菜单接口返回数据
  * 输出：
  * - 返回值：void
  * - 副作用：写入 localStorage
  */
-export function setCachedUserProfileMenu(userId: number, data: UserProfileMenuData): void {
-  if (!Number.isInteger(userId) || userId <= 0) {
+export function setCachedUserProfileMenu(uid: UserResourceUid, data: UserProfileMenuData): void {
+  if (!isUserResourceUid(uid)) {
     return
   }
+
+  const normalizedUid = uid.trim()
+  persistUserUidIfValid(normalizedUid)
+
   window.localStorage.setItem(
     USER_PROFILE_MENU_CACHE_KEY,
     JSON.stringify({
-      userId,
-      data,
-    }),
+      user_uid: normalizedUid,
+      data: normalizeUserProfileMenuData({
+        ...data,
+        uid: normalizedUid,
+      } as UserProfileMenuData & Record<string, unknown>),
+    } satisfies UserProfileMenuCachePayload),
   )
 }
 
@@ -161,7 +295,7 @@ export function clearCachedUserProfileMenu(): void {
  * 函数名：getUserProfileMenu
  * 功能：获取顶部导航 UserProfileMenu 组件所需的用户资料数据。
  * 实现方法：
- * - 从本地读取 userId 并拼接请求参数（用于后端识别当前用户）
+ * - 从本地读取 uid 并拼接请求参数（用于后端识别当前用户）
  * - 调用 /user-profile/menu 接口读取头像、昵称、等级与主体认证信息
  * - 复用统一鉴权拦截器自动注入 accessToken
  * - 返回可直接渲染到 UserProfileMenu 的数据结构
@@ -171,7 +305,12 @@ export function clearCachedUserProfileMenu(): void {
  * - 副作用：发起网络请求
  */
 export async function getUserProfileMenu(): Promise<UserProfileMenuData> {
-  return getUserProfileApi<UserProfileMenuData>(buildUserProfileQueryPath('/user-profile/menu'))
+  const rawMenuData = await getUserProfileApi<UserProfileMenuData & Record<string, unknown>>(
+    buildUserProfileQueryPath('/user-profile/menu'),
+  )
+  const menuData = normalizeUserProfileMenuData(rawMenuData)
+  persistUserUidIfValid(menuData.uid)
+  return menuData
 }
 
 // 08）获取个人空间页壳数据接口（getUserProfileSpace）
@@ -179,7 +318,7 @@ export async function getUserProfileMenu(): Promise<UserProfileMenuData> {
  * 函数名：getUserProfileSpace
  * 功能：获取个人空间 Hero 区与右侧信息侧栏所需的页壳数据。
  * 实现方法：
- * - 从本地读取 userId 并拼接查询参数
+ * - 从本地读取 uid 并拼接查询参数
  * - 调用 GET /user-profile/space 接口
  * - 复用统一鉴权拦截器自动注入 accessToken
  * 输入：无
@@ -188,7 +327,10 @@ export async function getUserProfileMenu(): Promise<UserProfileMenuData> {
  * - 副作用：发起网络请求
  */
 export async function getUserProfileSpace(): Promise<UserProfileSpaceData> {
-  return getUserProfileApi<UserProfileSpaceData>(buildUserProfileQueryPath('/user-profile/space'))
+  const rawSpaceData = await getUserProfileApi<UserProfileSpaceData & Record<string, unknown>>(
+    buildUserProfileQueryPath('/user-profile/space'),
+  )
+  return normalizeUserProfileSpaceData(rawSpaceData)
 }
 
 // 09）获取个人空间主页 Tab 数据（getUserProfileHome）
@@ -199,6 +341,7 @@ export async function getUserProfileSpace(): Promise<UserProfileSpaceData> {
  * - 调用 GET /user-profile/home
  * - 支持 projectLimit、noteLimit 查询参数
  * 输入：
+ * - options.profileUid：目标用户 uid（优先于 localStorage；应与 space 页壳一致）
  * - options.projectLimit：项目预览条数，默认 3
  * - options.noteLimit：笔记预览条数，默认 4
  * 输出：
@@ -206,15 +349,21 @@ export async function getUserProfileSpace(): Promise<UserProfileSpaceData> {
  * - 副作用：发起网络请求
  */
 export async function getUserProfileHome(options?: {
+  profileUid?: UserResourceUid
   projectLimit?: number
   noteLimit?: number
 }): Promise<UserProfileHomeData> {
-  return getUserProfileApi<UserProfileHomeData>(
-    buildUserProfileQueryPath('/user-profile/home', {
-      projectLimit: options?.projectLimit ?? USER_PROFILE_HOME_PROJECT_LIMIT,
-      noteLimit: options?.noteLimit ?? USER_PROFILE_HOME_NOTE_LIMIT,
-    }),
+  const rawHomeData = await getUserProfileApi<UserProfileHomeData & Record<string, unknown>>(
+    buildUserProfileQueryPath(
+      '/user-profile/home',
+      {
+        projectLimit: options?.projectLimit ?? USER_PROFILE_HOME_PROJECT_LIMIT,
+        noteLimit: options?.noteLimit ?? USER_PROFILE_HOME_NOTE_LIMIT,
+      },
+      options?.profileUid,
+    ),
   )
+  return normalizeUserProfileUidResponse(rawHomeData)
 }
 
 // 10）获取个人空间项目 Tab 数据（getUserProfileProjects）
@@ -235,12 +384,13 @@ export async function getUserProfileProjects(options?: {
   page?: number
   pageSize?: number
 }): Promise<UserProfileProjectsData> {
-  return getUserProfileApi<UserProfileProjectsData>(
+  const rawProjectsData = await getUserProfileApi<UserProfileProjectsData & Record<string, unknown>>(
     buildUserProfileQueryPath('/user-profile/projects', {
       page: options?.page ?? 1,
       pageSize: options?.pageSize ?? 20,
     }),
   )
+  return normalizeUserProfileUidResponse(rawProjectsData)
 }
 
 // 11）获取个人空间笔记 Tab 数据（getUserProfileNotes）
@@ -263,13 +413,14 @@ export async function getUserProfileNotes(options?: {
   pageSize?: number
   contentType?: '图文' | '视频'
 }): Promise<UserProfileNotesData> {
-  return getUserProfileApi<UserProfileNotesData>(
+  const rawNotesData = await getUserProfileApi<UserProfileNotesData & Record<string, unknown>>(
     buildUserProfileQueryPath('/user-profile/notes', {
       page: options?.page ?? 1,
       pageSize: options?.pageSize ?? 20,
       contentType: options?.contentType,
     }),
   )
+  return normalizeUserProfileUidResponse(rawNotesData)
 }
 
 export type {

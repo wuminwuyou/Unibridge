@@ -1,12 +1,13 @@
 import type { UserProfileSpaceData } from '../../../../api/userProfile'
+import { normalizeUserResourceUid } from '../../../../api/resourceUid'
 import type { LevelCode } from '../../../../types/level'
-import type { UserCoreProfile, UserExtendedProfile, UserLaboratoryProfile } from './types'
+import type { UserAssociatedTeam, UserCoreProfile, UserExtendedProfile } from './types'
 
 // 01）个人空间页壳视图模型类型（ProfileSpaceShellViewModel）
 export interface ProfileSpaceShellViewModel {
   userCoreProfile: UserCoreProfile
   userExtendedProfile: UserExtendedProfile
-  userLaboratoryProfile: UserLaboratoryProfile
+  associatedTeams: UserAssociatedTeam[]
   activityHeatmap: number[]
   honors: unknown[]
 }
@@ -57,9 +58,9 @@ export function buildAvatarFallbackUrl(nickname: string): string {
  * 函数名：mapUserProfileSpaceData
  * 功能：将 /user-profile/space 接口响应映射为 ProfileSpacePage 可直接渲染的视图模型。
  * 实现方法：
- * - 顶层 id 与 baseInfo 映射为 userCoreProfile
+ * - 顶层 uid 与 baseInfo 映射为 userCoreProfile
  * - extendInfo 映射为 userExtendedProfile
- * - associatedTeam 映射为 userLaboratoryProfile（无团队时 id 为 null）
+ * - associatedTeam 数组映射为 associatedTeams
  * - 透传 honors 与 activityHeatmap
  * 输入：
  * - data：接口原始响应
@@ -69,10 +70,16 @@ export function buildAvatarFallbackUrl(nickname: string): string {
  */
 export function mapUserProfileSpaceData(data: UserProfileSpaceData): ProfileSpaceShellViewModel {
   const { baseInfo, extendInfo, associatedTeam } = data
+  const uid =
+    normalizeUserResourceUid(data as unknown as Record<string, unknown>) ??
+    normalizeUserResourceUid(baseInfo as unknown as Record<string, unknown>) ??
+    data.uid ??
+    baseInfo.uid ??
+    ''
 
   return {
     userCoreProfile: {
-      id: data.id ?? baseInfo.id ?? 0,
+      uid,
       nickname: baseInfo.nickname,
       avatarUrl: baseInfo.avatarUrl,
       isVerified: baseInfo.isVerified,
@@ -88,12 +95,12 @@ export function mapUserProfileSpaceData(data: UserProfileSpaceData): ProfileSpac
       careerData: extendInfo.careerData ?? [],
       skills: extendInfo.skills ?? [],
     },
-    userLaboratoryProfile: {
-      laboratoryId: associatedTeam?.id ?? null,
-      laboratoryName: associatedTeam?.name ?? null,
-      laboratoryDescription: associatedTeam?.description ?? null,
-      laboratoryEntryPath: associatedTeam?.entryPath ?? null,
-    },
+    associatedTeams: (associatedTeam ?? []).map((team) => ({
+      teamUid: team.teamUid,
+      name: team.name,
+      description: team.description,
+      entryPath: team.entryPath,
+    })),
     activityHeatmap: data.activityHeatmap ?? [],
     honors: data.honors ?? [],
   }

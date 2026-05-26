@@ -1,4 +1,6 @@
 // 01）认证通用响应体定义（AuthApiResponse）
+import type { UserResourceUid } from '../resourceUid'
+
 export interface AuthApiResponse<TData> {
   code: number
   message: string
@@ -65,7 +67,7 @@ export interface LogoutRequest {
 
 // 12）令牌登录响应数据定义（TokenAuthData）
 export interface TokenAuthData {
-  userId: number
+  uid: UserResourceUid
   userRole: AuthUserRole
   authStatus: AuthStatus
   accessToken: string

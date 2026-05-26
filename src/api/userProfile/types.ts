@@ -1,8 +1,8 @@
-// 01）用户资料菜单数据类型定义（UserProfileMenuData）
-import type { NoteResourceUid, ProjectResourceUid } from '../resourceUid'
+import type { NoteResourceUid, ProjectResourceUid, TeamResourceUid, UserResourceUid } from '../resourceUid'
 
+// 01）用户资料菜单数据类型定义（UserProfileMenuData）
 export interface UserProfileMenuData {
-  userId: number
+  uid: UserResourceUid
   nickname: string
   level: string | null
   avatarUrl: string | null
@@ -11,8 +11,8 @@ export interface UserProfileMenuData {
 
 // 02）个人空间页壳 baseInfo 类型（UserProfileSpaceBaseInfo）
 export interface UserProfileSpaceBaseInfo {
-  /** 可选；标准响应中 id 位于顶层 data.id */
-  id?: number
+  /** 可选；标准响应中 uid 位于顶层 data.uid */
+  uid?: UserResourceUid
   nickname: string
   avatarText?: string
   avatarUrl: string | null
@@ -35,7 +35,7 @@ export interface UserProfileSpaceExtendInfo {
 
 // 04）个人空间页壳 associatedTeam 类型（UserProfileSpaceAssociatedTeam）
 export interface UserProfileSpaceAssociatedTeam {
-  id: number
+  teamUid: TeamResourceUid
   name: string
   description: string
   entryPath: string
@@ -43,15 +43,13 @@ export interface UserProfileSpaceAssociatedTeam {
 
 // 05）个人空间页壳响应数据类型（UserProfileSpaceData）
 export interface UserProfileSpaceData {
-  id: number
+  uid: UserResourceUid
   baseInfo: UserProfileSpaceBaseInfo
   extendInfo: UserProfileSpaceExtendInfo
-  associatedTeam: UserProfileSpaceAssociatedTeam | null
+  associatedTeam: UserProfileSpaceAssociatedTeam[]
   honors: unknown[]
   activityHeatmap: number[]
 }
-
-import type { NoteResourceUid, ProjectResourceUid } from '../resourceUid'
 
 // 06）个人空间项目 DTO（UserProfileProjectDto）
 export interface UserProfileProjectDto {
@@ -78,6 +76,8 @@ export interface UserProfileProjectDto {
   logoSvgUrl?: string | null
   teamSize?: string | null
   duration?: string | null
+  /** 对应 project.status：DRAFT | OPEN | ONGOING | CLOSED */
+  status?: 'DRAFT' | 'OPEN' | 'ONGOING' | 'CLOSED'
 }
 
 // 07）个人空间笔记 DTO（UserProfileNoteDto）
@@ -105,7 +105,7 @@ export interface UserProfileNoteDto {
 
 // 08）个人空间主页 Tab 响应（UserProfileHomeData）
 export interface UserProfileHomeData {
-  userId: number
+  uid: UserResourceUid
   projects: UserProfileProjectDto[]
   notes: UserProfileNoteDto[]
   projectTotal?: number
@@ -114,7 +114,7 @@ export interface UserProfileHomeData {
 
 // 09）个人空间项目 Tab 响应（UserProfileProjectsData）
 export interface UserProfileProjectsData {
-  userId: number
+  uid: UserResourceUid
   projects: UserProfileProjectDto[]
   total: number
   page: number
@@ -123,7 +123,7 @@ export interface UserProfileProjectsData {
 
 // 10）个人空间笔记 Tab 响应（UserProfileNotesData）
 export interface UserProfileNotesData {
-  userId: number
+  uid: UserResourceUid
   notes: UserProfileNoteDto[]
   total: number
   page: number

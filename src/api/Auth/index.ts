@@ -1,4 +1,5 @@
 import { HttpApiError, postApi } from '../http'
+import { normalizePersonalRegisterData, normalizeTokenAuthData } from './normalizeAuthData'
 import type {
   LogoutRequest,
   OrganizationCredentialsLoginRequest,
@@ -55,7 +56,8 @@ async function postAuthApi<TPayload extends object, TData>(path: string, payload
  * - 副作用：发起网络请求
  */
 export async function registerPersonalAccount(payload: PersonalRegisterRequest): Promise<PersonalRegisterData> {
-  return postAuthApi<PersonalRegisterRequest, PersonalRegisterData>('/auth/personal/register', payload)
+  const data = await postAuthApi<PersonalRegisterRequest, PersonalRegisterData>('/auth/personal/register', payload)
+  return normalizePersonalRegisterData(data)
 }
 
 // 05）个人密码登录接口（loginPersonalByPassword）
@@ -72,7 +74,8 @@ export async function registerPersonalAccount(payload: PersonalRegisterRequest):
  * - 副作用：发起网络请求
  */
 export async function loginPersonalByPassword(payload: PersonalPasswordLoginRequest): Promise<TokenAuthData> {
-  return postAuthApi<PersonalPasswordLoginRequest, TokenAuthData>('/auth/personal/login/password', payload)
+  const data = await postAuthApi<PersonalPasswordLoginRequest, TokenAuthData>('/auth/personal/login/password', payload)
+  return normalizeTokenAuthData(data)
 }
 
 // 06）个人短信登录接口（loginPersonalBySms）
@@ -89,7 +92,8 @@ export async function loginPersonalByPassword(payload: PersonalPasswordLoginRequ
  * - 副作用：发起网络请求
  */
 export async function loginPersonalBySms(payload: PersonalSmsLoginRequest): Promise<TokenAuthData> {
-  return postAuthApi<PersonalSmsLoginRequest, TokenAuthData>('/auth/personal/login/sms', payload)
+  const data = await postAuthApi<PersonalSmsLoginRequest, TokenAuthData>('/auth/personal/login/sms', payload)
+  return normalizeTokenAuthData(data)
 }
 
 // 07）个人邮箱登录接口（loginPersonalByEmail）
@@ -106,7 +110,8 @@ export async function loginPersonalBySms(payload: PersonalSmsLoginRequest): Prom
  * - 副作用：发起网络请求
  */
 export async function loginPersonalByEmail(payload: PersonalEmailLoginRequest): Promise<TokenAuthData> {
-  return postAuthApi<PersonalEmailLoginRequest, TokenAuthData>('/auth/personal/login/email', payload)
+  const data = await postAuthApi<PersonalEmailLoginRequest, TokenAuthData>('/auth/personal/login/email', payload)
+  return normalizeTokenAuthData(data)
 }
 
 // 08）主体凭证登录接口（loginOrganizationByCredentials）
@@ -145,7 +150,8 @@ export async function loginOrganizationByCredentials(
  * - 副作用：发起网络请求
  */
 export async function loginOrganizationByOtp(payload: OrganizationOtpLoginRequest): Promise<TokenAuthData> {
-  return postAuthApi<OrganizationOtpLoginRequest, TokenAuthData>('/auth/organization/login/otp', payload)
+  const data = await postAuthApi<OrganizationOtpLoginRequest, TokenAuthData>('/auth/organization/login/otp', payload)
+  return normalizeTokenAuthData(data)
 }
 
 // 10）退出登录接口（logoutByTokens）

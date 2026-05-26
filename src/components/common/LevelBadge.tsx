@@ -34,7 +34,20 @@ interface LevelBadgeProps {
  */
 function LevelBadge({ level, className, variant = 'text' }: LevelBadgeProps) {
   const palette = levelPaletteMap[level]
-  const style = variant === 'pill' ? { color: palette.color, background: palette.background } : { color: palette.color }
+  const style =
+    variant === 'pill'
+      ? {
+          color: palette.color,
+          background: palette.background,
+          borderRadius: '999px',
+          padding: '2px 8px',
+          fontSize: '12px',
+          fontWeight: 600,
+          lineHeight: 1,
+          display: 'inline-flex',
+          alignItems: 'center',
+        }
+      : { color: palette.color }
 
   return (
     <span className={className} style={style}>

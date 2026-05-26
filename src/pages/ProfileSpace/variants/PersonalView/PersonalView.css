@@ -156,6 +156,17 @@
   font-size: 12px;
 }
 
+.personal-view-team-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.personal-view-team-list .personal-view-team-card {
+  margin-top: 0;
+}
+
 .personal-view-team-card {
   margin-top: 12px;
   border-radius: 16px;
@@ -180,6 +191,23 @@
   font-size: 12px;
   color: #64748b;
   line-height: 1.6;
+}
+
+.personal-view-team-card button,
+.personal-view-team-card__enter-link {
+  border: none;
+  border-radius: 999px;
+  padding: 0 12px;
+  height: 32px;
+  background: var(--profile-team-btn-bg);
+  color: var(--profile-team-btn-text);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 12px;
 }
 
 .personal-view-team-card button {

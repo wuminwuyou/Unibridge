@@ -1,6 +1,5 @@
 export { TextNoteReaderView } from './TextNoteReaderView'
 export { buildNoteArticleDetailFallback } from './buildNoteArticleDetailFallback'
-export { buildNoteDetailFromProfileNote } from './buildNoteDetailFromProfileNote'
 export { buildNoteDetailFromPublishNote } from './buildNoteDetailFromPublishNote'
 export { resolveNoteArticleDetail } from './resolveNoteArticleDetail'
 export type { NoteArticleDetailPayload } from './types'

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getUserProfileSpace, UserProfileApiError } from '../../../../api/userProfile'
+import { isUserResourceUid } from '../../../../api/resourceUid'
+import { setUserUid } from '../../../../auth/tokenStorage'
 import type { ProfileSpaceShellLoadState } from '../../profileSpaceShellTypes'
 import { buildAvatarFallbackUrl, mapUserProfileSpaceData } from './mapUserProfileSpaceData'
 import { personalViewTabs, SIDEBAR_COLLAPSE_DURATION_MS } from './personalViewPageData'
@@ -13,9 +15,9 @@ import {
 } from './personalTabRouting'
 import type {
   ProfileTab,
+  UserAssociatedTeam,
   UserCoreProfile,
   UserExtendedProfile,
-  UserLaboratoryProfile,
 } from './types'
 
 // 01）个人用户空间视图 Hook（usePersonalViewPage）
@@ -44,7 +46,7 @@ export function usePersonalViewPage() {
   const [shellErrorMessage, setShellErrorMessage] = useState<string | null>(null)
   const [userCoreProfile, setUserCoreProfile] = useState<UserCoreProfile | null>(null)
   const [userExtendedProfile, setUserExtendedProfile] = useState<UserExtendedProfile | null>(null)
-  const [userLaboratoryProfile, setUserLaboratoryProfile] = useState<UserLaboratoryProfile | null>(null)
+  const [associatedTeams, setAssociatedTeams] = useState<UserAssociatedTeam[]>([])
   const [activityHeatmap, setActivityHeatmap] = useState<number[]>([])
   const [honors, setHonors] = useState<unknown[]>([])
 
@@ -111,9 +113,12 @@ export function usePersonalViewPage() {
         }
 
         const mappedSpaceData = mapUserProfileSpaceData(spaceData)
+        if (isUserResourceUid(mappedSpaceData.userCoreProfile.uid)) {
+          setUserUid(mappedSpaceData.userCoreProfile.uid)
+        }
         setUserCoreProfile(mappedSpaceData.userCoreProfile)
         setUserExtendedProfile(mappedSpaceData.userExtendedProfile)
-        setUserLaboratoryProfile(mappedSpaceData.userLaboratoryProfile)
+        setAssociatedTeams(mappedSpaceData.associatedTeams)
         setActivityHeatmap(mappedSpaceData.activityHeatmap)
         setHonors(mappedSpaceData.honors)
         setShellLoadState('ready')
@@ -141,8 +146,7 @@ export function usePersonalViewPage() {
   const isShellReady =
     shellLoadState === 'ready' &&
     userCoreProfile != null &&
-    userExtendedProfile != null &&
-    userLaboratoryProfile != null
+    userExtendedProfile != null
 
   const heroAvatarUrl = userCoreProfile
     ? userCoreProfile.avatarUrl ?? buildAvatarFallbackUrl(userCoreProfile.nickname)
@@ -164,7 +168,7 @@ export function usePersonalViewPage() {
     shellErrorMessage,
     userCoreProfile,
     userExtendedProfile,
-    userLaboratoryProfile,
+    associatedTeams,
     activityHeatmap,
     honors,
     isProjectTabActive,

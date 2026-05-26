@@ -1,3 +1,4 @@
+import type { TeamResourceUid, UserResourceUid } from '../../../../api/resourceUid'
 import type { LevelCode } from '../../../../types/level'
 import type { personalViewTabs } from './personalViewPageData'
 
@@ -6,7 +7,7 @@ export type ProfileTab = (typeof personalViewTabs)[number]
 
 // 02）个人用户核心基础信息（UserCoreProfile）
 export interface UserCoreProfile {
-  id: number
+  uid: UserResourceUid
   nickname: string
   avatarUrl: string | null
   isVerified: boolean
@@ -25,10 +26,10 @@ export interface UserExtendedProfile {
   skills: string[]
 }
 
-// 04）个人用户所属实验室/团队信息（UserLaboratoryProfile）
-export interface UserLaboratoryProfile {
-  laboratoryId: number | null
-  laboratoryName: string | null
-  laboratoryDescription: string | null
-  laboratoryEntryPath: string | null
+// 04）个人用户关联团队项（UserAssociatedTeam）
+export interface UserAssociatedTeam {
+  teamUid: TeamResourceUid
+  name: string
+  description: string
+  entryPath: string
 }

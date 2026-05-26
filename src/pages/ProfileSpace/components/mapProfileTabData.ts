@@ -1,6 +1,6 @@
 import type { UserProfileNoteDto, UserProfileProjectDto } from '../../../api/userProfile'
 import type { LevelCode } from '../../../types/level'
-import type { ProjectCategory, ProjectItem, ProjectRecruitmentType } from '../../../types/project'
+import type { ProjectCategory, ProjectItem, ProjectRecruitmentType, ProjectStatus } from '../../../types/project'
 import type { ProfileNoteItem } from './types'
 
 // 01）归一化项目等级（normalizeProjectLevel）
@@ -40,7 +40,31 @@ function normalizeProjectRecruitmentType(value: string | null | undefined): Proj
   return null
 }
 
-// 04）归一化笔记内容类型（normalizeNoteContentType）
+// 04）归一化项目状态（normalizeProjectStatus）
+/**
+ * 函数名：normalizeProjectStatus
+ * 功能：将接口返回的 project.status 归一化为 ProjectStatus。
+ * 输入：
+ * - status：接口状态字段
+ * 输出：
+ * - 返回值：ProjectStatus | undefined（无效或缺失时不展示）
+ * - 副作用：无
+ */
+function normalizeProjectStatus(status: string | undefined): ProjectStatus | undefined {
+  const normalizedStatus = status?.trim().toUpperCase()
+  if (
+    normalizedStatus === 'DRAFT' ||
+    normalizedStatus === 'OPEN' ||
+    normalizedStatus === 'ONGOING' ||
+    normalizedStatus === 'CLOSED'
+  ) {
+    return normalizedStatus
+  }
+
+  return undefined
+}
+
+// 05）归一化笔记内容类型（normalizeNoteContentType）
 /**
  * 函数名：normalizeNoteContentType
  * 功能：将接口笔记 contentType 归一化为前端枚举。
@@ -108,6 +132,7 @@ export function mapApiProjects(projects: UserProfileProjectDto[]): ProjectItem[]
       logoSvgUrl: project.logoSvgUrl?.trim() || null,
       teamSize: project.teamSize?.trim() || null,
       duration: project.duration?.trim() || null,
+      status: normalizeProjectStatus(project.status),
     }
   })
 }

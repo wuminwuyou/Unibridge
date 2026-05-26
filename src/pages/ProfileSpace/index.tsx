@@ -27,8 +27,9 @@ function ProfileSpacePage() {
 export default ProfileSpacePage
 
 export type { ProfileSpacePageModel, PersonalViewModel } from './variants/PersonalView'
-export type { ProfileTab, UserCoreProfile, UserExtendedProfile, UserLaboratoryProfile } from './variants/PersonalView/types'
+export type { ProfileTab, UserAssociatedTeam, UserCoreProfile, UserExtendedProfile } from './variants/PersonalView/types'
 export type { ProfileSpaceShellLoadState, ProfileSpaceVariant } from './profileSpaceShellTypes'
 export { buildProfileTabPath, isProfileSpacePathname } from './profileTabRouting'
+export { buildTeamSpacePath, isTeamSpacePathname } from './variants/TeamView/teamTabRouting'
 export { resolveProfileSpaceVariant } from './resolveProfileSpaceVariant'
 export { ProfileSpaceShell, ProfileSpaceTabs, ProfileSpaceShellStatus } from './ProfileSpaceShell'

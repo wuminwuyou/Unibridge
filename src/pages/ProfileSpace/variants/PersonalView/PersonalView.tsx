@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import {
   CalendarClock,
   CheckCircle2,
@@ -11,10 +12,11 @@ import LevelBadge from '../../../../components/common/LevelBadge'
 import LoadingSpinner from '../../../../components/common/LoadingSpinner'
 import VerifiedOrgModal from '../../../../components/common/VerifiedOrgModal'
 import { ProfileSpaceShell, ProfileSpaceShellStatus, ProfileSpaceTabs } from '../../ProfileSpaceShell'
-import ProfileHomeTabContent from '../../components/ProfileHomeTabContent/ProfileHomeTabContent'
-import ProfileNotesTabContent from '../../components/ProfileNotesTabContent/ProfileNotesTabContent'
-import ProfileProjectsTabContent from '../../components/ProfileProjectsTabContent/ProfileProjectsTabContent'
+import { PersonalHomeTabContent } from '../../tabs/HomeTab'
+import { PersonalNotesTabContent } from '../../tabs/NotesTab'
+import { PersonalProjectsTabContent } from '../../tabs/ProjectsTab'
 import type { PersonalViewModel } from './usePersonalViewPage'
+import { buildTeamSpacePath } from '../TeamView/teamTabRouting'
 import './PersonalView.css'
 
 // 01）个人用户空间视图 Props（PersonalViewProps）
@@ -35,8 +37,7 @@ function PersonalViewHeroContent({ model }: PersonalViewProps) {
     return (
       <ProfileSpaceShellStatus
         loadState="error"
-        errorMessage={shellErrorMessage ?? '加载个人空间失败，请稍后重试'}
-      />
+        errorMessage={shellErrorMessage ?? '加载个人空间失败，请稍后重试'} loadingLabel={''} />
     )
   }
 
@@ -96,7 +97,7 @@ function PersonalViewSidebar({ model }: PersonalViewProps) {
     isShellReady,
     userCoreProfile,
     userExtendedProfile,
-    userLaboratoryProfile,
+    associatedTeams,
     activityHeatmap,
     honors,
   } = model
@@ -113,14 +114,15 @@ function PersonalViewSidebar({ model }: PersonalViewProps) {
     return (
       <ProfileSpaceShellStatus
         loadState="error"
-        errorMessage={shellErrorMessage ?? '加载个人空间失败，请稍后重试'}
-      />
+        errorMessage={shellErrorMessage ?? '加载个人空间失败，请稍后重试'} loadingLabel={''} />
     )
   }
 
-  if (!isShellReady || !userCoreProfile || !userExtendedProfile || !userLaboratoryProfile) {
+  if (!isShellReady || !userCoreProfile || !userExtendedProfile) {
     return null
   }
+
+  const hasAssociatedTeams = associatedTeams.length > 0
 
   return (
     <>
@@ -129,8 +131,8 @@ function PersonalViewSidebar({ model }: PersonalViewProps) {
         <p className="personal-view-side-card__notice">{userExtendedProfile.notice}</p>
         <dl className="personal-view-info-list">
           <div>
-            <dt>用户ID</dt>
-            <dd>{userCoreProfile.id > 0 ? userCoreProfile.id : '未知'}</dd>
+            <dt>用户 UID</dt>
+            <dd>{userCoreProfile.uid || '未知'}</dd>
           </div>
           {userCoreProfile.level ? (
             <div>
@@ -179,28 +181,25 @@ function PersonalViewSidebar({ model }: PersonalViewProps) {
       </section>
 
       <section
-        className={`profile-side-card personal-view-side-card ${userLaboratoryProfile.laboratoryId === null ? 'personal-view-side-card--empty' : ''}`}
+        className={`profile-side-card personal-view-side-card ${!hasAssociatedTeams ? 'personal-view-side-card--empty' : ''}`}
       >
         <h3>所属团队</h3>
-        {userLaboratoryProfile.laboratoryId != null ? (
-          <div className="personal-view-team-card">
-            <div>
-              <strong>
-                <Users size={15} />
-                {userLaboratoryProfile.laboratoryName}
-              </strong>
-              <p>{userLaboratoryProfile.laboratoryDescription}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (userLaboratoryProfile.laboratoryEntryPath) {
-                  window.location.href = userLaboratoryProfile.laboratoryEntryPath
-                }
-              }}
-            >
-              进入团队
-            </button>
+        {hasAssociatedTeams ? (
+          <div className="personal-view-team-list">
+            {associatedTeams.map((team) => (
+              <div key={team.teamUid} className="personal-view-team-card">
+                <div>
+                  <strong>
+                    <Users size={15} />
+                    {team.name}
+                  </strong>
+                  <p>{team.description}</p>
+                </div>
+                <Link to={buildTeamSpacePath(team.teamUid)} className="personal-view-team-card__enter-link">
+                  进入团队
+                </Link>
+              </div>
+            ))}
           </div>
         ) : (
           <div>
@@ -263,8 +262,13 @@ export function PersonalView({ model }: PersonalViewProps) {
     shouldRenderSidebar,
     isSidebarCollapsed,
     isHomeLikeTabActive,
+    isShellReady,
+    userCoreProfile,
     handleTabClick,
   } = model
+
+  const isHomeContentEnabled = isHomeLikeTabActive && isShellReady
+  const profileUid = userCoreProfile?.uid ?? ''
 
   return (
     <ProfileSpaceShell
@@ -283,13 +287,15 @@ export function PersonalView({ model }: PersonalViewProps) {
       mainContent={
         <>
           {isHomeLikeTabActive ? (
-            <ProfileHomeTabContent
+            <PersonalHomeTabContent
+              profileUid={profileUid}
+              enabled={isHomeContentEnabled}
               onViewAllProjects={() => handleTabClick('项目')}
               onViewAllNotes={() => handleTabClick('笔记')}
             />
           ) : null}
-          {activeTab === '项目' ? <ProfileProjectsTabContent /> : null}
-          {activeTab === '笔记' ? <ProfileNotesTabContent /> : null}
+          {activeTab === '项目' ? <PersonalProjectsTabContent /> : null}
+          {activeTab === '笔记' ? <PersonalNotesTabContent /> : null}
         </>
       }
       sidebar={<PersonalViewSidebar model={model} />}

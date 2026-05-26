@@ -19,7 +19,7 @@ import {
   setCachedUserProfileMenu,
   type UserProfileMenuData,
 } from '../../../../api'
-import { getUserId } from '../../../../auth/tokenStorage'
+import { getUserUid, setUserUid } from '../../../../auth/tokenStorage'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { currentUser as fallbackCurrentUser, userStatTabMap } from '../../../../data/currentUserData'
 import VerifiedOrgModal, { VerifiedOrgButton } from '../../../../components/common/VerifiedOrgModal'
@@ -234,11 +234,11 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
       return
     }
     let isComponentActive = true
-    const currentUserId = userProfile?.userId ?? getUserId()
+    const currentUserUid = userProfile?.uid ?? getUserUid()
 
     void (async () => {
       try {
-        const cachedMenuData = getCachedUserProfileMenu(currentUserId)
+        const cachedMenuData = getCachedUserProfileMenu(currentUserUid)
         if (cachedMenuData && isComponentActive) {
           applyUserProfileMenuData(cachedMenuData, setCurrentUserProfile)
         }
@@ -249,11 +249,12 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
         }
         applyUserProfileMenuData(menuData, setCurrentUserProfile)
 
-        const effectiveUserId = menuData.userId || currentUserId
-        if (effectiveUserId) {
-          setCachedUserProfileMenu(effectiveUserId, menuData)
+        const effectiveUserUid = menuData.uid || currentUserUid
+        if (effectiveUserUid) {
+          setUserUid(effectiveUserUid)
+          setCachedUserProfileMenu(effectiveUserUid, menuData)
           setUserProfile({
-            userId: effectiveUserId,
+            uid: effectiveUserUid,
             userRole: userProfile?.userRole,
             authStatus: userProfile?.authStatus,
           })
@@ -277,7 +278,7 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
     return () => {
       isComponentActive = false
     }
-  }, [isHydrated, isLoggedIn, setUserProfile, userProfile?.userId])
+  }, [isHydrated, isLoggedIn, setUserProfile, userProfile?.uid])
 
   // 06）鼠标移入处理（handleUserMenuMouseEnter）
   const handleUserMenuMouseEnter = (): void => {

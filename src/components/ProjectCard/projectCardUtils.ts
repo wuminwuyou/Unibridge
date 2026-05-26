@@ -1,5 +1,5 @@
 import { isProjectResourceUid } from '../../api/resourceUid'
-import type { ProjectItem, ProjectRecruitmentType } from '../../types/project'
+import type { ProjectItem, ProjectRecruitmentType, ProjectStatus } from '../../types/project'
 
 // 01）Simple Icons CDN 前缀（SIMPLE_ICONS_CDN_BASE）
 const SIMPLE_ICONS_CDN_BASE = 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons'
@@ -129,4 +129,39 @@ export function resolveProjectCardMetaText(
   return [project.ownerOrganization?.trim(), project.teamSize?.trim(), project.duration?.trim()]
     .filter(Boolean)
     .join(' · ')
+}
+
+// 09）解析项目状态展示文案（resolveProjectStatusLabel）
+/**
+ * 函数名：resolveProjectStatusLabel
+ * 功能：将 project.status 转为 ProfileSpace 卡片角标中文文案。
+ * 输入：
+ * - status：ProjectStatus
+ * 输出：
+ * - 返回值：中文状态标签
+ * - 副作用：无
+ */
+export function resolveProjectStatusLabel(status: ProjectStatus): string {
+  const statusLabelMap: Record<ProjectStatus, string> = {
+    DRAFT: '草稿',
+    OPEN: '招募中',
+    ONGOING: '进行中',
+    CLOSED: '已结项',
+  }
+
+  return statusLabelMap[status]
+}
+
+// 10）解析项目状态角标样式修饰符（resolveProjectStatusBadgeModifier）
+/**
+ * 函数名：resolveProjectStatusBadgeModifier
+ * 功能：为项目状态角标生成 BEM 修饰 class 名。
+ * 输入：
+ * - status：ProjectStatus
+ * 输出：
+ * - 返回值：CSS 修饰 class
+ * - 副作用：无
+ */
+export function resolveProjectStatusBadgeModifier(status: ProjectStatus): string {
+  return `project-card__status-badge--${status.toLowerCase()}`
 }

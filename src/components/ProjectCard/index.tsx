@@ -8,12 +8,16 @@ import {
   resolveProjectDetailHref,
   resolveProjectLogoFallbackText,
   resolveProjectLogoSvgUrl,
+  resolveProjectStatusBadgeModifier,
+  resolveProjectStatusLabel,
 } from './projectCardUtils'
 import './ProjectCard.css'
 
 // 01）项目卡片组件参数类型（ProjectCardProps）
 interface ProjectCardProps {
   project: ProjectItem
+  /** ProfileSpace 等场景在 Logo 左上角展示项目状态 */
+  showStatus?: boolean
 }
 
 // 02）项目卡片组件（ProjectCard）
@@ -26,11 +30,12 @@ interface ProjectCardProps {
  * - 右侧展示 LevelBadge 与「看看细节」主按钮
  * 输入：
  * - project：单条项目完整数据
+ * - showStatus：是否在 Logo 左上角展示 status 角标（ProfileSpace 使用）
  * 输出：
  * - 返回值：JSX.Element
  * - 副作用：无
  */
-function ProjectCard({ project }: ProjectCardProps) {
+function ProjectCard({ project, showStatus = false }: ProjectCardProps) {
   const projectDetailPath = resolveProjectDetailHref(project)
   const typeBadgeLabel = resolveProjectCardTypeBadge(project)
   const metaText = resolveProjectCardMetaText(project)
@@ -39,11 +44,17 @@ function ProjectCard({ project }: ProjectCardProps) {
   const [logoLoadFailed, setLogoLoadFailed] = useState(false)
 
   const showLogoImage = Boolean(logoSvgUrl) && !logoLoadFailed
+  const shouldShowStatusBadge = showStatus && project.status != null
+  const statusBadgeLabel = project.status ? resolveProjectStatusLabel(project.status) : ''
+  const statusBadgeModifier = project.status ? resolveProjectStatusBadgeModifier(project.status) : ''
 
   return (
     <Link className="project-card project-card--link" to={projectDetailPath} target="_blank" rel="noopener noreferrer">
       <div className="project-card__inner">
-        <div className="project-card__logo" aria-hidden="true">
+        <div className="project-card__logo">
+          {shouldShowStatusBadge ? (
+            <span className={`project-card__status-badge ${statusBadgeModifier}`}>{statusBadgeLabel}</span>
+          ) : null}
           {showLogoImage ? (
             <img
               className="project-card__logo-image"

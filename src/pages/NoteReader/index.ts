@@ -18,7 +18,6 @@ export { buildNoteDetailHref, parseNoteDetailUidFromQuery } from './shared/noteD
 export {
   TextNoteReaderView,
   buildNoteArticleDetailFallback,
-  buildNoteDetailFromProfileNote,
   buildNoteDetailFromPublishNote,
   resolveNoteArticleDetail,
 } from './NoteArticleDetail'

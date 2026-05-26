@@ -434,7 +434,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
           accessToken: loginData.accessToken,
           refreshToken: loginData.refreshToken,
           userProfile: {
-            userId: loginData.userId,
+            uid: loginData.uid,
             userRole: loginData.userRole,
             authStatus: loginData.authStatus,
           },
@@ -536,7 +536,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
           accessToken: loginData.accessToken,
           refreshToken: loginData.refreshToken,
           userProfile: {
-            userId: loginData.userId,
+            uid: loginData.uid,
             userRole: loginData.userRole,
             authStatus: loginData.authStatus,
           },
@@ -670,7 +670,7 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
           accessToken: registerData.accessToken,
           refreshToken: registerData.refreshToken,
           userProfile: {
-            userId: registerData.userId,
+            uid: registerData.uid,
             userRole: registerData.userRole,
             authStatus: registerData.authStatus,
           },

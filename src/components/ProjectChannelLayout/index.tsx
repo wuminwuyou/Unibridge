@@ -24,4 +24,4 @@ function ProjectChannelLayout(props: ProjectChannelLayoutProps) {
 export default ProjectChannelLayout
 
 export type { ProjectChannelLayoutProps } from './types'
-export { buildCommercialLabFilterTabs, buildProjectLabFilterTabs } from './projectLabFilters'
+export { buildCommercialLabFilterTabs } from './projectLabFilters'

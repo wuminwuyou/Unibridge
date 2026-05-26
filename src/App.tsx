@@ -2,13 +2,13 @@ import HomePage from './pages/HomePage/index.tsx'
 import CommercialProjectsPage from './pages/CommercialProjects/index.tsx'
 import CampusCoCreationPage from './pages/CampusCoCreation/index.tsx'
 import ProfileSpacePage from './pages/ProfileSpace/index.tsx'
+import { TeamViewPage } from './pages/ProfileSpace/variants/TeamView'
 import NoteSharePage from './pages/NoteShare/index.tsx'
 import ProjectDetailPage from './pages/ProjectDetailPage/ProjectDetailPage.tsx'
 import NoteReaderPage from './pages/NoteReader'
 import InstantMessagePage from './pages/InstantMessagePage/InstantMessagePage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import OrganizationVerificationPage from './pages/VerificationPage/OrganizationVerificationPage.tsx'
-import LabManagePage from './pages/LabManagePage.tsx'
 import PublishProjectPage from './pages/PublishProject/index.tsx'
 import PublishNotePage from './pages/PublishNote/index.tsx'
 import OnlineTextEditorPage from './pages/OnlineTextEditor/index.tsx'
@@ -24,19 +24,14 @@ const appRouter = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/profile', element: <ProfileSpacePage /> },
   { path: '/profile/:profileTab', element: <ProfileSpacePage /> },
+  { path: '/team/:teamUid', element: <TeamViewPage /> },
+  { path: '/team/:teamUid/:teamTab', element: <TeamViewPage /> },
+  { path: '/team/:teamUid/:teamTab/:teamSubTab', element: <TeamViewPage /> },
   {
     path: '/verify/organization',
     element: (
       <ProtectedRoute>
         <OrganizationVerificationPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/lab/manage',
-    element: (
-      <ProtectedRoute>
-        <LabManagePage />
       </ProtectedRoute>
     ),
   },
