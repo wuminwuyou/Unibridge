@@ -231,13 +231,18 @@ CREATE TABLE team_member (
   user_uid CHAR(13) NOT NULL COMMENT '用户 UID（学生或导师）',
   role VARCHAR(32) NOT NULL DEFAULT 'MEMBER' COMMENT 'LEADER(队长/负责人) | MEMBER(普通成员) | MENTOR(指导老师/学术导师)',
   lab_user_uid CHAR(13) NULL COMMENT '用于严格限制学生单实验室的影子字段',
+  career VARCHAR(255) NULL COMMENT '团队中职位，比如导师，前端开发，数据分析等',
+  is_admin TINYINT(1) NOT NULL DEFAULT 0 COMMENT '团队管理员（与 role 正交；导师/学生均可）',
+  invited_by_uid CHAR(13) NULL COMMENT '邀请人或审批通过加入的 user_uid；团队 owner 创建入驻时为 NULL',
   joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_member_team_uid (team_uid),
   KEY idx_member_user_uid (user_uid),
+  KEY idx_member_invited_by_uid (invited_by_uid),
   CONSTRAINT fk_member_team_uid FOREIGN KEY (team_uid) REFERENCES team(team_uid) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_member_user_uid FOREIGN KEY (user_uid) REFERENCES `user`(user_uid) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_member_lab_user_uid FOREIGN KEY (lab_user_uid) REFERENCES `user`(user_uid) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_member_invited_by_uid FOREIGN KEY (invited_by_uid) REFERENCES `user`(user_uid) ON DELETE SET NULL ON UPDATE CASCADE,
   UNIQUE KEY uk_team_user (team_uid, user_uid),
   UNIQUE KEY uk_single_lab_user (lab_user_uid),
   CONSTRAINT chk_member_role CHECK (role IN ('LEADER', 'MEMBER', 'MENTOR'))
@@ -664,6 +669,7 @@ CREATE TABLE IF NOT EXISTS sys_credit_logs (
 -- | team                | entity_code        | entity(entity_code)     |
 -- | team_member         | team_uid           | team(team_uid)          |
 -- | team_member         | user_uid           | user(user_uid)          |
+-- | team_member         | invited_by_uid     | user(user_uid)          |
 -- | project             | owner_uid          | user(user_uid)          |
 -- | project             | team_uid           | team(team_uid)          |
 -- | project_commercial_secret | project_uid  | project(project_uid)    |

@@ -35,6 +35,8 @@ public class ProfileProjectItem {
     private String level;
     private String teamSize;
     private String duration;
+    /** DRAFT | OPEN | ONGOING | CLOSED */
+    private String status;
 
     @Data
     @NoArgsConstructor

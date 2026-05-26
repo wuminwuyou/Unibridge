@@ -80,6 +80,7 @@ public class ProjectCardAssembler {
                 .level(nullToEmpty(project.getLevel()))
                 .teamSize(trimToNull(project.getTeamSize()))
                 .duration(trimToNull(project.getDuration()))
+                .status(project.getStatus())
                 .build();
     }
 

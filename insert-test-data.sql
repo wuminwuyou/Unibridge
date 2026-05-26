@@ -85,10 +85,11 @@ INSERT INTO team (id, team_uid, type, owner_uid, owner_name, entity_code, team_n
  '联合实验室开放企业合作项目对接', 'lab-se@tsinghua.edu.cn',
  'APPROVED', '2026-02-01 11:00:00', 'ACTIVE');
 
-INSERT INTO team_member (id, team_uid, user_uid, role, lab_user_uid) VALUES
-(1, 'LB00000000001', 'US00000000002', 'MENTOR', NULL),
-(2, 'LB00000000001', 'US00000000001', 'MEMBER', 'US00000000001'),
-(3, 'ST00000000001', 'US00000000001', 'LEADER', NULL);
+INSERT INTO team_member (id, team_uid, user_uid, role, lab_user_uid, career, is_admin, invited_by_uid) VALUES
+(1, 'LB00000000001', 'US00000000002', 'MENTOR', NULL, 'NLP · 知识图谱', 1, NULL),
+(2, 'LB00000000001', 'US00000000001', 'MEMBER', 'US00000000001', '前端开发', 0, 'US00000000002'),
+(3, 'ST00000000001', 'US00000000001', 'LEADER', NULL, '后端开发', 1, NULL),
+(4, 'LB00000000002', 'US00000000002', 'MENTOR', NULL, '软件工程 · 云原生', 1, NULL);
 
 INSERT INTO project (id, project_uid, extended_uid, category, recruitment_type, owner_uid, team_uid, title, preview, editor_type, description, tags, duration, team_size, deadline, level, status, published_at) VALUES
 (1, 'PR20212345678', '91440300708461136T', 'COMMERCIAL', NULL, 'US00000000003', NULL, '智能客服系统研发',

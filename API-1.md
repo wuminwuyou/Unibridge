@@ -1,269 +1,136 @@
 # UniBridge 前端 API 后端同步（待跟进）
 
-> **完整 API 契约**已合并至 [`API.md`](./API.md)（含第四部分 Feed 推荐与互动、双 ID、个人空间项目卡片）。  
-> **本文档**仅维护当前迭代待后，后端对齐的**增量项**，便于联调排期（含 §03 团队空间 TeamView 全新接口）。
+> **完整 API 契约**已合并至 [`API.md`](./API.md)。  
+> 团队空间 TeamView 读接口见 [`API.md` 第二部分 §08 团队空间](./API.md#08团队空间team-profile)。
 
+---
 
-## 03）团队空间 TeamView 接口（`/team-profile/*`，后端已实现）
+## 当前状态
 
-### 3.1 背景
+| 模块 | 状态 |
+|------|------|
+| 团队空间 `/team-profile/*` 读接口 | 后端 ✅ 已实现；前端 ✅ 已接入 |
+| 团队成员 `members[]` 读字段（`role` / `career` / `isAdmin` / `isOwner`） | 后端 ✅ 已实现 |
+| **管理成员** `PUT /team-profile/members` | 后端 ✅ 已实现；前端 ⏳ 待接入 |
+| 用户预览 `GET /users/{uid}/public-preview` | 后端 ✅ 已实现（可选 UX） |
 
-前端路由：`/team/:teamUid`（主页）、`/team/:teamUid/{member|achievement|project|note}`。  
-实现目录：`apps/web-client/src/pages/ProfileSpace/variants/TeamView/`。
+---
 
-后端 §3.2 六处读接口已实现（`TeamSpaceController` / `TeamSpaceService`，见 `src/main/java/com/unibridge/backend/domain/space/`）；前端当前仍 **全部使用 Mock**（`teamViewPageData.ts` → `resolveTeamSpaceMockData`），待按 Tab 懒加载对接。
+## 01）团队成员读字段扩展（与写接口共用）
 
-| 前端 Tab | 路由 segment | 主要 UI | 建议 API |
-|----------|--------------|---------|----------|
-| 主页 | （无） | Hero、侧栏、成员预览、团队项目/笔记/成果预览 | `GET /team-profile/space` + `GET /team-profile/home` |
-| 成员 | `member` | 完整成员网格（卡片不可跳转） | `GET /team-profile/members` |
-| 成果 | `achievement` | 团队成果列表 | `GET /team-profile/achievements` |
-| 项目 | `project` | `ProjectCard` 列表 | `GET /team-profile/projects` |
-| 笔记 | `note` | `GridNoteCard` 三列网格 | `GET /team-profile/notes` |
+> 影响：`GET /team-profile/space`、`GET /team-profile/members` 的 `members[]` 单条结构。
 
-**UID 约定**
-
-| 资源 | 格式 | 说明 |
+| 字段 | 类型 | 说明 |
 |------|------|------|
-| `teamUid` | `LB` / `ST` + 11 位 | 对应 `team.team_uid` |
-| 成员 `uid` | 用户 `userUid` | 对应 `team_member.user_uid`；**禁止**返回自增 `id` |
-| 项目 `uid` | `PR` + 11 位 | `project.project_uid`，且 `project.team_uid = teamUid` |
-| 笔记 `uid` | `TX` / `VD` + 11 位 | 团队成员发布的笔记 |
-| 成果 `achievementUid` | `AC` + 11 位 | 对应 `achievement_archive.achievement_uid` |
+| `nickname` | string | 展示名（字段名不变）：**当前请求用户为该团队成员**（解码 `Authorization` 得 uid，含 `owner_uid`）时填 `real_name`（无则回退 nickname），否则仅填 nickname |
+| `role` | string | **枚举**：`LEADER` \| `MENTOR` \| `MEMBER`（禁止返回中文「队长」「导师」） |
+| `career` | string \| null | 团队内定位/职位补充，如 `前端开发`、`NLP · 知识图谱` |
+| `isAdmin` | boolean | 是否具备团队管理权限；`team.owner_uid` 对应成员**必须**返回 `true` |
+| `isOwner` | boolean | 是否为 `team.owner_uid` |
 
-**隐私约定**
+**前端展示逻辑（只读，不变）：**
 
-- 成员列表、笔记作者栏仅返回 **`nickname`（昵称）**，禁止返回实名 `name` / `realName`。
-- 团队成果字段均为**脱敏**展示（`maskedProjectName`、`taskDescription`），与 `achievement_archive` 表语义一致。
+```ts
+// 导师 / 学生
+const isMentor = member.role === 'MENTOR'
+// LEADER 仍按「学生」大类展示，可带「负责人」标签（见 isOwner / members[0]）
 
----
+// 是否显示「管理成员」入口
+const canManageTeam = members.some(
+  (m) => m.uid === currentUserUid && m.isAdmin === true,
+)
+```
 
-### 3.2 API 总览
+**破坏性变更**：管理权限请改用 `isAdmin`，勿用 `role === 'LEADER'` 推断是否可管理。
 
-> 路径均相对 `/api/v1/client`。
-
-| # | Method | Path | 说明 | 前端消费方 | 后端 | 前端 |
-|---|--------|------|------|------------|------|------|
-| 1 | GET | `/team-profile/space` | 页壳：Hero + 侧栏 + 成员预览 | `TeamViewHeroContent`、`TeamViewSidebar`、`TeamViewMembersSection`（预览） | ✅ 已实现 | 待接 |
-| 2 | GET | `/team-profile/home` | 主页 Tab：项目/笔记/成果预览 | `TeamProjectsSection`、`TeamNotesSection`、`TeamAchievementsSection`（preview） | ✅ 已实现 | 待接 |
-| 3 | GET | `/team-profile/members` | 成员 Tab 完整列表 | `TeamMembersTabContent` | ✅ 已实现 | 待接 |
-| 4 | GET | `/team-profile/projects` | 项目 Tab 分页列表 | `TeamProjectsSection`（full） | ✅ 已实现 | 待接 |
-| 5 | GET | `/team-profile/notes` | 笔记 Tab 分页列表 | `TeamNotesSection`（full） | ✅ 已实现 | 待接 |
-| 6 | GET | `/team-profile/achievements` | 成果 Tab 分页列表 | `TeamAchievementsSection`（full） | ✅ 已实现 | 待接 |
-
-**后端实现**：`TeamSpaceController`（路由）+ `TeamSpaceService`（业务）；DTO 见同目录 `dto/TeamProfile*.java`；游客只读，LAB 须 `audit_status=APPROVED` 且 `account_status=ACTIVE`，否则 `403 TEAM_NOT_ACCESSIBLE`。测试数据：`insert-test-data.sql`（含 `achievement_archive`）。
-
-**Auth**：建议对已审核通过（`audit_status=APPROVED`）且账号活跃（`account_status=ACTIVE`）的团队空间允许**游客只读**；编辑类操作另议。未登录访问冻结/解散团队返回 `403` / `404`。
+> 联调完成后，请将 §08.3 / §08.5 的 `members[]` 表同步写入 [`API.md`](./API.md)。
 
 ---
 
-### 3.3 GET `/team-profile/space`
+## 02）管理成员写接口（`ManageMembersForm`）
 
-- **说明**：进入 `/team/:teamUid` 时调用，返回 Hero、右侧信息表、主页成员预览区所需数据（与 Tab 切换无关）。
+### 02.1）消费页面与交互
 
-#### Query Parameters
+| 项 | 说明 |
+|----|------|
+| 页面 | `apps/web-client/src/pages/ProfileSpace/tabs/MembersTab/ManageMembersForm.tsx` |
+| 路由 | `/team/:teamUid/member/manage` |
+| 入口 | 成员 Tab 右上角「管理成员」；**仅**当前登录用户在该团队 `members[]` 中且 `isAdmin === true` 时展示 |
+| 加载 | 进入表单前已通过 `GET /team-profile/members?teamUid=` 拉取成员列表（建议 `pageSize` ≥ 100） |
+| 保存 | 用户编辑后点击「保存」，**一次性提交**所有变更（非逐行即时写库） |
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `teamUid` | string | 是 | 团队对外 uid（`LB…` / `ST…`） |
+### 02.2）表单可编辑范围
 
-#### Response Data
+| 操作 | UI | 是否写库 | 说明 |
+|------|-----|----------|------|
+| 修改团队定位 | 每行 `career` 输入框 | ✅ | 所有成员必填，非空字符串 |
+| 设置/取消协助管理员 | 「管理员」列按钮 | ✅ | 切换 `isAdmin`；**不涉及负责人转让** |
+| 移除成员 | 「移除」 | ✅ | 不可移除负责人（`isOwner` / `team.owner_uid`） |
+| 添加成员 | 底部添加区 | ✅ | 需 `uid`、`role`（`MEMBER`/`MENTOR`）、`career` |
+| 修改身份 `role` | 身份列只读 | ❌ | 添加时选定，之后不可改 |
+| 转让负责人 | 无入口 | ❌ | **本期不做**（含学生团队队长交接） |
+
+**添加成员区说明：**
+
+- 前端「昵称」字段仅用于添加前人工核对，**请求体不传 nickname**；展示昵称以服务端用户资料为准。
+- 新成员 `role` 仅允许 `MEMBER`（学生）或 `MENTOR`（导师），禁止通过本接口创建 `LEADER`。
+- 新成员默认 `isAdmin: false`。
+
+### 02.3）建议接口：批量同步成员
+
+为匹配「保存」一次提交的前端 UX，建议新增：
+
+#### `PUT /team-profile/members`
+
+| 项 | 说明 |
+|----|------|
+| **Auth** | **必须登录** |
+| **权限** | 调用者须为该团队成员，且 `isAdmin === true`（负责人天然具备） |
+| **Query** | `teamUid`（`LB`/`ST` + 11 位） |
+
+#### Request Body
 
 ```json
 {
-  "teamUid": "LB00000001001",
-  "coreProfile": {
-    "teamUid": "LB00000001001",
-    "name": "智能计算与应用实验室",
-    "description": "以工程项目驱动实践，聚焦智能系统与大数据分析方向。",
-    "organizationName": "深圳技术大学",
-    "logoUrl": "http://localhost:8081/uploads/teams/lab-logo.png",
-    "memberCount": 4,
-    "foundedAt": "2023.09.01"
-  },
-  "extendedProfile": {
-    "notice": "本团队采用项目制协作，每周固定进行进度复盘与代码评审。",
-    "researchDirection": "智能系统 · 大数据分析 · 工程实践",
-    "contactEmail": "lab-contact@example.com"
-  },
-  "members": [
+  "updates": [
     {
-      "uid": "US00000001001",
-      "nickname": "张同学",
-      "role": "队长",
-      "avatarUrl": "http://localhost:8081/uploads/avatars/u001.jpg",
-      "level": "SR"
+      "uid": "US00000001002",
+      "career": "前端开发",
+      "isAdmin": true
+    },
+    {
+      "uid": "US00000001003",
+      "career": "NLP · 知识图谱",
+      "isAdmin": false
     }
   ],
-  "infoRows": [
-    { "label": "团队 UID", "value": "LB00000001001" },
-    { "label": "所属主体", "value": "深圳技术大学" },
-    { "label": "加入时间", "value": "2023.09.01" },
-    { "label": "成员规模", "value": "4 人" },
-    { "label": "研究方向", "value": "智能系统 · 大数据分析" },
-    { "label": "联系邮箱", "value": "lab-contact@example.com" }
+  "additions": [
+    {
+      "uid": "US00000001009",
+      "role": "MEMBER",
+      "career": "后端开发"
+    }
+  ],
+  "removals": [
+    { "uid": "US00000001008" }
   ]
 }
 ```
 
-#### 字段说明
-
-**coreProfile → `TeamCoreProfile`**
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `teamUid` | string | 团队 uid |
-| `name` | string | 团队名称 → `team.team_name` |
-| `description` | string | 团队简介 → `team.intro` |
-| `organizationName` | string \| null | 所属主体名称；LAB 取自 `entity`；学生团队可为 `null` |
-| `logoUrl` | string \| null | Logo URL → `team.team_logo`；`null` 时前端 dicebear 占位 |
-| `memberCount` | number | 成员总数（`team_member` 计数） |
-| `foundedAt` | string | 成立/创建时间展示文案 → `team.created_at` 格式化 |
-
-**extendedProfile → `TeamExtendedProfile`**
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `notice` | string | 团队公告 → `team.announcement` |
-| `researchDirection` | string | 研究方向展示文案；建议由 `team.tag` JSON 拼接 |
-| `contactEmail` | string \| null | 联系邮箱 → `team.contact_email` |
-
-**members[] → `TeamMemberItem`（主页预览）**
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `uid` | string | 成员 `userUid` |
-| `nickname` | string | 昵称（禁止实名） |
-| `role` | string | 团队内职位展示文案（如 `队长`、`后端开发`）；由 `team_member.role` + 用户职位组装 |
-| `avatarUrl` | string \| null | 头像 URL |
-| `level` | string \| null | 能力等级 `N`/`R`/`SR`/`SSR`/`UR`；无效或空时不渲染 `LevelBadge` |
-
-> 主页成员区 UI 最多展示 **两行**（前端 CSS 裁剪）；接口可返回完整 `members[]`，或增加 `memberPreviewLimit` 查询参数（默认不截断，由前端裁剪）。
-> 成员数组必须排序，排序逻辑：第一个为实验室/团队所有人（team.owner_uid），然后为实验室/团队所有的导师，然后是学生。同层次（导师/学生）按照能力等级进行排序，同能力等级按照加入实验室/团队时间排序（team_member.join_at）
-
-**infoRows[] → `TeamInfoRow`**
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `label` | string | 表格行标题 |
-| `value` | string | 表格行内容 |
-
-侧栏「团队信息」表格直接渲染；后端可按运营需求组装行项。
-
-#### 常见错误码
-
-- `TEAM_NOT_FOUND`（404）
-- `TEAM_NOT_ACCESSIBLE`（403，未审核 / 已冻结 / 已解散）
-- `INVALID_TEAM_UID`（400）
-
----
-
-### 3.4 GET `/team-profile/home`
-
-- **说明**：主页 Tab 激活时调用，返回「团队项目」「团队笔记」「团队成果」预览列表。
-
-#### Query Parameters
-
-| 参数 | 类型 | 必填 | 说明 |
+| 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `teamUid` | string | 是 | 团队 uid |
-| `projectLimit` | number | 否 | 项目预览条数，默认 `3`（对齐 `TEAM_HOME_PROJECT_PREVIEW_LIMIT`） |
-| `noteLimit` | number | 否 | 笔记预览条数，默认 `3`（对齐 `TEAM_HOME_NOTE_PREVIEW_LIMIT`） |
-| `achievementLimit` | number | 否 | 成果预览条数，默认 `3`（对齐 `TEAM_HOME_ACHIEVEMENT_PREVIEW_LIMIT`） |
+| `updates` | array | 否 | 已存在成员的变更；至少含 `uid`，可改 `career`、`isAdmin` |
+| `updates[].uid` | string | 是 | 成员 `userUid` |
+| `updates[].career` | string | 是* | 团队定位；*若出现在 `updates` 中则必填且 trim 后非空 |
+| `updates[].isAdmin` | boolean | 否 | 协助管理权限；负责人行忽略（恒为 `true`） |
+| `additions` | array | 否 | 新加入成员 |
+| `additions[].uid` | string | 是 | 待加入用户的 `userUid`，须已注册且未在本团队 |
+| `additions[].role` | string | 是 | `MEMBER` \| `MENTOR` |
+| `additions[].career` | string | 是 | 非空 |
+| `removals` | array | 否 | 待移除成员 |
+| `removals[].uid` | string | 是 | 不可为 `team.owner_uid` |
 
-#### Response Data
-
-```json
-{
-  "teamUid": "LB00000001001",
-  "projects": [
-    {
-      "uid": "PR00000003001",
-      "title": "智能数据分析平台",
-      "preview": "面向实验室内部项目协作的数据分析平台…",
-      "coverUrl": "http://localhost:8081/uploads/project-covers/analytics.jpg",
-      "tags": [{ "label": "React" }, { "label": "SpringBoot" }],
-      "category": "RECRUITMENT",
-      "recruitmentType": "TEAM_RECRUIT",
-      "ownerOrganization": "智能计算与应用实验室",
-      "logoSvgUrl": null,
-      "publishTime": "3天前发布",
-      "level": "SR",
-      "teamSize": "4-6人",
-      "duration": "长期",
-      "status": "ONGOING"
-    }
-  ],
-  "notes": [
-    {
-      "uid": "TX00000004001",
-      "title": "实验室项目启动会复盘模板",
-      "summary": "总结项目启动会关键议题、角色分工与风险清单…",
-      "contentType": "图文",
-      "tags": ["项目管理", "协作流程"],
-      "publishTime": "2026-05-10 10:20",
-      "updateTime": "2026-05-10",
-      "views": 326,
-      "comments": 18,
-      "favorites": 42,
-      "cover": "http://localhost:8081/uploads/covers/kickoff.jpg",
-      "authorNickname": "张同学",
-      "authorOrganization": "智能计算与应用实验室",
-      "authorAvatar": null
-    }
-  ],
-  "achievements": [
-    {
-      "achievementUid": "AC00000005001",
-      "maskedProjectName": "智能数据分析平台",
-      "taskDescription": "完成核心指标看板与周报自动化导出模块…",
-      "technicalTags": ["React", "ECharts", "SpringBoot"],
-      "completedAt": "2026-04-30"
-    }
-  ],
-  "projectTotal": 4,
-  "noteTotal": 5,
-  "achievementTotal": 4
-}
-```
-
-#### 字段说明
-
-**projects[]**：与个人空间 `GET /user-profile/home` 的 `projects[]` **同构**（`ProjectItem` / `ProjectCard`）。筛选条件：`project.team_uid = teamUid` 且已发布。
-
-**notes[]**：与个人空间 `notes[]` **同构**（`ProfileNoteItem` / `GridNoteCard`）。筛选建议：作者 uid ∈ 当前团队成员。封面字段名为 **`cover`**。网格预览一行 **3** 列由前端 CSS 控制。
-
-**achievements[] → `TeamAchievementItem`**
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `achievementUid` | string | 成果 uid（`AC`+11 位） |
-| `maskedProjectName` | string | 脱敏项目名 |
-| `taskDescription` | string | 脱敏工作总结 |
-| `technicalTags` | string[] | 技术标签；来自 `achievement_archive.technical_tags` JSON |
-| `completedAt` | string | 完成时间展示文案 → `completed_at` 格式化 |
-
-筛选建议：成果所属用户 ∈ 团队成员，且（可选）`source_project_uid` 关联项目的 `team_uid = teamUid`。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `projectTotal` | number | 团队项目总数（「查看全部」可选展示） |
-| `noteTotal` | number | 团队笔记总数 |
-| `achievementTotal` | number | 团队成果总数 |
-
----
-
-### 3.5 GET `/team-profile/members`
-
-- **说明**：「成员」Tab 激活时调用，返回完整成员列表（卡片纯展示，**不可跳转**）。
-
-#### Query Parameters
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `teamUid` | string | 是 | 团队 uid |
-| `page` | number | 否 | 页码，从 `1` 开始，默认 `1` |
-| `pageSize` | number | 否 | 每页条数，默认 `50` |
+**空数组**可省略；三项全空时返回 `400`（无有效变更）。
 
 #### Response Data
 
@@ -273,182 +140,106 @@
   "members": [
     {
       "uid": "US00000001001",
-      "nickname": "张同学",
-      "role": "队长",
+      "nickname": "李老师",
+      "role": "MENTOR",
+      "career": "人工智能",
+      "isOwner": true,
+      "isAdmin": true,
       "avatarUrl": null,
       "level": "SR"
     }
   ],
-  "total": 4,
-  "page": 1,
-  "pageSize": 50
+  "total": 4
 }
 ```
 
-`members[]` 单条结构与 §3.3 一致。排序建议：`LEADER` → `MENTOR` → `MEMBER`，同角色按 `joined_at` 升序。
+- 返回**保存后**的完整成员列表（排序规则与 §08.3 一致：负责人 → 导师 → 学生）。
+- 前端保存成功后刷新成员 Tab，并返回列表页（`/team/:teamUid/member`）。
+
+#### 服务端校验规则（必须）
+
+1. **权限**：非 `isAdmin` 成员调用 → `403 TEAM_MEMBER_FORBIDDEN`。
+2. **负责人不可移除**：`removals` 含 `owner_uid` → `400 TEAM_MEMBER_OWNER_IMMUTABLE`。
+3. **负责人 `isAdmin` 不可关闭**：`updates` 中对负责人设 `isAdmin: false` 时忽略或报错（建议忽略并强制 `true`）。
+4. **至少保留一名成员**：移除后团队无成员 → `400 TEAM_MEMBER_LAST_ONE`。
+5. **`career` 必填**：任一成员（含新增）`career` 为空 → `400 TEAM_MEMBER_CAREER_REQUIRED`。
+6. **重复成员**：`additions` 中 uid 已在团队 → `409 TEAM_MEMBER_ALREADY_EXISTS`。
+7. **用户不存在**：`additions` / `updates` / `removals` 中 uid 无效 → `404 USER_NOT_FOUND` 或 `404 TEAM_MEMBER_NOT_FOUND`（移除时）。
+8. **`role` 不可通过 updates 修改**；若请求体携带 `role` 字段应忽略。
+9. **学生单实验室**（若业务启用 `lab_user_uid` 约束）：违反唯一约束时返回 `409 TEAM_MEMBER_LAB_CONFLICT`。
+10. **事务**：同一请求内 additions / updates / removals 应在单事务中执行，失败整体回滚。
+
+#### 常见错误码
+
+| code | HTTP | 说明 |
+|------|------|------|
+| `TEAM_NOT_FOUND` | 404 | 团队不存在 |
+| `TEAM_NOT_ACCESSIBLE` | 403 | 团队冻结/解散 |
+| `TEAM_MEMBER_FORBIDDEN` | 403 | 当前用户无管理权限（`isAdmin !== true`） |
+| `TEAM_MEMBER_OWNER_IMMUTABLE` | 400 | 不可移除负责人 |
+| `TEAM_MEMBER_LAST_ONE` | 400 | 不可移除最后一名成员 |
+| `TEAM_MEMBER_CAREER_REQUIRED` | 400 | career 为空 |
+| `TEAM_MEMBER_ALREADY_EXISTS` | 409 | 成员已在团队 |
+| `TEAM_MEMBER_NOT_FOUND` | 404 | 移除/更新目标不在团队 |
+| `TEAM_MEMBER_LAB_CONFLICT` | 409 | 学生实验室唯一约束冲突 |
+| `USER_NOT_FOUND` | 404 | 添加时 uid 对应用户不存在 |
+| `INVALID_TEAM_UID` | 400 | teamUid 格式错误 |
+| `INVALID_USER_UID` | 400 | userUid 格式错误 |
+
+### 02.4）可选：添加成员前用户校验（提升 UX）
+
+当前添加区需手填 UID + 昵称。若后端提供只读校验接口，前端可在「添加进团队」前自动回填昵称：
+
+#### `GET /users/{uid}/public-preview`（可选）
+
+| 项 | 说明 |
+|----|------|
+| **Auth** | 登录可选 |
+| **Response** | `{ uid, nickname, avatarUrl }` — `nickname` 优先 `real_name`（管理表单核对用） |
+| **用途** | 管理表单添加成员时校验 UID 是否存在；**nickname 以本接口为准** |
+
+> 若本期不实现，前端可继续手填昵称，保存时以 `PUT /team-profile/members` 的 `additions` 为准。
 
 ---
 
-### 3.6 GET `/team-profile/projects`
+## 03）数据库参考（`team_member`）
 
-- **说明**：「项目」Tab 激活时调用，供 `ProjectCard` 渲染完整列表。
+当前 `db.sql` 中 `team_member` 需支持管理成员能力，建议字段：
 
-#### Query Parameters
+| 列 | 类型 | 说明 |
+|----|------|------|
+| `role` | VARCHAR(32) | 已有；`LEADER` \| `MEMBER` \| `MENTOR` |
+| `career` | VARCHAR(255) NULL | 团队内定位（**待加列**若尚未迁移） |
+| `is_admin` | TINYINT(1) NOT NULL DEFAULT 0 | 协助管理权限（**待加列**）；`team.owner_uid` 对应行恒为 `1` |
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `teamUid` | string | 是 | 团队 uid |
-| `page` | number | 否 | 页码，默认 `1` |
-| `pageSize` | number | 否 | 每页条数，默认 `20` |
+负责人身份仍以 `team.owner_uid` 为准，**不**通过 `PUT /team-profile/members` 变更。
 
-#### Response Data
+---
 
-```json
-{
-  "teamUid": "LB00000001001",
-  "projects": [],
-  "total": 4,
-  "page": 1,
-  "pageSize": 20
-}
+## 04）前端接入计划（后端就绪后）
+
+| 步骤 | 文件 | 动作 |
+|------|------|------|
+| 1 | `api/teamProfile/types.ts` | 增加 `UpdateTeamMembersRequest` / `UpdateTeamMembersResponse` |
+| 2 | `api/teamProfile/index.ts` | 新增 `updateTeamProfileMembers(teamUid, body)` → `PUT /team-profile/members` |
+| 3 | `useMembersManageForm.ts` | `handleSubmit` 对比初始列表生成 `updates` / `additions` / `removals` 并调用写接口 |
+| 4 | `ManageMembersForm.tsx` | 传入 `teamUid`；保存成功后 invalidate 成员列表 |
+| 5 | `API.md` §08 | 合并读字段 `isAdmin` 与写接口 §08.9（或等价章节） |
+
+**前端 diff 生成规则（`handleSubmit`）：**
+
+```ts
+// 相对 initialMembers 计算：
+// updates: uid 仍存在且 career 或 isAdmin 变化
+// additions: 仅在表单中新出现、初始列表没有的 uid
+// removals: 初始有、提交时已删除的 uid（且非 isOwner）
 ```
 
-`projects[]` 单条结构与 §3.4 / 个人空间 `GET /user-profile/projects` 一致。  
-项目 `coverUrl` 待跟进规则见 **§01**。
-
 ---
 
-### 3.7 GET `/team-profile/notes`
-
-- **说明**：「笔记」Tab 激活时调用，供 `GridNoteCard` **三列网格**渲染。
-
-#### Query Parameters
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `teamUid` | string | 是 | 团队 uid |
-| `page` | number | 否 | 页码，默认 `1` |
-| `pageSize` | number | 否 | 每页条数，默认 `21`（建议为 3 的倍数，便于三列网格） |
-| `contentType` | string | 否 | 预筛：`图文` / `视频`；缺省返回全部 |
-
-#### Response Data
-
-```json
-{
-  "teamUid": "LB00000001001",
-  "notes": [],
-  "total": 5,
-  "page": 1,
-  "pageSize": 21
-}
-```
-
-`notes[]` 单条结构与 §3.4 / 个人空间 `GET /user-profile/notes` 一致。  
-作者栏、视频时长、互动计数字段待跟进规则见 **§02**。
-
----
-
-### 3.8 GET `/team-profile/achievements`
-
-- **说明**：「成果」Tab 激活时调用，返回团队成果完整列表。
-
-#### Query Parameters
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `teamUid` | string | 是 | 团队 uid |
-| `page` | number | 否 | 页码，默认 `1` |
-| `pageSize` | number | 否 | 每页条数，默认 `20` |
-
-#### Response Data
-
-```json
-{
-  "teamUid": "LB00000001001",
-  "achievements": [
-    {
-      "achievementUid": "AC00000005001",
-      "maskedProjectName": "智能数据分析平台（脱敏）",
-      "taskDescription": "完成核心指标看板与周报自动化导出模块…",
-      "technicalTags": ["React", "ECharts", "SpringBoot"],
-      "completedAt": "2026-04-30"
-    }
-  ],
-  "total": 4,
-  "page": 1,
-  "pageSize": 20
-}
-```
-
-`achievements[]` 单条结构与 §3.4 一致。排序建议：`completed_at` 降序。
-
----
-
-### 3.9 前端页面与调用时机
-
-```mermaid
-sequenceDiagram
-  participant Page as TeamView
-  participant API as /team-profile/*
-
-  Page->>API: GET /team-profile/space?teamUid=
-  Note over Page: Hero + 侧栏 + 成员预览
-
-  alt 主页 Tab
-    Page->>API: GET /team-profile/home?teamUid=
-    Note over Page: 团队项目/笔记/成果预览
-  else 成员 Tab
-    Page->>API: GET /team-profile/members?teamUid=
-  else 成果 Tab
-    Page->>API: GET /team-profile/achievements?teamUid=
-  else 项目 Tab
-    Page->>API: GET /team-profile/projects?teamUid=
-  else 笔记 Tab
-    Page->>API: GET /team-profile/notes?teamUid=
-  end
-```
-
-| 用户操作 | API | 前端组件 |
-|----------|-----|----------|
-| 进入 `/team/:teamUid` | `GET /team-profile/space` | `TeamViewHeroContent`、`TeamViewSidebar`、`TeamViewMembersSection` |
-| 主页 Tab / 首次展示预览区 | `GET /team-profile/home` | `TeamProjectsSection`、`TeamNotesSection`、`TeamAchievementsSection`（preview） |
-| 点击「查看全部」→ 成员 | （已加载或 `GET /team-profile/members`） | `TeamMembersTabContent` |
-| 点击「查看全部」→ 项目/笔记/成果 | 对应 Tab 列表接口 | 各 Section（full） |
-| 激活「成员/成果/项目/笔记」Tab | 对应 §3.5–§3.8 | 侧栏折叠为单列布局 |
-
----
-
-### 3.10 数据库映射建议
-
-| 响应字段 | 来源 |
-|----------|------|
-| `coreProfile.*` | `team` + JOIN `entity`（LAB 所属主体名） |
-| `extendedProfile.notice` | `team.announcement` |
-| `extendedProfile.researchDirection` | `team.tag` JSON 拼接 |
-| `extendedProfile.contactEmail` | `team.contact_email` |
-| `members[]` | `team_member` JOIN `user` / `user_profile` |
-| `members[].role` | `team_member.role` 枚举映射 + 可选职位字段 |
-| `members[].level` | `user_profile.level` 或等价字段 |
-| `projects[]` | `project` WHERE `team_uid = ?` |
-| `notes[]` | 笔记表 JOIN 作者，作者 uid ∈ `team_member` |
-| `achievements[]` | `achievement_archive` WHERE `user_uid` ∈ 团队成员 |
-| `infoRows[]` | 服务端 Assembler 组装 |
-
----
-
-### 3.11 前端跟进清单
-
-- [ ] 新增 `src/api/teamProfile/`（types + index），镜像 `userProfile` 分层
-- [ ] `useTeamViewPage`：挂载时调 `getTeamProfileSpace`，按 Tab 懒加载 home / members / projects / notes / achievements
-- [ ] DTO 映射：`userUid` / `teamUid` 归一化（复用 `normalizeUserResourceUid` 模式）
-- [ ] 移除 `resolveTeamSpaceMockData` 生产路径依赖（Mock 可保留 Storybook / 离线开发）
-- [ ] 联调 §3.2 六处读接口；项目 `coverUrl`（§01）、笔记作者栏（§02）一并验证
-
----
-
-## 04）文档索引
+## 文档索引
 
 | 文档 | 用途 |
 |------|------|
-| [`API.md`](./API.md) | 全量接口契约（认证、个人空间、发布详情、Feed 与互动） |
-| [`API-request.md`](./API-request.md) | **本文档**：当前迭代待跟进项（§01 项目 `coverUrl`、§02 网格笔记卡片、§03 团队空间 TeamView） |
+| [`API.md`](./API.md) | 全量接口契约（认证、个人/团队空间、发布详情、Feed 与互动） |
+| [`API-request.md`](./API-request.md) | **本文档**：待跟进增量与联调需求 |

@@ -21,6 +21,12 @@ public class ClientTeamMember {
     private String role;
     @TableField("lab_user_uid")
     private String labUserUid;
+    /** 团队中职位补充，如「前端开发」「NLP 方向」 */
+    private String career;
+    @TableField("is_admin")
+    private Integer isAdmin;
+    @TableField("invited_by_uid")
+    private String invitedByUid;
     @TableField("joined_at")
     private LocalDateTime joinedAt;
 }
