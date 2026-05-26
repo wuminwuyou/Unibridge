@@ -41,9 +41,24 @@ public class IpLocationInterceptor implements HandlerInterceptor {
 
         request.setAttribute(ATTR_CLIENT_IP, clientIp);
         request.setAttribute(ATTR_IP_LOCATION, ipLocation);
-        response.setHeader(HEADER_IP_LOCATION, ipLocation);
+        // HTTP 响应头仅允许 ISO-8859-1；中文属地已在响应体 extendInfo.ipLocation 中返回
+        if (isAsciiHeaderValue(ipLocation)) {
+            response.setHeader(HEADER_IP_LOCATION, ipLocation);
+        }
 
         log.debug("IP属地解析: ip={}, location={}, uri={}", clientIp, ipLocation, request.getRequestURI());
+        return true;
+    }
+
+    private static boolean isAsciiHeaderValue(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) > 0xFF) {
+                return false;
+            }
+        }
         return true;
     }
 }

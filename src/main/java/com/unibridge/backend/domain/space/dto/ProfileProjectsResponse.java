@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class ProfileProjectsResponse {
-    private Long userId;
+    private String userUid;
     private List<ProfileProjectItem> projects;
     private Long total;
     private Integer page;

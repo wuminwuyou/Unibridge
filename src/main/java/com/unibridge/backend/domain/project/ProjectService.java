@@ -83,17 +83,17 @@ public class ProjectService {
     @CacheEvict(value = {"home_feed", "similar_notes", "project_feed", "note_feed"}, allEntries = true,
             condition = "#request.publishAction == 'PUBLISH'")
     public PublishProjectResponse createProject(String authorization, PublishProjectRequest request) {
-        Long userId = clientAccessService.requireCurrentUserId(authorization);
+        String userUid = clientAccessService.requireCurrentUserUid(authorization);
         validateRequest(request);
-        assertPublishPermission(userId, request.getChannel());
+        assertPublishPermission(userUid, request.getChannel());
 
         ClientProject project = new ClientProject();
-        project.setOwnerId(userId);
+        project.setOwnerUid(userUid);
         project.setProjectUid(ProjectUidGenerator.generate(this::isProjectUidUnique));
         applyRequestToProject(project, request);
         clientProjectMapper.insert(project);
 
-        syncCommercialSecret(project.getId(), request);
+        syncCommercialSecret(project.getProjectUid(), request);
         ClientProject persisted = clientProjectMapper.selectById(project.getId());
         return buildResponse(persisted, request.getPublishAction());
     }
@@ -104,24 +104,24 @@ public class ProjectService {
     public PublishProjectResponse updateProject(String authorization,
                                                 String projectUid,
                                                 PublishProjectRequest request) {
-        Long userId = clientAccessService.requireCurrentUserId(authorization);
-        ClientProject project = requireOwnedProject(projectUid, userId);
+        String userUid = clientAccessService.requireCurrentUserUid(authorization);
+        ClientProject project = requireOwnedProject(projectUid, userUid);
 
         validateRequest(request);
-        assertPublishPermission(userId, request.getChannel());
+        assertPublishPermission(userUid, request.getChannel());
 
         applyRequestToProject(project, request);
         clientProjectMapper.updateById(project);
 
-        syncCommercialSecret(project.getId(), request);
+        syncCommercialSecret(project.getProjectUid(), request);
         ClientProject persisted = clientProjectMapper.selectById(project.getId());
         return buildResponse(persisted, request.getPublishAction());
     }
 
     public PublishProjectDraftResponse getProjectDraft(String authorization, String projectUid) {
-        Long userId = clientAccessService.requireCurrentUserId(authorization);
-        ClientProject project = requireOwnedProject(projectUid, userId);
-        ClientProjectCommercialSecret secret = loadCommercialSecret(project.getId());
+        String userUid = clientAccessService.requireCurrentUserUid(authorization);
+        ClientProject project = requireOwnedProject(projectUid, userUid);
+        ClientProjectCommercialSecret secret = loadCommercialSecret(project.getProjectUid());
 
         return PublishProjectDraftResponse.builder()
                 .uid(project.getProjectUid())
@@ -151,19 +151,19 @@ public class ProjectService {
     public ProjectDetailResponse getProjectDetail(String authorization, String projectUid) {
         ClientProject project = contentUidResolver.requireProjectByUid(projectUid);
 
-        Long currentUserId = clientAccessService.resolveOptionalCurrentUserId(authorization);
-        assertProjectReadable(project, currentUserId);
+        String currentUserUid = clientAccessService.resolveOptionalCurrentUserUid(authorization);
+        assertProjectReadable(project, currentUserUid);
 
-        ClientProjectCommercialSecret secret = loadCommercialSecret(project.getId());
-        return buildProjectDetailResponse(project, secret, currentUserId);
+        ClientProjectCommercialSecret secret = loadCommercialSecret(project.getProjectUid());
+        return buildProjectDetailResponse(project, secret, currentUserUid);
     }
 
     private ProjectDetailResponse buildProjectDetailResponse(ClientProject project,
                                                              ClientProjectCommercialSecret secret,
-                                                             Long currentUserId) {
+                                                             String currentUserUid) {
         String channel = mapCategoryToChannel(project.getCategory());
         String amount = null;
-        boolean isOwner = currentUserId != null && currentUserId.equals(project.getOwnerId());
+        boolean isOwner = currentUserUid != null && currentUserUid.equals(project.getOwnerUid());
         if (CATEGORY_COMMERCIAL.equals(project.getCategory()) && secret != null && isOwner) {
             amount = formatAmount(secret.getTotalBudget());
         }
@@ -188,17 +188,17 @@ public class ProjectService {
                 .build();
     }
 
-    private void assertProjectReadable(ClientProject project, Long currentUserId) {
+    private void assertProjectReadable(ClientProject project, String currentUserUid) {
         if (PUBLIC_PROJECT_STATUSES.contains(project.getStatus())) {
             return;
         }
         if (!STATUS_DRAFT.equals(project.getStatus())) {
             throw BusinessException.notFound("PROJECT_NOT_FOUND");
         }
-        if (currentUserId == null) {
+        if (currentUserUid == null) {
             throw BusinessException.notFound("PROJECT_NOT_FOUND");
         }
-        if (!currentUserId.equals(project.getOwnerId())) {
+        if (!currentUserUid.equals(project.getOwnerUid())) {
             throw new BusinessException(403, "PROJECT_NOT_OWNER");
         }
     }
@@ -207,9 +207,9 @@ public class ProjectService {
         return StringUtils.hasText(editorType) ? editorType : EDITOR_TYPE_MARKDOWN;
     }
 
-    private ClientProject requireOwnedProject(String projectUid, Long userId) {
+    private ClientProject requireOwnedProject(String projectUid, String userUid) {
         ClientProject project = contentUidResolver.requireProjectByUid(projectUid);
-        if (!userId.equals(project.getOwnerId())) {
+        if (!userUid.equals(project.getOwnerUid())) {
             throw new BusinessException(403, "PROJECT_NOT_OWNER");
         }
         return project;
@@ -283,8 +283,8 @@ public class ProjectService {
         }
     }
 
-    private void assertPublishPermission(Long userId, String channel) {
-        UserAuthLink authLink = loadCurrentAuthLink(userId);
+    private void assertPublishPermission(String userUid, String channel) {
+        UserAuthLink authLink = loadCurrentAuthLink(userUid);
         if (authLink == null || !StringUtils.hasText(authLink.getRole())) {
             throw new BusinessException(403, "PROJECT_PUBLISH_FORBIDDEN");
         }
@@ -302,9 +302,9 @@ public class ProjectService {
         }
     }
 
-    private UserAuthLink loadCurrentAuthLink(Long userId) {
+    private UserAuthLink loadCurrentAuthLink(String userUid) {
         LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserId, userId)
+        wrapper.eq(UserAuthLink::getUserUid, userUid)
                 .eq(UserAuthLink::getIsActive, 1)
                 .orderByDesc(UserAuthLink::getUpdatedAt)
                 .last("LIMIT 1");
@@ -334,17 +334,17 @@ public class ProjectService {
         }
     }
 
-    private void syncCommercialSecret(Long projectId, PublishProjectRequest request) {
+    private void syncCommercialSecret(String projectUid, PublishProjectRequest request) {
         if (CHANNEL_CAMPUS.equals(request.getChannel())) {
-            commercialSecretMapper.deleteById(projectId);
+            commercialSecretMapper.deleteById(projectUid);
             return;
         }
 
         BigDecimal budget = parseAmount(request.getAmount());
-        ClientProjectCommercialSecret existing = commercialSecretMapper.selectById(projectId);
+        ClientProjectCommercialSecret existing = commercialSecretMapper.selectById(projectUid);
         if (existing == null) {
             ClientProjectCommercialSecret secret = new ClientProjectCommercialSecret();
-            secret.setProjectId(projectId);
+            secret.setProjectUid(projectUid);
             secret.setTotalBudget(budget);
             secret.setCommercialStatus(COMMERCIAL_STATUS_PENDING);
             commercialSecretMapper.insert(secret);
@@ -355,8 +355,8 @@ public class ProjectService {
         commercialSecretMapper.updateById(existing);
     }
 
-    private ClientProjectCommercialSecret loadCommercialSecret(Long projectId) {
-        return commercialSecretMapper.selectById(projectId);
+    private ClientProjectCommercialSecret loadCommercialSecret(String projectUid) {
+        return commercialSecretMapper.selectById(projectUid);
     }
 
     private BigDecimal parseAmount(String amountText) {

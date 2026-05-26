@@ -14,12 +14,12 @@ import java.time.LocalDateTime;
 public class UserContentInteraction {
     @TableId(type = IdType.AUTO)
     private Long id;
-    @TableField("user_id")
-    private Long userId;
+    @TableField("user_uid")
+    private String userUid;
     @TableField("target_type")
     private String targetType;
-    @TableField("target_id")
-    private Long targetId;
+    @TableField("target_uid")
+    private String targetUid;
     private Integer liked;
     private Integer collected;
     @TableField("created_at")

@@ -14,13 +14,13 @@ import java.time.LocalDateTime;
 public class ClientTeamMember {
     @TableId(type = IdType.AUTO)
     private Long id;
-    @TableField("team_id")
-    private Long teamId;
-    @TableField("user_id")
-    private Long userId;
+    @TableField("team_uid")
+    private String teamUid;
+    @TableField("user_uid")
+    private String userUid;
     private String role;
-    @TableField("lab_user_id")
-    private Long labUserId;
+    @TableField("lab_user_uid")
+    private String labUserUid;
     @TableField("joined_at")
     private LocalDateTime joinedAt;
 }

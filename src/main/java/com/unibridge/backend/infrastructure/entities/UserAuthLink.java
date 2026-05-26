@@ -16,10 +16,10 @@ import java.time.LocalDateTime;
 public class UserAuthLink {
     @TableId(type = IdType.AUTO)
     private Long id;
-    @TableField("user_id")
-    private Long userId;
-    @TableField("entity_id")
-    private Long entityId;
+    @TableField("user_uid")
+    private String userUid;
+    @TableField("entity_code")
+    private String entityCode;
     @TableField("role")
     private String role;
     @TableField("auth_serial_no")

@@ -17,8 +17,13 @@ import java.util.List;
 @Builder
 public class ProfileSpaceResponse {
 
-    /** 当前 Profile 主体唯一标识（user.id） */
-    private Long id;
+    /** 当前 Profile 主体唯一标识（user.user_uid） */
+    private String userUid;
+
+    /**
+     * 是否查看自己的空间：access_token 解码 UID 与 query {@code uid} 逐字符一致时为 {@code true}。
+     */
+    private Boolean viewingOwnSpace;
 
     /** Hero 栏核心基础信息 */
     private BaseInfo baseInfo;
@@ -26,8 +31,8 @@ public class ProfileSpaceResponse {
     /** Sidebar 扩展/安全/统计信息 */
     private ExtendInfo extendInfo;
 
-    /** 关联团队/实验室；无关联时为 null，前端不渲染团队卡片 */
-    private AssociatedTeam associatedTeam;
+    /** 关联团队/实验室列表；无关联时返回空数组 */
+    private List<AssociatedTeam> associatedTeam;
 
     /** 个人荣誉列表；空数组时前端展示「暂无荣誉内容」 */
     private List<Object> honors;
@@ -82,8 +87,8 @@ public class ProfileSpaceResponse {
     @AllArgsConstructor
     @Builder
     public static class AssociatedTeam {
-        /** 团队/实验室 ID */
-        private Long id;
+        /** 团队/实验室 UID */
+        private String teamUid;
         /** 团队/实验室名称 */
         private String name;
         /** 一句话简介 */

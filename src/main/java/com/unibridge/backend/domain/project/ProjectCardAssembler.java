@@ -37,7 +37,7 @@ public class ProjectCardAssembler {
 
     public ContentVO toFeedProjectVo(ClientProject project, double score) {
         ProjectPublisherEntityResolver.PublisherEntityContext publisher =
-                publisherEntityResolver.resolve(project.getOwnerId());
+                publisherEntityResolver.resolve(project.getOwnerUid());
         LocalDateTime publishTime = resolvePublishTime(project.getPublishedAt(), project.getCreatedAt());
 
         return ContentVO.builder()
@@ -63,7 +63,7 @@ public class ProjectCardAssembler {
 
     public ProfileProjectItem toProfileProjectItem(ClientProject project) {
         ProjectPublisherEntityResolver.PublisherEntityContext publisher =
-                publisherEntityResolver.resolve(project.getOwnerId());
+                publisherEntityResolver.resolve(project.getOwnerUid());
         LocalDateTime publishTime = resolvePublishTime(project.getPublishedAt(), project.getCreatedAt());
 
         return ProfileProjectItem.builder()

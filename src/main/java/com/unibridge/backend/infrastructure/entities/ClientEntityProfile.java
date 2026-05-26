@@ -14,9 +14,10 @@ import java.time.LocalDateTime;
 public class ClientEntityProfile {
     @TableId(type = IdType.AUTO)
     private Long id;
-    @TableField("entity_id")
-    private Long entityId;
+    @TableField("entity_code")
+    private String entityCode;
     private String name;
+    private String location;
     private String type;
     @TableField("logo_url")
     private String logoUrl;

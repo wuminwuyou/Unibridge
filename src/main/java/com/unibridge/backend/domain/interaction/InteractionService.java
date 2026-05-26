@@ -23,7 +23,7 @@ import java.util.Set;
 
 /**
  * 互动数据同步：点赞/收藏/播放计数 → 数据库计数器 + 缓存失效（双写一致性）。
- * API 层使用 {@code targetUid}，内部映射为 {@code target_id}。
+ * API 层使用 {@code targetUid}，库内直接存 {@code target_uid}。
  */
 @Service
 public class InteractionService {
@@ -76,11 +76,11 @@ public class InteractionService {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
 
-        Long currentUserId = clientAccessService.resolveOptionalCurrentUserId(authorization);
-        if (currentUserId != null && currentUserId.equals(note.getUserId())) {
+        String currentUserUid = clientAccessService.resolveOptionalCurrentUserUid(authorization);
+        if (currentUserUid != null && currentUserUid.equals(note.getUserUid())) {
             return;
         }
-        String viewerKey = currentUserId != null ? "u:" + currentUserId : "ip:" + IpUtil.resolveClientIp(httpRequest);
+        String viewerKey = currentUserUid != null ? "u:" + currentUserUid : "ip:" + IpUtil.resolveClientIp(httpRequest);
         if (!noteViewTracker.shouldCountView(viewerKey, note.getId())) {
             return;
         }
@@ -92,14 +92,14 @@ public class InteractionService {
     }
 
     private void syncToggle(String authorization, ContentInteractionRequest request, InteractionField field) {
-        Long userId = clientAccessService.requireCurrentUserId(authorization);
+        String userUid = clientAccessService.requireCurrentUserUid(authorization);
         validateInteractionRequest(request);
 
         boolean active = Boolean.TRUE.equals(request.getActive());
         String targetType = request.getTargetType().toUpperCase(Locale.ROOT);
-        Long targetInternalId = contentUidResolver.resolveTargetInternalId(targetType, request.getTargetUid());
+        String targetUid = normalizeTargetUid(targetType, request.getTargetUid());
 
-        UserContentInteraction interaction = loadOrCreateInteraction(userId, targetType, targetInternalId);
+        UserContentInteraction interaction = loadOrCreateInteraction(userUid, targetType, targetUid);
         int before = field == InteractionField.LIKE ? nullSafe(interaction.getLiked()) : nullSafe(interaction.getCollected());
         int after = active ? 1 : 0;
         if (before == after) {
@@ -118,8 +118,16 @@ public class InteractionService {
         }
 
         if (TARGET_NOTE.equals(targetType)) {
-            applyNoteCounterDelta(targetInternalId, field, after - before);
+            Long noteId = contentUidResolver.requireNoteByUid(targetUid).getId();
+            applyNoteCounterDelta(noteId, field, after - before);
         }
+    }
+
+    private String normalizeTargetUid(String targetType, String targetUid) {
+        if ("NOTE".equals(targetType)) {
+            return contentUidResolver.requireNoteByUid(targetUid).getContentTypeCode();
+        }
+        return contentUidResolver.requireProjectByUid(targetUid).getProjectUid();
     }
 
     private void applyNoteCounterDelta(Long noteId, InteractionField field, int delta) {
@@ -142,20 +150,20 @@ public class InteractionService {
         clientNoteMapper.updateById(update);
     }
 
-    private UserContentInteraction loadOrCreateInteraction(Long userId, String targetType, Long targetId) {
+    private UserContentInteraction loadOrCreateInteraction(String userUid, String targetType, String targetUid) {
         LambdaQueryWrapper<UserContentInteraction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserContentInteraction::getUserId, userId)
+        wrapper.eq(UserContentInteraction::getUserUid, userUid)
                 .eq(UserContentInteraction::getTargetType, targetType)
-                .eq(UserContentInteraction::getTargetId, targetId)
+                .eq(UserContentInteraction::getTargetUid, targetUid)
                 .last("LIMIT 1");
         UserContentInteraction existing = interactionMapper.selectOne(wrapper);
         if (existing != null) {
             return existing;
         }
         UserContentInteraction created = new UserContentInteraction();
-        created.setUserId(userId);
+        created.setUserUid(userUid);
         created.setTargetType(targetType);
-        created.setTargetId(targetId);
+        created.setTargetUid(targetUid);
         created.setLiked(0);
         created.setCollected(0);
         return created;

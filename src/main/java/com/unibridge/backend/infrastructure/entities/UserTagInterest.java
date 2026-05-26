@@ -15,8 +15,8 @@ import java.time.LocalDateTime;
 public class UserTagInterest {
     @TableId(type = IdType.AUTO)
     private Long id;
-    @TableField("user_id")
-    private Long userId;
+    @TableField("user_uid")
+    private String userUid;
     private String tag;
     private BigDecimal weight;
     @TableField("updated_at")

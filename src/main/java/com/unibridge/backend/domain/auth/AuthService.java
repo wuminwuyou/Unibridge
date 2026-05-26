@@ -18,12 +18,17 @@ import com.unibridge.backend.domain.auth.dto.SendCodeResponse;
 import com.unibridge.backend.infrastructure.entities.ClientEntity;
 import com.unibridge.backend.infrastructure.entities.ClientUser;
 import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
+import com.unibridge.backend.infrastructure.entities.SysCreditLog;
+import com.unibridge.backend.infrastructure.entities.SysCreditProfile;
 import com.unibridge.backend.infrastructure.entities.UserAuthLink;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.SysCreditLogMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.SysCreditProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
+import com.unibridge.backend.infrastructure.util.UserUidGenerator;
 import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +61,9 @@ public class AuthService {
     private static final int ACCESS_TOKEN_EXPIRE_SEC = 30 * 60;
     private static final int REFRESH_TOKEN_EXPIRE_SEC = 7 * 24 * 60 * 60;
     private static final long REFRESH_TOKEN_EXPIRE_MS = REFRESH_TOKEN_EXPIRE_SEC * 1000L;
+    private static final int DEFAULT_CREDIT_SCORE = 600;
+    private static final String CREDIT_BIZ_REGISTER = "REGISTER";
+    private static final String CREDIT_OPERATOR_SYSTEM = "SYSTEM";
 
     private final Map<String, CodeRecord> codeStore = new ConcurrentHashMap<>();
     private final Map<String, ChallengeRecord> challengeStore = new ConcurrentHashMap<>();
@@ -74,6 +82,12 @@ public class AuthService {
 
     @Autowired
     private UserAuthLinkMapper userAuthLinkMapper;
+
+    @Autowired
+    private SysCreditProfileMapper sysCreditProfileMapper;
+
+    @Autowired
+    private SysCreditLogMapper sysCreditLogMapper;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -104,15 +118,18 @@ public class AuthService {
         }
 
         ClientUser user = new ClientUser();
+        user.setUserUid(UserUidGenerator.generate(this::isUserUidUnique));
         user.setPhone(account);
         user.setPasswordHash(request.getPassword());
+        user.setAccountStatus("ACTIVE");
         clientUserMapper.insert(user);
-        createDefaultUserProfile(user.getId(), account);
+        createDefaultUserProfile(user.getUserUid(), account);
+        createDefaultCreditProfile(user.getUserUid());
 
-        TokenPair tokenPair = issueTokenPair(user.getId(), "CLIENT_USER", "CLIENT_USER_REFRESH");
+        TokenPair tokenPair = issueTokenPair(user.getUserUid(), "CLIENT_USER", "CLIENT_USER_REFRESH");
         String accessToken = tokenPair.accessToken();
         String refreshToken = tokenPair.refreshToken();
-        return new RegisterResponse(user.getId(), null, "unverified", true, accessToken, refreshToken);
+        return new RegisterResponse(user.getUserUid(), null, "unverified", true, accessToken, refreshToken);
     }
 
     /** 个人密码登录。 */
@@ -183,6 +200,7 @@ public class AuthService {
         if (!"APPROVED".equalsIgnoreCase(entity.getAuditStatus())) {
             throw new RuntimeException("ORGANIZATION_ACCOUNT_DISABLED");
         }
+        assertEntityAccountActive(entity);
 
         String otpCode = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1000000));
         String challengeId = "chl_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
@@ -213,15 +231,16 @@ public class AuthService {
         if (entity == null) {
             throw new RuntimeException("CHALLENGE_NOT_FOUND");
         }
+        assertEntityAccountActive(entity);
 
         entity.setLastLoginAt(LocalDateTime.now());
         clientEntityMapper.updateById(entity);
         challengeStore.remove(request.getChallengeId());
 
-        TokenPair tokenPair = issueTokenPair(entity.getId(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
+        TokenPair tokenPair = issueTokenPair(entity.getEntityCode(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
         String accessToken = tokenPair.accessToken();
         String refreshToken = tokenPair.refreshToken();
-        return new LoginResponse(entity.getId(), "organization-admin", "verified", accessToken, refreshToken, ACCESS_TOKEN_EXPIRE_SEC);
+        return new LoginResponse(entity.getEntityCode(), "organization-admin", "verified", accessToken, refreshToken, ACCESS_TOKEN_EXPIRE_SEC);
     }
 
     /** 使用 refreshToken 换取新的 accessToken（并轮换 refreshToken）。 */
@@ -238,38 +257,40 @@ public class AuthService {
 
         String oldRefreshToken = request.getRefreshToken();
         String userType = jwtUtil.getUserType(oldRefreshToken);
-        String userId = jwtUtil.getUserId(oldRefreshToken);
+        String subject = jwtUtil.getUserId(oldRefreshToken);
         if (!isClientRefreshType(userType)) {
             throw new RuntimeException("REFRESH_TOKEN_INVALID");
         }
-
-        Long numericUserId;
-        try {
-            numericUserId = Long.parseLong(userId);
-        } catch (NumberFormatException ex) {
+        if (subject == null || subject.isBlank()) {
             throw new RuntimeException("REFRESH_TOKEN_INVALID");
         }
 
         String accessTokenType = mapToAccessTokenType(userType);
-        String subjectKey = buildRefreshSubjectKey(numericUserId, userType);
+        String subjectKey = buildRefreshSubjectKey(subject.trim(), userType);
         String activeRefreshToken = activeRefreshTokenStore.get(subjectKey);
         if (activeRefreshToken == null || !Objects.equals(activeRefreshToken, oldRefreshToken)) {
             throw new RuntimeException("REFRESH_TOKEN_INVALID");
         }
 
         if ("CLIENT_USER".equals(accessTokenType)) {
-            ClientUser user = clientUserMapper.selectById(numericUserId);
+            LambdaQueryWrapper<ClientUser> userWrapper = new LambdaQueryWrapper<>();
+            userWrapper.eq(ClientUser::getUserUid, subject.trim()).last("LIMIT 1");
+            ClientUser user = clientUserMapper.selectOne(userWrapper);
             if (user == null) {
                 throw new RuntimeException("ACCOUNT_NOT_FOUND");
             }
+            assertUserAccountActive(user);
         } else {
-            ClientEntity entity = clientEntityMapper.selectById(numericUserId);
+            LambdaQueryWrapper<ClientEntity> entityWrapper = new LambdaQueryWrapper<>();
+            entityWrapper.eq(ClientEntity::getEntityCode, subject.trim()).last("LIMIT 1");
+            ClientEntity entity = clientEntityMapper.selectOne(entityWrapper);
             if (entity == null) {
                 throw new RuntimeException("CHALLENGE_NOT_FOUND");
             }
+            assertEntityAccountActive(entity);
         }
 
-        TokenPair tokenPair = issueTokenPair(numericUserId, accessTokenType, userType);
+        TokenPair tokenPair = issueTokenPair(subject.trim(), accessTokenType, userType);
         String newAccessToken = tokenPair.accessToken();
         String newRefreshToken = tokenPair.refreshToken();
         return new RefreshTokenResponse(newAccessToken, newRefreshToken, ACCESS_TOKEN_EXPIRE_SEC);
@@ -289,9 +310,9 @@ public class AuthService {
 
         if (jwtUtil.validateToken(refreshToken)) {
             String refreshType = jwtUtil.getUserType(refreshToken);
-            String userId = jwtUtil.getUserId(refreshToken);
-            if (isClientRefreshType(refreshType)) {
-                String subjectKey = buildRefreshSubjectKey(Long.parseLong(userId), refreshType);
+            String subject = jwtUtil.getUserId(refreshToken);
+            if (isClientRefreshType(refreshType) && subject != null && !subject.isBlank()) {
+                String subjectKey = buildRefreshSubjectKey(subject.trim(), refreshType);
                 String currentActiveRefresh = activeRefreshTokenStore.get(subjectKey);
                 if (Objects.equals(currentActiveRefresh, refreshToken)) {
                     activeRefreshTokenStore.remove(subjectKey);
@@ -301,14 +322,15 @@ public class AuthService {
     }
 
     private LoginResponse buildPersonalLoginResponse(ClientUser user) {
+        assertUserAccountActive(user);
         user.setLastLoginAt(LocalDateTime.now());
         clientUserMapper.updateById(user);
 
-        AuthMeta authMeta = resolveUserAuthMeta(user.getId());
-        TokenPair tokenPair = issueTokenPair(user.getId(), "CLIENT_USER", "CLIENT_USER_REFRESH");
+        AuthMeta authMeta = resolveUserAuthMeta(user.getUserUid());
+        TokenPair tokenPair = issueTokenPair(user.getUserUid(), "CLIENT_USER", "CLIENT_USER_REFRESH");
         String accessToken = tokenPair.accessToken();
         String refreshToken = tokenPair.refreshToken();
-        return new LoginResponse(user.getId(), authMeta.userRole, authMeta.authStatus, accessToken, refreshToken, ACCESS_TOKEN_EXPIRE_SEC);
+        return new LoginResponse(user.getUserUid(), authMeta.userRole, authMeta.authStatus, accessToken, refreshToken, ACCESS_TOKEN_EXPIRE_SEC);
     }
 
     private ClientUser loadPersonalUserByAccount(String accountRaw) {
@@ -326,9 +348,9 @@ public class AuthService {
         return user;
     }
 
-    private AuthMeta resolveUserAuthMeta(Long userId) {
+    private AuthMeta resolveUserAuthMeta(String userUid) {
         LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserId, userId)
+        wrapper.eq(UserAuthLink::getUserUid, userUid)
                 .orderByDesc(UserAuthLink::getUpdatedAt)
                 .last("LIMIT 1");
         UserAuthLink link = userAuthLinkMapper.selectOne(wrapper);
@@ -353,14 +375,67 @@ public class AuthService {
         };
     }
 
-    private void createDefaultUserProfile(Long userId, String phone) {
+    private void createDefaultUserProfile(String userUid, String phone) {
         String suffix = phone.substring(phone.length() - 4);
         ClientUserProfile profile = new ClientUserProfile();
-        profile.setId(userId);
-        profile.setUserId(userId);
+        profile.setUserUid(userUid);
         profile.setAvatarUrl(DEFAULT_AVATAR_URL);
         profile.setNickName("用户#" + suffix);
         clientUserProfileMapper.insert(profile);
+    }
+
+    /** 注册时初始化信用主档，并写入 REGISTER 流水。 */
+    private void createDefaultCreditProfile(String userUid) {
+        LocalDateTime now = LocalDateTime.now();
+
+        SysCreditProfile profile = new SysCreditProfile();
+        profile.setUserUid(userUid);
+        profile.setCreditScore(DEFAULT_CREDIT_SCORE);
+        profile.setAccountStatus("ACTIVE");
+        profile.setLastChangedAt(now);
+        sysCreditProfileMapper.insert(profile);
+
+        SysCreditLog creditLog = new SysCreditLog();
+        creditLog.setUserUid(userUid);
+        creditLog.setChangeAmount(DEFAULT_CREDIT_SCORE);
+        creditLog.setScoreBefore(0);
+        creditLog.setScoreAfter(DEFAULT_CREDIT_SCORE);
+        creditLog.setBizType(CREDIT_BIZ_REGISTER);
+        creditLog.setOperatorKey(CREDIT_OPERATOR_SYSTEM);
+        creditLog.setRemark("注册初始化信用分");
+        sysCreditLogMapper.insert(creditLog);
+    }
+
+    private boolean isUserUidUnique(String userUid) {
+        LambdaQueryWrapper<ClientUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ClientUser::getUserUid, userUid);
+        return clientUserMapper.selectCount(wrapper) == 0;
+    }
+
+    private void assertUserAccountActive(ClientUser user) {
+        String status = user.getAccountStatus() == null ? "ACTIVE" : user.getAccountStatus().trim().toUpperCase(Locale.ROOT);
+        if ("FROZEN".equals(status)) {
+            throw new RuntimeException("ACCOUNT_FROZEN");
+        }
+        if ("DEACTIVATED".equals(status)) {
+            throw new RuntimeException("ACCOUNT_DEACTIVATED");
+        }
+        if (!"ACTIVE".equals(status)) {
+            throw new RuntimeException("ACCOUNT_DISABLED");
+        }
+    }
+
+    private void assertEntityAccountActive(ClientEntity entity) {
+        String status = entity.getAccountStatus() == null ? "ACTIVE" : entity.getAccountStatus().trim().toUpperCase(Locale.ROOT);
+        if ("FROZEN".equals(status)) {
+            throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
+        }
+        if ("DEACTIVATED".equals(status)) {
+            throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
+        }
+        if (!"ACTIVE".equals(status)) {
+            throw new RuntimeException("ORGANIZATION_ACCOUNT_DISABLED");
+        }
     }
 
     private boolean verifyCode(String accountRaw, String channelRaw, String verifyCode, String bizTypeRaw) {
@@ -425,27 +500,27 @@ public class AuthService {
         return normalized.substring(0, 1) + "***" + normalized.substring(normalized.length() - 1);
     }
 
-    private String generateAccessToken(Long userId, String userType) {
-        return jwtUtil.generateToken(String.valueOf(userId), userType, 0);
+    private String generateAccessToken(String subject, String userType) {
+        return jwtUtil.generateToken(subject, userType, 0);
     }
 
-    private String generateRefreshToken(Long userId, String userType) {
-        return jwtUtil.generateToken(String.valueOf(userId), userType, 0, REFRESH_TOKEN_EXPIRE_MS);
+    private String generateRefreshToken(String subject, String userType) {
+        return jwtUtil.generateToken(subject, userType, 0, REFRESH_TOKEN_EXPIRE_MS);
     }
 
     /**
      * 刷新 token 采用一次性设计：
      * 每次签发新 refreshToken 都会覆盖旧值，旧 token 立刻失效。
      */
-    private TokenPair issueTokenPair(Long userId, String accessTokenType, String refreshTokenType) {
-        String accessToken = generateAccessToken(userId, accessTokenType);
-        String refreshToken = generateRefreshToken(userId, refreshTokenType);
-        activeRefreshTokenStore.put(buildRefreshSubjectKey(userId, refreshTokenType), refreshToken);
+    private TokenPair issueTokenPair(String subject, String accessTokenType, String refreshTokenType) {
+        String accessToken = generateAccessToken(subject, accessTokenType);
+        String refreshToken = generateRefreshToken(subject, refreshTokenType);
+        activeRefreshTokenStore.put(buildRefreshSubjectKey(subject, refreshTokenType), refreshToken);
         return new TokenPair(accessToken, refreshToken);
     }
 
-    private String buildRefreshSubjectKey(Long userId, String refreshTokenType) {
-        return userId + "|" + refreshTokenType;
+    private String buildRefreshSubjectKey(String subject, String refreshTokenType) {
+        return subject + "|" + refreshTokenType;
     }
 
     private boolean isClientRefreshType(String userType) {

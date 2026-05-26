@@ -22,28 +22,18 @@ public class FeedShuffleCacheService {
         this.feedRecommendationService = feedRecommendationService;
     }
 
-    /**
-     * 机制 A：首页混排分页缓存。
-     * <p>缓存键 {@code userId_page}，前端递增 {@code page} 即可滚动换量。</p>
-     */
-    @Cacheable(value = "home_feed", key = "#userId + '_' + #page")
-    public List<ContentVO> getHomeFeedCachedPage(long userId, int page, int size) {
-        return feedRecommendationService.buildHomeFeedCachedPage(userId, page, size);
+    @Cacheable(value = "home_feed", key = "#userUid + '_' + #page")
+    public List<ContentVO> getHomeFeedCachedPage(String userUid, int page, int size) {
+        return feedRecommendationService.buildHomeFeedCachedPage(userUid, page, size);
     }
 
-    /**
-     * 机制 A：项目专区分页缓存。
-     */
-    @Cacheable(value = "project_feed", key = "#userId + '_' + #category + '_' + #page")
-    public List<ContentVO> getProjectFeedCachedPage(long userId, String category, int page, int size) {
-        return feedRecommendationService.buildProjectFeedCachedPage(userId, category, page, size);
+    @Cacheable(value = "project_feed", key = "#userUid + '_' + #category + '_' + #page")
+    public List<ContentVO> getProjectFeedCachedPage(String userUid, String category, int page, int size) {
+        return feedRecommendationService.buildProjectFeedCachedPage(userUid, category, page, size);
     }
 
-    /**
-     * 机制 A：笔记专区分页缓存。
-     */
-    @Cacheable(value = "note_feed", key = "#userId + '_' + #noteType + '_' + #page")
-    public List<ContentVO> getNoteFeedCachedPage(long userId, String noteType, int page, int size) {
-        return feedRecommendationService.buildNoteFeedCachedPage(userId, noteType, page, size);
+    @Cacheable(value = "note_feed", key = "#userUid + '_' + #noteType + '_' + #page")
+    public List<ContentVO> getNoteFeedCachedPage(String userUid, String noteType, int page, int size) {
+        return feedRecommendationService.buildNoteFeedCachedPage(userUid, noteType, page, size);
     }
 }

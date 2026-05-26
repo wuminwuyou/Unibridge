@@ -84,6 +84,7 @@ public class FeedRecommendationService {
     private static final int HOME_CANDIDATE_LIMIT = 400;
     /** 相似笔记候选池 */
     private static final int SIMILAR_CANDIDATE_LIMIT = 200;
+    private static final String ANONYMOUS_USER = "anonymous";
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
@@ -116,13 +117,13 @@ public class FeedRecommendationService {
     /**
      * 首页个性化推送：笔记 5 条 + 项目 10 条，分别按推荐分排序。
      * <p>
-     * 缓存键：{@code userId}。匿名用户使用 {@code userId=0} 走冷启动。
+     * 缓存键：{@code userUid}。匿名用户使用 {@code anonymous} 走冷启动。
      * </p>
      */
-    @Cacheable(value = "home_feed", key = "#userId != null ? #userId : 0")
-    public HomeFeedResponse getHomeFeed(Long userId) {
-        long effectiveUserId = userId == null ? 0L : userId;
-        Map<String, Double> tagWeights = loadUserTagWeights(effectiveUserId);
+    @Cacheable(value = "home_feed", key = "#userUid != null ? #userUid : 'anonymous'")
+    public HomeFeedResponse getHomeFeed(String userUid) {
+        String effectiveUserUid = normalizeUserUid(userUid);
+        Map<String, Double> tagWeights = loadUserTagWeights(effectiveUserUid);
 
         List<ContentVO> notes = scoreNotes(loadPublishedNotes(HOME_CANDIDATE_LIMIT), tagWeights).stream()
                 .sorted(Comparator.comparingDouble(ScoredContent::score).reversed())
@@ -136,8 +137,8 @@ public class FeedRecommendationService {
                 .map(ScoredContent::vo)
                 .collect(Collectors.toList());
 
-        log.debug("Home feed computed: userId={}, notes={}, projects={}",
-                effectiveUserId, notes.size(), projects.size());
+        log.debug("Home feed computed: userUid={}, notes={}, projects={}",
+                effectiveUserUid, notes.size(), projects.size());
         return HomeFeedResponse.builder()
                 .notes(notes)
                 .projects(projects)
@@ -146,55 +147,39 @@ public class FeedRecommendationService {
 
     /**
      * 首页「换一换」混排推送（笔记 + 项目打碎）。
-     * <ul>
-     *   <li><b>机制 A</b>：{@code seed == null} → {@code @Cacheable(home_feed, userId_page)} 分页缓存滚动</li>
-     *   <li><b>机制 B</b>：{@code seed != null} → Java {@code Collections.shuffle} 实时洗牌，<b>不缓存</b></li>
-     * </ul>
-     *
-     * @param userId 当前用户；匿名为 {@code null}（内部归一化为 0）
-     * @param seed   机制 B 伪随机种子；为空走机制 A
-     * @param page   页码，从 1 开始；机制 A 下前端「换一换」递增此值
-     * @param size   每页条数
-     * @return 当前页混排 {@link ContentVO} 列表
      */
-    public List<ContentVO> getHomeFeedWithShuffle(Long userId, Long seed, int page, int size) {
-        return getHomeFeedShuffleResponse(userId, seed, page, size).getItems();
+    public List<ContentVO> getHomeFeedWithShuffle(String userUid, Long seed, int page, int size) {
+        return getHomeFeedShuffleResponse(userUid, seed, page, size).getItems();
     }
 
-    /**
-     * 首页「换一换」完整响应（含 {@code pageWrapped} / {@code shuffleMode} 元数据）。
-     */
-    public FeedShuffleResponse getHomeFeedShuffleResponse(Long userId, Long seed, int page, int size) {
-        long effectiveUserId = userId == null ? 0L : userId;
+    public FeedShuffleResponse getHomeFeedShuffleResponse(String userUid, Long seed, int page, int size) {
+        String effectiveUserUid = normalizeUserUid(userUid);
         int safeSize = normalizeShuffleSize(size, HOME_SHUFFLE_DEFAULT_SIZE);
         long total = countHomeFeedTotal();
 
         if (seed != null) {
             long safeSeed = sanitizeRandSeed(seed);
             PageWindow window = resolvePageWindow(page, safeSize, total);
-            List<ContentVO> items = buildHomeFeedRandomPage(effectiveUserId, safeSeed, window.page(), safeSize);
-            log.debug("Home shuffle RANDOM_SEED: userId={}, seed={}, page={}, size={}, total={}",
-                    effectiveUserId, safeSeed, window.page(), safeSize, total);
+            List<ContentVO> items = buildHomeFeedRandomPage(effectiveUserUid, safeSeed, window.page(), safeSize);
+            log.debug("Home shuffle RANDOM_SEED: userUid={}, seed={}, page={}, size={}, total={}",
+                    effectiveUserUid, safeSeed, window.page(), safeSize, total);
             return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_RANDOM_SEED, safeSeed);
         }
 
         PageWindow window = resolvePageWindow(page, safeSize, total);
-        List<ContentVO> items = feedShuffleCacheService.getHomeFeedCachedPage(effectiveUserId, window.page(), safeSize);
-        log.debug("Home shuffle CACHE_PAGE: userId={}, page={}, size={}, total={}, wrapped={}",
-                effectiveUserId, window.page(), safeSize, total, window.wrapped());
+        List<ContentVO> items = feedShuffleCacheService.getHomeFeedCachedPage(effectiveUserUid, window.page(), safeSize);
+        log.debug("Home shuffle CACHE_PAGE: userUid={}, page={}, size={}, total={}, wrapped={}",
+                effectiveUserUid, window.page(), safeSize, total, window.wrapped());
         return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_CACHE_PAGE, null);
     }
 
-    /**
-     * 项目专区「换一换」：{@code category} 严格分栏 + 机制 A/B 双轨。
-     */
-    public FeedShuffleResponse getProjectFeedShuffleResponse(Long userId,
+    public FeedShuffleResponse getProjectFeedShuffleResponse(String userUid,
                                                              String category,
                                                              Long seed,
                                                              int page,
                                                              int size) {
         String normalizedCategory = normalizeProjectCategory(category);
-        long effectiveUserId = userId == null ? 0L : userId;
+        String effectiveUserUid = normalizeUserUid(userUid);
         int safeSize = normalizeShuffleSize(size, ZONE_FEED_DEFAULT_LIMIT);
         long total = countPublicProjects(normalizedCategory);
 
@@ -202,26 +187,23 @@ public class FeedRecommendationService {
             long safeSeed = sanitizeRandSeed(seed);
             PageWindow window = resolvePageWindow(page, safeSize, total);
             List<ContentVO> items = buildProjectFeedRandomPage(
-                    effectiveUserId, normalizedCategory, safeSeed, window.page(), safeSize);
+                    effectiveUserUid, normalizedCategory, safeSeed, window.page(), safeSize);
             return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_RANDOM_SEED, safeSeed);
         }
 
         PageWindow window = resolvePageWindow(page, safeSize, total);
         List<ContentVO> items = feedShuffleCacheService.getProjectFeedCachedPage(
-                effectiveUserId, normalizedCategory, window.page(), safeSize);
+                effectiveUserUid, normalizedCategory, window.page(), safeSize);
         return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_CACHE_PAGE, null);
     }
 
-    /**
-     * 笔记专区「换一换」：{@code noteType} 严格分栏 + 机制 A/B 双轨。
-     */
-    public FeedShuffleResponse getNoteFeedShuffleResponse(Long userId,
+    public FeedShuffleResponse getNoteFeedShuffleResponse(String userUid,
                                                           String noteType,
                                                           Long seed,
                                                           int page,
                                                           int size) {
         String normalizedNoteType = normalizeNoteType(noteType);
-        long effectiveUserId = userId == null ? 0L : userId;
+        String effectiveUserUid = normalizeUserUid(userUid);
         int safeSize = normalizeShuffleSize(size, ZONE_FEED_DEFAULT_LIMIT);
         long total = countPublishedNotes(normalizedNoteType);
 
@@ -229,51 +211,40 @@ public class FeedRecommendationService {
             long safeSeed = sanitizeRandSeed(seed);
             PageWindow window = resolvePageWindow(page, safeSize, total);
             List<ContentVO> items = buildNoteFeedRandomPage(
-                    effectiveUserId, normalizedNoteType, safeSeed, window.page(), safeSize);
+                    effectiveUserUid, normalizedNoteType, safeSeed, window.page(), safeSize);
             return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_RANDOM_SEED, safeSeed);
         }
 
         PageWindow window = resolvePageWindow(page, safeSize, total);
         List<ContentVO> items = feedShuffleCacheService.getNoteFeedCachedPage(
-                effectiveUserId, normalizedNoteType, window.page(), safeSize);
+                effectiveUserUid, normalizedNoteType, window.page(), safeSize);
         return toShuffleResponse(items, window, safeSize, total, SHUFFLE_MODE_CACHE_PAGE, null);
     }
 
-    /**
-     * 机制 A 首页分页切片（由 {@link FeedShuffleCacheService} 代理并挂载 {@code @Cacheable}）。
-     */
-    public List<ContentVO> buildHomeFeedCachedPage(long userId, int page, int size) {
-        Map<String, Double> tagWeights = loadUserTagWeights(userId);
+    public List<ContentVO> buildHomeFeedCachedPage(String userUid, int page, int size) {
+        Map<String, Double> tagWeights = loadUserTagWeights(userUid);
         List<ContentVO> pool = buildHomeFeedRankedPool(tagWeights);
         return slicePage(pool, page, size);
     }
 
-    /** 机制 A 项目专区分页切片。 */
-    public List<ContentVO> buildProjectFeedCachedPage(long userId, String category, int page, int size) {
-        Map<String, Double> tagWeights = loadUserTagWeights(userId);
+    public List<ContentVO> buildProjectFeedCachedPage(String userUid, String category, int page, int size) {
+        Map<String, Double> tagWeights = loadUserTagWeights(userUid);
         List<ContentVO> pool = buildProjectFeedRankedPool(category, tagWeights);
         return slicePage(pool, page, size);
     }
 
-    /** 机制 A 笔记专区分页切片。 */
-    public List<ContentVO> buildNoteFeedCachedPage(long userId, String noteType, int page, int size) {
-        Map<String, Double> tagWeights = loadUserTagWeights(userId);
+    public List<ContentVO> buildNoteFeedCachedPage(String userUid, String noteType, int page, int size) {
+        Map<String, Double> tagWeights = loadUserTagWeights(userUid);
         List<ContentVO> pool = buildNoteFeedRankedPool(noteType, tagWeights);
         return slicePage(pool, page, size);
     }
 
-    /**
-     * 项目专区推送：按 {@code category} 严格筛选，商业/非商业互不混入。
-     * <p>
-     * {@code category=COMMERCIAL} 商业项目；{@code category=RECRUITMENT} 非商业（招募与实践）项目。
-     * </p>
-     */
-    @Cacheable(value = "project_feed", key = "#userId + ':' + #category + ':' + #limit")
-    public List<ContentVO> getProjectFeed(Long userId, String category, int limit) {
+    @Cacheable(value = "project_feed", key = "#userUid + ':' + #category + ':' + #limit")
+    public List<ContentVO> getProjectFeed(String userUid, String category, int limit) {
         String normalizedCategory = normalizeProjectCategory(category);
         int safeLimit = normalizeFeedLimit(limit, ZONE_FEED_DEFAULT_LIMIT);
-        long effectiveUserId = userId == null ? 0L : userId;
-        Map<String, Double> tagWeights = loadUserTagWeights(effectiveUserId);
+        String effectiveUserUid = normalizeUserUid(userUid);
+        Map<String, Double> tagWeights = loadUserTagWeights(effectiveUserUid);
 
         List<ContentVO> projects = scoreProjects(
                 loadPublicProjects(HOME_CANDIDATE_LIMIT, normalizedCategory), tagWeights).stream()
@@ -282,23 +253,17 @@ public class FeedRecommendationService {
                 .map(ScoredContent::vo)
                 .collect(Collectors.toList());
 
-        log.debug("Project feed computed: userId={}, category={}, size={}",
-                effectiveUserId, normalizedCategory, projects.size());
+        log.debug("Project feed computed: userUid={}, category={}, size={}",
+                effectiveUserUid, normalizedCategory, projects.size());
         return projects;
     }
 
-    /**
-     * 笔记专区推送：按 {@code noteType} 严格筛选，图文/视频互不混入。
-     * <p>
-     * {@code noteType=IMAGE_TEXT} 图文笔记；{@code noteType=VIDEO} 视频笔记。
-     * </p>
-     */
-    @Cacheable(value = "note_feed", key = "#userId + ':' + #noteType + ':' + #limit")
-    public List<ContentVO> getNoteFeed(Long userId, String noteType, int limit) {
+    @Cacheable(value = "note_feed", key = "#userUid + ':' + #noteType + ':' + #limit")
+    public List<ContentVO> getNoteFeed(String userUid, String noteType, int limit) {
         String normalizedNoteType = normalizeNoteType(noteType);
         int safeLimit = normalizeFeedLimit(limit, ZONE_FEED_DEFAULT_LIMIT);
-        long effectiveUserId = userId == null ? 0L : userId;
-        Map<String, Double> tagWeights = loadUserTagWeights(effectiveUserId);
+        String effectiveUserUid = normalizeUserUid(userUid);
+        Map<String, Double> tagWeights = loadUserTagWeights(effectiveUserUid);
 
         List<ContentVO> notes = scoreNotes(
                 loadPublishedNotes(HOME_CANDIDATE_LIMIT, normalizedNoteType), tagWeights).stream()
@@ -307,8 +272,8 @@ public class FeedRecommendationService {
                 .map(ScoredContent::vo)
                 .collect(Collectors.toList());
 
-        log.debug("Note feed computed: userId={}, noteType={}, size={}",
-                effectiveUserId, normalizedNoteType, notes.size());
+        log.debug("Note feed computed: userUid={}, noteType={}, size={}",
+                effectiveUserUid, normalizedNoteType, notes.size());
         return notes;
     }
 
@@ -359,12 +324,12 @@ public class FeedRecommendationService {
                 .collect(Collectors.toList());
     }
 
-    private Map<String, Double> loadUserTagWeights(Long userId) {
-        if (userId == null || userId <= 0) {
+    private Map<String, Double> loadUserTagWeights(String userUid) {
+        if (userUid == null || userUid.isBlank() || ANONYMOUS_USER.equals(userUid)) {
             return Map.of();
         }
         LambdaQueryWrapper<UserTagInterest> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserTagInterest::getUserId, userId)
+        wrapper.eq(UserTagInterest::getUserUid, userUid)
                 .orderByDesc(UserTagInterest::getWeight)
                 .last("LIMIT 50");
         List<UserTagInterest> interests = userTagInterestMapper.selectList(wrapper);
@@ -375,6 +340,13 @@ public class FeedRecommendationService {
             }
         }
         return weights;
+    }
+
+    private String normalizeUserUid(String userUid) {
+        if (userUid == null || userUid.isBlank()) {
+            return ANONYMOUS_USER;
+        }
+        return userUid.trim();
     }
 
     private List<ClientNote> loadPublishedNotes(int limit) {
@@ -581,7 +553,7 @@ public class FeedRecommendationService {
     /**
      * 机制 B：拉取候选后在 Java 层跨类型混排（与首页 shuffle 一致，避免 MySQL {@code RAND(seed)} 排序失效）。
      */
-    private List<ContentVO> buildHomeFeedRandomPage(long userId, long seed, int page, int size) {
+    private List<ContentVO> buildHomeFeedRandomPage(String userUid, long seed, int page, int size) {
         List<ClientNote> notes = loadPublishedNotes(HOME_CANDIDATE_LIMIT, null);
         List<ClientProject> projects = loadPublicProjects(HOME_CANDIDATE_LIMIT, null);
         List<ContentVO> pool = new ArrayList<>(notes.size() + projects.size());
@@ -595,7 +567,7 @@ public class FeedRecommendationService {
         return slicePage(pool, page, size);
     }
 
-    private List<ContentVO> buildProjectFeedRandomPage(long userId,
+    private List<ContentVO> buildProjectFeedRandomPage(String userUid,
                                                        String category,
                                                        long seed,
                                                        int page,
@@ -607,7 +579,7 @@ public class FeedRecommendationService {
         return slicePage(pool, page, size);
     }
 
-    private List<ContentVO> buildNoteFeedRandomPage(long userId,
+    private List<ContentVO> buildNoteFeedRandomPage(String userUid,
                                                     String noteType,
                                                     long seed,
                                                     int page,

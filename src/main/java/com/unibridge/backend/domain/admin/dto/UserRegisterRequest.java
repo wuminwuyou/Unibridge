@@ -1,4 +1,4 @@
-package com.unibridge.backend.domain.legacy.dto;
+package com.unibridge.backend.domain.admin.dto;
 
 import lombok.Data;
 

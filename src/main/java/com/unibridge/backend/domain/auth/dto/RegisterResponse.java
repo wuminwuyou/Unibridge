@@ -7,7 +7,7 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class RegisterResponse {
-    private Long userId;
+    private String userUid;
     private String userRole;
     private String authStatus;
     private Boolean needVerificationGuide;

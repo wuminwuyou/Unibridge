@@ -18,12 +18,15 @@ public class ClientProject {
     /** 对外公开 UID（PR+11 位）；API 仅暴露此字段 */
     @TableField("project_uid")
     private String projectUid;
+    /** 代发归属：entity_code（企业/学校）或 team_uid（实验室/学生团队） */
+    @TableField("extended_uid")
+    private String extendedUid;
     private String category;
     private String recruitmentType;
-    @TableField("owner_id")
-    private Long ownerId;
-    @TableField("team_id")
-    private Long teamId;
+    @TableField("owner_uid")
+    private String ownerUid;
+    @TableField("team_uid")
+    private String teamUid;
     private String title;
     private String preview;
     /** 编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前默认 MARKDOWN） */

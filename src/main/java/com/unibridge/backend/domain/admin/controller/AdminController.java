@@ -3,18 +3,34 @@ package com.unibridge.backend.domain.admin.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.unibridge.backend.domain.admin.dto.EntityCreateRequest;
+import com.unibridge.backend.domain.admin.dto.UserRegisterRequest;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.unibridge.backend.infrastructure.common.Result;
-import com.unibridge.backend.domain.legacy.dto.EntityCreateRequest;
-import com.unibridge.backend.domain.legacy.dto.UserRegisterRequest;
 import com.unibridge.backend.infrastructure.entities.Entity;
 import com.unibridge.backend.infrastructure.entities.UserProfile;
 import com.unibridge.backend.infrastructure.persistence.mapper.EntityMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.UserProfileMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
+import static com.unibridge.backend.infrastructure.config.OpenApiConfig.BEARER_AUTH;
+
+@Tag(name = "Admin - 主体与用户", description = "管理后台主体/用户 CRUD（需 Admin JWT）")
 @RestController
 @RequestMapping("/api/v1/admin")
 public class AdminController {
@@ -50,13 +66,17 @@ public class AdminController {
         }
     }
 
+    @Operation(summary = "主体列表", security = @SecurityRequirement(name = BEARER_AUTH))
     @GetMapping("/entities/list")
-    public Result getEntitiesList(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                  @RequestParam(required = false) String type,
-                                  @RequestParam(required = false) String auditStatus,
-                                  @RequestParam(required = false) String q,
-                                  @RequestParam(defaultValue = "1") Integer page,
-                                  @RequestParam(defaultValue = "20") Integer pageSize) {
+    public Result getEntitiesList(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Parameter(description = "UNIVERSITY | ENTERPRISE")
+            @RequestParam(required = false) String type,
+            @Parameter(description = "PENDING | APPROVED | REJECTED")
+            @RequestParam(required = false) String auditStatus,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
@@ -77,9 +97,11 @@ public class AdminController {
         return Result.success(result);
     }
 
+    @Operation(summary = "主体详情", security = @SecurityRequirement(name = BEARER_AUTH))
     @GetMapping("/entities/{id}")
-    public Result getEntityDetail(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                  @PathVariable Long id) {
+    public Result getEntityDetail(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
@@ -90,9 +112,11 @@ public class AdminController {
         return Result.success(entity);
     }
 
+    @Operation(summary = "创建主体", description = "需 authLevel ≥ 2", security = @SecurityRequirement(name = BEARER_AUTH))
     @PostMapping("/entities")
-    public Result createEntity(@RequestHeader(value = "Authorization", required = false) String authorization,
-                               @RequestBody EntityCreateRequest request) {
+    public Result createEntity(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody EntityCreateRequest request) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
@@ -107,10 +131,12 @@ public class AdminController {
         return Result.success("创建成功", entity);
     }
 
+    @Operation(summary = "更新主体", security = @SecurityRequirement(name = BEARER_AUTH))
     @PutMapping("/entities/{id}")
-    public Result updateEntity(@RequestHeader(value = "Authorization", required = false) String authorization,
-                               @PathVariable Long id,
-                               @RequestBody EntityCreateRequest request) {
+    public Result updateEntity(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id,
+            @RequestBody EntityCreateRequest request) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
@@ -126,9 +152,11 @@ public class AdminController {
         return Result.success("更新成功", entity);
     }
 
+    @Operation(summary = "删除主体", security = @SecurityRequirement(name = BEARER_AUTH))
     @DeleteMapping("/entities/{id}")
-    public Result deleteEntity(@RequestHeader(value = "Authorization", required = false) String authorization,
-                               @PathVariable Long id) {
+    public Result deleteEntity(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
@@ -141,13 +169,15 @@ public class AdminController {
         return Result.success("删除成功", null);
     }
 
+    @Operation(summary = "用户列表", security = @SecurityRequirement(name = BEARER_AUTH))
     @GetMapping("/users/list")
-    public Result getUsersList(@RequestHeader(value = "Authorization", required = false) String authorization,
-                               @RequestParam(required = false) String q,
-                               @RequestParam(defaultValue = "1") Integer page,
-                               @RequestParam(defaultValue = "20") Integer pageSize,
-                               @RequestParam(required = false) String sort,
-                               @RequestParam(required = false) String order) {
+    public Result getUsersList(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String order) {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
@@ -172,9 +202,11 @@ public class AdminController {
         return Result.success(result);
     }
 
+    @Operation(summary = "用户详情", security = @SecurityRequirement(name = BEARER_AUTH))
     @GetMapping("/users/{id}")
-    public Result getUserDetail(@RequestHeader(value = "Authorization", required = false) String authorization,
-                                @PathVariable Long id) {
+    public Result getUserDetail(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
@@ -185,9 +217,11 @@ public class AdminController {
         return Result.success(userProfile);
     }
 
+    @Operation(summary = "创建用户", security = @SecurityRequirement(name = BEARER_AUTH))
     @PostMapping("/users")
-    public Result createUser(@RequestHeader(value = "Authorization", required = false) String authorization,
-                             @RequestBody UserRegisterRequest request) {
+    public Result createUser(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody UserRegisterRequest request) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
@@ -207,10 +241,12 @@ public class AdminController {
         return Result.success("创建成功", userProfile);
     }
 
+    @Operation(summary = "更新用户", security = @SecurityRequirement(name = BEARER_AUTH))
     @PutMapping("/users/{id}")
-    public Result updateUser(@RequestHeader(value = "Authorization", required = false) String authorization,
-                             @PathVariable Long id,
-                             @RequestBody UserRegisterRequest request) {
+    public Result updateUser(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id,
+            @RequestBody UserRegisterRequest request) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
@@ -227,9 +263,11 @@ public class AdminController {
         return Result.success("更新成功", userProfile);
     }
 
+    @Operation(summary = "删除用户", security = @SecurityRequirement(name = BEARER_AUTH))
     @DeleteMapping("/users/{id}")
-    public Result deleteUser(@RequestHeader(value = "Authorization", required = false) String authorization,
-                             @PathVariable Long id) {
+    public Result deleteUser(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 

@@ -72,11 +72,11 @@ public class NoteService {
     @CacheEvict(value = {"home_feed", "similar_notes", "project_feed", "note_feed"}, allEntries = true,
             condition = "#request.publishAction == 'PUBLISH'")
     public PublishNoteResponse createNote(String authorization, PublishNoteRequest request) {
-        Long userId = clientAccessService.requireCurrentUserId(authorization);
+        String userUid = clientAccessService.requireCurrentUserUid(authorization);
         validateRequest(request, null);
 
         ClientNote note = new ClientNote();
-        note.setUserId(userId);
+        note.setUserUid(userUid);
         note.setContentTypeCode(generateContentTypeCode(request.getContentType()));
         applyRequestToNote(note, request, null);
         clientNoteMapper.insert(note);
@@ -89,8 +89,8 @@ public class NoteService {
     @CacheEvict(value = {"home_feed", "similar_notes", "project_feed", "note_feed"}, allEntries = true,
             condition = "#request.publishAction == 'PUBLISH'")
     public PublishNoteResponse updateNote(String authorization, String noteUid, PublishNoteRequest request) {
-        Long userId = clientAccessService.requireCurrentUserId(authorization);
-        ClientNote note = requireOwnedNote(noteUid, userId);
+        String userUid = clientAccessService.requireCurrentUserUid(authorization);
+        ClientNote note = requireOwnedNote(noteUid, userUid);
 
         validateRequest(request, note);
         assertContentTypeImmutable(note, request.getContentType());
@@ -103,8 +103,8 @@ public class NoteService {
     }
 
     public PublishNoteDraftResponse getNoteDraft(String authorization, String noteUid) {
-        Long userId = clientAccessService.requireCurrentUserId(authorization);
-        ClientNote note = requireOwnedNote(noteUid, userId);
+        String userUid = clientAccessService.requireCurrentUserUid(authorization);
+        ClientNote note = requireOwnedNote(noteUid, userUid);
 
         return PublishNoteDraftResponse.builder()
                 .uid(note.getContentTypeCode())
@@ -136,10 +136,10 @@ public class NoteService {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
 
-        Long currentUserId = clientAccessService.resolveOptionalCurrentUserId(authorization);
-        assertNoteReadable(note, currentUserId);
+        String currentUserUid = clientAccessService.resolveOptionalCurrentUserUid(authorization);
+        assertNoteReadable(note, currentUserUid);
 
-        if (tryIncrementViewCount(note, currentUserId, request)) {
+        if (tryIncrementViewCount(note, currentUserUid, request)) {
             note = clientNoteMapper.selectById(note.getId());
         }
 
@@ -147,7 +147,7 @@ public class NoteService {
     }
 
     private NoteDetailResponse buildNoteDetailResponse(ClientNote note) {
-        ClientUserProfile profile = loadUserProfile(note.getUserId());
+        ClientUserProfile profile = loadUserProfile(note.getUserUid());
         LocalDateTime displayPublishTime = resolveDisplayTime(note.getPublishedAt(), note.getCreatedAt());
 
         return NoteDetailResponse.builder()
@@ -161,7 +161,7 @@ public class NoteService {
                 .coverUrl(note.getCoverUrl())
                 .videoUrl(note.getVideoUrl())
                 .videoDuration(note.getVideoDuration())
-                .author(buildAuthor(profile, note.getUserId()))
+                .author(buildAuthor(profile, note.getUserUid()))
                 .publishTime(formatOffsetDateTime(displayPublishTime))
                 .updateTime(formatOffsetDateTime(note.getUpdatedAt()))
                 .views(note.getViewCount() == null ? 0 : note.getViewCount())
@@ -171,17 +171,17 @@ public class NoteService {
                 .build();
     }
 
-    private void assertNoteReadable(ClientNote note, Long currentUserId) {
+    private void assertNoteReadable(ClientNote note, String currentUserUid) {
         if (STATUS_PUBLISHED.equals(note.getStatus())) {
             return;
         }
         if (!STATUS_DRAFT.equals(note.getStatus())) {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
-        if (currentUserId == null) {
+        if (currentUserUid == null) {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
-        if (!currentUserId.equals(note.getUserId())) {
+        if (!currentUserUid.equals(note.getUserUid())) {
             throw new BusinessException(403, "NOTE_NOT_OWNER");
         }
     }
@@ -191,14 +191,14 @@ public class NoteService {
      *
      * @return 是否已执行 +1（便于调用方决定是否重新加载 note）
      */
-    private boolean tryIncrementViewCount(ClientNote note, Long currentUserId, HttpServletRequest request) {
+    private boolean tryIncrementViewCount(ClientNote note, String currentUserUid, HttpServletRequest request) {
         if (!STATUS_PUBLISHED.equals(note.getStatus())) {
             return false;
         }
-        if (currentUserId != null && currentUserId.equals(note.getUserId())) {
+        if (currentUserUid != null && currentUserUid.equals(note.getUserUid())) {
             return false;
         }
-        String viewerKey = resolveViewerKey(currentUserId, request);
+        String viewerKey = resolveViewerKey(currentUserUid, request);
         if (!noteViewTracker.shouldCountView(viewerKey, note.getId())) {
             return false;
         }
@@ -206,9 +206,9 @@ public class NoteService {
         return true;
     }
 
-    private String resolveViewerKey(Long currentUserId, HttpServletRequest request) {
-        if (currentUserId != null) {
-            return "u:" + currentUserId;
+    private String resolveViewerKey(String currentUserUid, HttpServletRequest request) {
+        if (currentUserUid != null) {
+            return "u:" + currentUserUid;
         }
         return "ip:" + IpUtil.resolveClientIp(request);
     }
@@ -224,13 +224,13 @@ public class NoteService {
         clientNoteMapper.updateById(update);
     }
 
-    private ClientUserProfile loadUserProfile(Long userId) {
+    private ClientUserProfile loadUserProfile(String userUid) {
         LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUserProfile::getUserId, userId).last("LIMIT 1");
+        wrapper.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
         return clientUserProfileMapper.selectOne(wrapper);
     }
 
-    private NoteDetailResponse.Author buildAuthor(ClientUserProfile profile, Long userId) {
+    private NoteDetailResponse.Author buildAuthor(ClientUserProfile profile, String userUid) {
         String name = "用户";
         if (profile != null && StringUtils.hasText(profile.getNickName())) {
             name = profile.getNickName().trim();
@@ -240,12 +240,12 @@ public class NoteService {
 
         return NoteDetailResponse.Author.builder()
                 .name(name)
-                .handle(buildAuthorHandle(profile, userId))
+                .handle(buildAuthorHandle(profile, userUid))
                 .avatarUrl(profile == null ? null : profile.getAvatarUrl())
                 .build();
     }
 
-    private String buildAuthorHandle(ClientUserProfile profile, Long userId) {
+    private String buildAuthorHandle(ClientUserProfile profile, String userUid) {
         if (profile != null && StringUtils.hasText(profile.getNickName())) {
             String slug = profile.getNickName().trim()
                     .replaceAll("\\s+", "")
@@ -254,7 +254,7 @@ public class NoteService {
                 return slug;
             }
         }
-        return "user_" + userId;
+        return userUid.toLowerCase(Locale.ROOT);
     }
 
     private LocalDateTime resolveDisplayTime(LocalDateTime publishedAt, LocalDateTime createdAt) {
@@ -265,9 +265,9 @@ public class NoteService {
         return StringUtils.hasText(editorType) ? editorType : EDITOR_TYPE_MARKDOWN;
     }
 
-    private ClientNote requireOwnedNote(String noteUid, Long userId) {
+    private ClientNote requireOwnedNote(String noteUid, String userUid) {
         ClientNote note = contentUidResolver.requireNoteByUid(noteUid);
-        if (!userId.equals(note.getUserId())) {
+        if (!userUid.equals(note.getUserUid())) {
             throw new BusinessException(403, "NOTE_NOT_OWNER");
         }
         return note;

@@ -28,15 +28,15 @@ public class NoteAuthorResolver {
         this.clientUserProfileMapper = clientUserProfileMapper;
     }
 
-    public NoteAuthorContext resolve(Long userId) {
-        if (userId == null) {
+    public NoteAuthorContext resolve(String userUid) {
+        if (userUid == null || userUid.isBlank()) {
             return NoteAuthorContext.empty();
         }
 
-        ClientUserProfile profile = loadUserProfile(userId);
+        ClientUserProfile profile = loadUserProfile(userUid);
         String authorNickName = resolveAuthorNickName(profile);
         String authorAvatar = profile != null ? trimToNull(profile.getAvatarUrl()) : null;
-        String authorOrganization = resolveOrganization(userId, profile);
+        String authorOrganization = resolveOrganization(userUid, profile);
         return new NoteAuthorContext(authorNickName, authorOrganization, authorAvatar);
     }
 
@@ -47,10 +47,10 @@ public class NoteAuthorResolver {
         return "用户";
     }
 
-    private String resolveOrganization(Long userId, ClientUserProfile profile) {
-        UserAuthLink authLink = loadActiveAuthLink(userId);
-        if (authLink != null && authLink.getEntityId() != null) {
-            ClientEntityProfile entityProfile = loadEntityProfile(authLink.getEntityId());
+    private String resolveOrganization(String userUid, ClientUserProfile profile) {
+        UserAuthLink authLink = loadActiveAuthLink(userUid);
+        if (authLink != null && authLink.getEntityCode() != null) {
+            ClientEntityProfile entityProfile = loadEntityProfile(authLink.getEntityCode());
             if (entityProfile != null && StringUtils.hasText(entityProfile.getName())) {
                 return entityProfile.getName().trim();
             }
@@ -61,24 +61,24 @@ public class NoteAuthorResolver {
         return "";
     }
 
-    private UserAuthLink loadActiveAuthLink(Long userId) {
+    private UserAuthLink loadActiveAuthLink(String userUid) {
         LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserId, userId)
+        wrapper.eq(UserAuthLink::getUserUid, userUid)
                 .eq(UserAuthLink::getIsActive, 1)
                 .orderByDesc(UserAuthLink::getUpdatedAt)
                 .last("LIMIT 1");
         return userAuthLinkMapper.selectOne(wrapper);
     }
 
-    private ClientEntityProfile loadEntityProfile(Long entityId) {
+    private ClientEntityProfile loadEntityProfile(String entityCode) {
         LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientEntityProfile::getEntityId, entityId).last("LIMIT 1");
+        wrapper.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
         return clientEntityProfileMapper.selectOne(wrapper);
     }
 
-    private ClientUserProfile loadUserProfile(Long userId) {
+    private ClientUserProfile loadUserProfile(String userUid) {
         LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUserProfile::getUserId, userId).last("LIMIT 1");
+        wrapper.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
         return clientUserProfileMapper.selectOne(wrapper);
     }
 

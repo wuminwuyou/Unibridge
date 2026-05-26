@@ -14,11 +14,14 @@ import java.time.LocalDateTime;
 public class ClientNote {
     @TableId(type = IdType.AUTO)
     private Long id;
-    @TableField("user_id")
-    private Long userId;
+    @TableField("user_uid")
+    private String userUid;
     /** 内容类型编码：图文 TX+11位 | 视频 VD+11位 */
     @TableField("content_type_code")
     private String contentTypeCode;
+    /** 代发归属：entity_code 或 team_uid（联合投稿） */
+    @TableField("extended_uid")
+    private String extendedUid;
     private String title;
     private String summary;
     /** 编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前默认 MARKDOWN） */

@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class ProfileNotesResponse {
-    private Long userId;
+    private String userUid;
     private List<ProfileNoteItem> notes;
     private Long total;
     private Integer page;

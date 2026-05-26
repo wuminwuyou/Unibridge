@@ -49,7 +49,13 @@ public class JwtUtil {
     }
 
     public String getUserId(String token) {
-        return parseToken(token).get("userId", String.class);
+        Claims claims = parseToken(token);
+        Object userId = claims.get("userId");
+        if (userId != null) {
+            return String.valueOf(userId).trim();
+        }
+        String subject = claims.getSubject();
+        return subject == null ? null : subject.trim();
     }
 
     public String getUserType(String token) {

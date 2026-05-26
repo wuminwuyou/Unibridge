@@ -1,13 +1,15 @@
 package com.unibridge.backend.domain.project.dto;
 
 import com.unibridge.backend.infrastructure.security.xss.XssClean;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.List;
 
-/** 创建/更新项目请求体（POST /projects、PUT /projects/{id}）。 */
+@Schema(description = "创建/更新项目请求体")
 @Data
 public class PublishProjectRequest {
+    @Schema(description = "SAVE_DRAFT | PUBLISH")
     private String publishAction;
     @XssClean
     private String title;

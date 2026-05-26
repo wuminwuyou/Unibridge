@@ -2,10 +2,10 @@ package com.unibridge.backend.domain.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.unibridge.backend.domain.admin.dto.AdminLoginRequest;
+import com.unibridge.backend.domain.admin.dto.LoginResponse;
 import com.unibridge.backend.domain.admin.entity.SystemAdmin;
 import com.unibridge.backend.domain.admin.mapper.SystemAdminMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
-import com.unibridge.backend.domain.legacy.dto.LoginResponse;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

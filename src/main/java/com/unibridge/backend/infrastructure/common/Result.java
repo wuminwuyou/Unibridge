@@ -1,5 +1,6 @@
 package com.unibridge.backend.infrastructure.common;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -7,9 +8,13 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "统一 API 响应包装")
 public class Result {
+    @Schema(description = "HTTP 状态码", example = "200")
     private Integer code;
+    @Schema(description = "提示信息", example = "success")
     private String message;
+    @Schema(description = "业务数据载荷")
     private Object data;
 
     public static Result success(Object data) {

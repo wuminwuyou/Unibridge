@@ -1,14 +1,15 @@
 package com.unibridge.backend.domain.interaction.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/** PUT /interactions/like | /interactions/collect 请求。 */
+@Schema(description = "点赞/收藏同步请求")
 @Data
 public class ContentInteractionRequest {
-    /** NOTE | PROJECT */
+    @Schema(description = "NOTE | PROJECT")
     private String targetType;
-    /** 目标内容对外 UID */
+    @Schema(description = "目标内容对外 UID")
     private String targetUid;
-    /** true=点赞/收藏；false=取消 */
+    @Schema(description = "true=点赞/收藏；false=取消")
     private Boolean active;
 }

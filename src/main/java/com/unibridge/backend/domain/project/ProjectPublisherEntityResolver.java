@@ -12,9 +12,6 @@ import org.springframework.util.StringUtils;
 
 /**
  * 解析项目发布人（owner）所属主体信息，供项目卡片 Feed / 个人空间共用。
- * <p>
- * {@code coverUrl} 与 {@code logoSvgUrl} 均取自 {@code entity_profile.logo_url}（发布人当前活跃机构身份关联的主体）。
- * </p>
  */
 @Component
 public class ProjectPublisherEntityResolver {
@@ -31,55 +28,52 @@ public class ProjectPublisherEntityResolver {
         this.clientUserProfileMapper = clientUserProfileMapper;
     }
 
-    /**
-     * @param ownerId 项目 {@code project.owner_id}
-     */
-    public PublisherEntityContext resolve(Long ownerId) {
-        if (ownerId == null) {
+    public PublisherEntityContext resolve(String ownerUid) {
+        if (ownerUid == null || ownerUid.isBlank()) {
             return PublisherEntityContext.empty();
         }
 
-        UserAuthLink authLink = loadActiveAuthLink(ownerId);
-        if (authLink != null && authLink.getEntityId() != null) {
-            ClientEntityProfile entityProfile = loadEntityProfile(authLink.getEntityId());
+        UserAuthLink authLink = loadActiveAuthLink(ownerUid);
+        if (authLink != null && authLink.getEntityCode() != null) {
+            ClientEntityProfile entityProfile = loadEntityProfile(authLink.getEntityCode());
             if (entityProfile != null) {
                 String logoUrl = trimToNull(entityProfile.getLogoUrl());
                 String orgName = StringUtils.hasText(entityProfile.getName())
                         ? entityProfile.getName().trim()
-                        : fallbackOrganizationName(ownerId);
+                        : fallbackOrganizationName(ownerUid);
                 return new PublisherEntityContext(orgName, logoUrl, logoUrl);
             }
         }
 
-        return new PublisherEntityContext(fallbackOrganizationName(ownerId), null, null);
+        return new PublisherEntityContext(fallbackOrganizationName(ownerUid), null, null);
     }
 
-    private UserAuthLink loadActiveAuthLink(Long userId) {
+    private UserAuthLink loadActiveAuthLink(String userUid) {
         LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserId, userId)
+        wrapper.eq(UserAuthLink::getUserUid, userUid)
                 .eq(UserAuthLink::getIsActive, 1)
                 .orderByDesc(UserAuthLink::getUpdatedAt)
                 .last("LIMIT 1");
         return userAuthLinkMapper.selectOne(wrapper);
     }
 
-    private ClientEntityProfile loadEntityProfile(Long entityId) {
+    private ClientEntityProfile loadEntityProfile(String entityCode) {
         LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientEntityProfile::getEntityId, entityId).last("LIMIT 1");
+        wrapper.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
         return clientEntityProfileMapper.selectOne(wrapper);
     }
 
-    private String fallbackOrganizationName(Long ownerId) {
-        ClientUserProfile profile = loadUserProfile(ownerId);
+    private String fallbackOrganizationName(String ownerUid) {
+        ClientUserProfile profile = loadUserProfile(ownerUid);
         if (profile != null && StringUtils.hasText(profile.getCurrentEntityName())) {
             return profile.getCurrentEntityName().trim();
         }
         return "";
     }
 
-    private ClientUserProfile loadUserProfile(Long userId) {
+    private ClientUserProfile loadUserProfile(String userUid) {
         LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUserProfile::getUserId, userId).last("LIMIT 1");
+        wrapper.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
         return clientUserProfileMapper.selectOne(wrapper);
     }
 
@@ -90,11 +84,6 @@ public class ProjectPublisherEntityResolver {
         return value.trim();
     }
 
-    /**
-     * @param ownerOrganization 发布主体名称
-     * @param coverUrl          项目卡片封面（= 主体 {@code logo_url}）
-     * @param logoSvgUrl        主体 Logo（= 主体 {@code logo_url}，与 coverUrl 同源）
-     */
     public record PublisherEntityContext(String ownerOrganization, String coverUrl, String logoSvgUrl) {
         static PublisherEntityContext empty() {
             return new PublisherEntityContext("", null, null);

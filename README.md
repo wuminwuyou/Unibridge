@@ -53,7 +53,6 @@ src/main/java/com/unibridge/backend/
 | 模块 | 路径 | 说明 |
 | --- | --- | --- |
 | **管理端 admin** | `/api/v1/admin/**` | 主体/用户 CRUD、管理员登录 |
-| **遗留登录 legacy** | `/api/v1/user/login` 等 | 早期演示接口，已重命名为 `LegacyAuthController` 避免 Bean 冲突 |
 | **安全 / 媒体 / 配置** | `infrastructure.*` | XSS、上传安全、Cache、CORS、静态资源映射 |
 
 ---
@@ -207,20 +206,17 @@ src/main/java/com/unibridge/backend/
 │   │   ├── controller/                           # AdminAuthController、AdminController
 │   │   ├── service/AdminAuthService.java
 │   │   ├── entity/SystemAdmin.java
-│   │   ├── dto/AdminLoginRequest.java
+│   │   ├── dto/                                  # AdminLoginRequest、LoginResponse、EntityCreateRequest 等
 │   │   └── mapper/SystemAdminMapper.java         # 由 MapperScan 扫描
 │   │
-│   └── legacy/                                   # 早期 /api/v1 演示登录（与 auth 域隔离命名）
-│       ├── LegacyAuthController.java
-│       ├── LegacyAuthService.java
-│       └── dto/
+│   └── (已移除 legacy 演示登录 `/api/v1/user/login` 等旧接口)
 │
 └── infrastructure/                               # 【基础设施层】全局共享、与业务解耦
     │
     ├── entities/                                 # ORM 实体（统一存放，避免 domain 映射锁死）
     │   ├── ClientUser.java / ClientNote.java / ClientProject.java
     │   ├── UserTagInterest.java / UserContentInteraction.java
-    │   └── Entity.java / UserProfile.java        # legacy 管理端表
+    │   └── Entity.java / UserProfile.java        # 管理端 CRUD 用表
     │
     ├── persistence/mapper/                         # MyBatis Plus Mapper（主持久化）
     │   ├── ClientNoteMapper.java

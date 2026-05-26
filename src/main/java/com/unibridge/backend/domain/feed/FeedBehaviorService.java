@@ -39,7 +39,7 @@ public class FeedBehaviorService {
 
     @Transactional
     public void trackEvent(String authorization, FeedBehaviorEventRequest request) {
-        Long userId = clientAccessService.requireCurrentUserId(authorization);
+        String userUid = clientAccessService.requireCurrentUserUid(authorization);
         validateRequest(request);
 
         double delta = resolveWeightDelta(request.getEventType());
@@ -47,22 +47,22 @@ public class FeedBehaviorService {
             if (!StringUtils.hasText(tag)) {
                 continue;
             }
-            upsertTagWeight(userId, tag.trim(), delta);
+            upsertTagWeight(userUid, tag.trim(), delta);
         }
 
-        log.debug("Feed behavior tracked: userId={}, event={}, target={}/{}, tags={}",
-                userId, request.getEventType(), request.getTargetType(), request.getTargetUid(), request.getTags());
+        log.debug("Feed behavior tracked: userUid={}, event={}, target={}/{}, tags={}",
+                userUid, request.getEventType(), request.getTargetType(), request.getTargetUid(), request.getTags());
     }
 
-    private void upsertTagWeight(Long userId, String tag, double delta) {
+    private void upsertTagWeight(String userUid, String tag, double delta) {
         LambdaQueryWrapper<UserTagInterest> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserTagInterest::getUserId, userId)
+        wrapper.eq(UserTagInterest::getUserUid, userUid)
                 .eq(UserTagInterest::getTag, tag)
                 .last("LIMIT 1");
         UserTagInterest existing = userTagInterestMapper.selectOne(wrapper);
         if (existing == null) {
             UserTagInterest created = new UserTagInterest();
-            created.setUserId(userId);
+            created.setUserUid(userUid);
             created.setTag(tag);
             created.setWeight(BigDecimal.valueOf(delta));
             userTagInterestMapper.insert(created);

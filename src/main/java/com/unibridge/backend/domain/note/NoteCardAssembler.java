@@ -43,7 +43,7 @@ public class NoteCardAssembler {
     }
 
     public ContentVO toFeedNoteVo(ClientNote note, double score) {
-        NoteAuthorResolver.NoteAuthorContext author = noteAuthorResolver.resolve(note.getUserId());
+        NoteAuthorResolver.NoteAuthorContext author = noteAuthorResolver.resolve(note.getUserUid());
         LocalDateTime publishTime = resolvePublishTime(note.getPublishedAt(), note.getCreatedAt());
 
         return ContentVO.builder()
@@ -68,7 +68,7 @@ public class NoteCardAssembler {
     }
 
     public ProfileNoteItem toProfileNoteItem(ClientNote note) {
-        NoteAuthorResolver.NoteAuthorContext author = noteAuthorResolver.resolve(note.getUserId());
+        NoteAuthorResolver.NoteAuthorContext author = noteAuthorResolver.resolve(note.getUserUid());
         LocalDateTime publishTime = resolvePublishTime(note.getPublishedAt(), note.getCreatedAt());
 
         return ProfileNoteItem.builder()

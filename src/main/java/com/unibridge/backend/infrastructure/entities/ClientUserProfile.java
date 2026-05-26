@@ -16,8 +16,8 @@ import java.time.LocalDateTime;
 public class ClientUserProfile {
     @TableId(type = IdType.AUTO)
     private Long id;
-    @TableField("user_id")
-    private Long userId;
+    @TableField("user_uid")
+    private String userUid;
     @TableField("nick_name")
     private String nickName;
     @TableField("real_name")

@@ -8,7 +8,7 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 public class ProfileMenuResponse {
-    private Long userId;
+    private String userUid;
     private String nickname;
     private String level;
     private String avatarUrl;

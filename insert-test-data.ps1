@@ -46,21 +46,25 @@ Invoke-MySql -Arguments @(
     "-e", "source $sqlForMySql"
 )
 
-Write-Host "[2/3] Verifying row counts (expect 3 each)"
-$tables = @(
-    "entity",
-    "entity_profile",
-    "user",
-    "user_profile",
-    "user_auth_link",
-    "team",
-    "team_member",
-    "project",
-    "project_commercial_secret",
-    "note"
-)
+Write-Host "[2/3] Verifying row counts"
+$expectedCounts = @{
+    entity                     = 3
+    entity_profile             = 3
+    user                       = 3
+    user_profile               = 3
+    user_auth_link             = 3
+    team                       = 3
+    team_member                = 3
+    project                    = 3
+    project_commercial_secret  = 3
+    note                       = 10  # 10 条便于 Feed 换一换联调
+    sys_credit_profiles        = 3
+    sys_credit_logs            = 6
+}
 
-foreach ($table in $tables) {
+foreach ($entry in $expectedCounts.GetEnumerator() | Sort-Object Name) {
+    $table = $entry.Key
+    $expected = $entry.Value
     if ($table -eq "user") {
         $countSql = "SELECT COUNT(*) FROM ``user``;"
     } else {
@@ -70,9 +74,9 @@ foreach ($table in $tables) {
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to query row count for $table."
     }
-    Write-Host ("  {0,-28} {1}" -f $table, $count)
-    if ([int]$count -ne 3) {
-        throw "Expected 3 rows in $table, got $count."
+    Write-Host ("  {0,-28} {1} (expected {2})" -f $table, $count, $expected)
+    if ([int]$count -ne $expected) {
+        throw "Expected $expected rows in $table, got $count."
     }
 }
 

@@ -7,7 +7,7 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class LoginResponse {
-    private Long userId;
+    private String userUid;
     private String userRole;
     private String authStatus;
     private String accessToken;

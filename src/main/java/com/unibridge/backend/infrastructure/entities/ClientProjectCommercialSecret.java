@@ -12,8 +12,8 @@ import java.time.LocalDateTime;
 @Data
 @TableName("project_commercial_secret")
 public class ClientProjectCommercialSecret {
-    @TableId("project_id")
-    private Long projectId;
+    @TableId("project_uid")
+    private String projectUid;
     @TableField("total_budget")
     private BigDecimal totalBudget;
     @TableField("commercial_status")
