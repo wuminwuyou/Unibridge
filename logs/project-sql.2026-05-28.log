@@ -1,0 +1,663 @@
+2026-05-28 00:20:50.416 [http-nio-8081-exec-10] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/space
+2026-05-28 00:20:50.417 [http-nio-8081-exec-2] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/space
+2026-05-28 00:20:50.537 [http-nio-8081-exec-2] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/user-profile/space?uid=USzrFBKQxd5Iq -> 200 (183 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:50.537 [http-nio-8081-exec-10] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/user-profile/space?uid=USzrFBKQxd5Iq -> 200 (182 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:50.577 [http-nio-8081-exec-4] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/space
+2026-05-28 00:20:50.811 [http-nio-8081-exec-4] WARN  c.u.b.i.c.GlobalExceptionHandler - [BIZ] GET /api/v1/client/user-profile/space -> 401 | type=com.unibridge.backend.infrastructure.common.BusinessException | detail=ACCESS_TOKEN_EXPIRED
+com.unibridge.backend.infrastructure.common.BusinessException: ACCESS_TOKEN_EXPIRED
+	at com.unibridge.backend.infrastructure.common.BusinessException.unauthorized(BusinessException.java:25)
+	at com.unibridge.backend.domain.auth.AccessService.requireCurrentUserUid(AccessService.java:44)
+	at com.unibridge.backend.domain.auth.AccessService.resolveProfileView(AccessService.java:68)
+	at com.unibridge.backend.domain.space.SpaceService.getProfileSpace(SpaceService.java:150)
+	at com.unibridge.backend.domain.space.SpaceController.getProfileSpace(SpaceController.java:43)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:191)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:991)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:896)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at com.unibridge.backend.infrastructure.security.upload.UploadSecurityHeadersFilter.doFilterInternal(UploadSecurityHeadersFilter.java:40)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at com.unibridge.backend.infrastructure.config.ApiRequestLoggingFilter.doFilterInternal(ApiRequestLoggingFilter.java:26)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:88)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:492)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:113)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:83)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:72)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:342)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:399)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1775)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:973)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:491)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+2026-05-28 00:20:50.957 [http-nio-8081-exec-4] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/space?uid=USzrFBKQxd5Iq -> 401 (385 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:50.964 [http-nio-8081-exec-4] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/space
+2026-05-28 00:20:50.985 [http-nio-8081-exec-9] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/auth/refresh
+2026-05-28 00:20:50.985 [http-nio-8081-exec-9] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/auth/refresh -> 200 (3 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:50.991 [http-nio-8081-exec-4] WARN  c.u.b.i.c.GlobalExceptionHandler - [BIZ] GET /api/v1/client/user-profile/space -> 401 | type=com.unibridge.backend.infrastructure.common.BusinessException | detail=ACCESS_TOKEN_EXPIRED
+com.unibridge.backend.infrastructure.common.BusinessException: ACCESS_TOKEN_EXPIRED
+	at com.unibridge.backend.infrastructure.common.BusinessException.unauthorized(BusinessException.java:25)
+	at com.unibridge.backend.domain.auth.AccessService.requireCurrentUserUid(AccessService.java:44)
+	at com.unibridge.backend.domain.auth.AccessService.resolveProfileView(AccessService.java:68)
+	at com.unibridge.backend.domain.space.SpaceService.getProfileSpace(SpaceService.java:150)
+	at com.unibridge.backend.domain.space.SpaceController.getProfileSpace(SpaceController.java:43)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:191)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:991)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:896)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at com.unibridge.backend.infrastructure.security.upload.UploadSecurityHeadersFilter.doFilterInternal(UploadSecurityHeadersFilter.java:40)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at com.unibridge.backend.infrastructure.config.ApiRequestLoggingFilter.doFilterInternal(ApiRequestLoggingFilter.java:26)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:88)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:492)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:113)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:83)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:72)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:342)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:399)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1775)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:973)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:491)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+2026-05-28 00:20:50.998 [http-nio-8081-exec-7] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/auth/refresh
+2026-05-28 00:20:50.998 [http-nio-8081-exec-4] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/space?uid=USzrFBKQxd5Iq -> 401 (36 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:51.071 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.076 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@58e488e8] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.103 [http-nio-8081-exec-7] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@417876455 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.105 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:51.118 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.184 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:51.186 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@58e488e8]
+2026-05-28 00:20:51.205 [http-nio-8081-exec-7] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] POST /api/v1/client/auth/refresh -> 200 (210 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:51.219 [http-nio-8081-exec-6] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/space
+2026-05-28 00:20:51.229 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.229 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7a5b3287] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.230 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@428372520 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.230 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:51.230 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.233 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:51.234 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7a5b3287]
+2026-05-28 00:20:51.235 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.235 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6e60e5d0] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.236 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1301036433 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.236 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:51.237 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.246 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:51.247 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6e60e5d0]
+2026-05-28 00:20:51.252 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.252 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@46230108] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.253 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@797192825 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.253 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.U.selectList - ==>  Preparing: SELECT id,user_uid,entity_code,role,auth_serial_no,proof_artifact_url,audit_status,is_active,remark,created_at,updated_at FROM user_auth_link WHERE (user_uid = ? AND is_active = ?) ORDER BY updated_at DESC LIMIT 1
+2026-05-28 00:20:51.255 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.U.selectList - ==> Parameters: USzrFBKQxd5Iq(String), 1(Integer)
+2026-05-28 00:20:51.271 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.U.selectList - <==      Total: 0
+2026-05-28 00:20:51.272 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@46230108]
+2026-05-28 00:20:51.273 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.273 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6c119b21] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.275 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@853867754 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.275 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,user_uid,role,lab_user_uid,career,is_admin,invited_by_uid,joined_at FROM team_member WHERE (user_uid = ?)
+2026-05-28 00:20:51.276 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.279 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:51.279 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6c119b21]
+2026-05-28 00:20:51.280 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.280 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7864c78d] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.281 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@407671603 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.281 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,type,team_logo,owner_uid,owner_name,entity_code,team_name,tag,intro,announcement,contact_email,audit_status,audited_at,audit_remark,account_status,account_status_changed_at,account_status_remark,created_at,updated_at FROM team WHERE (owner_uid = ?)
+2026-05-28 00:20:51.281 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.286 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:51.286 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7864c78d]
+2026-05-28 00:20:51.291 [http-nio-8081-exec-6] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/space?uid=USzrFBKQxd5Iq -> 200 (73 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:51.295 [http-nio-8081-exec-3] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/space
+2026-05-28 00:20:51.303 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.303 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@2897c1e] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.304 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@868323192 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.304 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:51.305 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.307 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:51.307 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@2897c1e]
+2026-05-28 00:20:51.308 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.308 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7da7bda3] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.308 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@872892293 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.308 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:51.309 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.314 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:51.314 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7da7bda3]
+2026-05-28 00:20:51.315 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.315 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@55131185] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.316 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1529241549 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.316 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.U.selectList - ==>  Preparing: SELECT id,user_uid,entity_code,role,auth_serial_no,proof_artifact_url,audit_status,is_active,remark,created_at,updated_at FROM user_auth_link WHERE (user_uid = ? AND is_active = ?) ORDER BY updated_at DESC LIMIT 1
+2026-05-28 00:20:51.317 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.U.selectList - ==> Parameters: USzrFBKQxd5Iq(String), 1(Integer)
+2026-05-28 00:20:51.319 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.U.selectList - <==      Total: 0
+2026-05-28 00:20:51.319 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@55131185]
+2026-05-28 00:20:51.320 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.320 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1fb9cf50] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.320 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1382775323 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.321 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,user_uid,role,lab_user_uid,career,is_admin,invited_by_uid,joined_at FROM team_member WHERE (user_uid = ?)
+2026-05-28 00:20:51.321 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.323 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:51.323 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1fb9cf50]
+2026-05-28 00:20:51.323 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.323 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@20c7b543] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.324 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1901407556 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.324 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,type,team_logo,owner_uid,owner_name,entity_code,team_name,tag,intro,announcement,contact_email,audit_status,audited_at,audit_remark,account_status,account_status_changed_at,account_status_remark,created_at,updated_at FROM team WHERE (owner_uid = ?)
+2026-05-28 00:20:51.325 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.326 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:51.326 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@20c7b543]
+2026-05-28 00:20:51.328 [http-nio-8081-exec-3] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/space?uid=USzrFBKQxd5Iq -> 200 (34 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:51.406 [http-nio-8081-exec-5] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/home
+2026-05-28 00:20:51.406 [http-nio-8081-exec-5] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/user-profile/home?uid=USzrFBKQxd5Iq&projectLimit=3&noteLimit=4 -> 200 (1 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:51.413 [http-nio-8081-exec-8] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/home
+2026-05-28 00:20:51.431 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.431 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@501f006f] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.433 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1411797973 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.433 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:51.433 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.436 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:51.436 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@501f006f]
+2026-05-28 00:20:51.437 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.437 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6d92ec97] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.438 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1168545074 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.438 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:51.439 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.441 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:51.441 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6d92ec97]
+2026-05-28 00:20:51.442 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.442 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@48653001] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.444 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@854166478 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.445 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,project_uid,extended_uid,category,recruitment_type,owner_uid,team_uid,title,preview,editor_type,description,tags,duration,team_size,deadline,level,status,published_at,created_at,updated_at FROM project WHERE (owner_uid = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:20:51.445 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.451 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:51.452 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@48653001]
+2026-05-28 00:20:51.453 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.453 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@477b5516] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.454 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@959582668 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.454 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,content_type_code,extended_uid,title,summary,editor_type,content,cover_url,video_url,video_duration,tags,view_count,like_count,collect_count,comment_count,status,published_at,created_at,updated_at FROM note WHERE (user_uid = ? AND status = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:20:51.455 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String), PUBLISHED(String)
+2026-05-28 00:20:51.460 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:51.461 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@477b5516]
+2026-05-28 00:20:51.462 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.462 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6293db4a] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.462 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@984706916 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.462 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectCount - ==>  Preparing: SELECT COUNT( * ) AS total FROM project WHERE (owner_uid = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:20:51.463 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectCount - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:51.469 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectCount - <==      Total: 1
+2026-05-28 00:20:51.469 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6293db4a]
+2026-05-28 00:20:51.470 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:51.470 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@77cb05ec] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:51.470 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@201247188 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:51.471 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectCount - ==>  Preparing: SELECT COUNT( * ) AS total FROM note WHERE (user_uid = ? AND status = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:20:51.471 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectCount - ==> Parameters: USzrFBKQxd5Iq(String), PUBLISHED(String)
+2026-05-28 00:20:51.472 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectCount - <==      Total: 1
+2026-05-28 00:20:51.473 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@77cb05ec]
+2026-05-28 00:20:51.474 [http-nio-8081-exec-8] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/home?uid=USzrFBKQxd5Iq&projectLimit=3&noteLimit=4 -> 200 (62 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:54.847 [http-nio-8081-exec-10] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/feed/home
+2026-05-28 00:20:54.848 [http-nio-8081-exec-10] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/feed/home -> 200 (2 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:54.848 [http-nio-8081-exec-2] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/feed/home
+2026-05-28 00:20:54.848 [http-nio-8081-exec-2] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/feed/home -> 200 (1 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:54.859 [http-nio-8081-exec-1] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/feed/home
+2026-05-28 00:20:54.900 [http-nio-8081-exec-1] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/feed/home -> 200 (43 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:54.904 [http-nio-8081-exec-9] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/feed/home
+2026-05-28 00:20:54.914 [http-nio-8081-exec-9] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/feed/home -> 200 (11 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:58.734 [http-nio-8081-exec-7] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/space
+2026-05-28 00:20:58.734 [http-nio-8081-exec-4] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/menu
+2026-05-28 00:20:58.735 [http-nio-8081-exec-4] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/user-profile/menu?uid=USzrFBKQxd5Iq -> 200 (1 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:58.739 [http-nio-8081-exec-3] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/menu
+2026-05-28 00:20:58.740 [http-nio-8081-exec-6] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/menu
+2026-05-28 00:20:58.740 [http-nio-8081-exec-6] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/user-profile/menu?uid=USzrFBKQxd5Iq -> 200 (2 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:58.744 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.744 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@239c67a6] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.746 [http-nio-8081-exec-7] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1856969582 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.746 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:58.746 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.747 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.747 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@66d32afc] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.748 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:58.749 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@239c67a6]
+2026-05-28 00:20:58.750 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.750 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1d824d3c] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.751 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@534888342 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.751 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:58.752 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.753 [http-nio-8081-exec-7] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1258405060 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:20:58.753 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:58.753 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.757 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:58.760 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@66d32afc]
+2026-05-28 00:20:58.760 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.761 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6f0b1bf8] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.761 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1828807791 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.761 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:58.761 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:58.762 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1d824d3c]
+2026-05-28 00:20:58.762 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.763 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.763 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@37d5a64b] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.764 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:58.764 [http-nio-8081-exec-7] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@180056000 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:20:58.764 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.U.selectList - ==>  Preparing: SELECT id,user_uid,entity_code,role,auth_serial_no,proof_artifact_url,audit_status,is_active,remark,created_at,updated_at FROM user_auth_link WHERE (user_uid = ? AND is_active = ?) ORDER BY updated_at DESC LIMIT 1
+2026-05-28 00:20:58.764 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6f0b1bf8]
+2026-05-28 00:20:58.764 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.U.selectList - ==> Parameters: USzrFBKQxd5Iq(String), 1(Integer)
+2026-05-28 00:20:58.766 [http-nio-8081-exec-3] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/menu?uid=USzrFBKQxd5Iq -> 200 (28 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:58.769 [http-nio-8081-exec-5] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/menu
+2026-05-28 00:20:58.770 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.U.selectList - <==      Total: 0
+2026-05-28 00:20:58.771 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@37d5a64b]
+2026-05-28 00:20:58.772 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.772 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@4dac33c4] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.774 [http-nio-8081-exec-7] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1473328068 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:20:58.774 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,user_uid,role,lab_user_uid,career,is_admin,invited_by_uid,joined_at FROM team_member WHERE (user_uid = ?)
+2026-05-28 00:20:58.774 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.778 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:58.778 [http-nio-8081-exec-5] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.778 [http-nio-8081-exec-5] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@23636c0f] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.778 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@4dac33c4]
+2026-05-28 00:20:58.778 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.778 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@2f4ad33f] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.779 [http-nio-8081-exec-7] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@64288513 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:20:58.779 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,type,team_logo,owner_uid,owner_name,entity_code,team_name,tag,intro,announcement,contact_email,audit_status,audited_at,audit_remark,account_status,account_status_changed_at,account_status_remark,created_at,updated_at FROM team WHERE (owner_uid = ?)
+2026-05-28 00:20:58.780 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.780 [http-nio-8081-exec-5] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1257634505 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.780 [http-nio-8081-exec-5] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:58.780 [http-nio-8081-exec-5] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.782 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:58.782 [http-nio-8081-exec-5] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:58.782 [http-nio-8081-exec-5] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@23636c0f]
+2026-05-28 00:20:58.782 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@2f4ad33f]
+2026-05-28 00:20:58.783 [http-nio-8081-exec-5] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.783 [http-nio-8081-exec-5] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@780b819b] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.784 [http-nio-8081-exec-7] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/space?uid=USzrFBKQxd5Iq -> 200 (50 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:58.784 [http-nio-8081-exec-5] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@201102659 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.784 [http-nio-8081-exec-5] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:58.785 [http-nio-8081-exec-5] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.789 [http-nio-8081-exec-5] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:58.790 [http-nio-8081-exec-5] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@780b819b]
+2026-05-28 00:20:58.790 [http-nio-8081-exec-8] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/space
+2026-05-28 00:20:58.791 [http-nio-8081-exec-5] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/menu?uid=USzrFBKQxd5Iq -> 200 (23 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:58.798 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.798 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5587acee] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.799 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1985171210 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.799 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:58.799 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.802 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:58.802 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5587acee]
+2026-05-28 00:20:58.803 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.803 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3bf25d69] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.803 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1408923173 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.804 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:58.804 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.807 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:58.807 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3bf25d69]
+2026-05-28 00:20:58.808 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.808 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@70c67c74] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.809 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1509326352 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.809 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.U.selectList - ==>  Preparing: SELECT id,user_uid,entity_code,role,auth_serial_no,proof_artifact_url,audit_status,is_active,remark,created_at,updated_at FROM user_auth_link WHERE (user_uid = ? AND is_active = ?) ORDER BY updated_at DESC LIMIT 1
+2026-05-28 00:20:58.810 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.U.selectList - ==> Parameters: USzrFBKQxd5Iq(String), 1(Integer)
+2026-05-28 00:20:58.812 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.U.selectList - <==      Total: 0
+2026-05-28 00:20:58.812 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@70c67c74]
+2026-05-28 00:20:58.813 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.813 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@c17b40d] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.814 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1332825127 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.814 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,user_uid,role,lab_user_uid,career,is_admin,invited_by_uid,joined_at FROM team_member WHERE (user_uid = ?)
+2026-05-28 00:20:58.814 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.816 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:58.816 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@c17b40d]
+2026-05-28 00:20:58.816 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.816 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@17905e09] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.817 [http-nio-8081-exec-8] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@647374634 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.817 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,type,team_logo,owner_uid,owner_name,entity_code,team_name,tag,intro,announcement,contact_email,audit_status,audited_at,audit_remark,account_status,account_status_changed_at,account_status_remark,created_at,updated_at FROM team WHERE (owner_uid = ?)
+2026-05-28 00:20:58.817 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.818 [http-nio-8081-exec-8] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:58.819 [http-nio-8081-exec-8] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@17905e09]
+2026-05-28 00:20:58.820 [http-nio-8081-exec-8] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/space?uid=USzrFBKQxd5Iq -> 200 (31 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:20:58.841 [http-nio-8081-exec-10] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/home
+2026-05-28 00:20:58.850 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.850 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@22e5d184] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.852 [http-nio-8081-exec-10] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@474717245 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.852 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:58.853 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.854 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:58.854 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@22e5d184]
+2026-05-28 00:20:58.855 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.855 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@767eb51b] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.856 [http-nio-8081-exec-10] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@2056987553 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.856 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:20:58.857 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.858 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:20:58.859 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@767eb51b]
+2026-05-28 00:20:58.860 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.860 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@58bbfa02] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.861 [http-nio-8081-exec-10] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1542347363 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.861 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,project_uid,extended_uid,category,recruitment_type,owner_uid,team_uid,title,preview,editor_type,description,tags,duration,team_size,deadline,level,status,published_at,created_at,updated_at FROM project WHERE (owner_uid = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:20:58.862 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.865 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:58.865 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@58bbfa02]
+2026-05-28 00:20:58.866 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.866 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@4d1aad1c] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.867 [http-nio-8081-exec-10] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1249256791 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.867 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,content_type_code,extended_uid,title,summary,editor_type,content,cover_url,video_url,video_duration,tags,view_count,like_count,collect_count,comment_count,status,published_at,created_at,updated_at FROM note WHERE (user_uid = ? AND status = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:20:58.869 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String), PUBLISHED(String)
+2026-05-28 00:20:58.871 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:20:58.871 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@4d1aad1c]
+2026-05-28 00:20:58.871 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.871 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@44eaac9c] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.872 [http-nio-8081-exec-10] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1543543632 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.872 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectCount - ==>  Preparing: SELECT COUNT( * ) AS total FROM project WHERE (owner_uid = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:20:58.872 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectCount - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:20:58.874 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectCount - <==      Total: 1
+2026-05-28 00:20:58.874 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@44eaac9c]
+2026-05-28 00:20:58.876 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:20:58.876 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@562d2d45] was not registered for synchronization because synchronization is not active
+2026-05-28 00:20:58.876 [http-nio-8081-exec-10] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1202906448 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:20:58.876 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectCount - ==>  Preparing: SELECT COUNT( * ) AS total FROM note WHERE (user_uid = ? AND status = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:20:58.877 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectCount - ==> Parameters: USzrFBKQxd5Iq(String), PUBLISHED(String)
+2026-05-28 00:20:58.878 [http-nio-8081-exec-10] DEBUG c.u.b.i.p.m.C.selectCount - <==      Total: 1
+2026-05-28 00:20:58.878 [http-nio-8081-exec-10] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@562d2d45]
+2026-05-28 00:20:58.880 [http-nio-8081-exec-10] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/home?uid=USzrFBKQxd5Iq&projectLimit=3&noteLimit=4 -> 200 (39 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:21:23.655 [http-nio-8081-exec-2] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/space
+2026-05-28 00:21:23.655 [http-nio-8081-exec-1] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/menu
+2026-05-28 00:21:23.664 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.664 [http-nio-8081-exec-1] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.664 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6b4e4f2d] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.664 [http-nio-8081-exec-1] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1afdb492] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.665 [http-nio-8081-exec-1] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@230273941 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.665 [http-nio-8081-exec-2] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@155885216 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:21:23.665 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:23.665 [http-nio-8081-exec-1] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:23.666 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.666 [http-nio-8081-exec-1] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.668 [http-nio-8081-exec-1] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:23.668 [http-nio-8081-exec-1] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1afdb492]
+2026-05-28 00:21:23.669 [http-nio-8081-exec-1] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.669 [http-nio-8081-exec-1] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5fe8337d] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.670 [http-nio-8081-exec-1] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@675693878 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.670 [http-nio-8081-exec-1] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:23.671 [http-nio-8081-exec-1] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.673 [http-nio-8081-exec-1] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:23.673 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:23.673 [http-nio-8081-exec-1] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5fe8337d]
+2026-05-28 00:21:23.673 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6b4e4f2d]
+2026-05-28 00:21:23.674 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.674 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@697b90a6] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.674 [http-nio-8081-exec-2] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1884654979 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:21:23.675 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:23.675 [http-nio-8081-exec-1] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/menu?uid=USzrFBKQxd5Iq -> 200 (21 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:21:23.675 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.677 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:23.678 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@697b90a6]
+2026-05-28 00:21:23.678 [http-nio-8081-exec-9] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/menu
+2026-05-28 00:21:23.678 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.678 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5e9769e4] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.679 [http-nio-8081-exec-2] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1809595440 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:21:23.679 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.U.selectList - ==>  Preparing: SELECT id,user_uid,entity_code,role,auth_serial_no,proof_artifact_url,audit_status,is_active,remark,created_at,updated_at FROM user_auth_link WHERE (user_uid = ? AND is_active = ?) ORDER BY updated_at DESC LIMIT 1
+2026-05-28 00:21:23.680 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.U.selectList - ==> Parameters: USzrFBKQxd5Iq(String), 1(Integer)
+2026-05-28 00:21:23.682 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.U.selectList - <==      Total: 0
+2026-05-28 00:21:23.683 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5e9769e4]
+2026-05-28 00:21:23.683 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.683 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@270b3317] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.684 [http-nio-8081-exec-2] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1110881883 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:21:23.684 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,user_uid,role,lab_user_uid,career,is_admin,invited_by_uid,joined_at FROM team_member WHERE (user_uid = ?)
+2026-05-28 00:21:23.684 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.686 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:21:23.687 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@270b3317]
+2026-05-28 00:21:23.687 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.687 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@33a900a9] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.688 [http-nio-8081-exec-2] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1304694336 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:21:23.688 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,type,team_logo,owner_uid,owner_name,entity_code,team_name,tag,intro,announcement,contact_email,audit_status,audited_at,audit_remark,account_status,account_status_changed_at,account_status_remark,created_at,updated_at FROM team WHERE (owner_uid = ?)
+2026-05-28 00:21:23.689 [http-nio-8081-exec-9] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.689 [http-nio-8081-exec-9] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@22954d0f] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.689 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.689 [http-nio-8081-exec-9] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1665583024 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.690 [http-nio-8081-exec-9] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:23.690 [http-nio-8081-exec-9] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.690 [http-nio-8081-exec-2] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:21:23.691 [http-nio-8081-exec-2] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@33a900a9]
+2026-05-28 00:21:23.691 [http-nio-8081-exec-9] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:23.692 [http-nio-8081-exec-9] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@22954d0f]
+2026-05-28 00:21:23.692 [http-nio-8081-exec-2] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/space?uid=USzrFBKQxd5Iq -> 200 (38 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:21:23.693 [http-nio-8081-exec-9] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.693 [http-nio-8081-exec-9] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f308a8f] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.694 [http-nio-8081-exec-9] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@398803283 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.694 [http-nio-8081-exec-9] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:23.695 [http-nio-8081-exec-9] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.696 [http-nio-8081-exec-4] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/space
+2026-05-28 00:21:23.698 [http-nio-8081-exec-9] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:23.698 [http-nio-8081-exec-9] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f308a8f]
+2026-05-28 00:21:23.699 [http-nio-8081-exec-9] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/menu?uid=USzrFBKQxd5Iq -> 200 (22 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:21:23.706 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.706 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@167871b4] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.707 [http-nio-8081-exec-4] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1694440804 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.707 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:23.708 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.710 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:23.711 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@167871b4]
+2026-05-28 00:21:23.711 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.711 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@40e624b0] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.712 [http-nio-8081-exec-4] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@356915401 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.712 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:23.713 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.716 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:23.717 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@40e624b0]
+2026-05-28 00:21:23.718 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.719 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@54e89593] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.719 [http-nio-8081-exec-4] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@635107354 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.719 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.U.selectList - ==>  Preparing: SELECT id,user_uid,entity_code,role,auth_serial_no,proof_artifact_url,audit_status,is_active,remark,created_at,updated_at FROM user_auth_link WHERE (user_uid = ? AND is_active = ?) ORDER BY updated_at DESC LIMIT 1
+2026-05-28 00:21:23.720 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.U.selectList - ==> Parameters: USzrFBKQxd5Iq(String), 1(Integer)
+2026-05-28 00:21:23.721 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.U.selectList - <==      Total: 0
+2026-05-28 00:21:23.722 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@54e89593]
+2026-05-28 00:21:23.722 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.722 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@785008fc] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.723 [http-nio-8081-exec-4] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1745112680 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.723 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,user_uid,role,lab_user_uid,career,is_admin,invited_by_uid,joined_at FROM team_member WHERE (user_uid = ?)
+2026-05-28 00:21:23.723 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.725 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:21:23.725 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@785008fc]
+2026-05-28 00:21:23.725 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.725 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@638b90d3] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.726 [http-nio-8081-exec-4] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@459568054 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.727 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,team_uid,type,team_logo,owner_uid,owner_name,entity_code,team_name,tag,intro,announcement,contact_email,audit_status,audited_at,audit_remark,account_status,account_status_changed_at,account_status_remark,created_at,updated_at FROM team WHERE (owner_uid = ?)
+2026-05-28 00:21:23.727 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.728 [http-nio-8081-exec-4] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:21:23.728 [http-nio-8081-exec-4] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@638b90d3]
+2026-05-28 00:21:23.730 [http-nio-8081-exec-4] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/space?uid=USzrFBKQxd5Iq -> 200 (35 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:21:23.805 [http-nio-8081-exec-6] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/home
+2026-05-28 00:21:23.812 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.812 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1a1a710] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.813 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@798882477 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.813 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:23.813 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.816 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:23.816 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1a1a710]
+2026-05-28 00:21:23.817 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.817 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7c7978db] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.818 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1894566243 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.818 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:23.818 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.820 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:23.820 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7c7978db]
+2026-05-28 00:21:23.821 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.821 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6234c83e] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.822 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1430047491 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.822 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,project_uid,extended_uid,category,recruitment_type,owner_uid,team_uid,title,preview,editor_type,description,tags,duration,team_size,deadline,level,status,published_at,created_at,updated_at FROM project WHERE (owner_uid = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:21:23.823 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.824 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:21:23.824 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6234c83e]
+2026-05-28 00:21:23.825 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.825 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@53932433] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.826 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@396522311 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.826 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,content_type_code,extended_uid,title,summary,editor_type,content,cover_url,video_url,video_duration,tags,view_count,like_count,collect_count,comment_count,status,published_at,created_at,updated_at FROM note WHERE (user_uid = ? AND status = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:21:23.826 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String), PUBLISHED(String)
+2026-05-28 00:21:23.829 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 0
+2026-05-28 00:21:23.830 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@53932433]
+2026-05-28 00:21:23.830 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.830 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@a6ee0fc] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.830 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1083633470 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.831 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectCount - ==>  Preparing: SELECT COUNT( * ) AS total FROM project WHERE (owner_uid = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:21:23.831 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectCount - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:23.832 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectCount - <==      Total: 1
+2026-05-28 00:21:23.833 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@a6ee0fc]
+2026-05-28 00:21:23.833 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:23.833 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@4e668408] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:23.834 [http-nio-8081-exec-6] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@863167544 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:23.834 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectCount - ==>  Preparing: SELECT COUNT( * ) AS total FROM note WHERE (user_uid = ? AND status = ?) ORDER BY COALESCE(published_at, created_at) DESC, id DESC
+2026-05-28 00:21:23.835 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectCount - ==> Parameters: USzrFBKQxd5Iq(String), PUBLISHED(String)
+2026-05-28 00:21:23.836 [http-nio-8081-exec-6] DEBUG c.u.b.i.p.m.C.selectCount - <==      Total: 1
+2026-05-28 00:21:23.837 [http-nio-8081-exec-6] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@4e668408]
+2026-05-28 00:21:23.838 [http-nio-8081-exec-6] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/home?uid=USzrFBKQxd5Iq&projectLimit=3&noteLimit=4 -> 200 (34 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:21:27.833 [http-nio-8081-exec-3] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/menu
+2026-05-28 00:21:27.840 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:27.840 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@47d793db] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:27.842 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@219788703 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:27.842 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:27.842 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:27.846 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:27.846 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@47d793db]
+2026-05-28 00:21:27.847 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:27.847 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@d5ee1a2] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:27.848 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1995240089 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:21:27.848 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:27.849 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:27.851 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:27.851 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@d5ee1a2]
+2026-05-28 00:21:27.853 [http-nio-8081-exec-3] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/menu?uid=USzrFBKQxd5Iq -> 200 (21 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:21:27.857 [http-nio-8081-exec-7] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/menu
+2026-05-28 00:21:27.865 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:27.865 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5d51321b] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:27.866 [http-nio-8081-exec-7] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1378131466 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:21:27.866 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:27.867 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:27.869 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:27.869 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5d51321b]
+2026-05-28 00:21:27.870 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:21:27.870 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@8f91605] was not registered for synchronization because synchronization is not active
+2026-05-28 00:21:27.870 [http-nio-8081-exec-7] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1550593259 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:21:27.871 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:21:27.871 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:21:27.873 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:21:27.874 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@8f91605]
+2026-05-28 00:21:27.875 [http-nio-8081-exec-7] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/menu?uid=USzrFBKQxd5Iq -> 200 (18 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:22:16.465 [http-nio-8081-exec-8] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/auth/logout
+2026-05-28 00:22:16.465 [http-nio-8081-exec-8] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/auth/logout -> 200 (1 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:22:16.470 [http-nio-8081-exec-10] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/auth/logout
+2026-05-28 00:22:16.490 [http-nio-8081-exec-10] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] POST /api/v1/client/auth/logout -> 200 (21 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:22:17.394 [http-nio-8081-exec-1] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/feed/home
+2026-05-28 00:22:17.408 [http-nio-8081-exec-1] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/feed/home -> 200 (15 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:22:17.411 [http-nio-8081-exec-2] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/feed/home
+2026-05-28 00:22:17.413 [http-nio-8081-exec-2] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/feed/home -> 200 (3 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:22:26.765 [http-nio-8081-exec-9] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/auth/personal/sms/send
+2026-05-28 00:22:26.766 [http-nio-8081-exec-9] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/auth/personal/sms/send -> 200 (2 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:22:26.770 [http-nio-8081-exec-4] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/auth/personal/sms/send
+2026-05-28 00:22:26.782 [http-nio-8081-exec-4] INFO  c.u.backend.domain.auth.AuthService - [ClientAuth] send code channel=sms, account=13800001004, code=916202, bizType=login
+2026-05-28 00:22:26.786 [http-nio-8081-exec-4] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] POST /api/v1/client/auth/personal/sms/send -> 200 (16 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:22:41.010 [http-nio-8081-exec-6] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/auth/personal/login/sms
+2026-05-28 00:22:41.010 [http-nio-8081-exec-6] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] OPTIONS /api/v1/client/auth/personal/login/sms -> 200 (3 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:22:41.015 [http-nio-8081-exec-3] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/auth/personal/login/sms
+2026-05-28 00:22:41.062 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:22:41.062 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6be3784d] was not registered for synchronization because synchronization is not active
+2026-05-28 00:22:41.066 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1640761569 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:22:41.066 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (phone = ?)
+2026-05-28 00:22:41.067 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: 13800001004(String)
+2026-05-28 00:22:41.071 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:22:41.073 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6be3784d]
+2026-05-28 00:22:41.104 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:22:41.104 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@320b0824] was not registered for synchronization because synchronization is not active
+2026-05-28 00:22:41.166 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@486343511 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:22:41.166 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.ClientUserMapper.update - ==>  Preparing: UPDATE user SET last_login_at=? WHERE (user_uid = ?)
+2026-05-28 00:22:41.180 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.ClientUserMapper.update - ==> Parameters: 2026-05-28T00:22:41.073788800(LocalDateTime), USzrFBKQxd5Iq(String)
+2026-05-28 00:22:41.265 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.ClientUserMapper.update - <==    Updates: 1
+2026-05-28 00:22:41.265 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@320b0824]
+2026-05-28 00:22:41.271 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:22:41.272 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@59fc2a25] was not registered for synchronization because synchronization is not active
+2026-05-28 00:22:41.273 [http-nio-8081-exec-3] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1175281177 wrapping com.mysql.cj.jdbc.ConnectionImpl@f9f6863] will not be managed by Spring
+2026-05-28 00:22:41.273 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.U.selectList - ==>  Preparing: SELECT id,user_uid,entity_code,role,auth_serial_no,proof_artifact_url,audit_status,is_active,remark,created_at,updated_at FROM user_auth_link WHERE (user_uid = ?) ORDER BY updated_at DESC LIMIT 1
+2026-05-28 00:22:41.274 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.U.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:22:41.276 [http-nio-8081-exec-3] DEBUG c.u.b.i.p.m.U.selectList - <==      Total: 0
+2026-05-28 00:22:41.276 [http-nio-8081-exec-3] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@59fc2a25]
+2026-05-28 00:22:41.284 [http-nio-8081-exec-3] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] POST /api/v1/client/auth/personal/login/sms -> 200 (270 ms) ip=127.0.0.1 location=局域网
+2026-05-28 00:22:41.326 [http-nio-8081-exec-7] DEBUG c.u.b.i.config.IpLocationInterceptor - IP属地解析: ip=127.0.0.1, location=局域网, uri=/api/v1/client/user-profile/menu
+2026-05-28 00:22:41.333 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:22:41.334 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3b533668] was not registered for synchronization because synchronization is not active
+2026-05-28 00:22:41.334 [http-nio-8081-exec-7] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1379365088 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:22:41.335 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,phone,email,password_hash,account_status,account_status_changed_at,account_status_remark,last_login_at,created_at,updated_at FROM user WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:22:41.335 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:22:41.338 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:22:41.338 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3b533668]
+2026-05-28 00:22:41.339 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2026-05-28 00:22:41.339 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5127e0f7] was not registered for synchronization because synchronization is not active
+2026-05-28 00:22:41.340 [http-nio-8081-exec-7] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [HikariProxyConnection@1936026829 wrapping com.mysql.cj.jdbc.ConnectionImpl@3e70746d] will not be managed by Spring
+2026-05-28 00:22:41.340 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==>  Preparing: SELECT id,user_uid,nick_name,real_name,avatar_url,current_entity_name,level,bio_data,career_data,intro,announcement,created_at,updated_at FROM user_profile WHERE (user_uid = ?) LIMIT 1
+2026-05-28 00:22:41.341 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - ==> Parameters: USzrFBKQxd5Iq(String)
+2026-05-28 00:22:41.343 [http-nio-8081-exec-7] DEBUG c.u.b.i.p.m.C.selectList - <==      Total: 1
+2026-05-28 00:22:41.343 [http-nio-8081-exec-7] DEBUG org.mybatis.spring.SqlSessionUtils - Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5127e0f7]
+2026-05-28 00:22:41.344 [http-nio-8081-exec-7] INFO  c.u.b.i.c.ApiRequestLoggingFilter - [API] GET /api/v1/client/user-profile/menu?uid=USzrFBKQxd5Iq -> 200 (19 ms) ip=127.0.0.1 location=局域网

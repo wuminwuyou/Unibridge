@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- ========== 控制台输出：仅 INFO，干净的业务/启动日志 ========== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <!-- 过滤：只允许 INFO 及以上（DEBUG/TRACE 不进入控制台） -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+    </appender>
+
+    <!-- ========== SQL 文件输出：按天滚动，保留 7 天 ========== -->
+    <appender name="SQL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/project-sql.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/project-sql.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>100MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ========== Logger 路由规则 ========== -->
+
+    <!--
+        MyBatis / MyBatis-Plus 所有 DEBUG 日志 → SQL_FILE 独享。
+        additivity="false" 切断向 root → CONSOLE 的传递，控制台保持干净。
+    -->
+    <logger name="org.apache.ibatis" level="DEBUG" additivity="false">
+        <appender-ref ref="SQL_FILE"/>
+    </logger>
+    <logger name="org.mybatis" level="DEBUG" additivity="false">
+        <appender-ref ref="SQL_FILE"/>
+    </logger>
+    <logger name="com.baomidou.mybatisplus" level="DEBUG" additivity="false">
+        <appender-ref ref="SQL_FILE"/>
+    </logger>
+
+    <!--
+        Mapper 包 DEBUG 日志（SQL 语句、参数绑定、结果映射） → SQL_FILE。
+        若只想看 SQL 不带参数，可改为 INFO。
+    -->
+    <logger name="com.unibridge.backend.infrastructure.persistence.mapper" level="DEBUG" additivity="false">
+        <appender-ref ref="SQL_FILE"/>
+    </logger>
+
+    <!--
+        项目业务包：INFO 及以上写入控制台，不写 SQL 文件。
+        将 DEBUG/TRACE 级别的框架日志也定向到 SQL_FILE，防止干扰业务排查。
+    -->
+    <logger name="com.unibridge.backend" level="DEBUG" additivity="false">
+        <!-- 业务 INFO 进控制台 -->
+        <appender-ref ref="CONSOLE"/>
+        <!-- 框架 DEBUG 进 SQL 文件（如开启了 SQL 拦截器插件等） -->
+        <appender-ref ref="SQL_FILE"/>
+    </logger>
+
+    <!--
+        Spring / Tomcat / HikariCP 等框架 INFO 日志只进控制台，不入 SQL 文件。
+    -->
+    <logger name="org.springframework" level="INFO"/>
+    <logger name="org.apache.catalina" level="INFO"/>
+    <logger name="com.zaxxer.hikari" level="INFO"/>
+
+    <!-- ========== Root：所有未匹配的日志默认 INFO 进控制台 ========== -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

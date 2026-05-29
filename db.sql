@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS sys_entity_totp_credentials (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_entity_admin_uid (admin_uid),
+  UNIQUE KEY uk_entity_admin_password (entity_code, password_hash),
   KEY idx_entity_totp_entity_code (entity_code),
   KEY idx_entity_totp_entity_status (entity_code, account_status),
   KEY idx_entity_totp_entity_primary (entity_code, is_primary),

@@ -2,11 +2,16 @@ package com.unibridge.backend.domain.auth;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.unibridge.backend.infrastructure.entities.ClientEntity;
+import com.unibridge.backend.infrastructure.entities.ClientUser;
 import com.unibridge.backend.infrastructure.entities.SysEntityTotpCredentials;
+import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.SysEntityTotpCredentialsMapper;
 import com.unibridge.backend.infrastructure.util.EntityAdminUidGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -18,12 +23,26 @@ import java.util.Objects;
  * <p>
  * {@link EntityAdminAccountStatus#ACTIVE}：已绑定 TOTP、占用名额、可登录；<br>
  * {@link EntityAdminAccountStatus#PENDING}：仅登记待绑定，不占用名额、不可登录。
+ * <p>
+ * 【并发安全】本类中所有密码重复校验（matchActiveAdminByPassword / assertAdminPasswordAvailable）
+ * 均为"先查后写"模式，存在 TOCTOU 竞态。由于 {@code sys_entity_totp_credentials} 表
+ * 未设置 {@code (entity_code, password_hash)} 唯一约束，并发插入时可能产生重复密码。
+ * 调用方（{@link AuthService}）已使用 {@code DuplicateKeyException} 兜底，
+ * 并在 {@code createEntityAdmin} 中通过事务隔离提供额外保护。
+ * 建议后续在数据库层面添加联合唯一索引以彻底消除此竞态。
+ * </p>
  */
 @Service
 public class EntityAdminCredentialService {
 
     @Autowired
     private SysEntityTotpCredentialsMapper sysEntityTotpCredentialsMapper;
+
+    @Autowired
+    private ClientEntityMapper clientEntityMapper;
+
+    @Autowired
+    private ClientUserMapper clientUserMapper;
 
     /**
      * 在指定主体下，按密码匹配唯一已激活管理员（不含 PENDING）。
@@ -118,6 +137,19 @@ public class EntityAdminCredentialService {
                 .toList();
     }
 
+    /**
+     * 主体根密码 {@code admin_select} 列表：未达标时返回待绑定；已达标时返回已绑定 TOTP 的 ACTIVE 管理员（供登录选择）。
+     */
+    public List<SysEntityTotpCredentials> listAdminsForEntityRootSelect(
+            String entityCode, int boundAdminCount, int minBoundCount) {
+        if (boundAdminCount < minBoundCount) {
+            return listBindableEntityAdmins(entityCode);
+        }
+        return listActiveEntityAdmins(entityCode).stream()
+                .filter(admin -> StringUtils.hasText(admin.getTotpSecret()))
+                .toList();
+    }
+
     public List<SysEntityTotpCredentials> listNonDeactivatedEntityAdmins(String entityCode) {
         LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysEntityTotpCredentials::getEntityCode, entityCode)
@@ -163,6 +195,24 @@ public class EntityAdminCredentialService {
         return sysEntityTotpCredentialsMapper.selectOne(wrapper);
     }
 
+    /** 主体根 {@code admin_select} 后加载所选管理员（含待绑定 PENDING 与已绑定 ACTIVE）。 */
+    public SysEntityTotpCredentials loadAdminForEntityRootSelect(String entityCode, String adminUid) {
+        if (!StringUtils.hasText(entityCode) || !StringUtils.hasText(adminUid)) {
+            return null;
+        }
+        SysEntityTotpCredentials admin = loadEntityAdminByUid(adminUid.trim());
+        if (admin == null || !Objects.equals(admin.getEntityCode(), entityCode)) {
+            return null;
+        }
+        if (EntityAdminAccountStatus.DEACTIVATED.equalsIgnoreCase(admin.getAccountStatus())) {
+            return null;
+        }
+        if (StringUtils.hasText(admin.getTotpSecret())) {
+            return EntityAdminAccountStatus.ACTIVE.equalsIgnoreCase(admin.getAccountStatus()) ? admin : null;
+        }
+        return isBindableAdmin(admin) ? admin : null;
+    }
+
     /**
      * 注销同主体下未完成的 PENDING 登记，避免失败重试占满密码或残留脏数据。
      */
@@ -180,6 +230,18 @@ public class EntityAdminCredentialService {
         sysEntityTotpCredentialsMapper.update(patch, wrapper);
     }
 
+    /**
+     * 创建管理员记录。
+     * <p>
+     * 【并发安全】由于 {@code (entity_code, password_hash)} 无数据库唯一约束，
+     * 存在 TOCTOU 竞态：并发 insert 同一密码+实体时，可能绕过程序级校验产生重复。
+     * 调用方（如 {@link AuthService#registerOrganizationAdmin}）已使用
+     * {@code DuplicateKeyException} 兜底捕获。
+     * 建议后续添加数据库联合唯一索引 {@code uk_entity_password (entity_code, password_hash)}
+     * 从根本上消除此竞态。
+     * </p>
+     */
+    @Transactional(rollbackFor = Exception.class)
     public void createEntityAdmin(SysEntityTotpCredentials admin, String entityRootPasswordHash) {
         if (admin == null || !StringUtils.hasText(admin.getEntityCode()) || !StringUtils.hasText(admin.getPasswordHash())) {
             throw new RuntimeException("ORGANIZATION_FIELDS_REQUIRED");
@@ -189,6 +251,15 @@ public class EntityAdminCredentialService {
         sysEntityTotpCredentialsMapper.insert(admin);
     }
 
+    /**
+     * 更新管理员密码。
+     * <p>
+     * 【并发安全】先检查密码可用性，再执行 UPDATE。同样存在 TOCTOU 问题，
+     * 建议数据库层面添加唯一约束兜底。同一管理员不能有重复密码的约束通过
+     * {@code excludeAdminUid} 排除自身。
+     * </p>
+     */
+    @Transactional(rollbackFor = Exception.class)
     public void updateEntityAdminPassword(
             String entityCode,
             String adminUid,
@@ -215,5 +286,70 @@ public class EntityAdminCredentialService {
             return !StringUtils.hasText(admin.getTotpSecret());
         }
         return false;
+    }
+
+    // ===================== 针对字段更新方法（防丢失更新） =====================
+
+    /**
+     * 绑定主体根账号 TOTP secret，使用条件 UPDATE 防止并发覆盖。
+     * <p>
+     * 【并发安全】WHERE 子句增加 {@code totp_secret IS NULL OR totp_secret = ''}
+     * 条件，确保只有未绑定状态下才执行更新。返回 affected rows 供调用方判断
+     * 是否被并发请求抢先绑定。
+     * </p>
+     *
+     * @return 实际更新的行数（1 = 成功绑定，0 = 已被其他请求绑定）
+     */
+    public int bindEntityRootTotp(String entityCode, String totpSecret, LocalDateTime now) {
+        LambdaUpdateWrapper<ClientEntity> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ClientEntity::getEntityCode, entityCode)
+                .and(w -> w.isNull(ClientEntity::getTotpSecret).or().eq(ClientEntity::getTotpSecret, ""));
+        ClientEntity patch = new ClientEntity();
+        patch.setTotpSecret(totpSecret);
+        patch.setLastLoginAt(now);
+        return clientEntityMapper.update(patch, wrapper);
+    }
+
+    /**
+     * 仅更新管理员的 {@code last_login_at} 字段，避免全字段覆盖。
+     * <p>
+     * 【并发安全】使用 LambdaUpdateWrapper 仅更新指定字段，
+     * 防止与并发 TOTP 绑定、密码修改等操作发生丢失更新。
+     * </p>
+     */
+    public void updateAdminLastLoginAt(String adminUid, LocalDateTime now) {
+        LambdaUpdateWrapper<SysEntityTotpCredentials> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(SysEntityTotpCredentials::getAdminUid, adminUid);
+        SysEntityTotpCredentials patch = new SysEntityTotpCredentials();
+        patch.setLastLoginAt(now);
+        sysEntityTotpCredentialsMapper.update(patch, wrapper);
+    }
+
+    /**
+     * 仅更新主体的 {@code last_login_at} 字段，避免全字段覆盖。
+     * <p>
+     * 【并发安全】使用 LambdaUpdateWrapper 仅更新指定字段。
+     * </p>
+     */
+    public void updateEntityLastLoginAt(String entityCode, LocalDateTime now) {
+        LambdaUpdateWrapper<ClientEntity> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ClientEntity::getEntityCode, entityCode);
+        ClientEntity patch = new ClientEntity();
+        patch.setLastLoginAt(now);
+        clientEntityMapper.update(patch, wrapper);
+    }
+
+    /**
+     * 仅更新个人用户 {@code last_login_at} 字段，避免全字段覆盖。
+     * <p>
+     * 【并发安全】使用 LambdaUpdateWrapper 仅更新指定字段。
+     * </p>
+     */
+    public void updateClientUserLastLoginAt(String userUid, LocalDateTime now) {
+        LambdaUpdateWrapper<ClientUser> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ClientUser::getUserUid, userUid);
+        ClientUser patch = new ClientUser();
+        patch.setLastLoginAt(now);
+        clientUserMapper.update(patch, wrapper);
     }
 }

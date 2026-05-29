@@ -1,6 +1,7 @@
 package com.unibridge.backend.domain.space;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.unibridge.backend.domain.note.NoteCardAssembler;
 import com.unibridge.backend.domain.project.ProjectCardAssembler;
@@ -862,6 +863,13 @@ public class TeamSpaceService {
         }
     }
 
+    /**
+     * 应用成员更新（仅更新目标字段，避免全字段覆盖）。
+     * <p>
+     * 【并发安全】使用 LambdaUpdateWrapper 仅更新 career 和 is_admin 字段，
+     * 防止并发的不同字段更新操作互相覆盖。
+     * </p>
+     */
     private void applyUpdates(ClientTeam team,
                               List<SyncTeamMembersRequest.MemberUpdate> updates,
                               Map<String, ClientTeamMember> memberByUid) {
@@ -871,13 +879,15 @@ public class TeamSpaceService {
             if (member == null) {
                 continue;
             }
-            member.setCareer(update.getCareer().trim());
+            LambdaUpdateWrapper<ClientTeamMember> wrapper = new LambdaUpdateWrapper<>();
+            wrapper.eq(ClientTeamMember::getId, member.getId());
+            wrapper.set(ClientTeamMember::getCareer, update.getCareer().trim());
             if (isOwnerUid(team, uid)) {
-                member.setIsAdmin(1);
+                wrapper.set(ClientTeamMember::getIsAdmin, 1);
             } else if (update.getIsAdmin() != null) {
-                member.setIsAdmin(Boolean.TRUE.equals(update.getIsAdmin()) ? 1 : 0);
+                wrapper.set(ClientTeamMember::getIsAdmin, Boolean.TRUE.equals(update.getIsAdmin()) ? 1 : 0);
             }
-            clientTeamMemberMapper.updateById(member);
+            clientTeamMemberMapper.update(null, wrapper);
         }
     }
 

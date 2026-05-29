@@ -468,6 +468,58 @@ curl -X POST http://localhost:8081/api/v1/admin/login ^
 
 ---
 
+## 并发安全与数据库优化清单
+
+> 以下为 `domain/*/` 下所有 Service 代码中已识别并修复的并发风险项，
+> 以及建议后续推进的数据库层面兜底优化。
+
+### 已完成：应用层并发安全修复
+
+| # | 文件 | 风险 | 修复方式 |
+|---|------|------|----------|
+| 1 | `AuthService.registerPersonal` | TOCTOU：selectOne→insert 竞态导致重复注册 | `DuplicateKeyException` 兜底 + `uk_user_phone` |
+| 2 | `AuthService.sendPersonalCode` | `ConcurrentHashMap` check-then-act 冷却期竞态 | `compute()` 原子化写入 |
+| 3 | `AuthService.registerOrganizationAdmin` | 管理员名额 TOCTOU + challenge 记录覆盖 | `DuplicateKeyException` 兜底 + `compute()` |
+| 4 | `AuthService.confirmOrganizationTotpSetup` | TOTP 绑定 TOCTOU | 条件 UPDATE（WHERE `totp_secret IS NULL`） |
+| 5 | `AuthService.refreshAccessToken/handleLogout` | Token refresh 竞态 + 登出 check-then-act | `remove(key,value)` 条件删除 |
+| 6 | `AuthService.buildPersonalLoginResponse` 等 | `updateById` 全字段覆盖（lastLoginAt） | 仅更新单一字段的 `LambdaUpdateWrapper` |
+| 7 | `AuthService.verifyCode` | 验证码重放攻击 | `remove(key, value)` 原子消费 |
+| 8 | `AuthService` 内存缓存 | `codeStore/orgChallengeStore/revokedTokenStore` 无限增长 | `@Scheduled` 每 5 分钟清理过期条目 |
+| 9 | `NoteService.incrementViewCount` | `select→+1→updateById` 丢失更新 | `SET view_count = COALESCE(view_count,0)+1` |
+| 10 | `InteractionService.syncView` | 同上 read-modify-write | 数据库原子自增 |
+| 11 | `InteractionService.applyNoteCounterDelta` | `select→Math.max(0,n+Δ)→updateById` 丢失更新 | `GREATEST(0, COALESCE(c,0)+Δ)` |
+| 12 | `InteractionService.syncToggle` | 互动记录 `updateById` LIKE/COLLECT 互相覆盖 | 仅更新目标字段 |
+| 13 | `InteractionService.loadOrCreateInteraction` | select→insert TOCTOU | `DuplicateKeyException` 兜底重查 |
+| 14 | `FeedBehaviorService.upsertTagWeight` | select→(insert|updateById) TOCTOU + 丢失更新 | 原子加法 + `uk_user_tag` 兜底 |
+| 15 | `ProjectService.syncCommercialSecret` | select→insert TOCTOU | `DuplicateKeyException` 兜底 |
+| 16 | `AdminAuthService.adminLogin` | `updateById` 全字段覆盖 | 仅更新 `last_login_at` |
+| 17 | `TeamSpaceService.applyUpdates` | `updateById` 全字段覆盖 | `LambdaUpdateWrapper.set` 仅更新目标字段 |
+
+### 待推进：数据库层面兜底约束
+
+> 以下索引/约束可从根本上消除应用层 TOCTOU 残余风险，
+> 与已修复的应用层逻辑共同构成纵深防御。
+
+| # | 表名 | 建议约束 | 解决的问题 |
+|---|------|----------|------------|
+| DB-1 | `sys_entity_totp_credentials` | `UNIQUE KEY (entity_code, password_hash)` | 并发注册管理员密码重复绕过程序校验 |
+| DB-2 | `user` | 已有 `uk_user_phone`、`uk_user_email` ✅ | — |
+| DB-3 | `user_content_interaction` | 已有 `uk_user_content_target` ✅ | — |
+| DB-4 | `user_tag_interests` | 已有 `uk_user_tag` ✅ | — |
+| DB-5 | `sys_entity_totp_credentials` | 已有 `uk_entity_admin_uid` ✅ | — |
+
+### 待推进：架构层面优化
+
+| # | 优化项 | 优先级 | 说明 |
+|---|--------|--------|------|
+| ARC-1 | JWT 密钥外部化 | 高 | 当前硬编码，迁移至环境变量 / Vault |
+| ARC-2 | Spring Cache → Redis | 中 | `CacheConfig` 替换即可，domain 零改动 |
+| ARC-3 | 内存缓存 → Redis | 中 | `codeStore/orgChallengeStore/activeRefreshTokenStore` 迁移至 Redis，支持多实例部署 |
+| ARC-4 | 分布式锁 | 低 | `refreshAccessToken` 的 `synchronized` 仅保护单实例 |
+| ARC-5 | 幂等 Token（全局请求 ID） | 低 | 防止网络重试导致的重复操作 |
+
+---
+
 ## 后续计划
 
 - [ ] 验证新架构稳定后删除 `com/example/demo/client` 快照目录

@@ -1,6 +1,7 @@
 package com.unibridge.backend.domain.note;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.unibridge.backend.application.shared.ContentUidResolver;
 import com.unibridge.backend.domain.auth.AccessService;
 import com.unibridge.backend.domain.note.dto.NoteDetailResponse;
@@ -213,15 +214,21 @@ public class NoteService {
         return "ip:" + IpUtil.resolveClientIp(request);
     }
 
+    /**
+     * 浏览量 +1（数据库原子操作）。
+     * <p>
+     * 【并发安全】原实现为 read-modify-write（select → 加 1 → updateById），
+     * 并发场景下会丢失更新。改为数据库原子 UPDATE：
+     * {@code SET view_count = COALESCE(view_count, 0) + 1}，
+     * 由数据库的行级锁和原子运算保证计数器正确性。
+     * </p>
+     */
     private void incrementViewCount(Long noteId) {
-        ClientNote existing = clientNoteMapper.selectById(noteId);
-        if (existing == null) {
-            return;
-        }
-        ClientNote update = new ClientNote();
-        update.setId(noteId);
-        update.setViewCount((existing.getViewCount() == null ? 0 : existing.getViewCount()) + 1);
-        clientNoteMapper.updateById(update);
+        // 使用 MyBatis-Plus LambdaUpdateWrapper 执行原子自增
+        LambdaUpdateWrapper<ClientNote> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ClientNote::getId, noteId)
+                .setSql("view_count = COALESCE(view_count, 0) + 1");
+        clientNoteMapper.update(null, wrapper);
     }
 
     private ClientUserProfile loadUserProfile(String userUid) {

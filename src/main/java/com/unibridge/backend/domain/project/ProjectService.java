@@ -1,6 +1,7 @@
 package com.unibridge.backend.domain.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.unibridge.backend.application.shared.ContentUidResolver;
 import com.unibridge.backend.domain.auth.AccessService;
 import com.unibridge.backend.domain.project.dto.ProjectDetailResponse;
@@ -347,12 +348,26 @@ public class ProjectService {
             secret.setProjectUid(projectUid);
             secret.setTotalBudget(budget);
             secret.setCommercialStatus(COMMERCIAL_STATUS_PENDING);
-            commercialSecretMapper.insert(secret);
+            // 并发场景下，若两个请求同时 delete→insert，数据库主键/唯一约束会拒绝
+            try {
+                commercialSecretMapper.insert(secret);
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                existing = commercialSecretMapper.selectById(projectUid);
+                if (existing != null) {
+                    existing.setTotalBudget(budget);
+                    commercialSecretMapper.updateById(existing);
+                }
+            }
             return;
         }
 
-        existing.setTotalBudget(budget);
-        commercialSecretMapper.updateById(existing);
+        // 仅更新 totalBudget，避免全字段覆盖
+        ClientProjectCommercialSecret patch = new ClientProjectCommercialSecret();
+        patch.setProjectUid(projectUid);
+        patch.setTotalBudget(budget);
+        LambdaUpdateWrapper<ClientProjectCommercialSecret> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ClientProjectCommercialSecret::getProjectUid, projectUid);
+        commercialSecretMapper.update(patch, wrapper);
     }
 
     private ClientProjectCommercialSecret loadCommercialSecret(String projectUid) {

@@ -1,6 +1,7 @@
 package com.unibridge.backend.domain.feed;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.unibridge.backend.domain.auth.AccessService;
 import com.unibridge.backend.domain.feed.dto.FeedBehaviorEventRequest;
 import com.unibridge.backend.infrastructure.entities.UserTagInterest;
@@ -54,23 +55,36 @@ public class FeedBehaviorService {
                 userUid, request.getEventType(), request.getTargetType(), request.getTargetUid(), request.getTags());
     }
 
+    /**
+     * 更新或创建用户标签权重。
+     * <p>
+     * 【并发安全】先查后改（select → updateById）存在 TOCTOU 竞态和丢失更新风险。
+     * 改为数据库原子加法：{@code SET weight = weight + delta}，
+     * 若影响行数为 0（记录不存在），则插入新记录。
+     * 数据库 {@code uk_user_tag (user_uid, tag)} 唯一索引兜底并发 insert。
+     * </p>
+     */
     private void upsertTagWeight(String userUid, String tag, double delta) {
-        LambdaQueryWrapper<UserTagInterest> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserTagInterest::getUserUid, userUid)
+        // 先尝试原子加法更新
+        LambdaUpdateWrapper<UserTagInterest> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(UserTagInterest::getUserUid, userUid)
                 .eq(UserTagInterest::getTag, tag)
-                .last("LIMIT 1");
-        UserTagInterest existing = userTagInterestMapper.selectOne(wrapper);
-        if (existing == null) {
-            UserTagInterest created = new UserTagInterest();
-            created.setUserUid(userUid);
-            created.setTag(tag);
-            created.setWeight(BigDecimal.valueOf(delta));
-            userTagInterestMapper.insert(created);
+                .setSql("weight = weight + " + new BigDecimal(String.valueOf(delta)).toPlainString());
+        int rows = userTagInterestMapper.update(null, updateWrapper);
+        if (rows > 0) {
             return;
         }
-        BigDecimal next = existing.getWeight().add(BigDecimal.valueOf(delta));
-        existing.setWeight(next);
-        userTagInterestMapper.updateById(existing);
+        // 记录不存在，创建新记录（数据库唯一索引 uk_user_tag 兜底并发）
+        UserTagInterest created = new UserTagInterest();
+        created.setUserUid(userUid);
+        created.setTag(tag);
+        created.setWeight(BigDecimal.valueOf(delta));
+        try {
+            userTagInterestMapper.insert(created);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            // 并发创建，重试原子加法
+            userTagInterestMapper.update(null, updateWrapper);
+        }
     }
 
     private double resolveWeightDelta(String eventType) {
