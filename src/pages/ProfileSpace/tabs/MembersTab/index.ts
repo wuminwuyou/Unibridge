@@ -1,3 +1,6 @@
 export { MembersTabContent } from './MembersTabContent'
 export type { MembersTabContentProps } from './MembersTabContent'
 export { ManageMembersForm } from './ManageMembersForm'
+export { OrgMembersManageForm } from './OrgMembersManageForm'
+export { OrgMembersTabContent } from './OrgMembersTabContent'
+export type { OrgMembersTabContentProps } from './OrgMembersTabContent'

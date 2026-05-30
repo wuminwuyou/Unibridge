@@ -61,7 +61,7 @@ export function PersonalHomeTabContent({
   return (
     <>
       <ProfileProjectsSection
-        title="我的项目"
+        title="项目"
         projects={projects}
         mode="preview"
         previewLimit={PROFILE_SPACE_PERSONAL_HOME_PROJECT_PREVIEW_LIMIT}
@@ -70,7 +70,7 @@ export function PersonalHomeTabContent({
         onViewAll={onViewAllProjects}
       />
       <ProfileNotesSection
-        title="我的笔记"
+        title="笔记"
         notes={notes}
         mode="preview"
         previewLimit={PROFILE_SPACE_PERSONAL_HOME_NOTE_PREVIEW_LIMIT}

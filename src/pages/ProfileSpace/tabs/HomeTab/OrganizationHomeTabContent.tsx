@@ -19,6 +19,7 @@ interface OrganizationHomeTabContentProps {
 /**
  * 函数名：OrganizationHomeTabContent
  * 功能：渲染机构空间「主页」Tab；高校展示实验室预览 + 人员，企业仅展示人员及项目/笔记。
+ * 人员预览优先使用 `/entity-profile/home` 的 `members`；若为空则回退页壳 `membersPreview`（`/entity-profile/space`）。
  * 输入：
  * - model：useOrganizationViewPage 返回的状态
  * 输出：
@@ -26,12 +27,18 @@ interface OrganizationHomeTabContentProps {
  * - 副作用：发起网络请求
  */
 export function OrganizationHomeTabContent({ model }: OrganizationHomeTabContentProps) {
-  const { entityCode, supportsLabs, handleTabClick } = model
+  const { entityCode, supportsLabs, handleTabClick, orgMembersPreview } = model
   const { loadState, errorMessage, projects, notes, teams, members } = useOrganizationHomeTabData(
     entityCode,
     Boolean(entityCode),
     supportsLabs,
   )
+
+  // 主页 Tab 成员优先使用 /entity-profile/home 的 members；若为空则回退页壳 membersPreview
+  const displayMembers =
+    loadState === 'ready' && members.length === 0 && orgMembersPreview.length > 0
+      ? orgMembersPreview
+      : members
 
   if (loadState === 'loading') {
     return (
@@ -61,7 +68,7 @@ export function OrganizationHomeTabContent({ model }: OrganizationHomeTabContent
       ) : null}
       <ProfileOrgMembersSection
         title="机构人员"
-        members={members}
+        members={displayMembers}
         mode="preview"
         onViewAll={() => handleTabClick('人员')}
       />

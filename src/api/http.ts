@@ -464,7 +464,20 @@ export async function putApi<TPayload extends object, TData>(path: string, paylo
   return httpClient.put<ApiEnvelope<TData>, TData>(path, payload)
 }
 
-// 26）multipart POST 请求方法（postFormDataApi）
+// 26）通用 DELETE 请求方法（deleteApi）
+/**
+ * 函数名：deleteApi
+ * 功能：基于统一 axios 实例发送 DELETE 请求，并返回业务数据。
+ * 输入：
+ * - path：接口相对路径
+ * 输出：
+ * - 返回值：业务数据对象
+ */
+export async function deleteApi<TData>(path: string): Promise<TData> {
+  return httpClient.delete<ApiEnvelope<TData>, TData>(path)
+}
+
+// 27）multipart POST 请求方法（postFormDataApi）
 /**
  * 函数名：postFormDataApi
  * 功能：发送 multipart/form-data POST 请求（媒体上传等）。

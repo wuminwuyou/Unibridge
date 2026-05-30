@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import LoadingSpinner from '../../../../components/common/LoadingSpinner'
-import { LabsTabContent } from '../../tabs/LabsTab'
+import { useAuth } from '../../../../contexts/AuthContext'
+import { isOrganizationAdminRole } from '../../../../auth/organizationSession'
+import { LabsTabContent, ManageLabsForm } from '../../tabs/LabsTab'
 import { OrganizationHomeTabContent } from '../../tabs/HomeTab/OrganizationHomeTabContent'
-import { OrgMembersTabContent } from '../../tabs/MembersTab/OrgMembersTabContent'
+import { OrgMembersTabContent, OrgMembersManageForm } from '../../tabs/MembersTab'
 import { NotesTabContent } from '../../tabs/NotesTab'
 import { ProjectsTabContent } from '../../tabs/ProjectsTab'
 import type { OrganizationViewModel } from './useOrganizationViewPage'
@@ -21,6 +24,9 @@ interface OrganizationViewMainContentProps {
 /**
  * 函数名：OrganizationViewMainContent
  * 功能：按当前 Tab 懒加载并渲染机构空间主体内容。
+ * 实现方法：
+ * - 实验室 Tab 支持切换到管理表单（ManageLabsForm）
+ * - 管理入口按钮仅在当前用户为机构管理员时显示
  * 输入：
  * - model：useOrganizationViewPage 返回的状态
  * 输出：
@@ -28,9 +34,9 @@ interface OrganizationViewMainContentProps {
  * - 副作用：按 Tab 发起网络请求
  */
 export function OrganizationViewMainContent({ model }: OrganizationViewMainContentProps) {
+  const { userProfile } = useAuth()
   const {
     entityCode,
-    supportsLabs,
     isHomeTabActive,
     isLabsTabActive,
     isMembersTabActive,
@@ -42,6 +48,25 @@ export function OrganizationViewMainContent({ model }: OrganizationViewMainConte
   const membersTabData = useOrganizationMembersTabData(entityCode, isMembersTabActive)
   const projectsTabData = useOrganizationProjectsTabData(entityCode, isProjectTabActive)
   const notesTabData = useOrganizationNotesTabData(entityCode, isNotesTabActive)
+
+  // 实验室管理表单切换
+  const [isManagingLabs, setIsManagingLabs] = useState(false)
+
+  // 人员管理表单切换
+  const [isManagingMembers, setIsManagingMembers] = useState(false)
+
+  // 判断当前用户是否为机构管理员
+  const isEntityAdmin = isOrganizationAdminRole(userProfile?.userRole)
+
+  const handleLabsSaved = (): void => {
+    labsTabData.reloadLabs()
+    setIsManagingLabs(false)
+  }
+
+  const handleMembersSaved = (): void => {
+    membersTabData.reloadMembers()
+    setIsManagingMembers(false)
+  }
 
   if (isHomeTabActive) {
     if (!model.isShellReady) {
@@ -68,7 +93,24 @@ export function OrganizationViewMainContent({ model }: OrganizationViewMainConte
       )
     }
 
-    return <LabsTabContent teams={labsTabData.teams} />
+    if (isManagingLabs && isEntityAdmin) {
+      return (
+        <ManageLabsForm
+          entityCode={entityCode}
+          labs={labsTabData.teams}
+          onCancel={() => setIsManagingLabs(false)}
+          onSaved={handleLabsSaved}
+        />
+      )
+    }
+
+    return (
+      <LabsTabContent
+        teams={labsTabData.teams}
+        showManageLabs={isEntityAdmin}
+        onManageLabs={() => setIsManagingLabs(true)}
+      />
+    )
   }
 
   if (isMembersTabActive) {
@@ -88,7 +130,24 @@ export function OrganizationViewMainContent({ model }: OrganizationViewMainConte
       )
     }
 
-    return <OrgMembersTabContent members={membersTabData.members} />
+    if (isManagingMembers && isEntityAdmin) {
+      return (
+        <OrgMembersManageForm
+          entityCode={entityCode}
+          members={membersTabData.members}
+          onCancel={() => setIsManagingMembers(false)}
+          onSaved={handleMembersSaved}
+        />
+      )
+    }
+
+    return (
+      <OrgMembersTabContent
+        members={membersTabData.members}
+        showManageMembers={isEntityAdmin}
+        onManageMembers={() => setIsManagingMembers(true)}
+      />
+    )
   }
 
   if (isProjectTabActive) {

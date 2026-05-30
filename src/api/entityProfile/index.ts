@@ -1,12 +1,19 @@
-import { HttpApiError, getApi } from '../http'
+import { HttpApiError, getApi, postApi, putApi, deleteApi } from '../http'
 import type { EntityCode } from '../resourceUid'
+import type { UserPublicPreviewDto } from '../users/types'
 import type {
+  AddEntityMemberRequest,
+  AddEntityMemberResponse,
+  CreateEntityTeamRequest,
+  CreateEntityTeamResponse,
   EntityProfileHomeData,
   EntityProfileMembersData,
   EntityProfileNotesData,
   EntityProfileProjectsData,
   EntityProfileSpaceData,
   EntityProfileTeamsData,
+  RemoveEntityMemberRequest,
+  UpdateEntityTeamRequest,
 } from './types'
 import {
   normalizeEntityProfileHomeData,
@@ -246,9 +253,144 @@ export async function getEntityProfileMenu(entityCode: EntityCode): Promise<Enti
   return normalizeEntityProfileMenuData(data)
 }
 
+// 13）获取用户模糊搜索（searchEntityProfileUsers）
+/**
+ * 函数名：searchEntityProfileUsers
+ * 功能：按关键词模糊搜索用户，用于实验室负责人选择。
+ * 输入：
+ * - keyword：搜索关键词（匹配 uid / nickname / realName）
+ * 输出：
+ * - 返回值：用户列表
+ * - 副作用：发起网络请求
+ */
+export async function searchEntityProfileUsers(keyword: string): Promise<UserPublicPreviewDto[]> {
+  const { searchUsers } = await import('../users')
+  return searchUsers(keyword)
+}
+
+// 14）创建机构下属团队（createEntityTeam）
+/**
+ * 函数名：createEntityTeam
+ * 功能：在指定机构下创建新的下属实验室/团队。
+ * 输入：
+ * - body：创建请求体（entityCode, name, tags, description, leaderUid）
+ * 输出：
+ * - 返回值：创建结果（teamUid, name）
+ * - 副作用：发起网络请求
+ */
+export async function createEntityTeam(
+  body: CreateEntityTeamRequest,
+): Promise<CreateEntityTeamResponse> {
+  try {
+    return await postApi<CreateEntityTeamRequest, CreateEntityTeamResponse>('/entity-profile/team', body)
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new EntityProfileApiError(error.code, error.message)
+    }
+    throw error
+  }
+}
+
+// 15）更新机构下属团队（updateEntityTeam）
+/**
+ * 函数名：updateEntityTeam
+ * 功能：更新指定机构下属实验室的基本信息。
+ * 输入：
+ * - teamUid：团队对外 uid
+ * - body：更新请求体
+ * 输出：
+ * - 返回值：void
+ * - 副作用：发起网络请求
+ */
+export async function updateEntityTeam(
+  teamUid: string,
+  body: UpdateEntityTeamRequest,
+): Promise<void> {
+  try {
+    await putApi<UpdateEntityTeamRequest, void>(
+      `/entity-profile/team?teamUid=${encodeURIComponent(teamUid)}`,
+      body,
+    )
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new EntityProfileApiError(error.code, error.message)
+    }
+    throw error
+  }
+}
+
+// 16）删除机构下属团队（deleteEntityTeam）
+/**
+ * 函数名：deleteEntityTeam
+ * 功能：删除指定机构下的实验室/团队。
+ * 输入：
+ * - teamUid：团队对外 uid
+ * 输出：
+ * - 返回值：void
+ * - 副作用：发起网络请求
+ */
+export async function deleteEntityTeam(teamUid: string): Promise<void> {
+  try {
+    await deleteApi<void>(`/entity-profile/team?teamUid=${encodeURIComponent(teamUid)}`)
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new EntityProfileApiError(error.code, error.message)
+    }
+    throw error
+  }
+}
+
+// 17）添加机构关联人员（addEntityProfileMember）
+/**
+ * 函数名：addEntityProfileMember
+ * 功能：为机构添加一位关联人员（PM 或 MENTOR）。
+ * 输入：
+ * - body：entityCode 与 uid
+ * 输出：
+ * - 返回值：AddEntityProfileMemberResponse（uid, role）
+ * - 副作用：发起网络请求
+ */
+export async function addEntityProfileMember(
+  body: AddEntityMemberRequest,
+): Promise<AddEntityMemberResponse> {
+  try {
+    return await postApi<AddEntityMemberRequest, AddEntityMemberResponse>('/entity-profile/member', body)
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new EntityProfileApiError(error.code, error.message)
+    }
+    throw error
+  }
+}
+
+// 18）移除机构关联人员（removeEntityProfileMember）
+/**
+ * 函数名：removeEntityProfileMember
+ * 功能：从机构移除一位关联人员。
+ * 输入：
+ * - body：entityCode 与 uid
+ * 输出：
+ * - 返回值：void
+ * - 副作用：发起网络请求
+ */
+export async function removeEntityProfileMember(body: RemoveEntityMemberRequest): Promise<void> {
+  try {
+    await deleteApi<void>(
+      `/entity-profile/member?entityCode=${encodeURIComponent(body.entityCode)}&uid=${encodeURIComponent(body.uid)}`,
+    )
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new EntityProfileApiError(error.code, error.message)
+    }
+    throw error
+  }
+}
+
 export type { EntityProfileMenuData } from './menuTypes'
 
 export type {
+  AddEntityMemberRequest,
+  AddEntityMemberResponse,
   EntityProfileCoreProfileDto,
   EntityProfileExtendedProfileDto,
   EntityProfileHomeData,
@@ -262,4 +404,8 @@ export type {
   EntityProfileTeamsData,
   EntityProfileType,
   OrgAuthRole,
+  CreateEntityTeamRequest,
+  CreateEntityTeamResponse,
+  RemoveEntityMemberRequest,
+  UpdateEntityTeamRequest,
 } from './types'

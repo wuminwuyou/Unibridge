@@ -39,4 +39,41 @@ export async function getUserPublicPreview(uid: UserResourceUid): Promise<UserPu
   }
 }
 
+// 03）搜索用户（searchUsers）
+/**
+ * 函数名：searchUsers
+ * 功能：按关键词搜索用户（匹配 uid / nickname / realName）。
+ * 输入：
+ * - keyword：搜索关键词
+ * 输出：
+ * - 返回值：UserPublicPreviewDto[]
+ * - 副作用：发起网络请求
+ */
+export async function searchUsers(keyword: string): Promise<UserPublicPreviewDto[]> {
+  const searchParams = new URLSearchParams()
+  searchParams.set('keyword', keyword.trim())
+
+  try {
+    const data = await getApi<Record<string, unknown>>(`/users/search?${searchParams.toString()}`)
+    const users = Array.isArray(data) ? data : (Array.isArray(data.users) ? data.users : [])
+
+    return (users as Array<Record<string, unknown>>).map((raw) => {
+      const uid = (typeof raw.uid === 'string' ? raw.uid : '') as UserResourceUid
+      const realNameRaw = raw.realName ?? raw.real_name
+      return {
+        uid,
+        nickname: typeof raw.nickname === 'string' ? raw.nickname.trim() : '',
+        realName:
+          typeof realNameRaw === 'string' && realNameRaw.trim().length > 0 ? realNameRaw.trim() : null,
+        avatarUrl: typeof raw.avatarUrl === 'string' ? raw.avatarUrl : null,
+      }
+    })
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new UserApiError(error.code, error.message)
+    }
+    throw error
+  }
+}
+
 export type { UserPublicPreviewDto } from './types'

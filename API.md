@@ -3,9 +3,9 @@
 > **本机联调地址**：`http://localhost:8081/api/v1/client`  
 > **前端 baseURL**：`/api/v1/client`（`apps/web-client/src/api/http.ts`）  
 > **路径约定**：下文所有 Path 均相对 `/api/v1/client`。  
-> **待跟进增量**：见 [`API-request.md`](./API-request.md)（当前无待办项；历史增量已合并至本文档）。
+> **待办事项**：见 [`API-request.md`](./API-request.md)（实验室管理/人员管理增量需求）。
 
-本文档汇总 Web 客户端已对接的后端接口，按业务模块分四部分编写。前端封装位于 `apps/web-client/src/api/`。
+本文档汇总 Web 客户端已对接的后端接口，按业务模块分五部分编写。前端封装位于 `apps/web-client/src/api/`。
 
 ---
 
@@ -87,6 +87,7 @@
 | [第二部分：个人空间与用户资料](#第二部分个人空间与用户资料) | 个人空间页、顶栏菜单、**团队空间** |
 | [第三部分：发布与详情](#第三部分发布与详情) | 项目/笔记发布、上传、详情读 |
 | [第四部分：Feed 推荐与互动](#第四部分feed-推荐与互动) | Feed 读接口、埋点、互动、双 ID 约定 |
+| [第五部分：机构空间](#第五部分机构空间) | 机构空间读/写接口、实验室管理、人员管理 |
 
 ### 全局通用约定
 
@@ -382,146 +383,109 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 06）主体账号登录（第一步：凭证校验）
+## 06）主体账号登录（`/auth/organization/*`）
 
-### 06.1）主体凭证登录
+> **路径前缀**：`/auth/organization`（相对 `/api/v1/client`）  
+> **关键差异**：`POST /credentials` 响应决定 `loginMode`，不同 mode 走不同后续链。  
+> **密码**：`password` 始终为 **SHA256 十六进制小写**（与个人一致）；主体根密码对应 `entity.password_hash`，管理员密码对应 `sys_entity_totp_credentials.password_hash`。
 
-- **Method**：`POST`
-- **Path**：`/auth/organization/login/credentials`
-- **Auth**：否
-- **说明**：校验机构代码、主体账号、登录凭证，成功后进入 OTP 阶段。
+### 06.1）业务规则摘要
 
-#### Request Body
+1. **尚无管理员行**（`sys_entity_totp_credentials` 为空）：仅接受主体根密码 → `totp_setup` / `totp_verify` 绑定 `entity.totp_secret`
+2. **有管理员但 `boundAdminCount === 0`**：仅接受主体根密码 → `admin_select` → 选管理员 → 该管理员的 `totp_setup`
+3. **`boundAdminCount > 0`**：主体根密码 → `admin_select`；管理员密码 → 跳过选管理员，直接 `totp_setup` / `totp_verify`
+4. 至少 **2** 名、最多 **3** 名管理员完成 TOTP 后，主体视为 fully activated（`entityFullyActivated=true`）
+5. `totp_setup` 走 `init` → `confirm`，**不走** `login/otp`；`totp_verify` 才走 `login/otp`
 
-```json
-{
-  "institutionCode": "12345",
-  "password": "<前端SHA256后凭证>"
+### 06.2）接口列表
+
+| # | Method | Path | 说明 |
+|---|--------|------|------|
+| 1 | POST | `/auth/organization/login/credentials` | 第一步凭证校验 |
+| 2 | POST | `/auth/organization/login/select-admin` | 选择管理员 |
+| 3 | POST | `/auth/organization/admin/register` | 登记新管理员 |
+| 4 | POST | `/auth/organization/totp/setup/init` | 下发 TOTP 绑定二维码 |
+| 5 | POST | `/auth/organization/totp/setup/confirm` | 确认 TOTP 绑定 |
+| 6 | POST | `/auth/organization/login/otp` | TOTP 验证码登录 |
+
+### 06.3）`POST /credentials` 响应
+
+**Request**：`{ "institutionCode": "10598", "password": "<SHA256>" }`
+
+**Response `data`（`OrganizationCredentialResponse`）**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `challengeId` | string | 后续步骤必传，内存 challenge，约 30 分钟有效 |
+| `loginMode` | string | **`admin_select` \| `admin_register` \| `totp_setup` \| `totp_verify`** |
+| `requiresAdminSelection` | boolean | `admin_select` 时 true |
+| `admins` | array \| null | 管理员列表 `[{ adminUid, displayName, isPrimary }]` |
+| `boundAdminCount` | number | 已完成 TOTP 绑定的管理员数 |
+| `minAdminCount` | number | 2 |
+| `maxAdminCount` | number | 3 |
+| `entityName` | string | 主体名称 |
+
+```ts
+// loginMode 分支
+switch (d.loginMode) {
+  case 'admin_select':  // → select-admin → 展示管理员列表
+  case 'admin_register': // → 登记表单 → admin/register
+  case 'totp_setup':     // → init → QR → confirm
+  case 'totp_verify':    // → login/otp
 }
 ```
 
-#### Response Data
+### 06.4）`POST /select-admin` — `{ challengeId, adminUid }` — 选择管理员后 `loginMode` 变为 `totp_setup` 或 `totp_verify`
 
-```json
-{
-  "challengeId": "chl_20260520_000001",
-  "passwordDigestPreview": "a1b2c3d4e5f6",
-  "otpExpireInSec": 300,
-  "maskedTarget": "***@corp.com"
-}
+### 06.5）`POST /admin/register` — `{ challengeId, displayName, password }` — 登记新管理员，随后进入 `totp_setup`
+
+### 06.6）`POST /totp/setup/init` — `{ challengeId }` — 返回 `{ qrCodeDataUrl, qrCodeExpireInSec, currentAdminOrder }`
+
+### 06.7）`POST /totp/setup/confirm`
+
+**Request**：`{ challengeId, totpCode }`（验证器 6 位动态码，**非短信 OTP**）
+
+**Response `data`**
+
+| 字段 | 说明 |
+|------|------|
+| `accessToken` / `refreshToken` / `expiresIn` | JWT；`sub` 为 `EA...` 或 `entityCode` |
+| `entityFullyActivated` | `boundAdminCount >= 2` |
+| `activationHint` | 未达标时的提示文案 |
+| `nextChallengeId` / `nextLoginMode` | 未达标时继续下一位管理员绑定 |
+
+仅当 `entityFullyActivated=true` 时写入登录态关闭弹窗；否则继续登记下一位管理员。
+
+### 06.8）`POST /login/otp`
+
+仅在 `loginMode=totp_verify` 时调用。`{ challengeId, otpCode }`。
+
+**Response**：`{ userUid, userRole: "organization-admin", authStatus: "verified", accessToken, refreshToken, expiresIn }`
+
+### 06.9）前端状态机
+
+```
+Credentials(institutionCode+pwd)
+  ├── loginMode=admin_select → select-admin → totp_setup / totp_verify
+  ├── loginMode=admin_register → admin/register → totp_setup
+  ├── loginMode=totp_setup → init → 扫码 → confirm
+  │     └── !entityFullyActivated → back to admin_register
+  └── loginMode=totp_verify → login/otp → Done
 ```
 
-#### 常见错误码
+### 06.10）刷新 accessToken — `POST /auth/refresh`
 
-- `ORGANIZATION_CREDENTIAL_INVALID`
-- `ORGANIZATION_ACCOUNT_DISABLED`
-- `NEED_CONTACT_OPERATOR`
+与个人登录相同（§07.2）。`{ refreshToken }` → `{ accessToken, refreshToken, expiresIn }`。
 
----
+### 06.11）错误码
 
-## 07）主体账号登录（第二步：OTP 校验）
-
-### 07.1）主体 OTP 验证登录
-
-- **Method**：`POST`
-- **Path**：`/auth/organization/login/otp`
-- **Auth**：否
-- **说明**：使用 `challengeId + otpCode` 完成主体登录。
-
-#### Request Body
-
-```json
-{
-  "challengeId": "chl_20260520_000001",
-  "otpCode": "123456"
-}
-```
-
-#### Response Data
-
-```json
-{
-  "userId": 90001,
-  "userRole": "organization-admin",
-  "authStatus": "verified",
-  "accessToken": "<access_token>",
-  "refreshToken": "<refresh_token>",
-  "expiresIn": 7200
-}
-```
-
-#### 常见错误码
-
-- `CHALLENGE_NOT_FOUND`
-- `CHALLENGE_EXPIRED`
-- `OTP_INVALID`
-- `OTP_EXPIRED`
-- `TOO_MANY_ATTEMPTS`
-
-### 07.2）刷新 accessToken（一次性 refreshToken 轮换）
-
-- **Method**：`POST`
-- **Path**：`/auth/refresh`
-- **Auth**：否（使用 refreshToken 换取新令牌）
-- **说明**：当 accessToken 失效时，前端应调用该接口刷新令牌。`refreshToken` 采用一次性安全设计，刷新成功后旧 refreshToken 立即失效。
-
-#### Request Body
-
-```json
-{
-  "refreshToken": "<refresh_token>"
-}
-```
-
-#### Response Data
-
-```json
-{
-  "accessToken": "<new_access_token>",
-  "refreshToken": "<new_refresh_token>",
-  "expiresIn": 7200
-}
-```
-
-字段说明：
-
-- `accessToken`：新的访问令牌，前端需立即覆盖本地旧值
-- `refreshToken`：新的刷新令牌，前端需立即覆盖本地旧值（旧 refreshToken 不可再次使用）
-- `expiresIn`：accessToken 剩余有效期（秒）
-
-#### 常见错误码
-
-- `REFRESH_TOKEN_INVALID`
-- `REFRESH_TOKEN_EXPIRED`
-- `TOKEN_REUSE_DETECTED`
-
----
-
-## 08）前端错误文案映射建议
-
-- `ACCOUNT_OR_PASSWORD_INVALID` / `SMS_CODE_INVALID` → `手机号或验证码错误，请检查后重试`
-- `ORGANIZATION_CREDENTIAL_INVALID` → `主体账号信息不匹配，请确认后重试`
-- `OTP_INVALID` → `动态验证码错误，请重试`
-- `OTP_FORMAT_INVALID` → `请输入 6 位数字动态验证码`
-- `ORGANIZATION_FIELDS_REQUIRED` → `请完整输入机构代码、账号和密码`
-
----
-
-## 09）安全与风控要求
-
-- 所有登录与注册接口必须限流（IP、账号、设备维度）。
-- 验证码必须设置有效期、发送频控、错误次数上限。
-- 密码传输建议前端哈希 + HTTPS；服务端仍需二次加盐哈希存储。
-- 返回体严禁回传敏感字段（原始密码、完整 OTP、完整手机号、完整邮箱）。
-- 对 `unverified` 用户颁发受限权限 token（可浏览，敏感操作受限）。
-
----
-
-## 10）联调说明
-
-- 认证模块接口（#1–#8）均已实现并完成前端对接。
-- 验证码接口当前为**开发调试模式**：验证码打印在后端日志，不真实发送短信/邮件。
-- 后续扩展（未列入上文总览）：邮箱认证、资料上传等可与 `VerificationStep` 单独增补文档。
+| message | HTTP | 说明 |
+|---------|------|------|
+| `ORGANIZATION_CREDENTIAL_INVALID` | 400 | 密码错误 |
+| `ORGANIZATION_ACCOUNT_DISABLED` | 400 | 主体未审核 |
+| `ORGANIZATION_ACCOUNT_FROZEN` | 400 | 冻结 |
+| `CHALLENGE_NOT_FOUND` | 404 | |
+| `OTP_INVALID` | 400 | |
 
 ---
 
@@ -2688,3 +2652,102 @@ sequenceDiagram
 | `VIDEO_REQUIRED` | 400 | 视频笔记缺少视频 |
 | `CONTENT_REQUIRED` | 400 | 图文笔记缺少正文 |
 | `UPLOAD_FAILED` | 500 | 媒体上传失败 |
+
+---
+
+## 第五部分：机构空间（`OrganizationView` / `ProfileMenuContext`）
+
+> **Base**：`/api/v1/client/entity-profile`  
+> **Query**：所有接口均需要 `entityCode`  
+> **前端模块**：`apps/web-client/src/api/entityProfile`  
+> **页面**：`OrganizationView`（`src/pages/ProfileSpace/variants/OrganizationView/`）
+
+### 01）实验室展示规则
+
+| `entityCode`（仅数字位数） | 展示实验室 Tab |
+|---------------------------|----------------|
+| 5 位（高校） | ✅ |
+| 非 5 位（18 位信用代码等） | ❌ `teams` / `teamsPreview` 为空 |
+
+### 02）机构空间读接口列表
+
+| # | Method | Path | Query | 说明 |
+|---|--------|------|-------|------|
+| 1 | GET | `/entity-profile/space` | `entityCode` | 页壳：Hero + 侧栏 + teamsPreview + membersPreview |
+| 2 | GET | `/entity-profile/home` | `entityCode`, `teamLimit?`, `projectLimit?`, `noteLimit?`, `memberLimit?` | 主页 Tab 预览 |
+| 3 | GET | `/entity-profile/teams` | `entityCode`, `page?`, `pageSize?` | 实验室 Tab 分页 |
+| 4 | GET | `/entity-profile/members` | `entityCode`, `page?`, `pageSize?` | 人员 Tab 分页 |
+| 5 | GET | `/entity-profile/projects` | `entityCode`, `page?`, `pageSize?` | 项目 Tab 分页 |
+| 6 | GET | `/entity-profile/notes` | `entityCode`, `page?`, `pageSize?`, `contentType?` | 笔记 Tab 分页 |
+| 7 | GET | `/entity-profile/menu` | `entityCode` | 机构顶部菜单 |
+
+### 03）`GET /entity-profile/space` 响应
+
+```json
+{
+  "entityCode": "10598",
+  "coreProfile": {
+    "entityCode": "10598",
+    "name": "深圳大学",
+    "intro": "...",
+    "location": "广东·深圳",
+    "type": "UNIVERSITY",
+    "logoUrl": null,
+    "bannerUrl": null,
+    "teamCount": 3
+  },
+  "extendedProfile": { "announcement": "..." },
+  "teamsPreview": [
+    { "teamUid": "LB...", "name": "...", "description": "...", "logoUrl": null, "memberCount": 2 }
+  ],
+  "membersPreview": [
+    { "uid": "US...", "nickname": "...", "realName": "...", "role": "MENTOR", "avatarUrl": null, "level": "UR" }
+  ],
+  "infoRows": [{ "label": "主体代码", "value": "10598" }]
+}
+```
+
+`membersPreview` / `members`：仅 `user_auth_link.role` 为 `PM` 或 `MENTOR` 且 `audit_status=APPROVED`、`is_active=1`。
+
+### 04）成员项 DTO（`EntityProfileMemberDto`）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `uid` | string | 用户对外 uid |
+| `nickname` | string | 昵称 |
+| `realName` | string \| null | 实名 |
+| `role` | string | `PM`（员工）\| `MENTOR`（导师） |
+| `avatarUrl` | string \| null | 头像 |
+| `level` | string \| null | `N`/`R`/`SR`/`SSR`/`UR` |
+
+### 05）机构空间写接口列表
+
+> **权限**：仅 `userRole=organization-admin` 可调用。请求头需 `Authorization: Bearer <token>`。
+
+| # | Method | Path | Query / Body | 说明 |
+|---|--------|------|--------------|------|
+| 8 | POST | `/entity-profile/team` | `{ entityCode, name, leaderUid? }` | 创建下属实验室 |
+| 9 | PUT | `/entity-profile/team` | `?teamUid=` + `{ name?, leaderUid? }` | 更新实验室信息 |
+| 10 | DELETE | `/entity-profile/team` | `?teamUid=` | 删除实验室 |
+| 11 | POST | `/entity-profile/member` | `{ entityCode, uid }` | 添加机构关联人员（role 由后台自动判定） |
+| 12 | DELETE | `/entity-profile/member` | `?entityCode=&uid=` | 移除机构关联人员 |
+
+### 06）`GET /entity-profile/menu` 响应
+
+| 字段 | 说明 |
+|------|------|
+| `entityCode` | 主体代码 |
+| `entityName` | 展示名 |
+| `logoUrl` | 头像/Logo |
+| `boundAdminCount` | 已绑定 TOTP 管理员数 |
+| `minAdminCount` | 2 |
+| `maxAdminCount` | 3 |
+| `entityFullyActivated` | 是否已达标 |
+
+### 07）错误码
+
+| message | HTTP |
+|---------|------|
+| `ENTITY_NOT_FOUND` | 404 |
+| `ENTITY_NOT_ACCESSIBLE` | 403 |
+| `INVALID_ENTITY_CODE` | 400 |

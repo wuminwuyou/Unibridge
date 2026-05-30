@@ -19,7 +19,6 @@ import type {
   OrganizationInfoRow,
   OrganizationMemberItem,
   OrganizationTab,
-  OrganizationTeamItem,
 } from './types'
 
 // 01）机构空间视图 Hook（useOrganizationViewPage）
@@ -61,9 +60,8 @@ export function useOrganizationViewPage() {
   const [shellErrorMessage, setShellErrorMessage] = useState<string | null>(null)
   const [orgCoreProfile, setOrgCoreProfile] = useState<OrganizationCoreProfile | null>(null)
   const [orgExtendedProfile, setOrgExtendedProfile] = useState<OrganizationExtendedProfile | null>(null)
-  const [orgTeamsPreview, setOrgTeamsPreview] = useState<OrganizationTeamItem[]>([])
-  const [orgMembersPreview, setOrgMembersPreview] = useState<OrganizationMemberItem[]>([])
   const [orgInfoRows, setOrgInfoRows] = useState<OrganizationInfoRow[]>([])
+  const [orgMembersPreview, setOrgMembersPreview] = useState<OrganizationMemberItem[]>([])
 
   const isProjectTabActive = activeTab === '项目'
   const isNotesTabActive = activeTab === '笔记'
@@ -136,9 +134,8 @@ export function useOrganizationViewPage() {
         const mappedSpaceData = mapEntityProfileSpaceData(spaceData)
         setOrgCoreProfile(mappedSpaceData.orgCoreProfile)
         setOrgExtendedProfile(mappedSpaceData.orgExtendedProfile)
-        setOrgTeamsPreview(mappedSpaceData.orgTeamsPreview)
-        setOrgMembersPreview(mappedSpaceData.orgMembersPreview)
         setOrgInfoRows(mappedSpaceData.orgInfoRows)
+        setOrgMembersPreview(mappedSpaceData.orgMembersPreview)
         setShellLoadState('ready')
       } catch (error) {
         if (isCancelled) {
@@ -191,9 +188,8 @@ export function useOrganizationViewPage() {
     shellErrorMessage,
     orgCoreProfile,
     orgExtendedProfile,
-    orgTeamsPreview,
-    orgMembersPreview,
     orgInfoRows,
+    orgMembersPreview,
     isProjectTabActive,
     isNotesTabActive,
     isLabsTabActive,

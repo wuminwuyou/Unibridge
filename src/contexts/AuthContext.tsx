@@ -15,6 +15,7 @@ import {
   setUserRole,
   setUserUid,
 } from '../auth/tokenStorage'
+import { clearCachedUserProfileMenu } from '../api/userProfile'
 import type { UserResourceUid } from '../api/resourceUid'
 
 // 01）认证用户档案类型定义（AuthUserProfile）
@@ -175,6 +176,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // 11）退出登录处理（logout）
   const logout = useCallback((): void => {
     clearAuthTokens()
+    clearCachedUserProfileMenu()
     setAuthState({
       isLoggedIn: false,
       token: null,

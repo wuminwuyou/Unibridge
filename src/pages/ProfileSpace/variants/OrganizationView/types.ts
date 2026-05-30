@@ -1,6 +1,5 @@
 import type { EntityCode } from '../../../../api/resourceUid'
-import type { ProjectItem } from '../../../../types/project'
-import type { ProfileNoteItem, ProfileOrgMemberItem, ProfileTeamPreviewItem } from '../../components/types'
+import type { ProfileOrgMemberItem, ProfileTeamPreviewItem } from '../../components/types'
 
 // 01）机构空间 Tab 常量
 export const ORGANIZATION_TAB_HOME = '主页' as const
@@ -81,11 +80,3 @@ export type OrganizationTeamItem = ProfileTeamPreviewItem
 
 // 08）机构人员项（OrganizationMemberItem）
 export type OrganizationMemberItem = ProfileOrgMemberItem
-
-// 09）机构空间内容数据（OrganizationSpaceContentData）
-export interface OrganizationSpaceContentData {
-  orgProjects: ProjectItem[]
-  orgNotes: ProfileNoteItem[]
-  orgTeams: OrganizationTeamItem[]
-  orgMembers: OrganizationMemberItem[]
-}

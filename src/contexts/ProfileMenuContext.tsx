@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -105,6 +106,12 @@ export function ProfileMenuProvider({ children }: ProfileMenuProviderProps) {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [errorMessage, setErrorMessage] = useState<string>('')
 
+  // 用 ref 持有最新的 userProfile / setUserProfile，避免 refreshMenu 因 userProfile 变化而重创
+  const userProfileRef = useRef(userProfile)
+  const setUserProfileRef = useRef(setUserProfile)
+  userProfileRef.current = userProfile
+  setUserProfileRef.current = setUserProfile
+
   const activeChannel: ProfileMenuChannel | null = useMemo(() => {
     if (!isLoggedIn) {
       return null
@@ -119,12 +126,14 @@ export function ProfileMenuProvider({ children }: ProfileMenuProviderProps) {
       return
     }
 
+    const currentProfile = userProfileRef.current
+
     setIsLoading(true)
     setErrorMessage('')
 
     try {
       if (activeChannel === 'organization') {
-        const entityCode = resolveSessionEntityCode(userProfile) ?? getEntityCode()
+        const entityCode = resolveSessionEntityCode(currentProfile) ?? getEntityCode()
         if (!entityCode) {
           throw new Error('缺少主体代码，无法加载机构菜单')
         }
@@ -133,7 +142,7 @@ export function ProfileMenuProvider({ children }: ProfileMenuProviderProps) {
         return
       }
 
-      const currentUserUid = userProfile?.uid ?? getUserUid()
+      const currentUserUid = currentProfile?.uid ?? getUserUid()
       const cachedMenu = getCachedUserProfileMenu(currentUserUid)
       if (cachedMenu) {
         setMenuData(mapPersonalMenuToViewData(cachedMenu))
@@ -143,12 +152,12 @@ export function ProfileMenuProvider({ children }: ProfileMenuProviderProps) {
       setMenuData(mapPersonalMenuToViewData(personalMenu))
       if (personalMenu.uid) {
         setCachedUserProfileMenu(personalMenu.uid, personalMenu)
-        setUserProfile({
+        setUserProfileRef.current({
           uid: personalMenu.uid,
-          userRole: userProfile?.userRole,
-          authStatus: userProfile?.authStatus,
-          entityCode: userProfile?.entityCode,
-          entityName: userProfile?.entityName,
+          userRole: currentProfile?.userRole,
+          authStatus: currentProfile?.authStatus,
+          entityCode: currentProfile?.entityCode,
+          entityName: currentProfile?.entityName,
         })
       }
     } catch (error) {
@@ -157,7 +166,8 @@ export function ProfileMenuProvider({ children }: ProfileMenuProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [activeChannel, isHydrated, isLoggedIn, setUserProfile, userProfile])
+    // 依赖中故意不包含 userProfile / setUserProfile，避免 refreshMenu 写 uid 后 self-recreate
+  }, [activeChannel, isHydrated, isLoggedIn])
 
   useEffect(() => {
     if (!isHydrated || !isLoggedIn) {
@@ -168,7 +178,7 @@ export function ProfileMenuProvider({ children }: ProfileMenuProviderProps) {
     }
 
     void refreshMenu()
-  }, [isHydrated, isLoggedIn, activeChannel, userProfile?.uid, userProfile?.entityCode, refreshMenu])
+  }, [isHydrated, isLoggedIn, activeChannel, refreshMenu])
 
   const contextValue = useMemo<ProfileMenuContextValue>(
     () => ({

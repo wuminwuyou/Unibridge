@@ -28,6 +28,10 @@ export interface EntityProfileTeamPreviewDto {
   description?: string | null
   logoUrl?: string | null
   memberCount?: number
+  /** 实验室负责人 uid */
+  leaderUid?: string | null
+  /** 实验室负责人展示名称（realName \|\| nickname） */
+  leaderDisplayName?: string | null
 }
 
 // 05）机构信息表格行 DTO（EntityProfileInfoRowDto）
@@ -108,4 +112,62 @@ export interface EntityProfileMembersData {
   total: number
   page: number
   pageSize: number
+}
+
+// 17）创建机构团队请求（CreateEntityTeamRequest）
+export interface CreateEntityTeamRequest {
+  entityCode: EntityCode
+  name: string
+  tags?: string[]
+  description?: string
+  leaderUid?: string
+  logoUrl?: string
+}
+
+// 18）创建机构团队响应（CreateEntityTeamResponse）
+export interface CreateEntityTeamResponse {
+  teamUid: string
+  name: string
+}
+
+// 19）更新机构团队请求（UpdateEntityTeamRequest）
+export interface UpdateEntityTeamRequest {
+  entityCode?: string
+  name?: string
+  tags?: string[]
+  description?: string
+  /** 实验室负责人 uid；传 null 表示清除负责人 */
+  leaderUid?: string | null
+  logoUrl?: string
+}
+
+// 20）用户搜索项 DTO（UserSearchItemDto）
+export interface UserSearchItemDto {
+  uid: string
+  nickname: string
+  realName?: string | null
+  avatarUrl: string | null
+}
+
+// 21）用户搜索响应（UserSearchResponse）
+export interface UserSearchResponse {
+  users: UserSearchItemDto[]
+}
+
+// 22）添加机构成员请求（AddEntityMemberRequest）
+export interface AddEntityMemberRequest {
+  entityCode: EntityCode
+  uid: string
+}
+
+// 23）添加机构成员响应（AddEntityMemberResponse）
+export interface AddEntityMemberResponse {
+  uid: string
+  role: OrgAuthRole | string
+}
+
+// 24）移除机构成员请求（RemoveEntityMemberRequest）
+export interface RemoveEntityMemberRequest {
+  entityCode: EntityCode
+  uid: string
 }

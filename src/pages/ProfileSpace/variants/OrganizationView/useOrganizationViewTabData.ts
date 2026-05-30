@@ -102,6 +102,11 @@ export function useOrganizationLabsTabData(entityCode: EntityCode, enabled: bool
   const [loadState, setLoadState] = useState<ProfileTabLoadState>('ready')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [teams, setTeams] = useState<OrganizationTeamItem[]>([])
+  const [reloadCounter, setReloadCounter] = useState(0)
+
+  const reloadLabs = (): void => {
+    setReloadCounter((c) => c + 1)
+  }
 
   useEffect(() => {
     if (!enabled || !entityCode) {
@@ -137,9 +142,9 @@ export function useOrganizationLabsTabData(entityCode: EntityCode, enabled: bool
     return () => {
       isCancelled = true
     }
-  }, [enabled, entityCode])
+  }, [enabled, entityCode, reloadCounter])
 
-  return { loadState, errorMessage, teams }
+  return { loadState, errorMessage, teams, reloadLabs }
 }
 
 // 04）机构项目 Tab 数据 Hook（useOrganizationProjectsTabData）
@@ -240,13 +245,18 @@ export function useOrganizationNotesTabData(entityCode: EntityCode, enabled: boo
  * - entityCode：机构主体代码
  * - enabled：是否发起请求
  * 输出：
- * - 返回值：人员 Tab 数据与加载态
+ * - 返回值：人员 Tab 数据与加载态（含 reloadMembers 用于管理后刷新）
  * - 副作用：发起网络请求
  */
 export function useOrganizationMembersTabData(entityCode: EntityCode, enabled: boolean) {
   const [loadState, setLoadState] = useState<ProfileTabLoadState>('ready')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [members, setMembers] = useState<OrganizationMemberItem[]>([])
+  const [reloadCounter, setReloadCounter] = useState(0)
+
+  const reloadMembers = (): void => {
+    setReloadCounter((c) => c + 1)
+  }
 
   useEffect(() => {
     if (!enabled || !entityCode) {
@@ -282,7 +292,7 @@ export function useOrganizationMembersTabData(entityCode: EntityCode, enabled: b
     return () => {
       isCancelled = true
     }
-  }, [enabled, entityCode])
+  }, [enabled, entityCode, reloadCounter])
 
-  return { loadState, errorMessage, members }
+  return { loadState, errorMessage, members, reloadMembers }
 }

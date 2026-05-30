@@ -21,9 +21,9 @@ import type {
 export interface OrganizationSpaceShellViewModel {
   orgCoreProfile: OrganizationCoreProfile
   orgExtendedProfile: OrganizationExtendedProfile
-  orgTeamsPreview: OrganizationTeamItem[]
-  orgMembersPreview: OrganizationMemberItem[]
   orgInfoRows: OrganizationInfoRow[]
+  /** 从 /entity-profile/space 获取的成员预览；当主页 Tab 的 home 接口无成员数据时作为回退 */
+  orgMembersPreview: OrganizationMemberItem[]
 }
 
 // 02）解析机构类型文案（resolveEntityTypeLabel）
@@ -132,6 +132,8 @@ export function mapEntityProfileTeamPreview(team: EntityProfileTeamPreviewDto): 
     description: team.description?.trim() || null,
     logoUrl: team.logoUrl ?? null,
     memberCount: team.memberCount ?? 0,
+    leaderUid: team.leaderUid ?? null,
+    leaderDisplayName: team.leaderDisplayName ?? null,
   }
 }
 
@@ -198,11 +200,10 @@ export function mapEntityProfileSpaceData(data: EntityProfileSpaceData): Organiz
     orgExtendedProfile: {
       announcement: extendedProfile.announcement ?? '',
     },
-    orgTeamsPreview: supportsLabs ? mapEntityProfileTeams(teamsPreview) : [],
-    orgMembersPreview,
     orgInfoRows:
       infoRows && infoRows.length > 0
         ? infoRows.map((row) => ({ label: row.label, value: row.value }))
         : buildDefaultOrganizationInfoRows(coreProfile, typeLabel, supportsLabs, memberCount),
+    orgMembersPreview,
   }
 }

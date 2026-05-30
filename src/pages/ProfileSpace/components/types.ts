@@ -72,6 +72,10 @@ export interface ProfileTeamPreviewItem {
   description: string | null
   logoUrl: string | null
   memberCount: number
+  /** 实验室负责人 uid */
+  leaderUid?: string | null
+  /** 实验室负责人展示名称 */
+  leaderDisplayName?: string | null
 }
 
 // 06）空间成果项（ProfileAchievementItem）

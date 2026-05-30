@@ -1,0 +1,24 @@
+[ ] /pages/ProfileSpace/tabs 与 /pages/ProfileSpace/variants 待重构，目前代码复用率低且文件结构混乱。虽然实现了基本功能，但是代码结构混乱，需要重构。
+[ ] /pages/ProfileSpace/tabs/MembersTab/OrgMembersTabContent.tsx 待重构，应该与文件MembersTabContent.tsx保持一致，使用相同的样式和组件。待重构
+[ ] /pages/ProfileSpace/tabs/LabsTab/ManageLabsForm.tsx 待重构，应该与文件ManageMembersForm.tsx结构上保持一致，使用相同的样式和组件，内部组件使用content传入。待重构
+[ ] /pages/NoteReader/NoteArticleDetail 页面待完善，markdown阅读器右侧应当悬浮作者相关信息以及部分功能组件卡片
+[ ] /pages/NoteReader/NoteVideoDetail 页面待完善，视频播放器自定义程度底，使用体验不佳。右侧随视频进度悬浮文字笔记卡片待完成
+[ ] /pages/PublishNote/PublishNotePage 页面待完善，发布图文笔记的UI使用体验不佳，应当重构页面UI设计
+[ ] /components/OnlineEditor 组件待完善，在线编辑器组件使用体验不佳，应当重构组件UI设计，且存在功能重复文件夹/components/MilkdownWrapper，应当合并。待重构
+[ ] 项目/笔记发布页中的主要内容线上编辑器等，没有做字数限制，应当限制字数
+[ ] 项目发布，若选择高校招募，实验室招募，团队招募等未支持选择名下实验室/团队（查询team_member.user_uid = user.uid && team_member.is_admin = 1的实验室/团队，同时要满足team.status = 'ACTIVE'）
+[ ] 笔记发布，暂时未支持联合发布，应当支持联合发布（选择联合主体发布还是实验室发布，或者是用户发布，然后填写uid搜索）
+[ ] 项目/笔记卡片在个人空间中的显示，暂时未支持左上角渲染status
+[ ] 项目/笔记暂时未支持管理功能，应当支持管理功能（编辑、删除、发布、下架、恢复等）
+[ ] 报错等内容使用infopromptmodal组件进行展示
+[ ] 修复NoteShare页面feed笔记全是图文的bug
+[ ] 实验室招募，团队招募的项目卡片不仅显示所属学校，还需要显示团队名称
+
+// 开发计划
+[√] 完成organization Space页面的实验室管理，人员管理的API开发与接入
+[ ] 完成personal Space页面团队管理与创建的优化
+[ ] 完成企业/学校员工的认证功能，包括先身份实名，然后申请加入机构（申请提交功能与审核功能，机构通过右上角通知————之后的IM系统进行处理。
+审核通过后，自动加入机构，并自动生成机构成员）
+[ ] 个人页面persenal Space 页面的项目管理与发布功能
+[ ] 完善项目与笔记的发布页面的UI设计与功能实现
+[ ] 进行一轮全流程期望测试，并根据测试结果进行优化

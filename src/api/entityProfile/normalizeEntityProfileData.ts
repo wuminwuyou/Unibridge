@@ -21,6 +21,11 @@ function normalizeEntityProfileTeamPreviewDto(
     description: readRecordString(raw, 'description', { nullable: true }) ?? raw.description ?? null,
     logoUrl: readRecordString(raw, 'logoUrl', { nullable: true, snakeKey: 'logo_url' }) ?? raw.logoUrl ?? null,
     memberCount: readRecordNumber(raw, 'memberCount', raw.memberCount ?? 0, 'member_count'),
+    leaderUid: readRecordString(raw, 'leaderUid', { nullable: true, snakeKey: 'leader_uid' }) ?? raw.leaderUid ?? null,
+    leaderDisplayName:
+      readRecordString(raw, 'leaderDisplayName', { nullable: true, snakeKey: 'leader_display_name' }) ??
+      raw.leaderDisplayName ??
+      null,
   }
 }
 
@@ -126,7 +131,12 @@ export function normalizeEntityProfileHomeData(
   raw: EntityProfileHomeData & Record<string, unknown>,
 ): EntityProfileHomeData {
   const teamsRaw = readRecordField<unknown[]>(raw, 'teams') ?? raw.teams ?? []
-  const membersRaw = readRecordField<unknown[]>(raw, 'members') ?? raw.members ?? []
+  const membersRaw =
+    readRecordField<unknown[]>(raw, 'members') ??
+    raw.members ??
+    readRecordField<unknown[]>(raw, 'membersPreview', 'members_preview') ??
+    raw.membersPreview ??
+    []
   const projectsRaw = readRecordField<unknown[]>(raw, 'projects') ?? raw.projects ?? []
   const notesRaw = readRecordField<unknown[]>(raw, 'notes') ?? raw.notes ?? []
 
