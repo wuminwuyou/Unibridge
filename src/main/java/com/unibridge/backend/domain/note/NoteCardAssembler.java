@@ -2,7 +2,7 @@ package com.unibridge.backend.domain.note;
 
 import com.unibridge.backend.application.shared.ContentUidResolver;
 import com.unibridge.backend.domain.feed.dto.ContentVO;
-import com.unibridge.backend.domain.space.dto.ProfileNoteItem;
+import com.unibridge.backend.application.shared.dto.ProfileNoteItem;
 import com.unibridge.backend.infrastructure.entities.ClientNote;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

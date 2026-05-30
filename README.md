@@ -189,6 +189,9 @@ src/main/java/com/unibridge/backend/
 ├── application/                                # 【应用层】跨领域编排 / 共享能力（禁止 domain 间循环依赖）
 │   ├── package-info.java                       # 层职责说明
 │   └── shared/
+│       ├── dto/
+│       │   ├── ProfileProjectItem.java         # 项目卡片 VO（note/project/space 跨域共用）
+│       │   └── ProfileNoteItem.java            # 笔记卡片 VO（note/project/space 跨域共用）
 │       └── ContentUidResolver.java             # 对外 UID ↔ 内部自增 ID；笔记/项目/互动/Feed 共用
 │
 ├── domain/                                     # 【领域层】按业务垂直切片，高内聚
@@ -214,12 +217,22 @@ src/main/java/com/unibridge/backend/
 │   │   ├── ProjectPublisherEntityResolver.java
 │   │   └── dto/
 │   │
-│   ├── space/                                  # 个人空间 + 团队空间
-│   │   ├── SpaceController.java                # /api/v1/client/user-profile
-│   │   ├── SpaceService.java                   # menu / space / home / 分页 projects & notes
-│   │   ├── TeamSpaceController.java            # /api/v1/client/team-profile
-│   │   ├── TeamSpaceService.java               # TeamView 页壳 / home / 各 Tab 分页
-│   │   └── dto/                                # Profile* / TeamProfile* 响应体
+│       ├── user/                                   # 用户个人空间（User Profile）
+    │   │   ├── UserProfileController.java          # /api/v1/client/user-profile
+    │   │   ├── UserPublicController.java           # /api/v1/client/users
+    │   │   ├── UserProfileService.java             # menu / space / home / 分页 projects & notes
+    │   │   └── dto/                                # Profile* / UserPublicPreview 响应体
+    │   │
+    │   ├── team/                                   # 团队空间（TeamView）
+    │   │   ├── TeamProfileController.java          # /api/v1/client/team-profile
+    │   │   ├── TeamProfileService.java             # TeamView 页壳 / home / 各 Tab 分页 / 成员同步
+    │   │   └── dto/                                # TeamProfile* / TeamMemberItem / SyncTeamMembers 等
+    │   │
+    │   ├── organization/                           # 机构/主体空间（Organization / EntityView）
+    │   │   ├── OrganizationProfileController.java  # /api/v1/client/entity-profile
+    │   │   ├── OrganizationProfileService.java     # 机构页壳 / home / 实验室 / 人员 / 分页
+    │   │   └── dto/                                # EntityProfile* / EntityMemberItem / EntityTeamPreviewItem
+    │   │
 │   │
 │   ├── feed/                                   # 推荐与换一换
 │   │   ├── FeedController.java                 # /api/v1/client/feed

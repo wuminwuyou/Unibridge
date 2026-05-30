@@ -2,7 +2,7 @@ package com.unibridge.backend.domain.project;
 
 import com.unibridge.backend.domain.feed.dto.ContentTagLabel;
 import com.unibridge.backend.domain.feed.dto.ContentVO;
-import com.unibridge.backend.domain.space.dto.ProfileProjectItem;
+import com.unibridge.backend.application.shared.dto.ProfileProjectItem;
 import com.unibridge.backend.infrastructure.entities.ClientProject;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
