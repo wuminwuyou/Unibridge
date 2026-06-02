@@ -1,15 +1,12 @@
 package com.unibridge.backend.domain.team;
 
-import com.unibridge.backend.domain.team.dto.SyncTeamMembersRequest;
+import com.unibridge.backend.domain.team.dto.CreateStudentTeamRequest;
 import com.unibridge.backend.infrastructure.common.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -55,16 +52,6 @@ public class TeamProfileController {
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "pageSize", required = false) Integer pageSize) {
         return Result.success(TeamProfileService.getTeamProfileMembers(authorization, teamUid, page, pageSize));
-    }
-
-    @Operation(summary = "批量同步团队成员", description = "ManageMembersForm 保存；须 isAdmin",
-            security = @SecurityRequirement(name = BEARER_AUTH))
-    @PutMapping("/members")
-    public Result syncTeamProfileMembers(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestParam("teamUid") String teamUid,
-            @RequestBody SyncTeamMembersRequest request) {
-        return Result.success(TeamProfileService.syncTeamMembers(authorization, teamUid, request));
     }
 
     @Operation(summary = "团队项目 Tab", description = "project.team_uid = teamUid 的分页列表")

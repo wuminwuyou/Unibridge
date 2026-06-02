@@ -11,6 +11,7 @@ import com.unibridge.backend.application.shared.dto.ProfileProjectItem;
 import com.unibridge.backend.domain.user.dto.ProfileProjectsResponse;
 import com.unibridge.backend.domain.user.dto.ProfileMenuResponse;
 import com.unibridge.backend.domain.user.dto.ProfileSpaceResponse;
+import com.unibridge.backend.domain.user.dto.UserVerifiedPreviewResponse;
 import com.unibridge.backend.infrastructure.entities.ClientEntityProfile;
 import com.unibridge.backend.infrastructure.entities.ClientNote;
 import com.unibridge.backend.infrastructure.entities.ClientProject;
@@ -40,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -767,5 +769,49 @@ public class UserProfileService {
             return false;
         }
         return left.trim().equals(right.trim());
+    }
+
+    // ===================== 用户实名认证预览 =====================
+
+    /**
+     * 查询用户实名认证状态及基本资料，供团队创建时校验初始成员。
+     * 未实名返回 403 USER_NOT_VERIFIED。
+     */
+    public UserVerifiedPreviewResponse getUserVerifiedPreview(String uid) {
+        if (!StringUtils.hasText(uid)) {
+            throw BusinessException.badRequest("USER_NOT_FOUND");
+        }
+        ClientUser user = loadUserByUid(uid.trim());
+        if (user == null) {
+            throw BusinessException.notFound("USER_NOT_FOUND");
+        }
+        ClientUserProfile profile = loadProfile(uid.trim());
+
+        // 检查实名认证：user_auth_link 中需有 APPROVED + is_active = 1 的记录
+        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserAuthLink::getUserUid, uid.trim())
+                .eq(UserAuthLink::getAuditStatus, "APPROVED")
+                .eq(UserAuthLink::getIsActive, 1)
+                .last("LIMIT 1");
+        UserAuthLink authLink = userAuthLinkMapper.selectOne(wrapper);
+
+        if (authLink == null) {
+            throw BusinessException.forbidden("USER_NOT_VERIFIED");
+        }
+
+        String realName = profile != null && StringUtils.hasText(profile.getRealName())
+                ? profile.getRealName().trim() : null;
+        String nickname = profile != null && StringUtils.hasText(profile.getNickName())
+                ? profile.getNickName().trim() : "用户";
+        String role = authLink.getRole();
+
+        return UserVerifiedPreviewResponse.builder()
+                .uid(user.getUserUid())
+                .realName(realName)
+                .nickname(nickname)
+                .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
+                .verified(true)
+                .role(role)
+                .build();
     }
 }

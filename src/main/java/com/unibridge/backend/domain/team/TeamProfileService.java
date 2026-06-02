@@ -9,6 +9,8 @@ import com.unibridge.backend.application.shared.dto.ProfileNoteItem;
 import com.unibridge.backend.application.shared.dto.ProfileProjectItem;
 import com.unibridge.backend.domain.team.dto.TeamAchievementItem;
 import com.unibridge.backend.domain.team.dto.TeamMemberItem;
+import com.unibridge.backend.domain.team.dto.CreateStudentTeamRequest;
+import com.unibridge.backend.domain.team.dto.CreateStudentTeamResponse;
 import com.unibridge.backend.domain.team.dto.TeamProfileAchievementsResponse;
 import com.unibridge.backend.domain.team.dto.TeamProfileHomeResponse;
 import com.unibridge.backend.domain.team.dto.TeamProfileMembersResponse;
@@ -29,6 +31,7 @@ import com.unibridge.backend.infrastructure.entities.ClientProject;
 import com.unibridge.backend.infrastructure.entities.ClientTeam;
 import com.unibridge.backend.infrastructure.entities.ClientTeamMember;
 import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
+import com.unibridge.backend.infrastructure.entities.UserAuthLink;
 import com.unibridge.backend.infrastructure.persistence.mapper.AchievementArchiveMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
@@ -36,6 +39,8 @@ import com.unibridge.backend.infrastructure.persistence.mapper.ClientProjectMapp
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMemberMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
+import com.unibridge.backend.infrastructure.util.TeamUidGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -126,6 +131,9 @@ public class TeamProfileService {
     @Autowired
     private ClientUserMapper clientUserMapper;
 
+    @Autowired
+    private UserAuthLinkMapper userAuthLinkMapper;
+
     public TeamProfileSpaceResponse getTeamProfileSpace(String authorization, String teamUid) {
         ClientTeam team = requireAccessibleTeam(teamUid);
         List<ClientTeamMember> memberships = loadTeamMemberships(teamUid);
@@ -210,53 +218,6 @@ public class TeamProfileService {
                 .total(total)
                 .page(resolvedPage)
                 .pageSize(resolvedPageSize)
-                .build();
-    }
-
-    @Transactional(rollbackFor = Exception.class)
-    public SyncTeamMembersResponse syncTeamMembers(String authorization,
-                                                   String teamUid,
-                                                   SyncTeamMembersRequest request) {
-        String currentUserUid = accessService.requireCurrentUserUid(authorization);
-        ClientTeam team = requireAccessibleTeam(teamUid);
-        requireTeamAdmin(team, currentUserUid);
-
-        List<SyncTeamMembersRequest.MemberUpdate> updates = normalizeUpdates(request);
-        List<SyncTeamMembersRequest.MemberAddition> additions = normalizeAdditions(request);
-        List<SyncTeamMembersRequest.MemberRemoval> removals = normalizeRemovals(request);
-        if (updates.isEmpty() && additions.isEmpty() && removals.isEmpty()) {
-            throw BusinessException.badRequest("TEAM_MEMBER_NO_CHANGES");
-        }
-
-        Map<String, ClientTeamMember> memberByUid = loadMemberMap(teamUid);
-        validateRemovals(team, removals, memberByUid);
-        validateUpdates(team, updates, memberByUid);
-        validateAdditions(team, additions, memberByUid);
-
-        applyRemovals(removals, memberByUid);
-        applyUpdates(team, updates, memberByUid);
-        applyAdditions(team, additions, memberByUid, currentUserUid);
-
-        List<ClientTeamMember> refreshed = sortMembersForDisplay(team, loadTeamMemberships(teamUid));
-        List<TeamMemberItem> members = buildMemberItems(team, refreshed, true);
-        return SyncTeamMembersResponse.builder()
-                .teamUid(team.getTeamUid())
-                .members(members)
-                .total((long) members.size())
-                .build();
-    }
-
-    public UserPublicPreviewResponse getUserPublicPreview(String uid) {
-        validateUserUidFormat(uid);
-        ClientUser user = loadUserByUid(uid.trim());
-        if (user == null) {
-            throw BusinessException.notFound("USER_NOT_FOUND");
-        }
-        ClientUserProfile profile = loadProfile(uid.trim());
-        return UserPublicPreviewResponse.builder()
-                .uid(user.getUserUid())
-                .nickname(resolveRealNameOrNickname(profile))
-                .avatarUrl(trimToNull(profile == null ? null : profile.getAvatarUrl()))
                 .build();
     }
 
