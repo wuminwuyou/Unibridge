@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# 数据库文件
+db.sql
+
+# API 需求文档
+API-request.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

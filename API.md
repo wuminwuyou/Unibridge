@@ -3,7 +3,7 @@
 > **本机联调地址**：`http://localhost:8081/api/v1/client`  
 > **前端 baseURL**：`/api/v1/client`（`apps/web-client/src/api/http.ts`）  
 > **路径约定**：下文所有 Path 均相对 `/api/v1/client`。  
-> **待办事项**：见 [`API-request.md`](./API-request.md)（实验室管理/人员管理增量需求）。
+> **待办事项**：见 [`API-request.md`](./API-request.md)（创建学生团队 API 增量需求）。
 
 本文档汇总 Web 客户端已对接的后端接口，按业务模块分五部分编写。前端封装位于 `apps/web-client/src/api/`。
 
@@ -2751,3 +2751,50 @@ sequenceDiagram
 | `ENTITY_NOT_FOUND` | 404 |
 | `ENTITY_NOT_ACCESSIBLE` | 403 |
 | `INVALID_ENTITY_CODE` | 400 |
+
+### 08）`POST /team/create` — 创建学生团队
+
+> **消费方**：`CreateTeamModal.tsx` — 个人主页侧边栏「创建团队」
+
+#### Request
+
+- **Method**：`POST`
+- **Path**：`/team/create`
+- **Auth**：是（已实名 STUDENT 或 MENTOR）
+
+```json
+{
+  "name": "我的项目团队",
+  "description": "聚焦前端工程化实践",
+  "leaderUid": "US00000000099"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 团队名称（≤32 字符） |
+| `description` | string | 否 | 团队简介（≤120 字符） |
+| `leaderUid` | string | 否 | 初始负责人 UID，输入 US+11 位时自动调用 public-preview 回填名称 |
+
+#### Response `data`
+
+```json
+{
+  "teamUid": "ST00000007001",
+  "name": "我的项目团队"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `teamUid` | string | 新团队 uid |
+| `name` | string | 团队名称 |
+
+#### 常见错误码
+
+| message | HTTP |
+|---------|------|
+| `TEAM_NAME_REQUIRED` | 400 |
+| `TEAM_NAME_TOO_LONG` | 400 |
+| `USER_NOT_VERIFIED` | 403 |
+| `USER_NOT_FOUND` | 404 |

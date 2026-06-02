@@ -148,3 +148,17 @@ export interface UpdateTeamProfileMembersResponse {
   members: TeamProfileMemberDto[]
   total: number
 }
+
+// 17）创建学生团队请求（CreateStudentTeamRequest）
+export interface CreateStudentTeamRequest {
+  name: string
+  description?: string
+  /** 初始成员 UID 列表（创建者自动成为 LEADER，此项为额外初始成员） */
+  initialMemberUids?: string[]
+}
+
+// 18）创建学生团队响应（CreateStudentTeamResponse）
+export interface CreateStudentTeamResponse {
+  teamUid: TeamResourceUid
+  name: string
+}

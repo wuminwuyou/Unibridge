@@ -1,6 +1,8 @@
-import { HttpApiError, getApi, putApi } from '../http'
+import { HttpApiError, getApi, putApi, postApi } from '../http'
 import type { TeamResourceUid } from '../resourceUid'
 import type {
+  CreateStudentTeamRequest,
+  CreateStudentTeamResponse,
   TeamProfileAchievementsData,
   TeamProfileHomeData,
   TeamProfileMembersData,
@@ -258,7 +260,32 @@ export async function updateTeamProfileMembers(
   )
 }
 
+// 11）创建学生团队（createStudentTeam）
+/**
+ * 函数名：createStudentTeam
+ * 功能：创建一个新的学生团队（team.type=STUDENT_TEAM），创建者自动成为负责人（role=LEADER）。
+ * 输入：
+ * - body：name（必填）、description（选填）
+ * 输出：
+ * - 返回值：CreateStudentTeamResponse（teamUid, name）
+ * - 副作用：发起网络请求、创建 team 记录及 team_member 负责人行
+ */
+export async function createStudentTeam(
+  body: CreateStudentTeamRequest,
+): Promise<CreateStudentTeamResponse> {
+  try {
+    return await postApi<CreateStudentTeamRequest, CreateStudentTeamResponse>('/team/create', body)
+  } catch (error) {
+    if (error instanceof HttpApiError) {
+      throw new TeamProfileApiError(error.code, error.message)
+    }
+    throw error
+  }
+}
+
 export type {
+  CreateStudentTeamRequest,
+  CreateStudentTeamResponse,
   TeamProfileAchievementDto,
   TeamProfileAchievementsData,
   TeamProfileCoreProfileDto,

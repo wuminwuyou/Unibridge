@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CalendarClock,
@@ -7,16 +8,19 @@ import {
   MapPin,
   ShieldCheck,
   Users,
+  Plus,
 } from 'lucide-react'
 import LevelBadge from '../../../../components/common/LevelBadge'
 import LoadingSpinner from '../../../../components/common/LoadingSpinner'
 import VerifiedOrgModal from '../../../../components/common/VerifiedOrgModal'
+import { useAuth } from '../../../../contexts/AuthContext'
 import { ProfileSpaceShell, ProfileSpaceShellStatus, ProfileSpaceTabs } from '../../ProfileSpaceShell'
 import { PersonalHomeTabContent } from '../../tabs/HomeTab'
 import { PersonalNotesTabContent } from '../../tabs/NotesTab'
 import { PersonalProjectsTabContent } from '../../tabs/ProjectsTab'
 import type { PersonalViewModel } from './usePersonalViewPage'
 import { buildTeamSpacePath } from '../TeamView/teamTabRouting'
+import { CreateTeamModal } from './CreateTeamModal'
 import './PersonalView.css'
 
 // 01）个人用户空间视图 Props（PersonalViewProps）
@@ -91,6 +95,7 @@ function PersonalViewHeroContent({ model }: PersonalViewProps) {
 
 // 03）个人用户右侧拓展栏（PersonalViewSidebar）
 function PersonalViewSidebar({ model }: PersonalViewProps) {
+  const { userProfile, isLoggedIn } = useAuth()
   const {
     shellLoadState,
     shellErrorMessage,
@@ -100,7 +105,20 @@ function PersonalViewSidebar({ model }: PersonalViewProps) {
     associatedTeams,
     activityHeatmap,
     honors,
+    profileUidFromQuery,
   } = model
+
+  // 判断当前浏览者是否为自己的空间
+  const currentUserId = userProfile?.uid ?? ''
+  const viewedUserId = userCoreProfile?.uid ?? profileUidFromQuery ?? ''
+  const isOwnProfile = !profileUidFromQuery || (currentUserId && currentUserId === viewedUserId)
+
+  // 角色判断：STUDENT 或 MENTOR 可在自己的空间创建团队
+  const ownRole = userProfile?.userRole?.toUpperCase() ?? ''
+  const canCreateTeam = isOwnProfile && isLoggedIn && userCoreProfile?.isVerified === true && (ownRole === 'STUDENT' || ownRole === 'MENTOR')
+
+  // 创建团队弹窗
+  const [isCreateModalOpen, setCreateModalOpen] = useState(false)
 
   if (shellLoadState === 'loading') {
     return (
@@ -183,30 +201,44 @@ function PersonalViewSidebar({ model }: PersonalViewProps) {
       <section
         className={`profile-side-card personal-view-side-card ${!hasAssociatedTeams ? 'personal-view-side-card--empty' : ''}`}
       >
-        <h3>所属团队</h3>
-        {hasAssociatedTeams ? (
-          <div className="personal-view-team-list">
-            {associatedTeams.map((team) => (
-              <div key={team.teamUid} className="personal-view-team-card">
-                <div>
-                  <strong>
-                    <Users size={15} />
-                    {team.name}
-                  </strong>
-                  <p>{team.description}</p>
+        <div className="personal-view-team-header">
+          <h3>所属团队</h3>
+          {canCreateTeam ? (
+              <button
+                type="button"
+                className="personal-view-create-team-btn"
+                onClick={() => setCreateModalOpen(true)}
+                aria-label="创建团队"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+              </button>
+            ) : null}
+          </div>
+          {hasAssociatedTeams ? (
+            <div className="personal-view-team-list">
+              {associatedTeams.map((team) => (
+                <div key={team.teamUid} className="personal-view-team-card">
+                  <div>
+                    <strong>
+                      <Users size={15} />
+                      {team.name}
+                    </strong>
+                    <p>{team.description}</p>
+                  </div>
+                  <Link to={buildTeamSpacePath(team.teamUid)} className="personal-view-team-card__enter-link">
+                    进入团队
+                  </Link>
                 </div>
-                <Link to={buildTeamSpacePath(team.teamUid)} className="personal-view-team-card__enter-link">
-                  进入团队
-                </Link>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div>
-            <p>当前用户还未加入任何团队</p>
-          </div>
-        )}
-      </section>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <p>当前用户还未加入任何团队</p>
+            </div>
+          )}
+        </section>
+
+      <CreateTeamModal open={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} />
 
       <section className={`profile-side-card personal-view-side-card ${honors.length === 0 ? 'personal-view-side-card--empty' : ''}`}>
         <h3>个人荣誉</h3>

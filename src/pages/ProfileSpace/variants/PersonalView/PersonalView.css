@@ -286,3 +286,346 @@
     transform: translateY(0);
   }
 }
+
+/* ========================================
+   11）所属团队标题行 & 创建按钮
+   ======================================== */
+.personal-view-team-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.personal-view-team-header h3 {
+  margin: 0;
+}
+
+.personal-view-create-team-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--profile-card-border);
+  background: transparent;
+  color: var(--profile-side-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.personal-view-create-team-btn:hover {
+  border-color: var(--profile-tab-active);
+  color: var(--profile-tab-active);
+  background: color-mix(in srgb, var(--profile-tab-active) 8%, transparent);
+  transform: scale(1.1);
+}
+
+.personal-view-create-team-btn::after {
+  content: "创建团队";
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #fff;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.personal-view-create-team-btn:hover::after {
+  opacity: 1;
+}
+
+/* ========================================
+   12）创建团队 Modal 动画与样式
+   ======================================== */
+.create-team-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.create-team-modal-backdrop--enter {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.create-team-modal-backdrop--exit {
+  background: rgba(15, 23, 42, 0);
+}
+
+.create-team-modal-card {
+  width: 100%;
+  max-width: 420px;
+  margin: 16px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+  padding: 28px;
+  transform: scale(0.94) translateY(12px);
+  opacity: 0;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.create-team-modal-card--enter {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+.create-team-modal-card--exit {
+  transform: scale(0.94) translateY(12px);
+  opacity: 0;
+}
+
+.create-team-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.create-team-modal__header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.create-team-modal__close-btn {
+  align-self: center;
+}
+
+/* CloseIconButton 基础样式（profile 页无 AuthModal stylesheet） */
+.close-icon-button {
+  border: none;
+  background: transparent;
+  color: #8f9ab4;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.close-icon-button__glyph {
+  display: inline-block;
+  font-size: 28px;
+  line-height: 1;
+  transform: scale(1) rotate(0deg);
+  transition: color 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.close-icon-button:hover .close-icon-button__glyph,
+.close-icon-button--hovered .close-icon-button__glyph {
+  color: #2a67f8;
+  transform: rotate(90deg) scale(1.16);
+}
+
+.create-team-modal__hint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.create-team-modal__error {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 13px;
+  border: 1px solid #fecaca;
+}
+
+.create-team-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.create-team-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.create-team-modal__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.create-team-modal__required {
+  color: #ef4444;
+}
+
+.create-team-modal__input,
+.create-team-modal__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #0f172a;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  resize: vertical;
+}
+
+.create-team-modal__input:focus,
+.create-team-modal__textarea:focus {
+  outline: none;
+  border-color: var(--profile-tab-active, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.create-team-modal__input:disabled,
+.create-team-modal__textarea:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.create-team-modal__char-count {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: right;
+}
+
+.create-team-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.create-team-modal__btn {
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.create-team-modal__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.create-team-modal__btn--cancel {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.create-team-modal__btn--cancel:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.create-team-modal__btn--submit {
+  background: var(--profile-tab-active, #3b82f6);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.create-team-modal__btn--submit:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+/* spinner */
+.create-team-modal__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: create-team-spin 0.6s linear infinite;
+}
+
+@keyframes create-team-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 13）负责人 UID 预览 */
+.create-team-modal__leader-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.create-team-modal__leader-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.create-team-modal__leader-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.create-team-modal__leader-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.create-team-modal__leader-uid-small {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
+.create-team-modal__leader-clear {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.create-team-modal__leader-clear:hover {
+  background: #fecaca;
+  color: #dc2626;
+}

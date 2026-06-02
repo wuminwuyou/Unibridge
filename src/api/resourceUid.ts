@@ -53,7 +53,7 @@ export function isNoteResourceUid(value: string | null | undefined): value is No
 // 07）校验用户 uid（isUserResourceUid）
 /**
  * 函数名：isUserResourceUid
- * 功能：判断字符串是否为合法的用户对外 uid。
+ * 功能：判断字符串是否为合法的用户对外 uid（US + 11 位字符）。
  * 输入：
  * - value：待校验字符串
  * 输出：
@@ -61,7 +61,7 @@ export function isNoteResourceUid(value: string | null | undefined): value is No
  * - 副作用：无
  */
 export function isUserResourceUid(value: string | null | undefined): value is UserResourceUid {
-  return typeof value === 'string' && value.trim().length > 0
+  return typeof value === 'string' && /^US[A-Za-z0-9]{11}$/.test(value.trim())
 }
 
 // 08）从接口对象解析用户 uid（normalizeUserResourceUid）
