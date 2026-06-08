@@ -857,6 +857,7 @@ public class AuthService {
         return switch (role.toUpperCase(Locale.ROOT)) {
             case "PM" -> "pm";
             case "MENTOR", "FACULTY" -> "mentor";
+            case "COUNSELOR" -> "counselor";
             case "STUDENT" -> "student";
             default -> "student";
         };

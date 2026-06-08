@@ -1,0 +1,697 @@
+package com.unibridge.backend.domain.verification;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.unibridge.backend.domain.auth.AccessService;
+import com.unibridge.backend.domain.verification.dto.*;
+import com.unibridge.backend.infrastructure.common.BusinessException;
+import com.unibridge.backend.infrastructure.entities.*;
+import com.unibridge.backend.infrastructure.persistence.mapper.*;
+import com.unibridge.backend.infrastructure.util.JwtUtil;
+import com.unibridge.backend.infrastructure.util.PublicUidGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+/**
+ * 双阶段认证服务：人脸核身（阶段一）+ 机构认证（阶段二）。
+ */
+@Service
+public class VerificationService {
+
+    private static final Logger log = LoggerFactory.getLogger(VerificationService.class);
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final Pattern ID_CARD_PATTERN = Pattern.compile("^\\d{17}[\\dXx]$");
+    private static final Pattern VERIFICATION_CODE_PATTERN = Pattern.compile("^\\d{1,32}-\\d{4}-\\d{5}$");
+    private static final int FACE_TOKEN_EXPIRE_SEC = 300;
+
+    /** 开发环境 mock 核身 token → info 存储 */
+    private final Map<String, FaceRecord> faceStore = new ConcurrentHashMap<>();
+
+    /** 当前激活的 Spring profile */
+    @Value("${spring.profiles.active:dev}")
+    private String activeProfile;
+
+    @Autowired
+    private AccessService accessService;
+
+    @Autowired
+    private ClientUserMapper clientUserMapper;
+
+    @Autowired
+    private ClientUserProfileMapper clientUserProfileMapper;
+
+    @Autowired
+    private ClientEntityProfileMapper clientEntityProfileMapper;
+
+    @Autowired
+    private ClientEntityMapper clientEntityMapper;
+
+    @Autowired
+    private UserAuthLinkMapper userAuthLinkMapper;
+
+    @Autowired
+    private SysApprovalFlowMapper sysApprovalFlowMapper;
+
+    @Autowired
+    private SysVerificationCodeMapper sysVerificationCodeMapper;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private SysEntityTotpCredentialsMapper sysEntityTotpCredentialsMapper;
+
+    // ===================== 阶段一：人脸核身 =====================
+
+    /**
+     * 初始化人脸核身。
+     * <p>
+     * 开发环境（spring.profiles.active=dev）：使用 mock 模式，不调用腾讯云核身 API。
+     * 生成模拟 token，后续 result 查询直接返回 passed=true。
+     * 生产环境：需对接腾讯云人脸核身 SDK，调用 DetectAuth / GetDetectInfo 等接口。
+     * </p>
+     */
+    public FaceInitResponse initFace(String authorization, FaceInitRequest request) {
+        String userUid = accessService.requireCurrentUserUid(authorization);
+
+        if (!StringUtils.hasText(request.getRealName())) {
+            throw BusinessException.badRequest("REAL_NAME_REQUIRED");
+        }
+        if (!StringUtils.hasText(request.getIdCard()) || !ID_CARD_PATTERN.matcher(request.getIdCard().trim()).matches()) {
+            throw BusinessException.badRequest("ID_CARD_INVALID");
+        }
+
+        if ("dev".equals(activeProfile)) {
+            // ====== 开发环境：mock 核身 ======
+            String token = "face_mock_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+            String mockUrl = "about:blank"; // 无实际核身页面
+            faceStore.put(token, new FaceRecord(userUid, request.getRealName().trim(), request.getIdCard().trim(), LocalDateTime.now()));
+            return FaceInitResponse.builder()
+                    .url(mockUrl)
+                    .token(token)
+                    .expireInSec(FACE_TOKEN_EXPIRE_SEC)
+                    .build();
+        }
+
+        // ====== 生产环境：对接腾讯云人脸核身 API ======
+        // TODO: 接入腾讯云人脸核身 SDK
+        throw new UnsupportedOperationException("FACE_API_NOT_CONFIGURED");
+    }
+
+    /**
+     * 查询人脸核身结果。
+     * <p>
+     * 开发环境：直接返回 passed=true + 已记录的姓名。
+     * 生产环境：调用腾讯云 GetDetectInfo 接口查询真实结果。
+     * </p>
+     */
+    public FaceResultResponse getFaceResult(String authorization, String token) {
+        accessService.requireCurrentUserUid(authorization);
+
+        if (!StringUtils.hasText(token)) {
+            throw BusinessException.badRequest("TOKEN_REQUIRED");
+        }
+
+        if ("dev".equals(activeProfile)) {
+            // ====== 开发环境：直接通过 ======
+            FaceRecord record = faceStore.get(token);
+            if (record == null) {
+                return FaceResultResponse.builder().passed(false).build();
+            }
+            if (record.createdAt.plusSeconds(FACE_TOKEN_EXPIRE_SEC).isBefore(LocalDateTime.now())) {
+                faceStore.remove(token);
+                return FaceResultResponse.builder().passed(false).build();
+            }
+            faceStore.remove(token);
+            return FaceResultResponse.builder()
+                    .passed(true)
+                    .realName(record.realName)
+                    .idCardMasked(maskIdCard(record.idCard))
+                    .build();
+        }
+
+        // ====== 生产环境：查询腾讯云核身结果 ======
+        throw new UnsupportedOperationException("FACE_API_NOT_CONFIGURED");
+    }
+
+    // ===================== 阶段二-A：机构搜索 =====================
+
+    /**
+     * 按关键词模糊搜索机构（entity_profile.name LIKE keyword）。
+     */
+    public EntitySearchResponse searchEntities(String authorization, String keyword) {
+        accessService.requireCurrentUserUid(authorization);
+
+        if (!StringUtils.hasText(keyword) || keyword.trim().length() < 1) {
+            return EntitySearchResponse.builder().entities(List.of()).build();
+        }
+
+        LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.and(w -> w
+                        .like(ClientEntityProfile::getName, keyword.trim())
+                        .or()
+                        .like(ClientEntityProfile::getEntityCode, keyword.trim()))
+                .last("LIMIT 20");
+        List<ClientEntityProfile> profiles = clientEntityProfileMapper.selectList(wrapper);
+
+        // 校验机构是否存在且公开可见
+        List<EntitySearchItem> entities = profiles.stream()
+                .filter(p -> {
+                    ClientEntity entity = loadEntityByCode(p.getEntityCode());
+                    return entity != null && "ACTIVE".equalsIgnoreCase(entity.getAccountStatus())
+                            && "APPROVED".equalsIgnoreCase(entity.getAuditStatus());
+                })
+                .map(p -> EntitySearchItem.builder()
+                        .entityCode(p.getEntityCode())
+                        .name(p.getName())
+                        .type(p.getType())
+                        .build())
+                .collect(Collectors.toList());
+
+        return EntitySearchResponse.builder().entities(entities).build();
+    }
+
+    // ===================== 阶段二-B：教职工认证申请 =====================
+
+    /**
+     * 教职工认证申请。
+     * <p>
+     * 生成 user_auth_link 记录（audit_status=PENDING, role=PM|MENTOR），
+     * 待机构管理员审核后设为 APPROVED。
+     * </p>
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public StaffApplyResponse applyStaff(String authorization, StaffApplyRequest request) {
+        String userUid = accessService.requireCurrentUserUid(authorization);
+
+        if (!StringUtils.hasText(request.getEntityCode())) {
+            throw BusinessException.badRequest("ENTITY_NOT_FOUND");
+        }
+        if (!StringUtils.hasText(request.getRealName()) || !StringUtils.hasText(request.getStaffNumber())) {
+            throw BusinessException.badRequest("VALIDATION_FAILED");
+        }
+
+        ClientEntity entity = loadEntityByCode(request.getEntityCode().trim());
+        if (entity == null || !"ACTIVE".equalsIgnoreCase(entity.getAccountStatus())
+                || !"APPROVED".equalsIgnoreCase(entity.getAuditStatus())) {
+            throw BusinessException.notFound("ENTITY_NOT_FOUND");
+        }
+
+        // 检查是否已有同机构同角色的 PENDING/APPROVED 记录
+        LambdaQueryWrapper<UserAuthLink> existWrapper = new LambdaQueryWrapper<>();
+        existWrapper.eq(UserAuthLink::getUserUid, userUid)
+                .eq(UserAuthLink::getEntityCode, request.getEntityCode().trim())
+                .in(UserAuthLink::getAuditStatus, "PENDING", "APPROVED")
+                .last("LIMIT 1");
+        if (userAuthLinkMapper.selectOne(existWrapper) != null) {
+            throw BusinessException.conflict("APPLICATION_ALREADY_EXISTS");
+        }
+
+        // 判定角色：企业 → PM，学校 → MENTOR
+        String entityType = loadEntityType(request.getEntityCode().trim());
+        String role = "UNIVERSITY".equalsIgnoreCase(entityType) ? "MENTOR" : "PM";
+
+        // 生成申请编号：APP-yyyyMMdd-{11位NanoID}
+        String datePart = LocalDateTime.now().format(DATE_FORMATTER);
+        String applicationId = "APP-" + datePart + "-" + generateApprovalSuffix(uid -> isApplicationIdUnique(uid));
+
+        // 写入 user_auth_link（PENDING 状态）
+        UserAuthLink link = new UserAuthLink();
+        link.setUserUid(userUid);
+        link.setEntityCode(request.getEntityCode().trim());
+        link.setRole(role);
+        link.setAuthSerialNo(applicationId);
+        link.setAuditStatus("PENDING");
+        link.setIsActive(0);
+        link.setRemark("staffNumber:" + request.getStaffNumber().trim());
+        userAuthLinkMapper.insert(link);
+
+        // 写入 sys_approval_flows 审批流
+        SysApprovalFlow flow = new SysApprovalFlow();
+        flow.setApprovalKey(applicationId);
+        flow.setBusinessType("MENTOR_AUTH");
+        flow.setApplicantKey(userUid);
+        flow.setTargetKey(request.getEntityCode().trim());
+        flow.setStatus(0); // 待审批
+        flow.setPayload(buildStaffPayload(request));
+        sysApprovalFlowMapper.insert(flow);
+
+        // 同步 user_profile.real_name
+        ClientUserProfile profile = loadProfileByUid(userUid);
+        if (profile != null && !StringUtils.hasText(profile.getRealName())) {
+            profile.setRealName(request.getRealName().trim());
+            clientUserProfileMapper.updateById(profile);
+        }
+
+        return StaffApplyResponse.builder()
+                .applicationId(applicationId)
+                .status("PENDING")
+                .build();
+    }
+
+    // ===================== 阶段二-C：学生邀请码激活 =====================
+
+    /**
+     * 学生通过邀请码激活认证。支持母码和子码。
+     * <p>
+     * 【并发安全】使用数据库原子 UPDATE 递增 used_quota，通过 affected rows 判定额度。
+     * </p>
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public StudentActivateResponse activateStudent(String authorization, StudentActivateRequest request) {
+        String userUid = accessService.requireCurrentUserUid(authorization);
+
+        String code = request.getVerificationCode().trim();
+        int gradYear = request.getGraduationYear() == null ? 0 : request.getGraduationYear();
+        if (gradYear < 1950 || gradYear > 2100) {
+            throw BusinessException.badRequest("GRADUATION_YEAR_INVALID");
+        }
+        if (!StringUtils.hasText(request.getStudentId())) {
+            throw BusinessException.badRequest("STUDENT_ID_REQUIRED");
+        }
+        if (!StringUtils.hasText(request.getRealName())) {
+            throw BusinessException.badRequest("REAL_NAME_REQUIRED");
+        }
+
+        // 查询认证码（仅子码）
+        LambdaQueryWrapper<SysVerificationCode> codeWrapper = new LambdaQueryWrapper<>();
+        codeWrapper.eq(SysVerificationCode::getCode, code).last("LIMIT 1");
+        SysVerificationCode invCode = sysVerificationCodeMapper.selectOne(codeWrapper);
+        if (invCode == null || invCode.getIsActive() == null || invCode.getIsActive() == 0) {
+            throw BusinessException.badRequest("VERIFICATION_CODE_INVALID");
+        }
+
+        // 检查是否过期
+        if (invCode.getExpireTime() != null && invCode.getExpireTime().isBefore(LocalDateTime.now())) {
+            throw BusinessException.badRequest("VERIFICATION_CODE_EXPIRED");
+        }
+
+        String entityCode = invCode.getEntityCode();
+
+        // 校验机构存在
+        ClientEntity entity = loadEntityByCode(entityCode);
+        if (entity == null || !"ACTIVE".equalsIgnoreCase(entity.getAccountStatus())) {
+            throw BusinessException.notFound("ENTITY_NOT_FOUND");
+        }
+
+        ClientEntityProfile entityProfile = loadEntityProfileByCode(entityCode);
+        String entityName = entityProfile != null ? entityProfile.getName() : entityCode;
+
+        // 检查是否已激活
+        LambdaQueryWrapper<UserAuthLink> existWrapper = new LambdaQueryWrapper<>();
+        existWrapper.eq(UserAuthLink::getUserUid, userUid)
+                .eq(UserAuthLink::getEntityCode, entityCode)
+                .eq(UserAuthLink::getRole, "STUDENT")
+                .in(UserAuthLink::getAuditStatus, "PENDING", "APPROVED")
+                .last("LIMIT 1");
+        if (userAuthLinkMapper.selectOne(existWrapper) != null) {
+            throw BusinessException.conflict("APPLICATION_ALREADY_EXISTS");
+        }
+
+        // 母码不可激活
+        if (invCode.getIsMaster() != null && invCode.getIsMaster() == 1) {
+            throw BusinessException.badRequest("VERIFICATION_CODE_MASTER_NOT_FOR_ACTIVATE");
+        }
+
+        // 毕业年份不一致预警：子码有 graduationYear 且与学生填写不一致 → 预留辅导员通知接口
+        Integer codeGradYear = invCode.getGraduationYear();
+        if (codeGradYear != null && !codeGradYear.equals(gradYear)) {
+            log.warn("[VERIFICATION-CODE-MISMATCH] code={}, counselorUid={}, studentUid={}, studentRealName={}, "
+                    + "codeGraduationYear={}, studentGraduationYear={} — 辅导员需核实花名册",
+                    code, invCode.getCreatedBy(), userUid, request.getRealName().trim(),
+                    codeGradYear, gradYear);
+            // TODO: 对接辅导员通知接口（推送、站内信等）
+        }
+
+        // 原子递增 used_quota
+        LambdaUpdateWrapper<SysVerificationCode> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(SysVerificationCode::getId, invCode.getId())
+                .eq(SysVerificationCode::getIsActive, 1)
+                .lt(SysVerificationCode::getUsedQuota, invCode.getMaxQuota())
+                .setSql("used_quota = used_quota + 1");
+        int rows = sysVerificationCodeMapper.update(null, updateWrapper);
+        if (rows == 0) {
+            throw BusinessException.badRequest("VERIFICATION_CODE_EXHAUSTED");
+        }
+
+        // 写入毕业年份到子码记录
+        invCode.setGraduationYear(gradYear);
+        sysVerificationCodeMapper.updateById(invCode);
+
+        // 写入 user_auth_link
+        String datePart = LocalDateTime.now().format(DATE_FORMATTER);
+        String applicationId = "APP-" + datePart + "-" + generateApprovalSuffix(uid -> isApplicationIdUnique(uid));
+        UserAuthLink link = new UserAuthLink();
+        link.setUserUid(userUid);
+        link.setEntityCode(entityCode);
+        link.setRole("STUDENT");
+        link.setAuthSerialNo(request.getStudentId().trim());
+        link.setAuditStatus("APPROVED");
+        link.setIsActive(1);
+        link.setRemark("activation via " + code + " grad:" + gradYear);
+        userAuthLinkMapper.insert(link);
+
+        // 写入毕业年份到 user_profile
+        ClientUserProfile userProfile = loadProfileByUid(userUid);
+        if (userProfile != null) {
+            userProfile.setGraduationYear(gradYear);
+            userProfile.setRealName(request.getRealName().trim());
+            clientUserProfileMapper.updateById(userProfile);
+        }
+
+        // 写入 sys_approval_flows
+        SysApprovalFlow flow = new SysApprovalFlow();
+        flow.setApprovalKey(applicationId);
+        flow.setBusinessType("STUDENT_AUTH");
+        flow.setApplicantKey(userUid);
+        flow.setTargetKey(entityCode);
+        flow.setStatus(1);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "verification_code");
+        payload.put("code", code);
+        payload.put("studentId", request.getStudentId().trim());
+        payload.put("realName", request.getRealName().trim());
+        payload.put("graduationYear", gradYear);
+        try {
+            flow.setPayload(OBJECT_MAPPER.writeValueAsString(payload));
+        } catch (JsonProcessingException e) {
+            flow.setPayload("{}");
+        }
+        sysApprovalFlowMapper.insert(flow);
+
+        return StudentActivateResponse.builder()
+                .entityCode(entityCode)
+                .entityName(entityName)
+                .role("STUDENT")
+                .build();
+    }
+
+    // ===================== 母码生成（机构管理员） =====================
+
+    /**
+     * 机构管理员生成母码。
+     * <p>
+     * 母码额度默认 1000，可由前端传入自定义值。母码用于辅导员在其下创建子码。
+     * </p>
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public VerificationCodeGenerateResponse generateMasterCode(
+            String authorization, VerificationCodeGenerateRequest request) {
+
+        String entityCode = extractEntityCodeFromToken(authorization);
+        if (!StringUtils.hasText(entityCode)) {
+            throw BusinessException.unauthorized("认证失败：无法从Token中提取主体代码，请尝试重新登录以获取新的Token");
+        }
+
+        ClientEntity entity = loadEntityByCode(entityCode);
+        if (entity == null || !"ACTIVE".equalsIgnoreCase(entity.getAccountStatus())) {
+            throw BusinessException.notFound("ENTITY_NOT_FOUND");
+        }
+
+        int maxQuota = request.getMaxQuota() == null || request.getMaxQuota() <= 0 ? 1000
+                : Math.min(request.getMaxQuota(), 5000);
+        // 年份由服务器时间决定
+        int year = LocalDateTime.now().getYear();
+        String yearPart = String.valueOf(year);
+        String serial = String.format("%05d", ThreadLocalRandom.current().nextInt(1, 100000));
+        String code = entityCode + "-" + yearPart + "-" + serial;
+
+        // 认证码有效时间：创建日期 + 14 天，当天 23:59:59 失效
+        LocalDateTime expireTime = LocalDateTime.of(LocalDate.now().plusDays(14), LocalTime.of(23, 59, 59));
+        String expireTimeStr = expireTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
+        SysVerificationCode inv = new SysVerificationCode();
+        inv.setCode(code);
+        inv.setEntityCode(entityCode);
+        inv.setIsMaster(1);
+        inv.setParentId(null);
+        inv.setMaxQuota(maxQuota);
+        inv.setUsedQuota(0);
+        inv.setDescription(StringUtils.hasText(request.getDescription())
+                ? request.getDescription().trim() : null);
+        inv.setCreatedBy(extractCreatorId(authorization));
+        inv.setExpireTime(expireTime);
+        inv.setIsActive(1);
+
+        try {
+            sysVerificationCodeMapper.insert(inv);
+        } catch (DuplicateKeyException e) {
+            throw BusinessException.conflict("VERIFICATION_CODE_DUPLICATE");
+        }
+
+        return VerificationCodeGenerateResponse.builder()
+                .code(code)
+                .entityCode(entityCode)
+                .graduationYear(year)
+                .maxQuota(maxQuota)
+                .expireTime(expireTimeStr)
+                .build();
+    }
+
+    // ===================== 子码生成（辅导员/MENTOR） =====================
+
+    /**
+     * 辅导员（COUNSELOR）或导师（MENTOR）在母码下创建子码。
+     * <p>
+     * 【权限】需 user_auth_link.role = COUNSELOR 或 MENTOR。
+     *
+     * <p>
+     * 【并发安全】使用数据库条件 UPDATE 原子递增母码 used_quota，通过 affected rows 判定额度。
+     * </p>
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public VerificationCodeGenerateResponse generateSubCode(
+            String authorization, VerificationCodeGenerateRequest request) {
+
+        String userUid = accessService.requireCurrentUserUid(authorization);
+
+        // 权限校验：必须是 COUNSELOR（辅导员）
+        assertUserHasRole(userUid, "COUNSELOR");
+
+        // 查找母码
+        String masterCode = request.getMasterCode();
+        if (!StringUtils.hasText(masterCode)) {
+            throw BusinessException.badRequest("MASTER_CODE_REQUIRED");
+        }
+        LambdaQueryWrapper<SysVerificationCode> masterWrapper = new LambdaQueryWrapper<>();
+        masterWrapper.eq(SysVerificationCode::getCode, masterCode.trim())
+                .eq(SysVerificationCode::getIsMaster, 1)
+                .eq(SysVerificationCode::getIsActive, 1)
+                .last("LIMIT 1");
+        SysVerificationCode master = sysVerificationCodeMapper.selectOne(masterWrapper);
+        if (master == null) {
+            throw BusinessException.notFound("MASTER_CODE_NOT_FOUND");
+        }
+        if (master.getExpireTime() != null && master.getExpireTime().isBefore(LocalDateTime.now())) {
+            throw BusinessException.badRequest("MASTER_CODE_EXPIRED");
+        }
+
+        int subMaxQuota = request.getMaxQuota() == null || request.getMaxQuota() <= 0 ? 50
+                : Math.min(request.getMaxQuota(), 500);
+
+        // 毕业年份：可选，不填则为 null，不做任何处理
+        Integer subGradYear = request.getGraduationYear() != null
+                && request.getGraduationYear() >= 1950
+                && request.getGraduationYear() <= 2100
+                ? request.getGraduationYear() : null;
+
+        // 原子扣减母码额度
+        LambdaUpdateWrapper<SysVerificationCode> masterUpdate = new LambdaUpdateWrapper<>();
+        masterUpdate.eq(SysVerificationCode::getId, master.getId())
+                .eq(SysVerificationCode::getIsActive, 1)
+                .le(SysVerificationCode::getUsedQuota, master.getMaxQuota() - subMaxQuota)
+                .setSql("used_quota = used_quota + " + subMaxQuota);
+        int rows = sysVerificationCodeMapper.update(null, masterUpdate);
+        if (rows == 0) {
+            throw BusinessException.badRequest("MASTER_CODE_QUOTA_EXHAUSTED");
+        }
+
+        // 生成子码 code
+        String subSerial = String.format("%04d", ThreadLocalRandom.current().nextInt(1, 10000));
+        String subCode = masterCode + "-" + subSerial;
+
+        // 认证码有效时间：创建日期 + 14 天，当天 23:59:59 失效
+        LocalDateTime subExpireTime = LocalDateTime.of(LocalDate.now().plusDays(14), LocalTime.of(23, 59, 59));
+        String subExpireTimeStr = subExpireTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
+        SysVerificationCode sub = new SysVerificationCode();
+        sub.setCode(subCode);
+        sub.setEntityCode(master.getEntityCode());
+        sub.setIsMaster(0);
+        sub.setParentId(master.getId());
+        sub.setMaxQuota(subMaxQuota);
+        sub.setUsedQuota(0);
+        sub.setDescription(StringUtils.hasText(request.getDescription())
+                ? request.getDescription().trim() : null);
+        sub.setGraduationYear(subGradYear);
+        sub.setCreatedBy(userUid);
+        sub.setExpireTime(subExpireTime);
+        sub.setIsActive(1);
+
+        try {
+            sysVerificationCodeMapper.insert(sub);
+        } catch (DuplicateKeyException e) {
+            throw BusinessException.conflict("VERIFICATION_CODE_DUPLICATE");
+        }
+
+        return VerificationCodeGenerateResponse.builder()
+                .code(subCode)
+                .entityCode(master.getEntityCode())
+                .graduationYear(subGradYear)
+                .maxQuota(subMaxQuota)
+                .expireTime(subExpireTimeStr)
+                .build();
+    }
+
+    // ===================== 工具方法 =====================
+
+    /**
+     * 从 Authorization 头提取 CLIENT_ORG token 对应的 entity_code。
+     */
+    private String extractEntityCodeFromToken(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) return null;
+        String token = authorization.substring("Bearer ".length()).trim();
+        if (token.isEmpty()) return null;
+        try {
+            String userType = jwtUtil.getUserType(token);
+            if (!"CLIENT_ORG".equals(userType)) return null;
+            String subject = jwtUtil.getUserId(token);
+            if (subject == null || subject.isBlank()) return null;
+            subject = subject.trim();
+            if (subject.matches("^EA[A-Za-z0-9]{11}$")) {
+                String entity = lookupEntityCodeByAdminUid(subject);
+                if (!StringUtils.hasText(entity)) {
+                    log.warn("[AUTH] 管理员 {} 在 sys_entity_totp_credentials 中未找到对应 entity_code，请检查数据库种子数据", subject);
+                }
+                return entity;
+            }
+            // subject 即为 entity_code（主体根账号登录）
+            return subject;
+        } catch (Exception e) {
+            log.warn("[AUTH] Token 解析失败", e);
+            return null;
+        }
+    }
+
+    private String lookupEntityCodeByAdminUid(String adminUid) {
+        LambdaQueryWrapper<SysEntityTotpCredentials> w = new LambdaQueryWrapper<>();
+        w.eq(SysEntityTotpCredentials::getAdminUid, adminUid).last("LIMIT 1");
+        SysEntityTotpCredentials admin = sysEntityTotpCredentialsMapper.selectOne(w);
+        return admin != null ? admin.getEntityCode() : null;
+    }
+
+    /**
+     * 从 Authorization 头提取当前用户的标识（CLIENT_USER → userUid；CLIENT_ORG → entityCode）。
+     */
+    private String extractCreatorId(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) return "unknown";
+        String token = authorization.substring("Bearer ".length()).trim();
+        if (token.isEmpty()) return "unknown";
+        try {
+            String subject = jwtUtil.getUserId(token);
+            return (subject != null && !subject.isBlank()) ? subject.trim() : "unknown";
+        } catch (Exception e) {
+            return "unknown";
+        }
+    }
+
+    /**
+     * 校验用户是否具有指定角色之一（COUNSELOR / MENTOR）。
+     */
+    private void assertUserHasRole(String userUid, String... allowedRoles) {
+        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserAuthLink::getUserUid, userUid)
+                .eq(UserAuthLink::getAuditStatus, "APPROVED")
+                .eq(UserAuthLink::getIsActive, 1)
+                .in(UserAuthLink::getRole, (Object[]) allowedRoles)
+                .last("LIMIT 1");
+        if (userAuthLinkMapper.selectOne(wrapper) == null) {
+            throw BusinessException.forbidden("ROLE_NOT_ALLOWED");
+        }
+    }
+
+    // ===================== 私有辅助方法 =====================
+
+    private ClientEntity loadEntityByCode(String entityCode) {
+        LambdaQueryWrapper<ClientEntity> w = new LambdaQueryWrapper<>();
+        w.eq(ClientEntity::getEntityCode, entityCode).last("LIMIT 1");
+        return clientEntityMapper.selectOne(w);
+    }
+
+    private ClientEntityProfile loadEntityProfileByCode(String entityCode) {
+        LambdaQueryWrapper<ClientEntityProfile> w = new LambdaQueryWrapper<>();
+        w.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
+        return clientEntityProfileMapper.selectOne(w);
+    }
+
+    private ClientUserProfile loadProfileByUid(String userUid) {
+        LambdaQueryWrapper<ClientUserProfile> w = new LambdaQueryWrapper<>();
+        w.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
+        return clientUserProfileMapper.selectOne(w);
+    }
+
+    private String loadEntityType(String entityCode) {
+        ClientEntityProfile p = loadEntityProfileByCode(entityCode);
+        return p != null ? p.getType() : null;
+    }
+
+    private boolean isApplicationIdUnique(String appUid) {
+        LambdaQueryWrapper<UserAuthLink> w = new LambdaQueryWrapper<>();
+        w.eq(UserAuthLink::getAuthSerialNo, appUid);
+        return userAuthLinkMapper.selectCount(w) == 0;
+    }
+
+    private String maskIdCard(String idCard) {
+        if (idCard == null || idCard.length() < 8) return idCard;
+        return idCard.substring(0, 6) + "********" + idCard.substring(idCard.length() - 4);
+    }
+
+    /** 本地 mock 核身记录 */
+    private record FaceRecord(String userUid, String realName, String idCard, LocalDateTime createdAt) {}
+
+    /**
+     * 生成审批单后缀（11 位 NanoID，去重后拼接为完整 approval_key）。
+     */
+    private String generateApprovalSuffix(java.util.function.Predicate<String> uniquenessChecker) {
+        return com.aventrix.jnanoid.jnanoid.NanoIdUtils.randomNanoId(
+                new java.security.SecureRandom(),
+                "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".toCharArray(),
+                11);
+    }
+
+    /**
+     * 构建教职工认证审批单的 payload JSON。
+     */
+    private String buildStaffPayload(StaffApplyRequest request) {
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("realName", request.getRealName().trim());
+            payload.put("staffNumber", request.getStaffNumber().trim());
+            payload.put("entityCode", request.getEntityCode().trim());
+            return OBJECT_MAPPER.writeValueAsString(payload);
+        } catch (JsonProcessingException e) {
+            return "{}";
+        }
+    }
+}

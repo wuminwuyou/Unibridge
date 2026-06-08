@@ -118,23 +118,31 @@ public class UserProfileService {
     @Autowired
     private ClientNoteMapper clientNoteMapper;
 
-    /** UserProfileMenu 顶部菜单初始化数据。 */
-    public ProfileMenuResponse getProfileMenu(String authorization) {
-        String userUid = accessService.requireCurrentUserUid(authorization);
+    /** UserProfileMenu 顶部菜单初始化数据，含三级认证状态。 */
+    public ProfileMenuResponse getProfileMenu(String authorization, String queryUid) {
+        String targetUserUid = resolveQueryTargetUid(queryUid, null, null,
+                accessService.resolveOptionalCurrentUserUid(authorization));
+        if (targetUserUid == null) {
+            throw BusinessException.unauthorized("UNAUTHORIZED");
+        }
 
-        ClientUser user = loadUserByUid(userUid);
+        ClientUser user = loadUserByUid(targetUserUid);
         if (user == null) {
             throw BusinessException.notFound("USER_NOT_FOUND");
         }
 
-        ClientUserProfile profile = loadProfile(userUid);
-        return new ProfileMenuResponse(
-                userUid,
-                nullSafe(profile == null ? null : profile.getNickName()),
-                nullSafe(profile == null ? null : profile.getLevel()),
-                nullSafe(profile == null ? null : profile.getAvatarUrl()),
-                nullSafe(profile == null ? null : profile.getCurrentEntityName())
-        );
+        ClientUserProfile profile = loadProfile(targetUserUid);
+        String verifyStatus = resolveVerifyStatus(targetUserUid);
+        String verifiedOrganization = resolveVerifiedOrganization(targetUserUid);
+
+        return ProfileMenuResponse.builder()
+                .userUid(targetUserUid)
+                .nickname(nullSafe(profile == null ? null : profile.getNickName()))
+                .level(nullSafe(profile == null ? null : profile.getLevel()))
+                .avatarUrl(nullSafe(profile == null ? null : profile.getAvatarUrl()))
+                .verifiedOrganization(verifiedOrganization)
+                .verifyStatus(verifyStatus)
+                .build();
     }
 
     /**
@@ -438,6 +446,7 @@ public class UserProfileService {
         return switch (role.toUpperCase(Locale.ROOT)) {
             case "PM" -> "企业项目经理";
             case "MENTOR" -> "导师";
+            case "COUNSELOR" -> "辅导员";
             case "STUDENT" -> "学生";
             default -> role;
         };
@@ -813,5 +822,58 @@ public class UserProfileService {
                 .verified(true)
                 .role(role)
                 .build();
+    }
+
+    // ===================== 认证状态判定 =====================
+
+    /**
+     * 三级认证状态判定。
+     * <ul>
+     *   <li>{@code "unverified"}：未身份验证（real_name 为空）</li>
+     *   <li>{@code "identity_only"}：仅身份验证（real_name 非空但无 APPROVED 机构认证）</li>
+     *   <li>{@code "verified"}：身份验证 + 机构认证均已通过</li>
+     * </ul>
+     * 身份验证来源：{@code user_profile.real_name} 非空。
+     * 机构认证来源：{@code user_auth_link.audit_status = 'APPROVED' AND is_active = 1}。
+     */
+    private String resolveVerifyStatus(String userUid) {
+        ClientUserProfile profile = loadProfile(userUid);
+        boolean identityVerified = profile != null && StringUtils.hasText(profile.getRealName());
+
+        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserAuthLink::getUserUid, userUid)
+                .eq(UserAuthLink::getAuditStatus, "APPROVED")
+                .eq(UserAuthLink::getIsActive, 1)
+                .last("LIMIT 1");
+        boolean orgVerified = userAuthLinkMapper.selectOne(wrapper) != null;
+
+        if (identityVerified && orgVerified) return "verified";
+        if (identityVerified) return "identity_only";
+        return "unverified";
+    }
+
+    /**
+     * 获取已认证主体名称。仅全部认证通过时返回机构名，否则返回空。
+     */
+    private String resolveVerifiedOrganization(String userUid) {
+        if (!"verified".equals(resolveVerifyStatus(userUid))) {
+            return "";
+        }
+        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserAuthLink::getUserUid, userUid)
+                .eq(UserAuthLink::getAuditStatus, "APPROVED")
+                .eq(UserAuthLink::getIsActive, 1)
+                .last("LIMIT 1");
+        UserAuthLink link = userAuthLinkMapper.selectOne(wrapper);
+        if (link == null || !StringUtils.hasText(link.getEntityCode())) {
+            return "";
+        }
+        LambdaQueryWrapper<ClientEntityProfile> profileWrapper = new LambdaQueryWrapper<>();
+        profileWrapper.eq(ClientEntityProfile::getEntityCode, link.getEntityCode()).last("LIMIT 1");
+        ClientEntityProfile entityProfile = clientEntityProfileMapper.selectOne(profileWrapper);
+        if (entityProfile != null && StringUtils.hasText(entityProfile.getName())) {
+            return entityProfile.getName();
+        }
+        return link.getEntityCode();
     }
 }

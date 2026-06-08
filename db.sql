@@ -28,6 +28,7 @@ DROP TABLE IF EXISTS entity;
 DROP TABLE IF EXISTS sys_credit_logs;
 DROP TABLE IF EXISTS sys_credit_profiles;
 DROP TABLE IF EXISTS sys_approval_flows;
+DROP TABLE IF EXISTS sys_verification_codes;
 DROP TABLE IF EXISTS system_admin;
 
 
@@ -191,7 +192,7 @@ CREATE TABLE user_auth_link (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_uid CHAR(13) NOT NULL COMMENT '用户 UID',
   entity_code VARCHAR(32) NOT NULL COMMENT '机构主体代码（学校或企业社会统一信用代码）',
-  role VARCHAR(32) NOT NULL COMMENT 'PM(企业项目经理/员工) | MENTOR(学校指导老师) | STUDENT(学生)',
+  role VARCHAR(32) NOT NULL COMMENT 'PM(企业项目经理/员工) | MENTOR(学校指导老师) | COUNSELOR(学校辅导员) | STUDENT(学生)',
   -- 凭证资产留痕（审核必备）
   auth_serial_no VARCHAR(64) NULL COMMENT '学号 或 工号（可选冗余，方便检索）',
   proof_artifact_url VARCHAR(512) NULL COMMENT '认证证明材料URL（如学生证、工作证截图，供后台审核）',
@@ -216,7 +217,7 @@ CREATE TABLE user_auth_link (
     ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_user_auth_link_audit_admin FOREIGN KEY (audit_uid) REFERENCES sys_entity_totp_credentials(admin_uid)
     ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT chk_user_auth_link_role CHECK (role IN ('PM','MENTOR','STUDENT')),
+  CONSTRAINT chk_user_auth_link_role CHECK (role IN ('PM','MENTOR','COUNSELOR','STUDENT')),
   CONSTRAINT chk_user_auth_link_audit CHECK (audit_status IN ('PENDING','APPROVED','REJECTED')),
   CONSTRAINT chk_user_auth_link_active CHECK (is_active IN (0, 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -582,7 +583,7 @@ INSERT IGNORE INTO system_admin (id, password_hash, auth_level) VALUES
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS sys_approval_flows (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  approval_key VARCHAR(64) NOT NULL COMMENT '对外公开审批单 Key（APP+11位 [A-Za-z0-9]，如 app_aB7x9K2mN4pQ）',
+  approval_key VARCHAR(64) NOT NULL COMMENT '对外公开审批单 Key（APP-yyyyMMdd-11位 [A-Za-z0-9]，如 APP-20260607-aB7x9K2mN4pQ）',
   business_type VARCHAR(32) NOT NULL COMMENT 'PROJECT_FUND | LAB_CREATE | MENTOR_AUTH，可后续拓展：USER_AUTH | ENTITY_AUTH | TEAM_AUTH',
   applicant_key VARCHAR(64) NOT NULL COMMENT '申请人 Key（通常为 user_uid 或 entity_code，分库友好不设 FK）',
   target_key VARCHAR(64) NOT NULL COMMENT '目标主体 Key：entity_code 或 team_uid；特殊值 0 表示平台官方审批',
@@ -598,7 +599,7 @@ CREATE TABLE IF NOT EXISTS sys_approval_flows (
   KEY idx_approval_applicant (applicant_key),
   KEY idx_approval_target_status (target_key, status),
   KEY idx_approval_business_type (business_type),
-  CONSTRAINT chk_approval_key CHECK (approval_key REGEXP '^APP[A-Za-z0-9]{11}$'),
+  CONSTRAINT chk_approval_key CHECK (approval_key REGEXP '^APP-[0-9]{8}-[A-Za-z0-9]{11}$'),
   CONSTRAINT chk_approval_business_type CHECK (business_type IN ('PROJECT_FUND', 'LAB_CREATE', 'MENTOR_AUTH')),
   CONSTRAINT chk_approval_status CHECK (status IN (0, 1, 2, 3))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -618,7 +619,55 @@ CREATE TABLE IF NOT EXISTS sys_approval_flows (
 -- -------------------------------------------------------------------------
 
 -- =========================================================================
--- 21）用户信用档案（sys_credit_profiles + sys_credit_logs）
+-- 21）学生认证码表（sys_verification_codes：母子码设计，额度控制+生命周期管理）
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS sys_verification_codes (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  code VARCHAR(50) NOT NULL COMMENT '认证码（母码: {entityCode}-{year}-{5位}；子码: 母码code-{4位}）',
+  entity_code VARCHAR(32) NOT NULL COMMENT '所属学校/机构代码',
+  is_master TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1: 母码, 0: 子码',
+  parent_id BIGINT UNSIGNED NULL COMMENT '子码关联的母码 id',
+  max_quota INT UNSIGNED NOT NULL COMMENT '最大使用次数（母码默认1000，子码默认200）',
+  used_quota INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '已使用次数（母码: 已分发的子码总额度；子码: 已激活的学生数）',
+  description VARCHAR(255) NULL COMMENT '用途描述（如"深圳大学2026届计算机专业学生认证码"）',
+  graduation_year SMALLINT UNSIGNED NULL COMMENT '预期毕业年份（子码可选，母码 NULL）',
+  created_by VARCHAR(64) NOT NULL COMMENT '创建者 user_uid（母码: 机构管理员；子码: 辅导员）',
+  expire_time DATETIME NOT NULL COMMENT '过期时间（创建日期+14天，当天23:59:59）',
+  is_active TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1: 启用, 0: 禁用',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_invitation_code (code),
+  KEY idx_invitation_entity_code (entity_code),
+  KEY idx_invitation_parent_id (parent_id),
+  KEY idx_invitation_is_master (is_master),
+  KEY idx_invitation_expire_time (expire_time),
+  KEY idx_invitation_is_active (is_active),
+  CONSTRAINT chk_invitation_max_quota CHECK (max_quota > 0 AND max_quota <= 50000),
+  CONSTRAINT chk_invitation_is_master CHECK (is_master IN (0, 1)),
+  CONSTRAINT chk_invitation_is_active CHECK (is_active IN (0, 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- -------------------------------------------------------------------------
+-- sys_verification_codes 说明
+-- | 字段         | 母码                                     | 子码                              |
+-- |--------------|------------------------------------------|-----------------------------------|
+-- | code         | {entityCode}-{year}-{5位随机}            | 母码code-{4位随机}                |
+-- | max_quota     | 母码总额度（默认 1000）                   | 子码额度（默认 200）               |
+-- | used_quota   | 已分配子码总额度（≤ max_quota）            | 已激活学生数（≤ max_quota）         |
+-- | is_master    | 1                                        | 0                                 |
+-- | parent_id    | NULL                                     | 母码 id                           |
+-- | created_by   | 机构管理员 user_uid                       | 辅导员 user_uid                   |
+-- | expire_time  | 到期后 is_active 自动失效（应用层判定）     | 同母码                            |
+--
+-- 并发安全：额度扣减使用数据库原子更新
+--   母码：UPDATE SET used_quota = used_quota + 子码额度 WHERE id = ? AND is_active = 1 AND used_quota + 子码额度 ≤ max_quota
+--   子码：UPDATE SET used_quota = used_quota + 1 WHERE id = ? AND is_active = 1 AND used_quota < max_quota
+--   校验 affected rows = 0 → 返回错误
+-- -------------------------------------------------------------------------
+
+-- =========================================================================
+-- 22）用户信用档案（sys_credit_profiles + sys_credit_logs）
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS sys_credit_profiles (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -777,6 +826,37 @@ CREATE TABLE IF NOT EXISTS sys_credit_logs (
 --     ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- =========================
--- 23）收尾
+-- 23）测试数据：认证码（母码 + 子码）
+-- =========================
+-- 母码：深圳大学 2026 届（总额度 1000，expire_time = 2026-12-31）
+INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
+VALUES ('10598-2026-00001', '10598', 1, NULL, 1000, 0, '深圳大学2026届通用认证母码', 'US00000000002', '2026-12-31 23:59:59', 1);
+
+-- 母码：深圳大学 2027 届（总额度 800，expire_time = 2027-12-31）
+INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
+VALUES ('10598-2027-00001', '10598', 1, NULL, 800, 0, '深圳大学2027届通用认证母码', 'US00000000002', '2027-12-31 23:59:59', 1);
+
+-- 子码：计算机专业（基于 2026 母码，额度 200）
+INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
+VALUES ('10598-2026-00001-0001', '10598', 0, 1, 60, 0, '深圳大学2026届计算机专业学生认证码', 'US00000000003', '2026-12-31 23:59:59', 1);
+
+-- 子码：软件工程专业（基于 2026 母码，额度 150）
+INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
+VALUES ('10598-2026-00001-0002', '10598', 0, 1, 60, 0, '深圳大学2026届软件工程专业学生认证码', 'US00000000003', '2026-12-31 23:59:59', 1);
+
+-- 子码：数学专业（基于 2026 母码，额度 100）
+INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
+VALUES ('10598-2026-00001-0003', '10598', 0, 1, 60, 0, '深圳大学2026届数学专业学生认证码', 'US00000000003', '2026-12-31 23:59:59', 1);
+
+-- 子码：电子商务专业（基于 2027 母码，额度 120）
+INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
+VALUES ('10598-2027-00001-0001', '10598', 0, 2, 60, 0, '深圳大学2027届电子商务专业学生认证码', 'US00000000003', '2027-12-31 23:59:59', 1);
+
+-- 更新母码 used_quota（已分配子码总额度：200+150+100=240 / 120）
+UPDATE sys_verification_codes SET used_quota = 240 WHERE id = 1;
+UPDATE sys_verification_codes SET used_quota = 60 WHERE id = 2;
+
+-- =========================
+-- 24）收尾
 -- =========================
 SET FOREIGN_KEY_CHECKS = 1;

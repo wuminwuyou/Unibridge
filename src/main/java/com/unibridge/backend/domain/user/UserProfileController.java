@@ -20,12 +20,14 @@ public class UserProfileController {
     @Autowired
     private UserProfileService UserProfileService;
 
-    @Operation(summary = "Profile 顶部菜单", description = "UserProfileMenu 初始化数据，需登录")
+    @Operation(summary = "Profile 顶部菜单", description = "UserProfileMenu 初始化数据，需登录。传 uid 可查看他人。")
     @GetMapping("/menu")
     public Result getProfileMenu(
             @Parameter(description = "Bearer JWT access_token")
-            @RequestHeader(value = "Authorization", required = false) String authorization) {
-        return Result.success(UserProfileService.getProfileMenu(authorization));
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Parameter(description = "目标用户 UID（US+11），为空时查看 token 当前用户")
+            @RequestParam(value = "uid", required = false) String uid) {
+        return Result.success(UserProfileService.getProfileMenu(authorization, uid));
     }
 
     @Operation(summary = "个人空间页壳", description = "Hero + Sidebar + 关联团队，一次性返回")

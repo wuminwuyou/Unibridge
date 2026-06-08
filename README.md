@@ -137,6 +137,33 @@ http://localhost:8081
 
 **主类**：`com.unibridge.backend.UnibridgeBackendApplication`
 
+---
+
+## 环境配置速查
+
+### 身份验证手动开关
+
+人脸核身（身份证+姓名二要素验证）通过 `spring.profiles.active` 控制模式：
+
+| Profile | 行为 | 适用场景 |
+|---------|------|----------|
+| `dev`（默认） | **mock 模式**：跳过腾讯云核身，直接返回 `passed=true` | 本地开发 / 联调 |
+| `prod` | **真实核身**：调用腾讯云人脸核身 API | 生产部署（需先配置 SDK） |
+
+**代码控制点**：`VerificationService` 通过 `@Value("${spring.profiles.active:dev}")` 注入，所有核身方法内 `if ("dev".equals(activeProfile))` 走 mock。
+
+**配置文件位置**：
+
+| 文件 | 对应 Profile |
+|------|-------------|
+| `src/main/resources/application-dev.properties` | `dev`（开发） |
+| `src/main/resources/application-prod.properties` | `prod`（生产） |
+
+**生产环境接入步骤**（后续）：
+1. `pom.xml` 引入 `tencentcloud-sdk-java-faceid`
+2. 配置环境变量 `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`
+3. 实现 `VerificationService` 中 `else` 分支的腾讯云 SDK 调用
+
 ### API 文档（OpenAPI / Swagger UI）
 
 项目已集成 **springdoc-openapi**（Spring Boot 3 使用 `springdoc-openapi-starter-webmvc-ui`）：

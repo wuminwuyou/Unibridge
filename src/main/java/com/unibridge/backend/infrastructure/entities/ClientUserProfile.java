@@ -32,6 +32,8 @@ public class ClientUserProfile {
     private String bioData;
     @TableField("career_data")
     private String careerData;
+    @TableField("graduation_year")
+    private Integer graduationYear;
     @TableField("intro")
     private String intro;
     @TableField("announcement")

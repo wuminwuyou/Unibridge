@@ -182,7 +182,7 @@ public class TeamProfileService {
         int resolvedAchievementLimit = normalizeLimit(achievementLimit, DEFAULT_HOME_ACHIEVEMENT_LIMIT);
 
         List<ClientProject> projects = loadTeamProjects(teamUid, resolvedProjectLimit, 0);
-        List<ClientNote> notes = loadTeamNotes(memberUids, null, resolvedNoteLimit, 0);
+        List<ClientNote> notes = loadTeamNotes(teamUid, null, resolvedNoteLimit, 0);
         List<AchievementArchive> achievements = loadTeamAchievements(memberUids, resolvedAchievementLimit, 0);
 
         return TeamProfileHomeResponse.builder()
@@ -191,7 +191,7 @@ public class TeamProfileService {
                 .notes(toNoteItems(notes))
                 .achievements(toAchievementItems(achievements))
                 .projectTotal(countTeamProjects(teamUid))
-                .noteTotal(countTeamNotes(memberUids, null))
+                .noteTotal(countTeamNotes(teamUid, null))
                 .achievementTotal(countTeamAchievements(memberUids))
                 .build();
     }
@@ -245,15 +245,14 @@ public class TeamProfileService {
                                                         Integer pageSize,
                                                         String contentType) {
         ClientTeam team = requireAccessibleTeam(teamUid);
-        List<String> memberUids = loadTeamMemberUids(team);
 
         int resolvedPage = normalizePage(page);
         int resolvedPageSize = normalizePageSize(pageSize, DEFAULT_NOTE_PAGE_SIZE);
         int offset = (resolvedPage - 1) * resolvedPageSize;
         String dbContentType = mapNoteContentTypeFilter(contentType);
 
-        List<ClientNote> notes = loadTeamNotes(memberUids, dbContentType, resolvedPageSize, offset);
-        long total = countTeamNotes(memberUids, dbContentType);
+        List<ClientNote> notes = loadTeamNotes(teamUid, dbContentType, resolvedPageSize, offset);
+        long total = countTeamNotes(teamUid, dbContentType);
 
         return TeamProfileNotesResponse.builder()
                 .teamUid(team.getTeamUid())
@@ -565,14 +564,11 @@ public class TeamProfileService {
         return clientProjectMapper.selectCount(baseTeamProjectWrapper(teamUid));
     }
 
-    private LambdaQueryWrapper<ClientNote> baseTeamNoteWrapper(List<String> memberUids, String dbContentType) {
+    private LambdaQueryWrapper<ClientNote> baseTeamNoteWrapper(String teamUid, String dbContentType) {
         LambdaQueryWrapper<ClientNote> wrapper = new LambdaQueryWrapper<>();
-        if (memberUids.isEmpty()) {
-            wrapper.eq(ClientNote::getUserUid, "__NONE__");
-        } else {
-            wrapper.in(ClientNote::getUserUid, memberUids);
-        }
-        wrapper.eq(ClientNote::getStatus, NOTE_STATUS_PUBLISHED);
+        // 按 notes.extended_uid = teamUid 查询团队关联笔记，非按作者 user_uid
+        wrapper.eq(ClientNote::getExtendedUid, teamUid)
+                .eq(ClientNote::getStatus, NOTE_STATUS_PUBLISHED);
         if (dbContentType != null) {
             wrapper.likeRight(ClientNote::getContentTypeCode, dbContentType);
         }
@@ -580,15 +576,15 @@ public class TeamProfileService {
         return wrapper;
     }
 
-    private List<ClientNote> loadTeamNotes(List<String> memberUids, String dbContentType, int pageSize, int offset) {
+    private List<ClientNote> loadTeamNotes(String teamUid, String dbContentType, int pageSize, int offset) {
         int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
         Page<ClientNote> page = new Page<>(pageNum, pageSize);
         page.setSearchCount(false);
-        return clientNoteMapper.selectPage(page, baseTeamNoteWrapper(memberUids, dbContentType)).getRecords();
+        return clientNoteMapper.selectPage(page, baseTeamNoteWrapper(teamUid, dbContentType)).getRecords();
     }
 
-    private long countTeamNotes(List<String> memberUids, String dbContentType) {
-        return clientNoteMapper.selectCount(baseTeamNoteWrapper(memberUids, dbContentType));
+    private long countTeamNotes(String teamUid, String dbContentType) {
+        return clientNoteMapper.selectCount(baseTeamNoteWrapper(teamUid, dbContentType));
     }
 
     private LambdaQueryWrapper<AchievementArchive> baseTeamAchievementWrapper(List<String> memberUids) {
