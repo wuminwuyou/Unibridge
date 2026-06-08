@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import './VerifiedOrgModal.css'
 
 // 01）主体认证页路由常量（ORGANIZATION_VERIFY_PATH）
-export const ORGANIZATION_VERIFY_PATH = '/verify/organization'
+export const ORGANIZATION_VERIFY_PATH = '/verify'
 
 // 01）认证主体展示组件参数（VerifiedOrgModalProps）
 export interface VerifiedOrgModalProps {
@@ -62,6 +62,8 @@ export interface VerifiedOrgButtonProps {
   to?: string
   className?: string
   onNavigate?: () => void
+  /** 按钮文案，默认「去认证」 */
+  label?: string
 }
 
 // 04）去认证按钮（VerifiedOrgButton）
@@ -79,7 +81,7 @@ export interface VerifiedOrgButtonProps {
  * - 返回值：JSX.Element
  * - 副作用：触发路由跳转
  */
-export function VerifiedOrgButton({ to = ORGANIZATION_VERIFY_PATH, className = '', onNavigate }: VerifiedOrgButtonProps) {
+export function VerifiedOrgButton({ to = ORGANIZATION_VERIFY_PATH, className = '', onNavigate, label = '去认证' }: VerifiedOrgButtonProps) {
   const navigate = useNavigate()
 
   const handleClick = (): void => {
@@ -90,8 +92,8 @@ export function VerifiedOrgButton({ to = ORGANIZATION_VERIFY_PATH, className = '
   const buttonClassName = `verified-org-button ${className}`.trim()
 
   return (
-    <button type="button" className={buttonClassName} onClick={handleClick} aria-label="前往主体认证">
-      <span>去认证</span>
+    <button type="button" className={buttonClassName} onClick={handleClick} aria-label={label}>
+      <span>{label}</span>
     </button>
   )
 }

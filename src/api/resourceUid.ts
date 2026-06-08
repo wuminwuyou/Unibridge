@@ -61,7 +61,7 @@ export function isNoteResourceUid(value: string | null | undefined): value is No
  * - 副作用：无
  */
 export function isUserResourceUid(value: string | null | undefined): value is UserResourceUid {
-  return typeof value === 'string' && /^US[A-Za-z0-9]{11}$/.test(value.trim())
+  return typeof value === 'string' && /^(US|EA)[A-Za-z0-9]{11}$/.test(value.trim())
 }
 
 // 08）从接口对象解析用户 uid（normalizeUserResourceUid）

@@ -1,7 +1,12 @@
+import { useState } from 'react'
 import type { ThemeMode } from '../../../../contexts/ThemeContext'
-import { ChevronDown, Send } from 'lucide-react'
+import { useAuth } from '../../../../contexts/AuthContext'
+import { isOrganizationAdminRole } from '../../../../auth/organizationSession'
+import { ChevronDown, Send, Ticket } from 'lucide-react'
 import UserProfileMenu from '../UserProfileMenu'
 import { usePublishEntryMenu } from './usePublishEntryMenu'
+import { SchoolVerificationCodeModal } from './SchoolVerificationCodeModal'
+
 import './style.css'
 
 // 01）右侧操作区参数（HeaderActionsProps）
@@ -14,7 +19,24 @@ interface HeaderActionsProps {
   onLogout: () => void
 }
 
-// 02）右侧操作区视图（HeaderActions）
+// 02）判断是否为学校类型主体（isSchoolEntity）
+/**
+ * 函数名：isSchoolEntity
+ * 功能：根据 entity_code 长度判断当前主体是否为学校类型（5 位数字编码）。
+ * 实现方法：
+ * - 学校 entity_code 为 5 位数字（如 10598），企业统一社会信用代码为 18 位
+ * - 仅当 entity_code 存在且长度为 5 时视为学校
+ * 输入：
+ * - entityCode：主体编码，可选
+ * 输出：
+ * - 返回值：boolean
+ * - 副作用：无
+ */
+function isSchoolEntity(entityCode?: string): boolean {
+  return typeof entityCode === 'string' && entityCode.trim().length === 5
+}
+
+// 03）右侧操作区视图（HeaderActions）
 /**
  * 函数名：HeaderActions
  * 功能：渲染顶部导航右侧的主题切换、消息通知与登录/已登录入口区。
@@ -24,6 +46,7 @@ interface HeaderActionsProps {
  * - 未登录：渲染「登录 / 注册」按钮，点击触发 onAuthEntryClick 打开登录弹窗
  * - 已登录：渲染 UserProfileMenu（头像 + 悬浮功能面板）
  * - 发布按钮通过 usePublishEntryMenu 展示向下选项（项目 / 笔记）
+ * - 学校管理员显示「学校认证码」入口（企业类型隐藏）
  * 输入：
  * - theme：当前主题模式
  * - isAuthenticated：是否已登录
@@ -34,6 +57,12 @@ interface HeaderActionsProps {
  * - 副作用：无（事件由 Hook 与父级处理器承担）
  */
 function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick, onNotifyClick, onLogout }: HeaderActionsProps) {
+  const { userProfile } = useAuth()
+  const isOrgAdmin = isOrganizationAdminRole(userProfile?.userRole)
+  const isSchool = isSchoolEntity(userProfile?.entityCode)
+  const showSchoolCodeEntry = isOrgAdmin && isSchool
+  const [isCodeModalOpen, setCodeModalOpen] = useState(false)
+  const [isCodeMenuOpen, setCodeMenuOpen] = useState(false)
   const themeButtonLabel = `切换到${theme === 'light' ? '深色' : '浅色'}主题`
   const publishMenu = usePublishEntryMenu({
     isAuthenticated,
@@ -42,7 +71,7 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
 
   return (
     <div className="header-actions">
-      {/* 03）顶部导航搜索区（top-header-search） */}
+      {/* 04）顶部导航搜索区（top-header-search） */}
       <label className="top-header-search" htmlFor="top-header-search-input">
         <span className="top-header-search__icon" aria-hidden="true">
           🔍
@@ -82,51 +111,75 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
         </span>
       </button>
 
-      <div className="publish-entry" ref={publishMenu.menuRef}>
-        <button
-          type="button"
-          className={`publish-entry-button ${publishMenu.isMenuOpen ? 'publish-entry-button--open' : ''}`}
-          aria-label="发布内容"
-          aria-haspopup="menu"
-          aria-expanded={publishMenu.isMenuOpen}
-          onClick={publishMenu.togglePublishMenu}
-        >
-          <Send size={16} strokeWidth={2.2} aria-hidden="true" />
-          <span>发布</span>
-          <ChevronDown
-            size={14}
-            strokeWidth={2.2}
-            aria-hidden="true"
-            className={`publish-entry-button__chevron ${publishMenu.isMenuOpen ? 'publish-entry-button__chevron--open' : ''}`}
-          />
-        </button>
+      {showSchoolCodeEntry ? (
+        <div className="publish-entry">
+          <button type="button" className={`publish-entry-button ${isCodeMenuOpen ? 'publish-entry-button--open' : ''}`}
+            aria-label="学校认证码" aria-haspopup="menu" aria-expanded={isCodeMenuOpen}
+            onClick={() => setCodeMenuOpen(prev => !prev)}>
+            <Ticket size={16} strokeWidth={2.2} aria-hidden="true" />
+            <span>学校认证码</span>
+            <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true"
+              className={`publish-entry-button__chevron ${isCodeMenuOpen ? 'publish-entry-button__chevron--open' : ''}`} />
+          </button>
+          {isCodeMenuOpen ? (
+            <div className="publish-entry-menu" role="menu" aria-label="认证码选项">
+              <button type="button" role="menuitem" className="publish-entry-menu__item"
+                onClick={() => { setCodeMenuOpen(false); setCodeModalOpen(true) }}>
+                <span className="publish-entry-menu__item-icon" aria-hidden="true"><Ticket size={16} strokeWidth={2.2} /></span>
+                <span className="publish-entry-menu__item-text"><span className="publish-entry-menu__item-label">生成认证码</span><span className="publish-entry-menu__item-desc">创建新的母码</span></span>
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="publish-entry" ref={publishMenu.menuRef}>
+          <button
+            type="button"
+            className={`publish-entry-button ${publishMenu.isMenuOpen ? 'publish-entry-button--open' : ''}`}
+            aria-label="发布内容"
+            aria-haspopup="menu"
+            aria-expanded={publishMenu.isMenuOpen}
+            onClick={publishMenu.togglePublishMenu}
+          >
+            <Send size={16} strokeWidth={2.2} aria-hidden="true" />
+            <span>发布</span>
+            <ChevronDown
+              size={14}
+              strokeWidth={2.2}
+              aria-hidden="true"
+              className={`publish-entry-button__chevron ${publishMenu.isMenuOpen ? 'publish-entry-button__chevron--open' : ''}`}
+            />
+          </button>
 
-        {publishMenu.isMenuOpen ? (
-          <div className="publish-entry-menu" role="menu" aria-label="选择发布类型">
-            {publishMenu.menuOptions.map((option) => {
-              const OptionIcon = option.icon
+          {publishMenu.isMenuOpen ? (
+            <div className="publish-entry-menu" role="menu" aria-label="选择发布类型">
+              {publishMenu.menuOptions.map((option) => {
+                const OptionIcon = option.icon
 
-              return (
-                <button
-                  key={option.type}
-                  type="button"
-                  role="menuitem"
-                  className="publish-entry-menu__item"
-                  onClick={() => publishMenu.handleSelectPublishType(option.type)}
-                >
-                  <span className="publish-entry-menu__item-icon" aria-hidden="true">
-                    <OptionIcon size={16} strokeWidth={2.2} />
-                  </span>
-                  <span className="publish-entry-menu__item-text">
-                    <span className="publish-entry-menu__item-label">{option.label}</span>
-                    <span className="publish-entry-menu__item-desc">{option.description}</span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        ) : null}
-      </div>
+                return (
+                  <button
+                    key={option.type}
+                    type="button"
+                    role="menuitem"
+                    className="publish-entry-menu__item"
+                    onClick={() => publishMenu.handleSelectPublishType(option.type)}
+                  >
+                    <span className="publish-entry-menu__item-icon" aria-hidden="true">
+                      <OptionIcon size={16} strokeWidth={2.2} />
+                    </span>
+                    <span className="publish-entry-menu__item-text">
+                      <span className="publish-entry-menu__item-label">{option.label}</span>
+                      <span className="publish-entry-menu__item-desc">{option.description}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      <SchoolVerificationCodeModal open={isCodeModalOpen} onClose={() => setCodeModalOpen(false)} />
     </div>
   )
 }

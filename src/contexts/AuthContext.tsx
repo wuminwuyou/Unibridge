@@ -23,6 +23,10 @@ export interface AuthUserProfile {
   uid?: UserResourceUid
   userRole?: string
   authStatus?: string
+  /** 认证状态："unverified" | "identity_only" | "verified" */
+  verifyStatus?: string
+  /** 主体名称（全部认证通过时）或空字符串 */
+  verifiedOrganization?: string
   /** 主体 entity_code，主体通道登录时写入 */
   entityCode?: string
   /** 主体展示名称 */

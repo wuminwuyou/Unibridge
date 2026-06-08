@@ -2,10 +2,9 @@
 
 > **本机联调地址**：`http://localhost:8081/api/v1/client`  
 > **前端 baseURL**：`/api/v1/client`（`apps/web-client/src/api/http.ts`）  
-> **路径约定**：下文所有 Path 均相对 `/api/v1/client`。  
-> **待办事项**：见 [`API-request.md`](./API-request.md)（创建学生团队 API 增量需求）。
+> **路径约定**：下文所有 Path 均相对 `/api/v1/client`。
 
-本文档汇总 Web 客户端已对接的后端接口，按业务模块分五部分编写。前端封装位于 `apps/web-client/src/api/`。
+本文档汇总 Web 客户端已对接的后端接口，按业务模块分六部分编写。前端封装位于 `apps/web-client/src/api/`。
 
 ---
 
@@ -61,6 +60,15 @@
 | 41 | 团队空间 | GET | `/team-profile/notes` | 团队空间「笔记」Tab | `getTeamProfileNotes` |
 | 42 | 团队空间 | GET | `/team-profile/achievements` | 团队空间「成果」Tab | `getTeamProfileAchievements` |
 | 43 | 用户 | GET | `/users/{uid}/public-preview` | 用户公开预览（管理成员添加校验） | `getUserPublicPreview` |
+| 44 | 认证 | POST | `/verification/face/init` | 初始化人脸核身 | `initFaceVerification` |
+| 45 | 认证 | GET | `/verification/face/result` | 查询人脸核身结果 | `queryFaceVerificationResult` |
+| 46 | 认证 | GET | `/verification/entities/search` | 检索机构 | `searchEntities` |
+| 47 | 认证 | POST | `/verification/staff-apply` | 教职工认证申请 | `applyStaffVerification` |
+| 48 | 认证 | POST | `/verification/verification-codes/generate` | 生成认证母码 | `generateMasterCode` |
+| 49 | 认证 | POST | `/verification/verification-codes/sub-code` | 生成认证子码 | `generateSubCode` |
+| 50 | 认证 | GET | `/verification/verification-codes` | 获取认证码列表 | `getVerificationCodeList` |
+| 51 | 认证 | POST | `/verification/verification-codes/invalidate` | 无效化认证码 | `invalidateVerificationCode` |
+| 52 | 认证 | POST | `/verification/student-activate` | 学生认证激活 | `activateStudentVerification` |
 
 ### 页面与接口映射
 
@@ -78,6 +86,7 @@
 | `PublishNoteView` | `/publish/note` | `POST/PUT /notes`、`POST /uploads/*`、`GET /uploads/check-md5` |
 | `ProjectDetailPage` | `/project-detail` | `GET /projects/{uid}`、`POST /feed/events`（VIEW_DETAIL） |
 | `NoteDetailPage` | `/note-detail` | `GET /notes/{uid}`、`POST /feed/events`（VIEW_DETAIL） |
+| `VerificationPage` | `/verification` | `POST /verification/face/init`、`GET /verification/face/result`、`GET /verification/entities/search`、`POST /verification/staff-apply`、`POST /verification/student-activate` |
 
 ### 文档目录
 
@@ -88,6 +97,7 @@
 | [第三部分：发布与详情](#第三部分发布与详情) | 项目/笔记发布、上传、详情读 |
 | [第四部分：Feed 推荐与互动](#第四部分feed-推荐与互动) | Feed 读接口、埋点、互动、双 ID 约定 |
 | [第五部分：机构空间](#第五部分机构空间) | 机构空间读/写接口、实验室管理、人员管理 |
+| [第六部分：双阶段认证](#第六部分双阶段认证) | 人脸核身、机构检索、教职工/学生认证、认证码管理 |
 
 ### 全局通用约定
 
@@ -2752,7 +2762,18 @@ sequenceDiagram
 | `ENTITY_NOT_ACCESSIBLE` | 403 |
 | `INVALID_ENTITY_CODE` | 400 |
 
-### 08）`POST /team/create` — 创建学生团队
+### 08）认证状态与字段
+
+后端在登录/刷新 token 响应中返回新的认证相关字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `verifyStatus` | string | `"unverified"` — 未认证；`"identity_only"` — 仅身份验证（已实名但未机构认证）；`"verified"` — 已全部认证 |
+| `verifiedOrganization` | string | 全部认证通过时返回主体名称，`identity_only` 时为空字符串 |
+
+前端 `AuthUserProfile` 已同步新增 `verifyStatus` / `verifiedOrganization`。
+
+### 09）`POST /team/create` — 创建学生团队
 
 > **消费方**：`CreateTeamModal.tsx` — 个人主页侧边栏「创建团队」
 
@@ -2798,3 +2819,301 @@ sequenceDiagram
 | `TEAM_NAME_TOO_LONG` | 400 |
 | `USER_NOT_VERIFIED` | 403 |
 | `USER_NOT_FOUND` | 404 |
+
+
+---
+
+## 第六部分：双阶段认证
+
+> **消费页面**：`VerificationPage`（`/verification`）  
+> **前端模块**：`apps/web-client/src/api/verification`  
+> **Base**：`/api/v1/client`
+
+双阶段认证流程：**阶段一**人脸核身 → **阶段二**机构身份激活（教职工通道 / 学生快捷通道）。
+
+### 接口总览
+
+| # | Method | Path | 说明 | 前端封装 |
+|---|--------|------|------|----------|
+| 1 | POST | `/verification/face/init` | 初始化人脸核身 | `initFaceVerification` |
+| 2 | GET | `/verification/face/result` | 查询人脸核身结果 | `queryFaceVerificationResult` |
+| 3 | GET | `/verification/entities/search` | 检索机构 | `searchEntities` |
+| 4 | POST | `/verification/staff-apply` | 教职工认证申请 | `applyStaffVerification` |
+| 5 | POST | `/verification/verification-codes/generate` | 生成认证母码 | `generateMasterCode` |
+| 6 | POST | `/verification/verification-codes/sub-code` | 生成认证子码 | `generateSubCode` |
+| 7 | GET | `/verification/verification-codes` | 获取认证码列表 | `getVerificationCodeList` |
+| 8 | POST | `/verification/verification-codes/invalidate` | 无效化认证码 | `invalidateVerificationCode` |
+| 9 | POST | `/verification/student-activate` | 学生认证激活 | `activateStudentVerification` |
+
+### 调用时序
+
+```
+VerificationPage
+  ├── 阶段一：填写姓名+身份证 → POST /verification/face/init
+  │     └── iframe 核身 → GET /verification/face/result?token=
+  └── 阶段二：机构认证
+        ├── Staff：GET /verification/entities/search → POST /verification/staff-apply → /profile
+        └── Student：POST /verification/student-activate → /profile
+```
+
+---
+
+### 1) `POST /verification/face/init` — 初始化人脸核身
+
+- **Method**：`POST`
+- **Path**：`/verification/face/init`
+- **Auth**：是
+
+#### Request
+
+```json
+{ "realName": "张三", "idCard": "440300199001011234" }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `realName` | string | 是 | 身份证上的真实姓名 |
+| `idCard` | string | 是 | 18 位身份证号 |
+
+#### Response `data`
+
+```json
+{ "url": "about:blank", "token": "face_mock_abc123", "expireInSec": 300 }
+```
+
+---
+
+### 2) `GET /verification/face/result` — 查询人脸核身结果
+
+- **Method**：`GET`
+- **Path**：`/verification/face/result`
+- **Auth**：是
+- **Query**：`token=`
+
+#### Response `data`
+
+```json
+{ "passed": true, "realName": "张三", "idCardMasked": "440300********1234" }
+```
+
+---
+
+### 3) `GET /verification/entities/search` — 检索机构
+
+- **Method**：`GET`
+- **Path**：`/verification/entities/search`
+- **Auth**：是
+- **Query**：`keyword=`
+
+#### Response `data`
+
+```json
+{ "entities": [{ "entityCode": "10598", "name": "深圳大学", "type": "UNIVERSITY" }] }
+```
+
+---
+
+### 4) `POST /verification/staff-apply` — 教职工认证申请
+
+- **Method**：`POST`
+- **Path**：`/verification/staff-apply`
+- **Auth**：是
+
+#### Request
+
+```json
+{ "entityCode": "10598", "realName": "张三", "staffNumber": "SZU2024001" }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `entityCode` | string | 是 | 机构主体代码 |
+| `realName` | string | 是 | 阶段一核身通过的实名 |
+| `staffNumber` | string | 是 | 工号/员工编号 |
+
+#### Response
+
+```json
+{ "applicationId": "APP-20260607-aB7x9K2mN4pQ", "status": "PENDING" }
+```
+
+#### 实现说明
+
+- 写入 `user_auth_link`（`audit_status=PENDING, is_active=0`）
+- 写入 `sys_approval_flows` 审批流
+- 角色自动判定：企业 → `PM`，学校 → `MENTOR`
+
+---
+
+### 5) `POST /verification/verification-codes/generate` — 生成母码
+
+> **消费方**：机构管理员生成院级认证母码
+
+- **Method**：`POST`
+- **Path**：`/verification/verification-codes/generate`
+- **Auth**：是（需机构管理员 CLIENT_ORG token）
+
+#### Request
+
+```json
+{ "maxUses": 1000, "description": "全校通用认证码" }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `maxUses` | number | 否 | 母码总额度（默认 1000，上限 50000） |
+| `description` | string | 否 | 用途描述 |
+
+#### Response `data`
+
+```json
+{ "code": "10598-2026-00123", "entityCode": "10598", "graduationYear": 2026, "maxUses": 1000, "expireTime": "2026-06-22 23:59:59" }
+```
+
+#### 实现说明
+
+- 母码格式：`{entityCode}-{year}-{5位数字}`
+- 认证码有效期：创建日期 + 14 天，当天 23:59:59 失效
+- `expireTime` 响应字段返回具体失效时间（`yyyy-MM-dd HH:mm:ss`）
+
+---
+
+### 6) `POST /verification/verification-codes/sub-code` — 生成子码
+
+> **消费方**：辅导员在母码下创建班级/专业级子码
+
+- **Method**：`POST`
+- **Path**：`/verification/verification-codes/sub-code`
+- **Auth**：是（需用户具有 COUNSELOR 角色，仅辅导员可操作）
+
+#### Request
+
+```json
+{ "masterCode": "10598-2026-00123", "maxUses": 60, "graduationYear": 2026, "description": "计算机专业 3 班认证码" }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `masterCode` | string | 是 | 母码 code |
+| `maxUses` | number | 否 | 子码额度（默认 60，上限 200） |
+| `graduationYear` | number | 否 | 毕业年份（可选，不填则继承母码） |
+| `description` | string | 否 | 用途描述（如：计算机专业 3 班） |
+
+#### Response `data`
+
+```json
+{ "code": "10598-2026-00123-0456", "entityCode": "10598", "graduationYear": 2026, "maxUses": 60, "expireTime": "2026-06-22 23:59:59" }
+```
+
+#### 实现说明
+
+- 子码格式：`{母码code}-{4位数字}`
+- 权限分离：仅 COUNSELOR（辅导员）可创建子码
+- 创建子码时原子扣减母码额度
+- 认证码有效期：创建日期 + 14 天，当天 23:59:59 失效
+
+---
+
+### 7) `POST /verification/student-activate` — 学生认证激活
+
+> **消费方**：使用**子码**激活，母码不可直接激活。
+
+- **Method**：`POST`
+- **Path**：`/verification/student-activate`
+- **Auth**：是
+
+#### Request
+
+```json
+{ "verificationCode": "10598-2026-00123-0456", "graduationYear": 2026 }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `verificationCode` | string | 是 | 子码 |
+| `graduationYear` | number | 是 | 毕业年份 |
+
+#### Response
+
+```json
+{ "entityCode": "10598", "entityName": "深圳大学", "role": "STUDENT" }
+```
+
+---
+
+### 8) `GET /verification/verification-codes` — 获取认证码列表
+
+- **Method**：`GET`
+- **Path**：`/verification/verification-codes`
+- **Auth**：是（需机构管理员）
+
+返回机构下的认证码列表（母码+子码）。
+
+#### Response `data`
+
+```json
+{
+  "codes": [
+    { "code": "10598-2026-00123", "maxUses": 1000, "usedCount": 120, "description": null, "createdBy": "EAa1B2c3D4e5F", "isActive": true, "isMaster": true, "createdAt": "2026-06-08 10:00:00" }
+  ],
+  "total": 1
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `codes[].code` | string | 认证码 |
+| `codes[].maxUses` | number | 总额度 |
+| `codes[].usedCount` | number | 已使用次数 |
+| `codes[].isActive` | boolean | 是否有效 |
+| `codes[].isMaster` | boolean | 是否为母码 |
+| `total` | number | 总数 |
+
+---
+
+### 9) `POST /verification/verification-codes/invalidate` — 无效化认证码
+
+- **Method**：`POST`
+- **Path**：`/verification/verification-codes/invalidate`
+- **Auth**：是（需机构管理员）
+
+#### Request
+
+```json
+{ "code": "10598-2026-00123" }
+```
+
+#### Response
+
+空 body，`code=200` 表示成功。
+
+---
+
+### 母子码生命周期说明
+
+| 阶段 | 母码 | 子码 |
+|------|------|------|
+| **生成** | 机构管理员 → 写入 `sys_verification_codes`（is_master=1） | 辅导员 → 写入 `sys_verification_codes`（is_master=0） |
+| **额度** | `max_uses`=总额度（默认1000），`used_count`=已分配子码总额度 | `max_uses`=班级额度（默认60），`used_count`=已激活学生数 |
+| **扣减** | 子码生成时原子递增 | 学生激活时原子递增 |
+| **失效** | 创建日期 + 14 天自动过期 / `is_active=0` / 额度耗尽 | 同上 |
+
+---
+
+### 身份证验证手动开关说明
+
+#### 开发环境（`dev`）— 默认
+
+- **完全 mock**，不调用任何外部 API
+- `getFaceResult`：直接返回 `passed=true`
+
+#### 生产环境（`prod`）
+
+- 抛出 `FACE_API_NOT_CONFIGURED` 异常，预留腾讯云 SDK 接口
+
+#### 切换方式
+
+| 文件 | 配置项 | 效果 |
+|------|--------|------|
+| `application-dev.properties` | `spring.profiles.active=dev` | mock 模式 |
+| `application-prod.properties` | `spring.profiles.active=prod` | 真实核身 |

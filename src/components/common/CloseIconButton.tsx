@@ -1,4 +1,5 @@
 import { useState, type AnimationEvent, type MouseEventHandler } from 'react'
+import { X } from 'lucide-react'
 
 // 01）关闭按钮组件参数类型（CloseIconButtonProps）
 interface CloseIconButtonProps {
@@ -27,9 +28,8 @@ function CloseIconButton({ onClick, className = '', ariaLabel = '关闭' }: Clos
   const [isHoverAnimating, setIsHoverAnimating] = useState<boolean>(false)
   const [isPointerInside, setIsPointerInside] = useState<boolean>(false)
 
-  const normalizedClassName = `close-icon-button ${className} ${isHoverAnimating ? 'close-icon-button--animating' : ''} ${
-    isPointerInside && !isHoverAnimating ? 'close-icon-button--hovered' : ''
-  }`.trim()
+  const normalizedClassName = `close-icon-button ${className} ${isHoverAnimating ? 'close-icon-button--animating' : ''} ${isPointerInside && !isHoverAnimating ? 'close-icon-button--hovered' : ''
+    }`.trim()
 
   return (
     <button
@@ -54,7 +54,7 @@ function CloseIconButton({ onClick, className = '', ariaLabel = '关闭' }: Clos
       }}
     >
       <span className="close-icon-button__glyph" aria-hidden="true">
-        ×
+        <X size={20} />
       </span>
     </button>
   )

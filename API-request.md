@@ -1,9 +1,10 @@
 # UniBridge 前端待办 API 增量
 
-> **用途**：创建学生团队接口需求，供后端实现。  
+> **用途**：双阶段认证页面接口需求，供后端实现。  
 > **全量契约**：[`API.md`](./API.md)  
 > **Base**：`/api/v1/client`  
-> **消费组件**：`CreateTeamModal.tsx`
+> **消费组件**：`VerificationPage.tsx`、`useVerificationPage.ts`  
+> **后端实现**：`domain/verification/VerificationService.java` + `VerificationController.java`
 
 ---
 
@@ -11,121 +12,255 @@
 
 | 模块 | 后端 | 前端 |
 |------|------|------|
-| 个人空间读 (`/user-profile/space`) | ✅ 已有 | ✅ 已对接 |
 | 创建学生团队 (`POST /team/create`) | ✅ 已实现 | `CreateTeamModal.tsx` |
-| 用户认证预览 (`/users/{uid}/verified-preview`) | ❌ **待实现** | 初始成员 UID 输入后校验是否已实名 |
+| 用户认证预览 (`/users/{uid}/verified-preview`) | ✅ 已实现 | `CreateTeamModal.tsx` |
+| 双阶段认证 (`/verification/*`) | ✅ 已实现 | `VerificationPage.tsx` |
 
 ---
 
-## `POST /team/create` — 创建学生团队
-
-> **消费方**：`CreateTeamModal.tsx` — 个人主页侧边栏「创建团队」
+## 1) `POST /verification/face/init` — 初始化人脸核身
 
 ### Request
 
 - **Method**：`POST`
-- **Path**：`/team/create`
-- **Auth**：是（已实名 STUDENT 或 MENTOR，后端需校验 `authStatus=verified`）
+- **Path**：`/verification/face/init`
+- **Auth**：是
 
 ```json
-{
-  "name": "我的项目团队",
-  "description": "聚焦前端工程化实践",
-  "initialMemberUids": ["US00000000099"]
-}
+{ "realName": "张三", "idCard": "440300199001011234" }
 ```
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `name` | string | 是 | 团队名称（≤32 字符） |
-| `description` | string | 否 | 团队简介（≤120 字符） |
-| `initialMemberUids` | string[] | 否 | 初始成员 UID 列表。前端输入 US+11 位时自动调用 public-preview 回填并预览。创建者自动成为 LEADER，此项为额外成员 |
+| `realName` | string | 是 | 身份证上的真实姓名 |
+| `idCard` | string | 是 | 18 位身份证号 |
 
 ### Response `data`
 
 ```json
-{
-  "teamUid": "ST00000007001",
-  "name": "我的项目团队"
-}
-```
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `teamUid` | string | 新团队 uid（`ST` + 11 位） |
-| `name` | string | 团队名称 |
-
-### 业务规则
-
-- 创建者自动成为团队负责人（MEMBER 列表中 role = MENTOR（导师）| LEADER（学生）），**无需传 leaderUid**
-- 创建者的 role 取自 `user_auth_link`：MENTOR → `team_member.role = MENTOR`；STUDENT → `team_member.role = LEADER`
-- 初始成员需校验实名认证状态，role 均设为 MEMBER
-- 创建的团队类型根据创建者 role 判定：STUDENT → `STUDENT_TEAM`；MENTOR → `MENTOR_GROUP`
-- 后端需校验 authStatus=verified，拒绝未实名用户
-
-### 错误码
-
-| message | HTTP |
-|---------|------|
-| `TEAM_NAME_REQUIRED` | 400 |
-| `TEAM_NAME_TOO_LONG` | 400 |
-| `USER_NOT_VERIFIED` | 403 |
-| `MEMBER_NOT_VERIFIED` | 403 |
-| `USER_NOT_FOUND` | 404 |
-| `UNAUTHORIZED` | 401 |
-
-### 前端行为
-
-```
-CreateTeamModal 打开
-  ├── 团队名称（必填 ≤32 字符）
-  ├── 团队简介（选填 ≤120 字符）
-  ├── 初始成员 UID（选填 — 创建者自身为 LEADER/MENTOR）
-  │     └── 输入匹配 US+11 位 → 300ms debounce → GET /users/{uid}/verified-preview
-  │           ├── 成功：显示头像 + realName + uid 预览卡
-  │           └── 403 USER_NOT_VERIFIED：前端提示「该用户未实名，无法加入团队」
-  │           └── 404：不做提示
-  └── 提交 → POST /team/create
-        └── 成功：跳转到 /team/:teamUid
+{ "url": "about:blank", "token": "face_mock_abc123", "expireInSec": 300 }
 ```
 
 ---
 
-## `GET /users/{uid}/verified-preview` — 用户实名认证预览
-
-> **消费方**：`CreateTeamModal.tsx` 初始成员 UID 输入后校验是否已实名
+## 2) `GET /verification/face/result` — 查询人脸核身结果
 
 ### Request
 
 - **Method**：`GET`
-- **Path**：`/users/{uid}/verified-preview`
-- **Auth**：否
+- **Path**：`/verification/face/result`
+- **Auth**：是
+- **Query**：`token=`
 
 ### Response `data`
 
 ```json
-{
-  "uid": "US00000000099",
-  "realName": "李四",
-  "nickname": "李四",
-  "avatarUrl": "https://…",
-  "verified": true,
-  "role": "STUDENT"
-}
+{ "passed": true, "realName": "张三", "idCardMasked": "440300********1234" }
 ```
 
-| 字段 | 类型 | 说明 |
+---
+
+## 3) `GET /verification/entities/search` — 检索机构
+
+### Request
+
+- **Method**：`GET`
+- **Path**：`/verification/entities/search`
+- **Auth**：是
+- **Query**：`keyword=`
+
+### Response `data`
+
+```json
+{ "entities": [{ "entityCode": "10598", "name": "深圳大学", "type": "UNIVERSITY" }] }
+```
+
+---
+
+## 4) `POST /verification/staff-apply` — 教职工认证申请
+
+### Request
+
+- **Method**：`POST`
+- **Path**：`/verification/staff-apply`
+- **Auth**：是
+
+```json
+{ "entityCode": "10598", "realName": "张三", "staffNumber": "SZU2024001" }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `entityCode` | string | 是 | 机构主体代码 |
+| `realName` | string | 是 | 阶段一核身通过的实名 |
+| `staffNumber` | string | 是 | 工号/员工编号 |
+
+### Response
+
+```json
+{ "applicationId": "APP-20260607-aB7x9K2mN4pQ", "status": "PENDING" }
+```
+
+### 实现说明
+
+- 写入 `user_auth_link`（`audit_status=PENDING, is_active=0`）
+- 写入 `sys_approval_flows` 审批流
+- 角色自动判定：企业 → `PM`，学校 → `MENTOR`
+
+---
+
+## 5) `POST /verification/codes/generate` — 生成认证母码
+
+> **消费方**：机构管理员生成院级认证母码
+
+### Request
+
+- **Method**：`POST`
+- **Path**：`/verification/codes/generate`
+- **Auth**：是（需机构管理员 CLIENT_ORG token）
+
+```json
+{ "maxQuota": 1000, "description": "全校通用认证码" }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `maxQuota` | number | 否 | 母码总额度（默认 1000，上限 5000，推荐同年级学院，适应同年级学院到整个年级） |
+| `description` | string | 否 | 用途描述 |
+
+### Response `data`
+
+```json
+{ "code": "10598-2026-00123", "entityCode": "10598", "maxQuota": 1000, "expireTime": "2026-06-22 23:59:59" }
+```
+
+### 实现说明
+
+- 母码格式：`{entityCode}-{year}-{5位数字}`，年份由服务器当前时间自动推导
+- 认证码有效期：创建日期 + 14 天，当天 23:59:59 失效
+
+---
+
+## 6) `POST /verification/codes/sub-code` — 生成认证子码
+
+> **消费方**：辅导员在母码下创建班级/专业级子码
+
+### Request
+
+- **Method**：`POST`
+- **Path**：`/verification/codes/sub-code`
+- **Auth**：是（需用户具有 COUNSELOR 角色，仅辅导员可操作）
+
+```json
+{ "masterCode": "10598-2026-00123", "maxQuota": 50, "graduationYear": 2030, "description": "计算机专业 3 班认证码" }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `masterCode` | string | 是 | 母码 code |
+| `maxQuota` | number | 否 | 子码额度（默认 50，上限 500，适应班级规模） |
+| `graduationYear` | number | 否 | 毕业年份（可选，仅子码可填写，不填则null） |
+| `description` | string | 否 | 用途描述（如：计算机专业 3 班） |
+
+### Response `data`
+
+```json
+{ "code": "10598-2026-00123-0456", "entityCode": "10598", "graduationYear": 2030, "maxQuota": 50, "expireTime": "2026-06-22 23:59:59" }
+```
+
+### 实现说明
+
+- 子码格式：`{母码code}-{4位数字}`
+- 权限分离：仅 COUNSELOR（辅导员）可创建子码，MENTOR（导师）负责项目指导，不参与行政事务
+- 创建子码时原子扣减母码额度
+- 认证码有效期：创建日期 + 14 天，当天 23:59:59 失效
+- `expireTime` 响应字段返回具体失效时间
+
+---
+
+## 7) `POST /verification/codes/activate` — 学生认证码激活
+
+> **消费方**：使用**子码**激活，母码不可直接激活。
+
+### Request
+
+- **Method**：`POST`
+- **Path**：`/verification/codes/activate`
+- **Auth**：是
+
+```json
+{ "verificationCode": "10598-2026-00123-0456", "studentNumber": "2024001234", "realName": "张三", "graduationYear": 2030 }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `verificationCode` | string | 是 | 子码 |
+| `studentId` | string | 是 | 学号 |
+| `realName` | string | 是 | 真实姓名（阶段一核身通过后自动填充） |
+| `graduationYear` | number | 是 | 毕业年份 |
+| | `GRADUATION_YEAR_INVALID` | 400 |
+| `graduationYear` | number | 是 | 毕业年份 |
+
+### Response
+
+```json
+{ "entityCode": "10598", "entityName": "深圳大学", "role": "STUDENT" }
+```
+
+---
+
+## 接口汇总
+
+| # | Method | Path | Query / Body |
+|---|--------|------|--------------|
+| 1 | POST | `/verification/face/init` | `{ realName, idCard }` |
+| 2 | GET | `/verification/face/result` | `?token=` |
+| 3 | GET | `/verification/entities/search` | `?keyword=` |
+| 4 | POST | `/verification/staff-apply` | `{ entityCode, realName, staffNumber }` |
+| 5 | POST | `/verification/codes/generate` | `{ maxQuota?, description? }` |
+| 6 | POST | `/verification/codes/sub-code` | `{ masterCode, maxQuota?, description? }` |
+| 7 | POST | `/verification/codes/activate` | `{ verificationCode, graduationYear }` |
+
+---
+
+## 调用时序
+
+```
+VerificationPage
+  ├── 阶段一：填写姓名+身份证 → POST /verification/face/init
+  │     └── iframe 核身 → GET /verification/face/result?token=
+  └── 阶段二：机构认证
+        ├── Staff：GET /verification/entities/search → POST /verification/staff-apply → /profile
+        └── Student：POST /verification/codes/activate → /profile
+```
+
+---
+
+## 母子码生命周期说明
+
+| 阶段 | 母码 | 子码 |
 |------|------|------|
-| `uid` | string | 用户 uid |
-| `realName` | string | 实名 |
-| `nickname` | string | 昵称 |
-| `avatarUrl` | string \| null | 头像 |
-| `verified` | boolean | 是否已实名认证（user_auth_link.audit_status=APPROVED 且 is_active=1） |
-| `role` | string \| null | 用户角色（STUDENT/MENTOR），仅 verified=true 时有效 |
+| **生成** | 机构管理员 → 写入 `sys_verification_codes`（is_master=1） | 辅导员 → 写入 `sys_verification_codes`（is_master=0） |
+| **额度** | `max_quota`=总额度（默认1000），`used_quota`=已分配子码总额度 | `max_quota`=班级额度（默认60），`used_quota`=已激活学生数 |
+| **扣减** | 子码生成时原子递增 | 学生激活时原子递增 |
+| **失效** | 创建日期 + 14 天自动过期 / `is_active=0` / 额度耗尽 | 同上 |
 
-### 错误码
+---
 
-| message | HTTP |
-|---------|------|
-| `USER_NOT_VERIFIED` | 403 |
-| `USER_NOT_FOUND` | 404 |
+## 身份证验证手动开关说明
+
+### 开发环境（`dev`）— 默认
+
+- **完全 mock**，不调用任何外部 API
+- `getFaceResult`：直接返回 `passed=true`
+
+### 生产环境（`prod`）
+
+- 抛出 `FACE_API_NOT_CONFIGURED` 异常，预留腾讯云 SDK 接口
+
+### 切换方式
+
+| 文件 | 配置项 | 效果 |
+|------|--------|------|
+| `application-dev.properties` | `spring.profiles.active=dev` | mock 模式 |
+| `application-prod.properties` | `spring.profiles.active=prod` | 真实核身 |

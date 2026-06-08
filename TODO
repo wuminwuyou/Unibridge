@@ -1,3 +1,4 @@
+// bug与待优化
 [ ] /pages/ProfileSpace/tabs 与 /pages/ProfileSpace/variants 待重构，目前代码复用率低且文件结构混乱。虽然实现了基本功能，但是代码结构混乱，需要重构。
 [ ] /pages/ProfileSpace/tabs/MembersTab/OrgMembersTabContent.tsx 待重构，应该与文件MembersTabContent.tsx保持一致，使用相同的样式和组件。待重构
 [ ] /pages/ProfileSpace/tabs/LabsTab/ManageLabsForm.tsx 待重构，应该与文件ManageMembersForm.tsx结构上保持一致，使用相同的样式和组件，内部组件使用content传入。待重构
@@ -13,11 +14,16 @@
 [ ] 报错等内容使用infopromptmodal组件进行展示
 [ ] 修复NoteShare页面feed笔记全是图文的bug
 [ ] 实验室招募，团队招募的项目卡片不仅显示所属学校，还需要显示团队名称
+[ ] 登录持久化问题，过了一段时间会自动退出登录
+[ ] 团队项目，笔记以及成果的逻辑没有完善
+[ ] refresh_token机制还是有问题，目前只能保证30分钟有效，未查明愿意
+[ ] 实名认证后保存的部分敏感信息现在在user_profile表中，不安全，应当移动到其他安全的表中，并作AES加密
 
 // 开发计划
 [√] 完成organization Space页面的实验室管理，人员管理的API开发与接入
 [√] 完成personal Space页面团队管理与创建的优化
-[ ] 完善lab profile space页面的项目与笔记查询列表API，目前还是使用静态数据
+[√] 完成lab profile space页面的项目与笔记查询列表API，确认已全部接入真实接口
+[ ] 认证码管理功能待完善，查看认证码列表，无效化认证码等功能
 [ ] 完成企业/学校员工的认证功能，包括先身份实名，然后申请加入机构（申请提交功能与审核功能，机构通过右上角通知————之后的IM系统进行处理。
 审核通过后，自动加入机构，并自动生成机构成员）
 [ ] 个人页面persenal Space 页面的项目管理与发布功能

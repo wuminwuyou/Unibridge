@@ -87,6 +87,7 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
   const displayAvatarText = menuData?.avatarText ?? fallbackCurrentUser.avatarText
   const displayLevel = (menuData?.level ? normalizeLevelCode(menuData.level) : null) as LevelCode | null
   const verifiedOrganization = isOrganizationAccount ? null : menuData?.verifiedOrganization ?? null
+  const verifyStatus = isOrganizationAccount ? null : menuData?.verifyStatus ?? null
 
   const stats = useMemo<UserStatViewItem[]>(() => buildDefaultStats(), [])
   const menuItems = useMemo<UserMenuViewItem[]>(() => {
@@ -253,10 +254,12 @@ function UserProfileMenu({ onLogout }: UserProfileMenuProps) {
           </div>
           {menuData?.subtitle ? <p className="auth-helper-tip">{menuData.subtitle}</p> : null}
           {!isOrganizationAccount ? (
-            verifiedOrganization ? (
+            verifyStatus === 'verified' && verifiedOrganization ? (
               <VerifiedOrgModal organization={verifiedOrganization} />
+            ) : verifyStatus === 'identity_only' ? (
+              <VerifiedOrgButton label="主体认证" onNavigate={() => setIsUserPanelOpen(false)} />
             ) : (
-              <VerifiedOrgButton onNavigate={() => setIsUserPanelOpen(false)} />
+              <VerifiedOrgButton label="去认证" onNavigate={() => setIsUserPanelOpen(false)} />
             )
           ) : null}
           {errorMessage ? <p className="auth-helper-tip auth-helper-tip--error">{errorMessage}</p> : null}

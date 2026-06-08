@@ -10,6 +10,7 @@ import NoteReaderPage from './pages/NoteReader'
 import InstantMessagePage from './pages/InstantMessagePage/InstantMessagePage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import OrganizationVerificationPage from './pages/VerificationPage/OrganizationVerificationPage.tsx'
+import VerificationPage from './pages/VerificationPage/VerificationPage.tsx'
 import PublishProjectPage from './pages/PublishProject/index.tsx'
 import PublishNotePage from './pages/PublishNote/index.tsx'
 import OnlineTextEditorPage from './pages/OnlineTextEditor/index.tsx'
@@ -35,6 +36,14 @@ const appRouter = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <OrganizationVerificationPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/verify',
+    element: (
+      <ProtectedRoute>
+        <VerificationPage />
       </ProtectedRoute>
     ),
   },

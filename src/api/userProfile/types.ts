@@ -6,6 +6,8 @@ export interface UserProfileMenuData {
   nickname: string
   level: string | null
   avatarUrl: string | null
+  /** 认证状态："unverified" | "identity_only" | "verified" */
+  verifyStatus?: string | null
   verifiedOrganization: string | null
 }
 

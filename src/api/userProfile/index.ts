@@ -47,6 +47,7 @@ function normalizeUserProfileMenuData(raw: UserProfileMenuData & Record<string, 
     level: raw.level,
     avatarUrl: raw.avatarUrl,
     verifiedOrganization: raw.verifiedOrganization,
+    verifyStatus: raw.verifyStatus ?? raw.verify_status ?? null,
     uid,
   }
 }

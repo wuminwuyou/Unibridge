@@ -149,15 +149,13 @@ function isRefreshRequest(requestConfig?: InternalAxiosRequestConfig): boolean {
  * - 副作用：无
  */
 function isAccessTokenExpiredError(code: number, message: string): boolean {
-  if (code === 401) {
+  if (code === 401 && message === 'ACCESS_TOKEN_EXPIRED') {
     return true
   }
 
   const tokenExpiredMessages = new Set([
-    'ACCESS_TOKEN_EXPIRED',
     'TOKEN_EXPIRED',
     'TOKEN_INVALID',
-    'UNAUTHORIZED',
     'INVALID_TOKEN',
   ])
   return tokenExpiredMessages.has(message)

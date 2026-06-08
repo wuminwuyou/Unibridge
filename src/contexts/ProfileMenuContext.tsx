@@ -26,6 +26,8 @@ export interface ProfileMenuViewData {
   avatarUrl: string | null
   avatarText: string
   level: string | null
+  /** 认证状态："unverified" | "identity_only" | "verified" */
+  verifyStatus: string | null
   verifiedOrganization: string | null
   entityCode: string | null
   boundAdminCount: number | null
@@ -60,6 +62,7 @@ function mapPersonalMenuToViewData(menuData: UserProfileMenuData): ProfileMenuVi
     avatarUrl: menuData.avatarUrl,
     avatarText: menuData.avatarUrl ? '' : nickname.slice(0, 1),
     level: menuData.level,
+    verifyStatus: menuData.verifyStatus ?? null,
     verifiedOrganization: menuData.verifiedOrganization,
     entityCode: null,
     boundAdminCount: null,
@@ -78,6 +81,7 @@ function mapOrganizationMenuToViewData(menuData: EntityProfileMenuData): Profile
     avatarUrl: menuData.logoUrl,
     avatarText: menuData.logoUrl ? '' : entityName.slice(0, 1),
     level: null,
+    verifyStatus: null,
     verifiedOrganization: null,
     entityCode: menuData.entityCode,
     boundAdminCount: menuData.boundAdminCount,
@@ -135,10 +139,18 @@ export function ProfileMenuProvider({ children }: ProfileMenuProviderProps) {
       if (activeChannel === 'organization') {
         const entityCode = resolveSessionEntityCode(currentProfile) ?? getEntityCode()
         if (!entityCode) {
-          throw new Error('缺少主体代码，无法加载机构菜单')
+          setMenuData(null)
+          setErrorMessage('')
+          return
         }
-        const organizationMenu = await getEntityProfileMenu(entityCode)
-        setMenuData(mapOrganizationMenuToViewData(organizationMenu))
+        try {
+          const organizationMenu = await getEntityProfileMenu(entityCode)
+          setMenuData(mapOrganizationMenuToViewData(organizationMenu))
+        } catch {
+          // 机构菜单请求失败时静默降级，不展示 "UNAUTHORIZED" 等原始错误
+          setMenuData(null)
+          setErrorMessage('')
+        }
         return
       }
 
@@ -152,10 +164,13 @@ export function ProfileMenuProvider({ children }: ProfileMenuProviderProps) {
       setMenuData(mapPersonalMenuToViewData(personalMenu))
       if (personalMenu.uid) {
         setCachedUserProfileMenu(personalMenu.uid, personalMenu)
+        // 仅在 personal 通道下同步 uid；organization 通道不覆盖 AuthUserProfile
         setUserProfileRef.current({
           uid: personalMenu.uid,
           userRole: currentProfile?.userRole,
           authStatus: currentProfile?.authStatus,
+          verifyStatus: personalMenu.verifyStatus ?? currentProfile?.verifyStatus ?? null,
+          verifiedOrganization: personalMenu.verifiedOrganization ?? currentProfile?.verifiedOrganization ?? null,
           entityCode: currentProfile?.entityCode,
           entityName: currentProfile?.entityName,
         })

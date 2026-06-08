@@ -542,8 +542,8 @@ export function useAuthModal({ open, onClose, onSuccess }: UseAuthModalParams) {
     userRole: AuthUserProfile['userRole']
     authStatus: AuthUserProfile['authStatus']
   }): AuthUserProfile => ({
-    uid: loginProfile.uid,
-    userRole: loginProfile.userRole,
+    uid: loginProfile.uid || organizationSelectedAdminUid || undefined,
+    userRole: loginProfile.userRole ?? 'organization-admin',
     authStatus: loginProfile.authStatus,
     entityCode: organizationCode.trim(),
     entityName: organizationEntityName,
