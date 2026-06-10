@@ -80,4 +80,46 @@ public class VerificationController {
             @RequestBody VerificationCodeGenerateRequest request) {
         return Result.success(verificationService.generateSubCode(authorization, request));
     }
+
+    // ===================== 认证码管理 =====================
+
+    @Operation(summary = "获取认证码列表", security = @SecurityRequirement(name = BEARER_AUTH))
+    @GetMapping("/codes")
+    public Result listCodes(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return Result.success(verificationService.listCodes(authorization));
+    }
+
+    @Operation(summary = "停用认证码", security = @SecurityRequirement(name = BEARER_AUTH))
+    @PostMapping("/codes/invalidate")
+    public Result invalidateCode(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody InvalidateCodeRequest request) {
+        verificationService.invalidateCode(authorization, request);
+        return Result.success(null);
+    }
+
+    @Operation(summary = "延期认证码", security = @SecurityRequirement(name = BEARER_AUTH))
+    @PostMapping("/codes/renew")
+    public Result renewCode(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody RenewCodeRequest request) {
+        return Result.success(verificationService.renewCode(authorization, request));
+    }
+
+    @Operation(summary = "查看认证学生列表", security = @SecurityRequirement(name = BEARER_AUTH))
+    @GetMapping("/codes/students")
+    public Result listCodeStudents(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Parameter(description = "认证码") @RequestParam("code") String code) {
+        return Result.success(verificationService.listCodeStudents(authorization, code));
+    }
+
+    @Operation(summary = "查看附属子码列表", security = @SecurityRequirement(name = BEARER_AUTH))
+    @GetMapping("/codes/sub-codes")
+    public Result listSubCodes(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Parameter(description = "母码") @RequestParam("masterCode") String masterCode) {
+        return Result.success(verificationService.listSubCodes(authorization, masterCode));
+    }
 }

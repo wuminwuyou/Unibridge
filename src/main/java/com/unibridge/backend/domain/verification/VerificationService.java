@@ -41,6 +41,8 @@ public class VerificationService {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter EXPIRE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final Pattern ID_CARD_PATTERN = Pattern.compile("^\\d{17}[\\dXx]$");
     private static final Pattern VERIFICATION_CODE_PATTERN = Pattern.compile("^\\d{1,32}-\\d{4}-\\d{5}$");
     private static final int FACE_TOKEN_EXPIRE_SEC = 300;
@@ -439,7 +441,7 @@ public class VerificationService {
 
         // 认证码有效时间：创建日期 + 14 天，当天 23:59:59 失效
         LocalDateTime expireTime = LocalDateTime.of(LocalDate.now().plusDays(14), LocalTime.of(23, 59, 59));
-        String expireTimeStr = expireTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String expireTimeStr = expireTime.format(DATE_TIME_FORMATTER);
 
         SysVerificationCode inv = new SysVerificationCode();
         inv.setCode(code);
@@ -533,7 +535,7 @@ public class VerificationService {
 
         // 认证码有效时间：创建日期 + 14 天，当天 23:59:59 失效
         LocalDateTime subExpireTime = LocalDateTime.of(LocalDate.now().plusDays(14), LocalTime.of(23, 59, 59));
-        String subExpireTimeStr = subExpireTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String subExpireTimeStr = subExpireTime.format(DATE_TIME_FORMATTER);
 
         SysVerificationCode sub = new SysVerificationCode();
         sub.setCode(subCode);
@@ -564,7 +566,296 @@ public class VerificationService {
                 .build();
     }
 
+    // ===================== 认证码管理 API =====================
+
+    /**
+     * 获取本机构下的认证码列表（母码+子码）。
+     */
+    public CodeListResponse listCodes(String authorization) {
+        String entityCode = extractEntityCodeFromToken(authorization);
+        if (!StringUtils.hasText(entityCode)) {
+            throw BusinessException.unauthorized("认证失败：无法从Token中提取主体代码，请尝试重新登录以获取新的Token");
+        }
+
+        LambdaQueryWrapper<SysVerificationCode> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysVerificationCode::getEntityCode, entityCode)
+                .orderByDesc(SysVerificationCode::getIsMaster)
+                .orderByDesc(SysVerificationCode::getCreatedAt);
+
+        List<SysVerificationCode> all = sysVerificationCodeMapper.selectList(wrapper);
+
+        // 批量加载创建者名称
+        Set<String> creatorUids = all.stream().map(SysVerificationCode::getCreatedBy)
+                .filter(StringUtils::hasText).collect(Collectors.toSet());
+        Map<String, String> creatorNameMap = new HashMap<>();
+        if (!creatorUids.isEmpty()) {
+            LambdaQueryWrapper<ClientUserProfile> profileWrapper = new LambdaQueryWrapper<>();
+            profileWrapper.in(ClientUserProfile::getUserUid, new ArrayList<>(creatorUids));
+            List<ClientUserProfile> profiles = clientUserProfileMapper.selectList(profileWrapper);
+            for (ClientUserProfile p : profiles) {
+                creatorNameMap.put(p.getUserUid(),
+                        StringUtils.hasText(p.getRealName()) ? p.getRealName()
+                                : StringUtils.hasText(p.getNickName()) ? p.getNickName() : "用户");
+            }
+        }
+
+        List<CodeListItem> items = all.stream().map(c -> {
+            boolean active = c.getIsActive() != null && c.getIsActive() == 1
+                    && (c.getExpireTime() == null || c.getExpireTime().isAfter(LocalDateTime.now()));
+            return CodeListItem.builder()
+                    .code(c.getCode())
+                    .maxQuota(c.getMaxQuota())
+                    .usedQuota(c.getUsedQuota() != null ? c.getUsedQuota() : 0)
+                    .description(c.getDescription())
+                    .createdBy(c.getCreatedBy())
+                    .createdByName(creatorNameMap.getOrDefault(c.getCreatedBy(), "用户"))
+                    .isActive(active)
+                    .isMaster(c.getIsMaster() != null && c.getIsMaster() == 1)
+                    .canRenew(computeCanRenew(c))
+                    .createdAt(c.getCreatedAt() != null ? c.getCreatedAt().format(DATE_TIME_FORMATTER) : null)
+                    .expireTime(c.getExpireTime() != null ? c.getExpireTime().format(DATE_TIME_FORMATTER) : null)
+                    .build();
+        }).collect(Collectors.toList());
+
+        return CodeListResponse.builder().codes(items).total(items.size()).build();
+    }
+
+    /**
+     * 停用认证码（级联停用子码）。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void invalidateCode(String authorization, InvalidateCodeRequest request) {
+        extractEntityCodeFromToken(authorization); // 权限校验
+        if (!StringUtils.hasText(request.getCode())) {
+            throw BusinessException.badRequest("CODE_REQUIRED");
+        }
+
+        LambdaQueryWrapper<SysVerificationCode> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysVerificationCode::getCode, request.getCode().trim()).last("LIMIT 1");
+        SysVerificationCode code = sysVerificationCodeMapper.selectOne(wrapper);
+        if (code == null) {
+            throw BusinessException.notFound("CODE_NOT_FOUND");
+        }
+
+        // 停用自身
+        code.setIsActive(0);
+        sysVerificationCodeMapper.updateById(code);
+
+        // 级联停用子码
+        if (code.getIsMaster() != null && code.getIsMaster() == 1) {
+            LambdaUpdateWrapper<SysVerificationCode> subUpdate = new LambdaUpdateWrapper<>();
+            subUpdate.eq(SysVerificationCode::getParentId, code.getId())
+                    .set(SysVerificationCode::getIsActive, 0);
+            sysVerificationCodeMapper.update(null, subUpdate);
+        }
+    }
+
+    /**
+     * 延期认证码（级联延期子码）。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public RenewCodeResponse renewCode(String authorization, RenewCodeRequest request) {
+        extractEntityCodeFromToken(authorization);
+        if (!StringUtils.hasText(request.getCode())) {
+            throw BusinessException.badRequest("CODE_REQUIRED");
+        }
+
+        LambdaQueryWrapper<SysVerificationCode> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysVerificationCode::getCode, request.getCode().trim()).last("LIMIT 1");
+        SysVerificationCode code = sysVerificationCodeMapper.selectOne(wrapper);
+        if (code == null) {
+            throw BusinessException.notFound("CODE_NOT_FOUND");
+        }
+        if (code.getIsActive() == null || code.getIsActive() == 0) {
+            throw BusinessException.badRequest("CODE_ALREADY_INACTIVE");
+        }
+
+        // 解析目标日期
+        LocalDate targetDate;
+        try {
+            targetDate = LocalDate.parse(request.getNewExpireDate(), DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (Exception e) {
+            throw BusinessException.badRequest("DATE_FORMAT_INVALID");
+        }
+
+        LocalDate today = LocalDate.now();
+
+        // 延期必须向后：目标日期必须晚于当前过期日
+        LocalDate minDate = today;
+        if (code.getExpireTime() != null) {
+            LocalDate currentExpire = code.getExpireTime().toLocalDate();
+            // 当前有效期内：最小日期为过期日的下一天；已过期：最小日期为今天
+            if (!currentExpire.isBefore(today)) {
+                minDate = currentExpire.plusDays(1);
+            }
+        }
+        if (targetDate.isBefore(minDate)) {
+            throw BusinessException.badRequest("RENEW_DATE_TOO_EARLY");
+        }
+
+        // 目标日期不得超过创建时间 + 28 天（四周）
+        LocalDate maxDate = code.getCreatedAt().toLocalDate().plusDays(28);
+        if (targetDate.isAfter(maxDate)) {
+            throw BusinessException.badRequest("RENEW_DATE_EXCEEDS_MAX");
+        }
+
+        // 若已过期超过 7 天，不可延期
+        if (code.getExpireTime() != null) {
+            LocalDate graceDeadline = code.getExpireTime().toLocalDate().plusDays(7);
+            if (today.isAfter(graceDeadline)) {
+                throw BusinessException.badRequest("CODE_EXPIRED_TOO_LONG");
+            }
+        }
+
+        LocalDateTime newExpireTime = LocalDateTime.of(targetDate, LocalTime.of(23, 59, 59));
+        String newExpireStr = newExpireTime.format(DATE_TIME_FORMATTER);
+
+        // 延期自身
+        code.setExpireTime(newExpireTime);
+        code.setIsActive(1);
+        sysVerificationCodeMapper.updateById(code);
+
+        // 级联延期子码
+        if (code.getIsMaster() != null && code.getIsMaster() == 1) {
+            for (SysVerificationCode sub : loadSubCodes(code.getId())) {
+                sub.setExpireTime(newExpireTime);
+                sub.setIsActive(1);
+                sysVerificationCodeMapper.updateById(sub);
+            }
+        }
+
+        return RenewCodeResponse.builder().code(code.getCode()).newExpireTime(newExpireStr).build();
+    }
+
+    /**
+     * 查看认证码的学生列表。
+     */
+    public CodeStudentResponse listCodeStudents(String authorization, String targetCode) {
+        extractEntityCodeFromToken(authorization);
+        if (!StringUtils.hasText(targetCode)) {
+            throw BusinessException.badRequest("CODE_REQUIRED");
+        }
+
+        // 查找认证码
+        LambdaQueryWrapper<SysVerificationCode> codeWrapper = new LambdaQueryWrapper<>();
+        codeWrapper.eq(SysVerificationCode::getCode, targetCode.trim()).last("LIMIT 1");
+        SysVerificationCode code = sysVerificationCodeMapper.selectOne(codeWrapper);
+        if (code == null) {
+            throw BusinessException.notFound("CODE_NOT_FOUND");
+        }
+
+        // 获取子码集合
+        List<String> subCodes = new ArrayList<>();
+        List<SysVerificationCode> subList;
+        if (code.getIsMaster() != null && code.getIsMaster() == 1) {
+            subList = loadSubCodes(code.getId());
+        } else {
+            subList = List.of(code);
+        }
+        for (SysVerificationCode sc : subList) {
+            subCodes.add(sc.getCode());
+        }
+
+        // 查询通过这些子码激活的学生（在 user_auth_link 的 remark 中包含子码）
+        List<CodeStudentItem> students = new ArrayList<>();
+        for (String sc : subCodes) {
+            LambdaQueryWrapper<UserAuthLink> linkWrapper = new LambdaQueryWrapper<>();
+            linkWrapper.eq(UserAuthLink::getRole, "STUDENT")
+                    .eq(UserAuthLink::getAuditStatus, "APPROVED")
+                    .like(UserAuthLink::getRemark, sc)
+                    .last("LIMIT 500");
+            List<UserAuthLink> links = userAuthLinkMapper.selectList(linkWrapper);
+            for (UserAuthLink link : links) {
+                ClientUserProfile profile = loadProfileByUid(link.getUserUid());
+                students.add(CodeStudentItem.builder()
+                        .uid(link.getUserUid())
+                        .nickname(profile != null && StringUtils.hasText(profile.getNickName()) ? profile.getNickName() : "用户")
+                        .realName(profile != null ? profile.getRealName() : null)
+                        .studentId(link.getAuthSerialNo())
+                        .graduationYear(profile != null ? profile.getGraduationYear() : null)
+                        .subCode(sc)
+                        .activatedAt(link.getCreatedAt() != null ? link.getCreatedAt().format(DATE_TIME_FORMATTER) : null)
+                        .build());
+            }
+        }
+
+        return CodeStudentResponse.builder().students(students).total(students.size()).build();
+    }
+
+    /**
+     * 查看母码下的附属子码列表。
+     */
+    public CodeListResponse listSubCodes(String authorization, String masterCode) {
+        extractEntityCodeFromToken(authorization);
+        if (!StringUtils.hasText(masterCode)) {
+            throw BusinessException.badRequest("MASTER_CODE_REQUIRED");
+        }
+
+        LambdaQueryWrapper<SysVerificationCode> masterWrapper = new LambdaQueryWrapper<>();
+        masterWrapper.eq(SysVerificationCode::getCode, masterCode.trim())
+                .eq(SysVerificationCode::getIsMaster, 1).last("LIMIT 1");
+        SysVerificationCode master = sysVerificationCodeMapper.selectOne(masterWrapper);
+        if (master == null) {
+            throw BusinessException.notFound("CODE_NOT_FOUND");
+        }
+
+        List<SysVerificationCode> subs = loadSubCodes(master.getId());
+        Map<String, String> creatorNameMap = new HashMap<>();
+        Set<String> uids = subs.stream().map(SysVerificationCode::getCreatedBy)
+                .filter(StringUtils::hasText).collect(Collectors.toSet());
+        if (!uids.isEmpty()) {
+            LambdaQueryWrapper<ClientUserProfile> pw = new LambdaQueryWrapper<>();
+            pw.in(ClientUserProfile::getUserUid, new ArrayList<>(uids));
+            clientUserProfileMapper.selectList(pw).forEach(p ->
+                creatorNameMap.put(p.getUserUid(),
+                    StringUtils.hasText(p.getRealName()) ? p.getRealName()
+                        : StringUtils.hasText(p.getNickName()) ? p.getNickName() : "用户"));
+        }
+
+        List<CodeListItem> items = subs.stream().map(c -> {
+            boolean active = c.getIsActive() != null && c.getIsActive() == 1
+                    && (c.getExpireTime() == null || c.getExpireTime().isAfter(LocalDateTime.now()));
+            return CodeListItem.builder()
+                    .code(c.getCode())
+                    .maxQuota(c.getMaxQuota())
+                    .usedQuota(c.getUsedQuota() != null ? c.getUsedQuota() : 0)
+                    .description(c.getDescription())
+                    .createdBy(c.getCreatedBy())
+                    .createdByName(creatorNameMap.getOrDefault(c.getCreatedBy(), "用户"))
+                    .isActive(active)
+                    .isMaster(false)
+                    .canRenew(computeCanRenew(c))
+                    .createdAt(c.getCreatedAt() != null ? c.getCreatedAt().format(DATE_TIME_FORMATTER) : null)
+                    .expireTime(c.getExpireTime() != null ? c.getExpireTime().format(DATE_TIME_FORMATTER) : null)
+                    .build();
+        }).collect(Collectors.toList());
+
+        return CodeListResponse.builder().codes(items).total(items.size()).build();
+    }
+
     // ===================== 工具方法 =====================
+
+    /**
+     * 判断认证码是否可以延期：
+     * 人为停用（is_active=0）不可延期；
+     * 当前日期超过创建时间+28天不可延期；
+     * 7天内自动过期的可延期。
+     */
+    private boolean computeCanRenew(SysVerificationCode code) {
+        if (code.getIsActive() == null || code.getIsActive() == 0) return false;
+        if (code.getExpireTime() == null) return false;
+        LocalDate today = LocalDate.now();
+        // 超过创建时间 + 28 天，不可延期
+        if (code.getCreatedAt() != null && today.isAfter(code.getCreatedAt().toLocalDate().plusDays(28))) return false;
+        // 已过期超过 7 天不可延期
+        return !code.getExpireTime().toLocalDate().plusDays(7).isBefore(today);
+    }
+
+    private List<SysVerificationCode> loadSubCodes(Long parentId) {
+        LambdaQueryWrapper<SysVerificationCode> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysVerificationCode::getParentId, parentId);
+        return sysVerificationCodeMapper.selectList(wrapper);
+    }
 
     /**
      * 从 Authorization 头提取 CLIENT_ORG token 对应的 entity_code。
@@ -579,15 +870,25 @@ public class VerificationService {
             String subject = jwtUtil.getUserId(token);
             if (subject == null || subject.isBlank()) return null;
             subject = subject.trim();
-            if (subject.matches("^EA[A-Za-z0-9]{11}$")) {
-                String entity = lookupEntityCodeByAdminUid(subject);
-                if (!StringUtils.hasText(entity)) {
-                    log.warn("[AUTH] 管理员 {} 在 sys_entity_totp_credentials 中未找到对应 entity_code，请检查数据库种子数据", subject);
-                }
-                return entity;
+
+            // 主体根账号登录：subject 本身就是 entityCode
+            if (!subject.matches("^EA[A-Za-z0-9]{11}$")) {
+                return subject;
             }
-            // subject 即为 entity_code（主体根账号登录）
-            return subject;
+
+            // 管理员账号：通过 adminUid 反查 entityCode
+            LambdaQueryWrapper<SysEntityTotpCredentials> w = new LambdaQueryWrapper<>();
+            w.eq(SysEntityTotpCredentials::getAdminUid, subject).last("LIMIT 1");
+            SysEntityTotpCredentials admin = sysEntityTotpCredentialsMapper.selectOne(w);
+            if (admin != null && StringUtils.hasText(admin.getEntityCode())) {
+                return admin.getEntityCode();
+            }
+
+            // 反查失败：监控告警
+            log.warn("[AUTH] 管理员 adminUid={} 在 sys_entity_totp_credentials 表中未找到对应记录，"
+                    + "token 可能来自已删除的管理员账号，或数据库种子数据缺失。"
+                    + "请检查 sys_entity_totp_credentials 表中是否存在 admin_uid='{}' 的记录", subject, subject);
+            return null;
         } catch (Exception e) {
             log.warn("[AUTH] Token 解析失败", e);
             return null;
