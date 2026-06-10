@@ -55,7 +55,7 @@ export interface StaffVerificationApplyResponse {
 export interface StudentVerificationActivateRequest {
   verificationCode: string
   /** 学号 */
-  studentNumber: string
+  studentId: string
   /** 真实姓名（阶段一核身通过后自动填充） */
   realName: string
   /** 毕业年份 */
@@ -115,13 +115,58 @@ export interface VerificationCodeItem {
   usedQuota: number
   description: string | null
   createdBy: string
+  /** 创建者显示名称 */
+  createdByName: string
   isActive: boolean
   isMaster: boolean
   createdAt: string
+  /** 失效时间（yyyy-MM-dd HH:mm:ss） */
+  expireTime: string
+  /** 是否可以延期 */
+  canRenew: boolean
 }
 
 // 16）认证码列表响应（VerificationCodeListResponse）
 export interface VerificationCodeListResponse {
+  codes: VerificationCodeItem[]
+  total: number
+}
+
+// 17）延期认证码请求（RenewVerificationCodeRequest）
+export interface RenewVerificationCodeRequest {
+  code: string
+  /** 延期至日期（yyyy-MM-dd） */
+  newExpireDate: string
+}
+
+// 18）延期认证码响应（RenewVerificationCodeResponse）
+export interface RenewVerificationCodeResponse {
+  code: string
+  /** 新的失效时间 */
+  newExpireTime: string
+}
+
+// 19）认证学生项（VerifiedStudentItem）
+export interface VerifiedStudentItem {
+  uid: string
+  nickname: string
+  realName: string
+  studentId: string
+  graduationYear: number
+  /** 激活该学生的子码 */
+  subCode: string
+  /** 激活时间 */
+  activatedAt: string
+}
+
+// 20）认证学生列表响应（VerifiedStudentListResponse）
+export interface VerifiedStudentListResponse {
+  students: VerifiedStudentItem[]
+  total: number
+}
+
+// 21）附属子码列表响应（SubCodeListResponse）
+export interface SubCodeListResponse {
   codes: VerificationCodeItem[]
   total: number
 }

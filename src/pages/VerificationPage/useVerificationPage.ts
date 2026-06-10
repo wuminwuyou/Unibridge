@@ -32,7 +32,7 @@ export interface UseVerificationPageResult {
   staffNumber: string
   verificationCode: string
   /** 学号（Student 通道使用） */
-  studentNumber: string
+  studentId: string
   /** 毕业年份（4位，Student 通道使用） */
   graduationYear: string
   entitySearchResults: EntitySearchItem[]
@@ -95,7 +95,7 @@ export function useVerificationPage(): UseVerificationPageResult {
   const [entityCode, setEntityCode] = useState('')
   const [staffNumber, setStaffNumber] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
-  const [studentNumber, setStudentNumber] = useState('')
+  const [studentId, setStudentNumber] = useState('')
   const [graduationYear, setGraduationYear] = useState('')
   const [entitySearchResults, setEntitySearchResults] = useState<EntitySearchItem[]>([])
   const [isSearchingEntity, setIsSearchingEntity] = useState(false)
@@ -188,7 +188,7 @@ export function useVerificationPage(): UseVerificationPageResult {
   // 学生激活
   const submitStudentActivate = useCallback(async (): Promise<void> => {
     const code = verificationCode.trim()
-    const sNumber = studentNumber.trim()
+    const sNumber = studentId.trim()
     const gYear = Number(graduationYear)
     const rName = realName.trim()
     if (!code) { setErrorMessage('请输入认证码'); return }
@@ -203,7 +203,7 @@ export function useVerificationPage(): UseVerificationPageResult {
     try {
       await activateStudentVerification({
         verificationCode: code,
-        studentNumber: sNumber,
+        studentId: sNumber,
         realName: rName,
         graduationYear: gYear,
       })
@@ -214,13 +214,13 @@ export function useVerificationPage(): UseVerificationPageResult {
     } finally {
       setIsSubmitting(false)
     }
-  }, [verificationCode, studentNumber, graduationYear, realName, navigate])
+  }, [verificationCode, studentId, graduationYear, realName, navigate])
 
   return {
     phase, errorMessage, isSubmitting,
     realName, idCard, faceToken, faceUrl,
     setRealName, setIdCard, startFaceVerification,
-    orgChannel, entityCode, staffNumber, verificationCode, studentNumber, graduationYear,
+    orgChannel, entityCode, staffNumber, verificationCode, studentId, graduationYear,
     entitySearchResults, isSearchingEntity,
     setOrgChannel, setEntityCode, setStaffNumber, setVerificationCode, setStudentNumber, setGraduationYear,
     searchEntity, submitStaffApply, submitStudentActivate,

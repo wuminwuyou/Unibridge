@@ -13,6 +13,10 @@ import type {
   GenerateSubCodeRequest,
   GenerateSubCodeResponse,
   VerificationCodeListResponse,
+  RenewVerificationCodeRequest,
+  RenewVerificationCodeResponse,
+  VerifiedStudentListResponse,
+  SubCodeListResponse,
 } from './types'
 
 // 01）认证模块异常类型（VerificationApiError）
@@ -93,7 +97,7 @@ export async function applyStaffVerification(body: StaffVerificationApplyRequest
 /**
  * 函数名：activateStudentVerification
  * 功能：使用认证码激活学生认证。
- * 输入：verificationCode（子码）、studentNumber（学号）、realName（实名）、graduationYear（毕业年份）
+ * 输入：verificationCode（子码）、studentId（学号）、realName（实名）、graduationYear（毕业年份）
  * 输出：{ entityCode, entityName, role }
  */
 export async function activateStudentVerification(body: StudentVerificationActivateRequest): Promise<StudentVerificationActivateResponse> {
@@ -142,6 +146,41 @@ export async function invalidateVerificationCode(code: string): Promise<void> {
   return postVerificationApi<{ code: string }, void>('/verification/codes/invalidate', { code })
 }
 
+// 13）延期认证码（renewVerificationCode）
+/**
+ * 函数名：renewVerificationCode
+ * 功能：机构管理员将认证码延期至指定日期。
+ * 输入：code（认证码）、newExpireDate（延期至日期 yyyy-MM-dd）
+ * 输出：{ code, newExpireTime }
+ */
+export async function renewVerificationCode(body: RenewVerificationCodeRequest): Promise<RenewVerificationCodeResponse> {
+  return postVerificationApi<RenewVerificationCodeRequest, RenewVerificationCodeResponse>('/verification/codes/renew', body)
+}
+
+// 14）查看认证学生列表（getVerificationCodeStudents）
+/**
+ * 函数名：getVerificationCodeStudents
+ * 功能：查询指定母码/子码下已认证激活的学生列表。
+ * 输入：code（认证码）
+ * 输出：{ students[], total }
+ */
+export async function getVerificationCodeStudents(code: string): Promise<VerifiedStudentListResponse> {
+  const encodedCode = encodeURIComponent(code.trim())
+  return getVerificationApi<VerifiedStudentListResponse>(`/verification/codes/students?code=${encodedCode}`)
+}
+
+// 15）查看母码附属子码列表（getSubCodeList）
+/**
+ * 函数名：getSubCodeList
+ * 功能：查询指定母码下的所有子码列表。
+ * 输入：masterCode
+ * 输出：{ codes[], total }
+ */
+export async function getSubCodeList(masterCode: string): Promise<SubCodeListResponse> {
+  const encodedCode = encodeURIComponent(masterCode.trim())
+  return getVerificationApi<SubCodeListResponse>(`/verification/codes/sub-codes?masterCode=${encodedCode}`)
+}
+
 export type {
   FaceIdInitRequest,
   FaceIdInitResponse,
@@ -157,4 +196,7 @@ export type {
   GenerateSubCodeRequest,
   GenerateSubCodeResponse,
   VerificationCodeListResponse,
+  VerifiedStudentItem,
+  VerifiedStudentListResponse,
+  SubCodeListResponse,
 } from './types'

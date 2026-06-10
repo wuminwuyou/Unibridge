@@ -2,10 +2,11 @@ import { useState } from 'react'
 import type { ThemeMode } from '../../../../contexts/ThemeContext'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { isOrganizationAdminRole } from '../../../../auth/organizationSession'
-import { ChevronDown, Send, Ticket } from 'lucide-react'
+import { ChevronDown, Send, Ticket, ListTodo } from 'lucide-react'
 import UserProfileMenu from '../UserProfileMenu'
 import { usePublishEntryMenu } from './usePublishEntryMenu'
 import { SchoolVerificationCodeModal } from './SchoolVerificationCodeModal'
+import { VerificationCodeManageModal } from './VerificationCodeManageModal'
 
 import './style.css'
 
@@ -62,6 +63,7 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
   const isSchool = isSchoolEntity(userProfile?.entityCode)
   const showSchoolCodeEntry = isOrgAdmin && isSchool
   const [isCodeModalOpen, setCodeModalOpen] = useState(false)
+  const [isCodeManageModalOpen, setCodeManageModalOpen] = useState(false)
   const [isCodeMenuOpen, setCodeMenuOpen] = useState(false)
   const themeButtonLabel = `切换到${theme === 'light' ? '深色' : '浅色'}主题`
   const publishMenu = usePublishEntryMenu({
@@ -128,6 +130,11 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
                 <span className="publish-entry-menu__item-icon" aria-hidden="true"><Ticket size={16} strokeWidth={2.2} /></span>
                 <span className="publish-entry-menu__item-text"><span className="publish-entry-menu__item-label">生成认证码</span><span className="publish-entry-menu__item-desc">创建新的母码</span></span>
               </button>
+              <button type="button" role="menuitem" className="publish-entry-menu__item"
+                onClick={() => { setCodeMenuOpen(false); setCodeManageModalOpen(true) }}>
+                <span className="publish-entry-menu__item-icon" aria-hidden="true"><ListTodo size={16} strokeWidth={2.2} /></span>
+                <span className="publish-entry-menu__item-text"><span className="publish-entry-menu__item-label">认证码管理</span><span className="publish-entry-menu__item-desc">查看、停用、延期认证码</span></span>
+              </button>
             </div>
           ) : null}
         </div>
@@ -180,6 +187,7 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
       )}
 
       <SchoolVerificationCodeModal open={isCodeModalOpen} onClose={() => setCodeModalOpen(false)} />
+      <VerificationCodeManageModal open={isCodeManageModalOpen} onClose={() => setCodeManageModalOpen(false)} />
     </div>
   )
 }

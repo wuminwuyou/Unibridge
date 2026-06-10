@@ -64,11 +64,11 @@
 | 45 | 认证 | GET | `/verification/face/result` | 查询人脸核身结果 | `queryFaceVerificationResult` |
 | 46 | 认证 | GET | `/verification/entities/search` | 检索机构 | `searchEntities` |
 | 47 | 认证 | POST | `/verification/staff-apply` | 教职工认证申请 | `applyStaffVerification` |
-| 48 | 认证 | POST | `/verification/verification-codes/generate` | 生成认证母码 | `generateMasterCode` |
-| 49 | 认证 | POST | `/verification/verification-codes/sub-code` | 生成认证子码 | `generateSubCode` |
-| 50 | 认证 | GET | `/verification/verification-codes` | 获取认证码列表 | `getVerificationCodeList` |
-| 51 | 认证 | POST | `/verification/verification-codes/invalidate` | 无效化认证码 | `invalidateVerificationCode` |
-| 52 | 认证 | POST | `/verification/student-activate` | 学生认证激活 | `activateStudentVerification` |
+| 48 | 认证 | POST | `/verification/codes/generate` | 生成认证母码 | `generateMasterCode` |
+| 49 | 认证 | POST | `/verification/codes/sub-code` | 生成认证子码 | `generateSubCode` |
+| 50 | 认证 | GET | `/verification/codes` | 获取认证码列表 | `getVerificationCodeList` |
+| 51 | 认证 | POST | `/verification/codes/invalidate` | 无效化认证码 | `invalidateVerificationCode` |
+| 52 | 认证 | POST | `/verification/codes/activate` | 学生认证激活 | `activateStudentVerification` |
 
 ### 页面与接口映射
 
@@ -86,7 +86,7 @@
 | `PublishNoteView` | `/publish/note` | `POST/PUT /notes`、`POST /uploads/*`、`GET /uploads/check-md5` |
 | `ProjectDetailPage` | `/project-detail` | `GET /projects/{uid}`、`POST /feed/events`（VIEW_DETAIL） |
 | `NoteDetailPage` | `/note-detail` | `GET /notes/{uid}`、`POST /feed/events`（VIEW_DETAIL） |
-| `VerificationPage` | `/verification` | `POST /verification/face/init`、`GET /verification/face/result`、`GET /verification/entities/search`、`POST /verification/staff-apply`、`POST /verification/student-activate` |
+| `VerificationPage` | `/verification` | `POST /verification/face/init`、`GET /verification/face/result`、`GET /verification/entities/search`、`POST /verification/staff-apply`、`POST /verification/codes/activate` |
 
 ### 文档目录
 
@@ -2839,11 +2839,11 @@ sequenceDiagram
 | 2 | GET | `/verification/face/result` | 查询人脸核身结果 | `queryFaceVerificationResult` |
 | 3 | GET | `/verification/entities/search` | 检索机构 | `searchEntities` |
 | 4 | POST | `/verification/staff-apply` | 教职工认证申请 | `applyStaffVerification` |
-| 5 | POST | `/verification/verification-codes/generate` | 生成认证母码 | `generateMasterCode` |
-| 6 | POST | `/verification/verification-codes/sub-code` | 生成认证子码 | `generateSubCode` |
-| 7 | GET | `/verification/verification-codes` | 获取认证码列表 | `getVerificationCodeList` |
-| 8 | POST | `/verification/verification-codes/invalidate` | 无效化认证码 | `invalidateVerificationCode` |
-| 9 | POST | `/verification/student-activate` | 学生认证激活 | `activateStudentVerification` |
+| 5 | POST | `/verification/codes/generate` | 生成认证母码 | `generateMasterCode` |
+| 6 | POST | `/verification/codes/sub-code` | 生成认证子码 | `generateSubCode` |
+| 7 | GET | `/verification/codes` | 获取认证码列表 | `getVerificationCodeList` |
+| 8 | POST | `/verification/codes/invalidate` | 无效化认证码 | `invalidateVerificationCode` |
+| 9 | POST | `/verification/codes/activate` | 学生认证激活 | `activateStudentVerification` |
 
 ### 调用时序
 
@@ -2853,7 +2853,7 @@ VerificationPage
   │     └── iframe 核身 → GET /verification/face/result?token=
   └── 阶段二：机构认证
         ├── Staff：GET /verification/entities/search → POST /verification/staff-apply → /profile
-        └── Student：POST /verification/student-activate → /profile
+        └── Student：POST /verification/codes/activate → /profile
 ```
 
 ---
@@ -2945,92 +2945,95 @@ VerificationPage
 
 ---
 
-### 5) `POST /verification/verification-codes/generate` — 生成母码
+### 5) `POST /verification/codes/generate` — 生成母码
 
 > **消费方**：机构管理员生成院级认证母码
 
 - **Method**：`POST`
-- **Path**：`/verification/verification-codes/generate`
+- **Path**：`/verification/codes/generate`
 - **Auth**：是（需机构管理员 CLIENT_ORG token）
 
 #### Request
 
 ```json
-{ "maxUses": 1000, "description": "全校通用认证码" }
+{ "maxQuota": 1000, "description": "全校通用认证码" }
 ```
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `maxUses` | number | 否 | 母码总额度（默认 1000，上限 50000） |
+| `maxQuota` | number | 否 | 母码总额度（默认 1000，上限 5000） |
 | `description` | string | 否 | 用途描述 |
 
 #### Response `data`
 
 ```json
-{ "code": "10598-2026-00123", "entityCode": "10598", "graduationYear": 2026, "maxUses": 1000, "expireTime": "2026-06-22 23:59:59" }
+{ "code": "10598-2026-00123", "entityCode": "10598", "maxQuota": 1000, "expireTime": "2026-06-22 23:59:59" }
 ```
 
 #### 实现说明
 
-- 母码格式：`{entityCode}-{year}-{5位数字}`
+- 母码格式：`{entityCode}-{year}-{5位数字}`，年份由服务器当前时间自动推导
 - 认证码有效期：创建日期 + 14 天，当天 23:59:59 失效
 - `expireTime` 响应字段返回具体失效时间（`yyyy-MM-dd HH:mm:ss`）
 
 ---
 
-### 6) `POST /verification/verification-codes/sub-code` — 生成子码
+### 6) `POST /verification/codes/sub-code` — 生成子码
 
 > **消费方**：辅导员在母码下创建班级/专业级子码
 
 - **Method**：`POST`
-- **Path**：`/verification/verification-codes/sub-code`
+- **Path**：`/verification/codes/sub-code`
 - **Auth**：是（需用户具有 COUNSELOR 角色，仅辅导员可操作）
 
 #### Request
 
 ```json
-{ "masterCode": "10598-2026-00123", "maxUses": 60, "graduationYear": 2026, "description": "计算机专业 3 班认证码" }
+{ "masterCode": "10598-2026-00123", "maxQuota": 50, "graduationYear": 2030, "description": "计算机专业 3 班认证码" }
 ```
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `masterCode` | string | 是 | 母码 code |
-| `maxUses` | number | 否 | 子码额度（默认 60，上限 200） |
-| `graduationYear` | number | 否 | 毕业年份（可选，不填则继承母码） |
+| `maxQuota` | number | 否 | 子码额度（默认 50，上限 500） |
+| `graduationYear` | number | 否 | 毕业年份（可选，仅子码可填写，不填则 null） |
 | `description` | string | 否 | 用途描述（如：计算机专业 3 班） |
 
 #### Response `data`
 
 ```json
-{ "code": "10598-2026-00123-0456", "entityCode": "10598", "graduationYear": 2026, "maxUses": 60, "expireTime": "2026-06-22 23:59:59" }
+{ "code": "10598-2026-00123-0456", "entityCode": "10598", "graduationYear": 2030, "maxQuota": 50, "expireTime": "2026-06-22 23:59:59" }
 ```
 
 #### 实现说明
 
 - 子码格式：`{母码code}-{4位数字}`
-- 权限分离：仅 COUNSELOR（辅导员）可创建子码
+- 权限分离：仅 COUNSELOR（辅导员）可创建子码，MENTOR（导师）负责项目指导，不参与行政事务
 - 创建子码时原子扣减母码额度
 - 认证码有效期：创建日期 + 14 天，当天 23:59:59 失效
+- `expireTime` 响应字段返回具体失效时间
 
 ---
 
-### 7) `POST /verification/student-activate` — 学生认证激活
+### 7) `POST /verification/codes/activate` — 学生认证码激活
 
 > **消费方**：使用**子码**激活，母码不可直接激活。
 
 - **Method**：`POST`
-- **Path**：`/verification/student-activate`
+- **Path**：`/verification/codes/activate`
 - **Auth**：是
 
 #### Request
 
 ```json
-{ "verificationCode": "10598-2026-00123-0456", "graduationYear": 2026 }
+{ "verificationCode": "10598-2026-00123-0456", "studentId": "2024001234", "realName": "张三", "graduationYear": 2030 }
 ```
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `verificationCode` | string | 是 | 子码 |
+| `studentId` | string | 是 | 学号 |
+| `realName` | string | 是 | 真实姓名（阶段一核身通过后自动填充） |
 | `graduationYear` | number | 是 | 毕业年份 |
 
 #### Response
@@ -3041,10 +3044,10 @@ VerificationPage
 
 ---
 
-### 8) `GET /verification/verification-codes` — 获取认证码列表
+### 8) `GET /verification/codes` — 获取认证码列表
 
 - **Method**：`GET`
-- **Path**：`/verification/verification-codes`
+- **Path**：`/verification/codes`
 - **Auth**：是（需机构管理员）
 
 返回机构下的认证码列表（母码+子码）。
@@ -3054,7 +3057,7 @@ VerificationPage
 ```json
 {
   "codes": [
-    { "code": "10598-2026-00123", "maxUses": 1000, "usedCount": 120, "description": null, "createdBy": "EAa1B2c3D4e5F", "isActive": true, "isMaster": true, "createdAt": "2026-06-08 10:00:00" }
+    { "code": "10598-2026-00123", "maxQuota": 1000, "usedQuota": 120, "description": null, "createdBy": "EAa1B2c3D4e5F", "isActive": true, "isMaster": true, "createdAt": "2026-06-08 10:00:00" }
   ],
   "total": 1
 }
@@ -3063,18 +3066,18 @@ VerificationPage
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `codes[].code` | string | 认证码 |
-| `codes[].maxUses` | number | 总额度 |
-| `codes[].usedCount` | number | 已使用次数 |
+| `codes[].maxQuota` | number | 总额度 |
+| `codes[].usedQuota` | number | 已使用额度 |
 | `codes[].isActive` | boolean | 是否有效 |
 | `codes[].isMaster` | boolean | 是否为母码 |
 | `total` | number | 总数 |
 
 ---
 
-### 9) `POST /verification/verification-codes/invalidate` — 无效化认证码
+### 9) `POST /verification/codes/invalidate` — 无效化认证码
 
 - **Method**：`POST`
-- **Path**：`/verification/verification-codes/invalidate`
+- **Path**：`/verification/codes/invalidate`
 - **Auth**：是（需机构管理员）
 
 #### Request
@@ -3094,7 +3097,7 @@ VerificationPage
 | 阶段 | 母码 | 子码 |
 |------|------|------|
 | **生成** | 机构管理员 → 写入 `sys_verification_codes`（is_master=1） | 辅导员 → 写入 `sys_verification_codes`（is_master=0） |
-| **额度** | `max_uses`=总额度（默认1000），`used_count`=已分配子码总额度 | `max_uses`=班级额度（默认60），`used_count`=已激活学生数 |
+| **额度** | `max_quota`=总额度（默认1000），`used_quota`=已分配子码总额度 | `max_quota`=班级额度（默认50），`used_quota`=已激活学生数 |
 | **扣减** | 子码生成时原子递增 | 学生激活时原子递增 |
 | **失效** | 创建日期 + 14 天自动过期 / `is_active=0` / 额度耗尽 | 同上 |
 

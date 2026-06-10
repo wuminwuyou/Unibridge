@@ -176,7 +176,7 @@ function StudentForm({ form }: { form: ReturnType<typeof useVerificationPage> })
       </div>
       <div className="vp-field">
         <label htmlFor="vp-student-number" className="vp-label">学号</label>
-        <input id="vp-student-number" type="text" className="vp-input" value={form.studentNumber}
+        <input id="vp-student-number" type="text" className="vp-input" value={form.studentId}
           onChange={(e) => { form.setStudentNumber(e.target.value); form.clearError() }}
           placeholder="请输入学号" disabled={form.isSubmitting} autoComplete="off" />
       </div>
@@ -193,7 +193,7 @@ function StudentForm({ form }: { form: ReturnType<typeof useVerificationPage> })
           onChange={(e) => { form.setGraduationYear(e.target.value); form.clearError() }}
           placeholder="例如：2030" min={1950} max={2100} maxLength={4} disabled={form.isSubmitting} autoComplete="off" />
       </div>
-      <button type="submit" className="vp-btn vp-btn--primary" disabled={form.isSubmitting || !form.verificationCode.trim() || !form.studentNumber.trim() || !form.graduationYear}>
+      <button type="submit" className="vp-btn vp-btn--primary" disabled={form.isSubmitting || !form.verificationCode.trim() || !form.studentId.trim() || !form.graduationYear}>
         {form.isSubmitting ? '激活中…' : '立即激活'}
       </button>
     </form>

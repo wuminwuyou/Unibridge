@@ -1,9 +1,9 @@
 # UniBridge 前端待办 API 增量
 
-> **用途**：双阶段认证页面接口需求，供后端实现。  
+> **用途**：认证码管理功能接口需求，供后端实现。  
 > **全量契约**：[`API.md`](./API.md)  
 > **Base**：`/api/v1/client`  
-> **消费组件**：`VerificationPage.tsx`、`useVerificationPage.ts`  
+> **消费组件**：`VerificationCodeManageModal.tsx`  
 > **后端实现**：`domain/verification/VerificationService.java` + `VerificationController.java`
 
 ---
@@ -12,255 +12,312 @@
 
 | 模块 | 后端 | 前端 |
 |------|------|------|
-| 创建学生团队 (`POST /team/create`) | ✅ 已实现 | `CreateTeamModal.tsx` |
-| 用户认证预览 (`/users/{uid}/verified-preview`) | ✅ 已实现 | `CreateTeamModal.tsx` |
-| 双阶段认证 (`/verification/*`) | ✅ 已实现 | `VerificationPage.tsx` |
+| 认证码列表查询 (`GET /verification/codes`) | 待实现 | 已接入 |
+| 认证码停用 (`POST /verification/codes/invalidate`) | 待实现 | 已接入 |
+| 认证码延期 (`POST /verification/codes/renew`) | 待实现 | 已接入 |
+| 认证学生列表 (`GET /verification/codes/students`) | 待实现 | 已接入 |
+| 附属子码列表 (`GET /verification/codes/sub-codes`) | 待实现 | 已接入 |
 
 ---
 
-## 1) `POST /verification/face/init` — 初始化人脸核身
+## 字段命名规范
 
-### Request
+> **重要**：所有 API 字段命名必须使用 **camelCase**，请严格遵循以下约定：
 
-- **Method**：`POST`
-- **Path**：`/verification/face/init`
-- **Auth**：是
-
-```json
-{ "realName": "张三", "idCard": "440300199001011234" }
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `realName` | string | 是 | 身份证上的真实姓名 |
-| `idCard` | string | 是 | 18 位身份证号 |
-
-### Response `data`
-
-```json
-{ "url": "about:blank", "token": "face_mock_abc123", "expireInSec": 300 }
-```
+| 场景 | 规范 | 正确示例 | 错误示例 |
+|------|------|----------|----------|
+| 请求/响应字段 | camelCase | `studentId`, `maxQuota`, `createdByName` | `student_id`, `max_quota`, `created_by_name` |
+| 布尔字段 | `is` / `has` 前缀 + camelCase | `isActive`, `isMaster`, `hasExpired` | `active`, `is_active` |
+| 时间字段 | 末尾加 `At` 或 `Time` | `createdAt`, `expireTime` | `created_at`, `expire_time` |
+| 计数/额度字段 | camelCase | `usedQuota`, `studentCount` | `used_quota`, `student_count` |
 
 ---
 
-## 2) `GET /verification/face/result` — 查询人脸核身结果
+## 1) `GET /verification/codes` — 获取认证码列表
+
+> **消费方**：`VerificationCodeManageModal` 打开时加载
 
 ### Request
 
 - **Method**：`GET`
-- **Path**：`/verification/face/result`
-- **Auth**：是
-- **Query**：`token=`
+- **Path**：`/verification/codes`
+- **Auth**：是（需机构管理员）
 
 ### Response `data`
 
 ```json
-{ "passed": true, "realName": "张三", "idCardMasked": "440300********1234" }
+{
+  "codes": [
+    {
+      "code": "10598-2026-00123",
+      "maxQuota": 1000,
+      "usedQuota": 120,
+      "description": "全校通用认证码",
+      "createdBy": "EAa1B2c3D4e5F",
+      "createdByName": "李老师",（如果是母码，则对应数据库中的display_name）
+      "isActive": true,
+      "isMaster": true,
+      "canRenew": false,
+      "createdAt": "2026-06-08 10:00:00",
+      "expireTime": "2026-06-22 23:59:59"
+    },
+    {
+      "code": "10598-2026-00123-0456",
+      "maxQuota": 50,
+      "usedQuota": 12,
+      "description": "计算机专业 3 班认证码",
+      "createdBy": "USx9Y8z7W6v5U",
+      "createdByName": "王辅导员",
+      "isActive": true,
+      "isMaster": false,
+      "createdAt": "2026-06-08 11:00:00",
+      "expireTime": "2026-06-22 23:59:59"
+    }
+  ],
+  "total": 2
+}
 ```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `codes[].code` | string | 认证码（母码/子码） |
+| `codes[].maxQuota` | number | 总额度 |
+| `codes[].usedQuota` | number | 已使用额度 |
+| `codes[].description` | string \| null | 用途描述 |
+| `codes[].createdBy` | string | 创建者 uid |
+| `codes[].createdByName` | string | 创建者显示名称（昵称，非 uid） |
+| `codes[].isActive` | boolean | 是否有效（**注意必须返回 true/false**，不能是 1/0 或字符串） |
+| `codes[].isMaster` | boolean | 是否为母码（**注意必须返回 true/false**，不能是 1/0 或字符串） |
+| `codes[].canRenew` | boolean | 是否可以延期。人为停用=false；自然过期7天内=true，其余=false |
+| `codes[].createdAt` | string | 创建时间 |
+| `codes[].expireTime` | string | 失效时间（yyyy-MM-dd HH:mm:ss） |
+| `total` | number | 总数 |
+
+### 实现说明
+
+- 仅返回当前机构的认证码（母码+子码），按创建时间倒序
+- `isActive`：过期自动计算（当前时间 > expireTime 时为 false）；人工停用后也为 false。**必须返回 JSON boolean**
+- `isMaster`：**必须返回 JSON boolean**，1 为母码，0 为子码
 
 ---
 
-## 3) `GET /verification/entities/search` — 检索机构
+## 2) `POST /verification/codes/invalidate` — 停用认证码
 
-### Request
-
-- **Method**：`GET`
-- **Path**：`/verification/entities/search`
-- **Auth**：是
-- **Query**：`keyword=`
-
-### Response `data`
-
-```json
-{ "entities": [{ "entityCode": "10598", "name": "深圳大学", "type": "UNIVERSITY" }] }
-```
-
----
-
-## 4) `POST /verification/staff-apply` — 教职工认证申请
+> **消费方**：`VerificationCodeManageModal` 操作栏「停用」按钮
 
 ### Request
 
 - **Method**：`POST`
-- **Path**：`/verification/staff-apply`
-- **Auth**：是
+- **Path**：`/verification/codes/invalidate`
+- **Auth**：是（需机构管理员）
 
 ```json
-{ "entityCode": "10598", "realName": "张三", "staffNumber": "SZU2024001" }
+{ "code": "10598-2026-00123" }
 ```
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `entityCode` | string | 是 | 机构主体代码 |
-| `realName` | string | 是 | 阶段一核身通过的实名 |
-| `staffNumber` | string | 是 | 工号/员工编号 |
+| `code` | string | 是 | 认证码 |
 
 ### Response
 
-```json
-{ "applicationId": "APP-20260607-aB7x9K2mN4pQ", "status": "PENDING" }
-```
+空 body，`code=200` 表示成功。
 
 ### 实现说明
 
-- 写入 `user_auth_link`（`audit_status=PENDING, is_active=0`）
-- 写入 `sys_approval_flows` 审批流
-- 角色自动判定：企业 → `PM`，学校 → `MENTOR`
+- 将 `sys_verification_codes.is_active` 置为 0
+- 停用后该码下所有子码一并失效（级联）
+- 停用母码：其下所有子码的 `is_active` 也置为 0
 
 ---
 
-## 5) `POST /verification/codes/generate` — 生成认证母码
+## 3) `POST /verification/codes/renew` — 延期认证码
 
-> **消费方**：机构管理员生成院级认证母码
+> **消费方**：`VerificationCodeManageModal` 操作栏「延期」按钮
 
 ### Request
 
 - **Method**：`POST`
-- **Path**：`/verification/codes/generate`
-- **Auth**：是（需机构管理员 CLIENT_ORG token）
+- **Path**：`/verification/codes/renew`
+- **Auth**：是（需机构管理员）
 
 ```json
-{ "maxQuota": 1000, "description": "全校通用认证码" }
+{ "code": "10598-2026-00123", "newExpireDate": "2026-07-06" }
 ```
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `maxQuota` | number | 否 | 母码总额度（默认 1000，上限 5000，推荐同年级学院，适应同年级学院到整个年级） |
-| `description` | string | 否 | 用途描述 |
+| `code` | string | 是 | 认证码 |
+| `newExpireDate` | string | 是 | 延期至日期（yyyy-MM-dd） |
 
 ### Response `data`
 
 ```json
-{ "code": "10598-2026-00123", "entityCode": "10598", "maxQuota": 1000, "expireTime": "2026-06-22 23:59:59" }
+{ "code": "10598-2026-00123", "newExpireTime": "2026-07-06 23:59:59" }
 ```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `code` | string | 认证码 |
+| `newExpireTime` | string | 新的失效时间（yyyy-MM-dd HH:mm:ss） |
 
 ### 实现说明
 
-- 母码格式：`{entityCode}-{year}-{5位数字}`，年份由服务器当前时间自动推导
-- 认证码有效期：创建日期 + 14 天，当天 23:59:59 失效
+- 延期至用户指定的日期（精确到天，后端自动加上 `23:59:59`）
+- 目标日期不得早于今天
+- **目标日期不得晚于创建时间 + 28 天**（四周），防止无限延期
+- 已停用的认证码不可延期
+- 已失效超过 7 天的认证码不可延期
+- 延期母码：其下所有子码也一并延期至同一日期
+- 有效期内也可以延期（在 28 天窗口内自由选择）
+
+### 前端展示策略
+
+前端使用日历组件让用户选择具体日期，规则如下：
+
+| 日期范围 | 日历状态 | `canRenew` |
+|----------|----------|------------|
+| 昨天及之前 | **灰色不可选** | — |
+| 今天 ~ 创建时间+28天 | **白色可选**（默认） | — |
+| 创建时间+28 天之后 | **灰色不可选** | — |
+| 已过期超过 7 天 | 隐藏「延期」按钮 | `false` |
+
+前端 JS 自行计算可选范围：`minDate = today`，`maxDate = createdAt + 28天`，落在该范围外的日期置灰不可选。
 
 ---
 
-## 6) `POST /verification/codes/sub-code` — 生成认证子码
+## 4) `GET /verification/codes/students` — 查看认证学生列表
 
-> **消费方**：辅导员在母码下创建班级/专业级子码
+> **消费方**：`VerificationCodeManageModal` 子码操作栏「查看认证学生」按钮
 
 ### Request
 
-- **Method**：`POST`
-- **Path**：`/verification/codes/sub-code`
-- **Auth**：是（需用户具有 COUNSELOR 角色，仅辅导员可操作）
+- **Method**：`GET`
+- **Path**：`/verification/codes/students`
+- **Auth**：是（需机构管理员）
+- **Query**：`code=`
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `code` | string | 是 | 子码（仅子码调用，母码不可直接查询学生） |
+
+### Response `data`
 
 ```json
-{ "masterCode": "10598-2026-00123", "maxQuota": 50, "graduationYear": 2030, "description": "计算机专业 3 班认证码" }
+{
+  "students": [
+    {
+      "uid": "USa1B2c3D4e5F",
+      "nickname": "张同学",
+      "realName": "张三",
+      "studentId": "2024001234",
+      "graduationYear": 2030,
+      "subCode": "10598-2026-00123-0456",
+      "activatedAt": "2026-06-09 14:30:00"
+    }
+  ],
+  "total": 1
+}
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `students[].uid` | string | 学生用户 uid |
+| `students[].nickname` | string | 昵称 |
+| `students[].realName` | string | 实名 |
+| `students[].studentId` | string | 学号 |
+| `students[].graduationYear` | number | 毕业年份 |
+| `students[].subCode` | string | 该学生激活时使用的子码 |
+| `students[].activatedAt` | string | 激活时间 |
+| `total` | number | 总数 |
+
+### 实现说明
+
+- 仅查询子码：返回通过该子码激活的学生
+- 母码不可直接调用此接口（母码使用 §5 查看附属子码）
+
+---
+
+## 5) `GET /verification/codes/sub-codes` — 查看附属子码列表
+
+> **消费方**：`VerificationCodeManageModal` 母码操作栏「查看附属子码」按钮
+
+### Request
+
+- **Method**：`GET`
+- **Path**：`/verification/codes/sub-codes`
+- **Auth**：是（需机构管理员）
+- **Query**：`masterCode=`
+
+| 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `masterCode` | string | 是 | 母码 code |
-| `maxQuota` | number | 否 | 子码额度（默认 50，上限 500，适应班级规模） |
-| `graduationYear` | number | 否 | 毕业年份（可选，仅子码可填写，不填则null） |
-| `description` | string | 否 | 用途描述（如：计算机专业 3 班） |
 
 ### Response `data`
 
 ```json
-{ "code": "10598-2026-00123-0456", "entityCode": "10598", "graduationYear": 2030, "maxQuota": 50, "expireTime": "2026-06-22 23:59:59" }
+{
+  "codes": [
+    {
+      "code": "10598-2026-00123-0456",
+      "maxQuota": 50,
+      "usedQuota": 12,
+      "description": "计算机专业 3 班认证码",
+      "createdBy": "USx9Y8z7W6v5U",
+      "createdByName": "王辅导员",
+      "isActive": true,
+      "isMaster": false,
+      "canRenew": false,
+      "createdAt": "2026-06-09 09:00:00",
+      "expireTime": "2026-06-23 23:59:59"
+    }
+  ],
+  "total": 1
+}
 ```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `codes[].code` | string | 子码 |
+| `codes[].maxQuota` | number | 总额度 |
+| `codes[].usedQuota` | number | 已使用额度 |
+| `codes[].description` | string \| null | 用途描述 |
+| `codes[].createdBy` | string | 创建者 uid |
+| `codes[].createdByName` | string | 创建者显示名称 |
+| `codes[].isActive` | boolean | 是否有效（**必须 JSON boolean**） |
+| `codes[].isMaster` | boolean | 固定为 false |
+| `codes[].canRenew` | boolean | 是否可以延期 |
+| `codes[].createdAt` | string | 创建时间 |
+| `codes[].expireTime` | string | 失效时间 |
+| `total` | number | 子码总数 |
 
 ### 实现说明
 
-- 子码格式：`{母码code}-{4位数字}`
-- 权限分离：仅 COUNSELOR（辅导员）可创建子码，MENTOR（导师）负责项目指导，不参与行政事务
-- 创建子码时原子扣减母码额度
-- 认证码有效期：创建日期 + 14 天，当天 23:59:59 失效
-- `expireTime` 响应字段返回具体失效时间
-
----
-
-## 7) `POST /verification/codes/activate` — 学生认证码激活
-
-> **消费方**：使用**子码**激活，母码不可直接激活。
-
-### Request
-
-- **Method**：`POST`
-- **Path**：`/verification/codes/activate`
-- **Auth**：是
-
-```json
-{ "verificationCode": "10598-2026-00123-0456", "studentNumber": "2024001234", "realName": "张三", "graduationYear": 2030 }
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `verificationCode` | string | 是 | 子码 |
-| `studentId` | string | 是 | 学号 |
-| `realName` | string | 是 | 真实姓名（阶段一核身通过后自动填充） |
-| `graduationYear` | number | 是 | 毕业年份 |
-| | `GRADUATION_YEAR_INVALID` | 400 |
-| `graduationYear` | number | 是 | 毕业年份 |
-
-### Response
-
-```json
-{ "entityCode": "10598", "entityName": "深圳大学", "role": "STUDENT" }
-```
+- 返回该母码下所有子码，字段与 §1 一致
+- `isMaster` 固定为 false
+- 按创建时间倒序排列
 
 ---
 
 ## 接口汇总
 
-| # | Method | Path | Query / Body |
-|---|--------|------|--------------|
-| 1 | POST | `/verification/face/init` | `{ realName, idCard }` |
-| 2 | GET | `/verification/face/result` | `?token=` |
-| 3 | GET | `/verification/entities/search` | `?keyword=` |
-| 4 | POST | `/verification/staff-apply` | `{ entityCode, realName, staffNumber }` |
-| 5 | POST | `/verification/codes/generate` | `{ maxQuota?, description? }` |
-| 6 | POST | `/verification/codes/sub-code` | `{ masterCode, maxQuota?, description? }` |
-| 7 | POST | `/verification/codes/activate` | `{ verificationCode, graduationYear }` |
+| # | Method | Path | Query / Body | 说明 |
+|---|--------|------|--------------|------|
+| 1 | GET | `/verification/codes` | — | 获取认证码列表（含 createdByName） |
+| 2 | POST | `/verification/codes/invalidate` | `{ code }` | 停用认证码 |
+| 3 | POST | `/verification/codes/renew` | `{ code, days? }` | 延期认证码 |
+| 4 | GET | `/verification/codes/students` | `?code=` | 查看认证学生列表（仅子码） |
+| 5 | GET | `/verification/codes/sub-codes` | `?masterCode=` | 查看附属子码列表（仅母码） |
 
 ---
 
 ## 调用时序
 
 ```
-VerificationPage
-  ├── 阶段一：填写姓名+身份证 → POST /verification/face/init
-  │     └── iframe 核身 → GET /verification/face/result?token=
-  └── 阶段二：机构认证
-        ├── Staff：GET /verification/entities/search → POST /verification/staff-apply → /profile
-        └── Student：POST /verification/codes/activate → /profile
+VerificationCodeManageModal
+  ├── 打开弹窗 → GET /verification/codes
+  ├── 停用 → POST /verification/codes/invalidate → 刷新列表
+  ├── 延期 → POST /verification/codes/renew → 刷新列表
+  ├── [母码] 查看附属子码 → GET /verification/codes/sub-codes?masterCode=
+  └── [子码] 查看认证学生 → GET /verification/codes/students?code=
 ```
-
----
-
-## 母子码生命周期说明
-
-| 阶段 | 母码 | 子码 |
-|------|------|------|
-| **生成** | 机构管理员 → 写入 `sys_verification_codes`（is_master=1） | 辅导员 → 写入 `sys_verification_codes`（is_master=0） |
-| **额度** | `max_quota`=总额度（默认1000），`used_quota`=已分配子码总额度 | `max_quota`=班级额度（默认60），`used_quota`=已激活学生数 |
-| **扣减** | 子码生成时原子递增 | 学生激活时原子递增 |
-| **失效** | 创建日期 + 14 天自动过期 / `is_active=0` / 额度耗尽 | 同上 |
-
----
-
-## 身份证验证手动开关说明
-
-### 开发环境（`dev`）— 默认
-
-- **完全 mock**，不调用任何外部 API
-- `getFaceResult`：直接返回 `passed=true`
-
-### 生产环境（`prod`）
-
-- 抛出 `FACE_API_NOT_CONFIGURED` 异常，预留腾讯云 SDK 接口
-
-### 切换方式
-
-| 文件 | 配置项 | 效果 |
-|------|--------|------|
-| `application-dev.properties` | `spring.profiles.active=dev` | mock 模式 |
-| `application-prod.properties` | `spring.profiles.active=prod` | 真实核身 |

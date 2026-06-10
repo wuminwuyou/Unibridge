@@ -148,17 +148,11 @@ function isRefreshRequest(requestConfig?: InternalAxiosRequestConfig): boolean {
  * - 返回值：是否应触发 refresh
  * - 副作用：无
  */
-function isAccessTokenExpiredError(code: number, message: string): boolean {
-  if (code === 401 && message === 'ACCESS_TOKEN_EXPIRED') {
-    return true
-  }
-
-  const tokenExpiredMessages = new Set([
-    'TOKEN_EXPIRED',
-    'TOKEN_INVALID',
-    'INVALID_TOKEN',
-  ])
-  return tokenExpiredMessages.has(message)
+function isAccessTokenExpiredError(code: number, _message: string): boolean {
+  // 只要 HTTP 状态码为 401，即视为 accessToken 已失效，触发自动刷新。
+  // 安全性：requestTokenRefresh 内部会校验 refreshToken 是否存在，
+  // 未登录/登录接口失败时 refreshToken 为空，不会误发刷新请求。
+  return code === 401
 }
 
 // 15）会话失效兜底处理（handleSessionExpired）
