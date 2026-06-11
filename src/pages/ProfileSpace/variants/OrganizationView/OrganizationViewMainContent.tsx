@@ -135,6 +135,7 @@ export function OrganizationViewMainContent({ model }: OrganizationViewMainConte
         <OrgMembersManageForm
           entityCode={entityCode}
           members={membersTabData.members}
+          entityType={model.orgCoreProfile?.type ?? 'ENTERPRISE'}
           onCancel={() => setIsManagingMembers(false)}
           onSaved={handleMembersSaved}
         />

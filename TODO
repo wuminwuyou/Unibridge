@@ -1,4 +1,5 @@
 // bug与待优化
+[ ] 笔记阅读页面的左侧目录，点击后右侧内容位置不对应，偏下移了一部分，应当修复
 [ ] /pages/ProfileSpace/tabs 与 /pages/ProfileSpace/variants 待重构，目前代码复用率低且文件结构混乱。虽然实现了基本功能，但是代码结构混乱，需要重构。
 [ ] /pages/ProfileSpace/tabs/MembersTab/OrgMembersTabContent.tsx 待重构，应该与文件MembersTabContent.tsx保持一致，使用相同的样式和组件。待重构
 [ ] /pages/ProfileSpace/tabs/LabsTab/ManageLabsForm.tsx 待重构，应该与文件ManageMembersForm.tsx结构上保持一致，使用相同的样式和组件，内部组件使用content传入。待重构
@@ -18,6 +19,7 @@
 [ ] 团队项目，笔记以及成果的逻辑没有完善
 [ ] refresh_token机制还是有问题，目前只能保证30分钟有效，未查明愿意
 [ ] 实名认证后保存的部分敏感信息现在在user_profile表中，不安全，应当移动到其他安全的表中，并作AES加密
+[ ] 认证码延期等管理弹窗的报错信息弹窗存在问题，没有正确渲染
 
 // 开发计划
 [√] 完成organization Space页面的实验室管理，人员管理的API开发与接入
@@ -26,6 +28,7 @@
 [v] 完成企业/学校员工的认证功能，包括先身份实名，然后申请加入机构（申请提交功能与审核功能，机构通过右上角通知————之后的IM系统进行处理。
 审核通过后，自动加入机构，并自动生成机构成员）
 [√] 认证码管理功能已完善，支持查看认证码列表、进度条额度展示、停用/延期/查看认证学生功能（VerificationCodeManageModal）
+[ ] 完成身份认证页面的实名认证协议，并且要求用户阅读并同意协议后才能进行认证
 [ ] 个人页面persenal Space 页面的项目管理与发布功能
 [ ] 完善项目与笔记的发布页面的UI设计与功能实现
 [ ] 进行一轮全流程期望测试，并根据测试结果进行优化

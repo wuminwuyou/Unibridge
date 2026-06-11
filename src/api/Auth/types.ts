@@ -14,7 +14,7 @@ export type AuthChannel = 'sms' | 'email'
 export type AuthStatus = 'verified' | 'unverified'
 
 // 04）认证用户角色类型定义（AuthUserRole）
-export type AuthUserRole = 'student' | 'mentor' | 'pm' | 'organization-admin'
+export type AuthUserRole = 'student' | 'mentor' | 'pm' | 'counselor' | 'organization-admin'
 
 // 05）个人注册请求参数定义（PersonalRegisterRequest）
 export interface PersonalRegisterRequest {

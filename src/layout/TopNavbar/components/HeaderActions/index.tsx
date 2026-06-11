@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import type { ThemeMode } from '../../../../contexts/ThemeContext'
 import { useAuth } from '../../../../contexts/AuthContext'
-import { isOrganizationAdminRole } from '../../../../auth/organizationSession'
+import { isOrganizationAdminRole, isCounselorRole } from '../../../../auth/organizationSession'
 import { ChevronDown, Send, Ticket, ListTodo } from 'lucide-react'
 import UserProfileMenu from '../UserProfileMenu'
 import { usePublishEntryMenu } from './usePublishEntryMenu'
 import { SchoolVerificationCodeModal } from './SchoolVerificationCodeModal'
 import { VerificationCodeManageModal } from './VerificationCodeManageModal'
+import { SubCodeGenerateModal } from './SubCodeGenerateModal'
 
 import './style.css'
 
@@ -46,8 +47,8 @@ function isSchoolEntity(entityCode?: string): boolean {
  * - 消息通知按钮预留入口
  * - 未登录：渲染「登录 / 注册」按钮，点击触发 onAuthEntryClick 打开登录弹窗
  * - 已登录：渲染 UserProfileMenu（头像 + 悬浮功能面板）
- * - 发布按钮通过 usePublishEntryMenu 展示向下选项（项目 / 笔记）
- * - 学校管理员显示「学校认证码」入口（企业类型隐藏）
+ * - 发布按钮通过 usePublishEntryMenu 展示向下选项（项目 / 笔记），辅导员额外包含认证码入口
+ * - 学校组织管理员显示独立的「学校认证码」入口按钮
  * 输入：
  * - theme：当前主题模式
  * - isAuthenticated：是否已登录
@@ -60,14 +61,22 @@ function isSchoolEntity(entityCode?: string): boolean {
 function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick, onNotifyClick, onLogout }: HeaderActionsProps) {
   const { userProfile } = useAuth()
   const isOrgAdmin = isOrganizationAdminRole(userProfile?.userRole)
+  const isCounselor = isCounselorRole(userProfile?.userRole)
   const isSchool = isSchoolEntity(userProfile?.entityCode)
+  // 学校认证码独立入口：仅组织管理员可见（学校主体下）
   const showSchoolCodeEntry = isOrgAdmin && isSchool
+  // 辅导员在「发布」菜单中追加认证码入口（辅导员天然属于学校主体，依赖 entityCode 不可靠因为登录接口不返回）
+  const showCodeEntryInPublish = isCounselor
   const [isCodeModalOpen, setCodeModalOpen] = useState(false)
   const [isCodeManageModalOpen, setCodeManageModalOpen] = useState(false)
   const [isCodeMenuOpen, setCodeMenuOpen] = useState(false)
   const themeButtonLabel = `切换到${theme === 'light' ? '深色' : '浅色'}主题`
   const publishMenu = usePublishEntryMenu({
     isAuthenticated,
+    userRole: userProfile?.userRole,
+    showCodeEntry: showCodeEntryInPublish,
+    onOpenCodeGenerate: () => setCodeModalOpen(true),
+    onOpenCodeManage: () => setCodeManageModalOpen(true),
     onRequireAuth: onAuthEntryClick,
   })
 
@@ -138,56 +147,66 @@ function HeaderActions({ theme, isAuthenticated, onToggleTheme, onAuthEntryClick
             </div>
           ) : null}
         </div>
-      ) : (
+      ) : null}
+
+      {!showSchoolCodeEntry ? (
         <div className="publish-entry" ref={publishMenu.menuRef}>
-          <button
-            type="button"
-            className={`publish-entry-button ${publishMenu.isMenuOpen ? 'publish-entry-button--open' : ''}`}
-            aria-label="发布内容"
-            aria-haspopup="menu"
-            aria-expanded={publishMenu.isMenuOpen}
-            onClick={publishMenu.togglePublishMenu}
-          >
-            <Send size={16} strokeWidth={2.2} aria-hidden="true" />
-            <span>发布</span>
-            <ChevronDown
-              size={14}
-              strokeWidth={2.2}
-              aria-hidden="true"
-              className={`publish-entry-button__chevron ${publishMenu.isMenuOpen ? 'publish-entry-button__chevron--open' : ''}`}
-            />
-          </button>
+        <button
+          type="button"
+          className={`publish-entry-button ${publishMenu.isMenuOpen ? 'publish-entry-button--open' : ''}`}
+          aria-label="发布内容"
+          aria-haspopup="menu"
+          aria-expanded={publishMenu.isMenuOpen}
+          onClick={publishMenu.togglePublishMenu}
+        >
+          <Send size={16} strokeWidth={2.2} aria-hidden="true" />
+          <span>发布</span>
+          <ChevronDown
+            size={14}
+            strokeWidth={2.2}
+            aria-hidden="true"
+            className={`publish-entry-button__chevron ${publishMenu.isMenuOpen ? 'publish-entry-button__chevron--open' : ''}`}
+          />
+        </button>
 
-          {publishMenu.isMenuOpen ? (
-            <div className="publish-entry-menu" role="menu" aria-label="选择发布类型">
-              {publishMenu.menuOptions.map((option) => {
-                const OptionIcon = option.icon
+        {publishMenu.isMenuOpen ? (
+          <div className="publish-entry-menu" role="menu" aria-label="选择发布类型">
+            {publishMenu.menuOptions.map((option) => {
+              const OptionIcon = option.icon
 
-                return (
-                  <button
-                    key={option.type}
-                    type="button"
-                    role="menuitem"
-                    className="publish-entry-menu__item"
-                    onClick={() => publishMenu.handleSelectPublishType(option.type)}
-                  >
-                    <span className="publish-entry-menu__item-icon" aria-hidden="true">
-                      <OptionIcon size={16} strokeWidth={2.2} />
-                    </span>
-                    <span className="publish-entry-menu__item-text">
-                      <span className="publish-entry-menu__item-label">{option.label}</span>
-                      <span className="publish-entry-menu__item-desc">{option.description}</span>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          ) : null}
-        </div>
+              return (
+                <button
+                  key={option.type}
+                  type="button"
+                  role="menuitem"
+                  className="publish-entry-menu__item"
+                  onClick={() => publishMenu.handleSelectPublishType(option.type)}
+                >
+                  <span className="publish-entry-menu__item-icon" aria-hidden="true">
+                    <OptionIcon size={16} strokeWidth={2.2} />
+                  </span>
+                  <span className="publish-entry-menu__item-text">
+                    <span className="publish-entry-menu__item-label">{option.label}</span>
+                    <span className="publish-entry-menu__item-desc">{option.description}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+      </div>
+      ) : null}
+
+      {isCounselor ? (
+        <SubCodeGenerateModal open={isCodeModalOpen} onClose={() => setCodeModalOpen(false)} />
+      ) : (
+        <SchoolVerificationCodeModal open={isCodeModalOpen} onClose={() => setCodeModalOpen(false)} />
       )}
-
-      <SchoolVerificationCodeModal open={isCodeModalOpen} onClose={() => setCodeModalOpen(false)} />
-      <VerificationCodeManageModal open={isCodeManageModalOpen} onClose={() => setCodeManageModalOpen(false)} />
+      <VerificationCodeManageModal
+        open={isCodeManageModalOpen}
+        onClose={() => setCodeManageModalOpen(false)}
+        counselorMode={isCounselor}
+      />
     </div>
   )
 }

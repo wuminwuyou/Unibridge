@@ -19,6 +19,20 @@ export function isOrganizationAdminRole(userRole?: string | null): boolean {
   return userRole === 'organization-admin'
 }
 
+// 02-1）判断是否为辅导员角色（isCounselorRole）
+/**
+ * 函数名：isCounselorRole
+ * 功能：判断当前登录角色是否为学校辅导员。
+ * 输入：
+ * - userRole：认证上下文中的 userRole
+ * 输出：
+ * - 返回值：boolean
+ * - 副作用：无
+ */
+export function isCounselorRole(userRole?: string | null): boolean {
+  return userRole === 'counselor'
+}
+
 // 03）判断是否为主体管理员 uid（isEntityAdminUid）
 /**
  * 函数名：isEntityAdminUid

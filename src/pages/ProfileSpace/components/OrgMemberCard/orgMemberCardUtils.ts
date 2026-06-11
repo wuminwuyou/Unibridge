@@ -3,10 +3,11 @@ import type { OrgPublicMemberRole, ProfileOrgMemberItem } from '../types'
 // 01）归一化机构公开展示 role（normalizeOrgPublicMemberRole）
 /**
  * 函数名：normalizeOrgPublicMemberRole
- * 功能：将 user_auth_link.role 归一化为机构空间可展示的 PM | MENTOR；STUDENT 等返回 null。
+ * 功能：将 user_auth_link.role 归一化为机构空间可展示的 PM | MENTOR | COUNSELOR；STUDENT 等返回 null。
  * 实现方法：
  * - PM → 员工
  * - MENTOR → 导师
+ * - COUNSELOR → 辅导员
  * - STUDENT 及其它 → null（不进入机构人员列表）
  * 输入：
  * - role：接口 role 字段
@@ -24,6 +25,10 @@ export function normalizeOrgPublicMemberRole(
 
   if (normalizedRole === 'MENTOR') {
     return 'MENTOR'
+  }
+
+  if (normalizedRole === 'COUNSELOR') {
+    return 'COUNSELOR'
   }
 
   return null
@@ -62,5 +67,9 @@ export function resolveOrgMemberRoleLabel(orgRole: OrgPublicMemberRole): string 
     return '员工'
   }
 
-  return '导师'
+  if (orgRole === 'MENTOR') {
+    return '导师'
+  }
+
+  return '辅导员'
 }

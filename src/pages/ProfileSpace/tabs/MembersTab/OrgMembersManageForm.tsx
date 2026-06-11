@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import InfoPromptModal from '../../../../components/common/InfoPromptModal'
 import type { EntityCode } from '../../../../api/resourceUid'
-import type { ProfileOrgMemberItem } from '../../components/types'
+import type { ProfileOrgMemberItem, OrgPublicMemberRole } from '../../components/types'
 import { useOrgMembersManageForm, type EditableOrgMemberItem } from './useOrgMembersManageForm'
 import './ManageMembersForm.css'
 
@@ -9,6 +9,7 @@ import './ManageMembersForm.css'
 interface OrgMembersManageFormProps {
   entityCode: EntityCode
   members: ProfileOrgMemberItem[]
+  entityType: 'UNIVERSITY' | 'ENTERPRISE'
   onCancel: () => void
   onSaved: () => void
 }
@@ -68,6 +69,7 @@ function OrgMemberRowDisplay({ member, roleLabel, onRemove }: OrgMemberRowDispla
 export function OrgMembersManageForm({
   entityCode,
   members: initialMembers,
+  entityType,
   onCancel,
   onSaved,
 }: OrgMembersManageFormProps) {
@@ -76,6 +78,7 @@ export function OrgMembersManageForm({
   const form = useOrgMembersManageForm({
     entityCode,
     initialMembers,
+    entityType,
     onCancel,
     onSaved,
     onApiError: (message) => setApiPromptMessage(message),
@@ -148,12 +151,23 @@ export function OrgMembersManageForm({
               placeholder="姓名（输入 UID 后自动填充）"
               aria-busy={form.isPreviewLoading}
             />
+            <select
+              className="team-manage-members-form__input"
+              value={form.newMemberRole}
+              onChange={(event) => form.setNewMemberRole(event.target.value as OrgPublicMemberRole)}
+            >
+              {form.roleOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
             <button type="button" className="team-manage-members-form__add-button" onClick={form.addMember}>
               添加进机构
             </button>
           </div>
           <p className="team-manage-members-form__add-hint">
-            输入 UID 后将自动校验用户并填充姓名；新成员身份由后台自动判定。
+            输入 UID 后将自动校验用户并填充姓名；选择身份后点击添加。
           </p>
         </section>
 

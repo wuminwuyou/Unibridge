@@ -41,7 +41,7 @@ export interface EntityProfileInfoRowDto {
 }
 
 // 05）机构认证 role（OrgAuthRole）
-export type OrgAuthRole = 'PM' | 'MENTOR' | 'STUDENT'
+export type OrgAuthRole = 'PM' | 'MENTOR' | 'COUNSELOR' | 'STUDENT'
 
 // 06）机构人员 DTO（EntityProfileMemberDto）
 export interface EntityProfileMemberDto {
@@ -158,6 +158,8 @@ export interface UserSearchResponse {
 export interface AddEntityMemberRequest {
   entityCode: EntityCode
   uid: string
+  /** 指定角色：PM（企业项目经理）| MENTOR（学校导师）| COUNSELOR（学校辅导员） */
+  role: string
 }
 
 // 23）添加机构成员响应（AddEntityMemberResponse）

@@ -1,4 +1,4 @@
-# UniBridge Web-Client API 文档
+﻿# UniBridge Web-Client API 文档
 
 > **本机联调地址**：`http://localhost:8081/api/v1/client`  
 > **前端 baseURL**：`/api/v1/client`（`apps/web-client/src/api/http.ts`）  
@@ -69,6 +69,9 @@
 | 50 | 认证 | GET | `/verification/codes` | 获取认证码列表 | `getVerificationCodeList` |
 | 51 | 认证 | POST | `/verification/codes/invalidate` | 无效化认证码 | `invalidateVerificationCode` |
 | 52 | 认证 | POST | `/verification/codes/activate` | 学生认证激活 | `activateStudentVerification` |
+| 53 | 认证 | POST | `/verification/codes/renew` | 延期认证码 | `renewVerificationCode` |
+| 54 | 认证 | GET | `/verification/codes/students` | 查看认证学生列表 | `getVerificationCodeStudents` |
+| 55 | 认证 | GET | `/verification/codes/sub-codes` | 查看附属子码列表 | `getSubCodeList` |
 
 ### 页面与接口映射
 
@@ -87,6 +90,7 @@
 | `ProjectDetailPage` | `/project-detail` | `GET /projects/{uid}`、`POST /feed/events`（VIEW_DETAIL） |
 | `NoteDetailPage` | `/note-detail` | `GET /notes/{uid}`、`POST /feed/events`（VIEW_DETAIL） |
 | `VerificationPage` | `/verification` | `POST /verification/face/init`、`GET /verification/face/result`、`GET /verification/entities/search`、`POST /verification/staff-apply`、`POST /verification/codes/activate` |
+| `VerificationCodeManageModal` | 弹窗 | `GET /verification/codes`、`POST /verification/codes/invalidate`、`POST /verification/codes/renew`、`GET /verification/codes/students`、`GET /verification/codes/sub-codes` |
 
 ### 文档目录
 
@@ -2726,7 +2730,7 @@ sequenceDiagram
 | `uid` | string | 用户对外 uid |
 | `nickname` | string | 昵称 |
 | `realName` | string \| null | 实名 |
-| `role` | string | `PM`（员工）\| `MENTOR`（导师） |
+| `role` | string | `PM`（项目经理） / `MENTOR`（导师） / `COUNSELOR`（辅导员） |
 | `avatarUrl` | string \| null | 头像 |
 | `level` | string \| null | `N`/`R`/`SR`/`SSR`/`UR` |
 
@@ -2739,7 +2743,7 @@ sequenceDiagram
 | 8 | POST | `/entity-profile/team` | `{ entityCode, name, leaderUid? }` | 创建下属实验室 |
 | 9 | PUT | `/entity-profile/team` | `?teamUid=` + `{ name?, leaderUid? }` | 更新实验室信息 |
 | 10 | DELETE | `/entity-profile/team` | `?teamUid=` | 删除实验室 |
-| 11 | POST | `/entity-profile/member` | `{ entityCode, uid }` | 添加机构关联人员（role 由后台自动判定） |
+| 11 | POST | `/entity-profile/member` | `{ entityCode, uid, role }` | 添加机构关联人员（role 由前端选择，后端校验） |
 | 12 | DELETE | `/entity-profile/member` | `?entityCode=&uid=` | 移除机构关联人员 |
 
 ### 06）`GET /entity-profile/menu` 响应
@@ -2844,6 +2848,9 @@ sequenceDiagram
 | 7 | GET | `/verification/codes` | 获取认证码列表 | `getVerificationCodeList` |
 | 8 | POST | `/verification/codes/invalidate` | 无效化认证码 | `invalidateVerificationCode` |
 | 9 | POST | `/verification/codes/activate` | 学生认证激活 | `activateStudentVerification` |
+| 10 | POST | `/verification/codes/renew` | 延期认证码 | `renewVerificationCode` |
+| 11 | GET | `/verification/codes/students` | 查看认证学生列表 | `getVerificationCodeStudents` |
+| 12 | GET | `/verification/codes/sub-codes` | 查看附属子码列表 | `getSubCodeList` |
 
 ### 调用时序
 
@@ -2854,6 +2861,13 @@ VerificationPage
   └── 阶段二：机构认证
         ├── Staff：GET /verification/entities/search → POST /verification/staff-apply → /profile
         └── Student：POST /verification/codes/activate → /profile
+
+VerificationCodeManageModal
+  ├── 打开弹窗 → GET /verification/codes
+  ├── 停用 → POST /verification/codes/invalidate → 刷新列表
+  ├── 延期 → POST /verification/codes/renew → 刷新列表
+  ├── [母码] 查看附属子码 → GET /verification/codes/sub-codes?masterCode=
+  └── [子码] 查看认证学生 → GET /verification/codes/students?code=
 ```
 
 ---
@@ -3057,20 +3071,57 @@ VerificationPage
 ```json
 {
   "codes": [
-    { "code": "10598-2026-00123", "maxQuota": 1000, "usedQuota": 120, "description": null, "createdBy": "EAa1B2c3D4e5F", "isActive": true, "isMaster": true, "createdAt": "2026-06-08 10:00:00" }
+    {
+      "code": "10598-2026-00123",
+      "maxQuota": 1000,
+      "usedQuota": 120,
+      "description": "全校通用认证码",
+      "createdBy": "EAa1B2c3D4e5F",
+      "createdByName": "李老师",
+      "isActive": true,
+      "isMaster": true,
+      "canRenew": false,
+      "createdAt": "2026-06-08 10:00:00",
+      "expireTime": "2026-06-22 23:59:59"
+    },
+    {
+      "code": "10598-2026-00123-0456",
+      "maxQuota": 50,
+      "usedQuota": 12,
+      "description": "计算机专业 3 班认证码",
+      "createdBy": "USx9Y8z7W6v5U",
+      "createdByName": "王辅导员",
+      "isActive": true,
+      "isMaster": false,
+      "canRenew": false,
+      "createdAt": "2026-06-08 11:00:00",
+      "expireTime": "2026-06-22 23:59:59"
+    }
   ],
-  "total": 1
+  "total": 2
 }
 ```
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `codes[].code` | string | 认证码 |
+| `codes[].code` | string | 认证码（母码/子码） |
 | `codes[].maxQuota` | number | 总额度 |
 | `codes[].usedQuota` | number | 已使用额度 |
-| `codes[].isActive` | boolean | 是否有效 |
-| `codes[].isMaster` | boolean | 是否为母码 |
+| `codes[].description` | string \| null | 用途描述 |
+| `codes[].createdBy` | string | 创建者 uid |
+| `codes[].createdByName` | string | 创建者显示名称（昵称，非 uid） |
+| `codes[].isActive` | boolean | 是否有效（**必须返回 JSON boolean**） |
+| `codes[].isMaster` | boolean | 是否为母码（**必须返回 JSON boolean**） |
+| `codes[].canRenew` | boolean | 是否可以延期（**必须返回 JSON boolean**） |
+| `codes[].createdAt` | string | 创建时间 |
+| `codes[].expireTime` | string | 失效时间（yyyy-MM-dd HH:mm:ss） |
 | `total` | number | 总数 |
+
+### 业务规则
+
+- 仅返回当前机构的认证码（母码+子码），按创建时间倒序
+- `isActive`：过期自动计算（当前时间 > expireTime 时为 false）；人工停用后也为 false
+- `canRenew`：后端根据状态综合判断（人为停用=false；自然过期7天内=true，其余=false）
 
 ---
 
@@ -3092,6 +3143,168 @@ VerificationPage
 
 ---
 
+### 10) `POST /verification/codes/renew` — 延期认证码
+
+> **消费方**：`VerificationCodeManageModal` 操作栏「延期」按钮
+
+- **Method**：`POST`
+- **Path**：`/verification/codes/renew`
+- **Auth**：是（需机构管理员）
+
+#### Request
+
+```json
+{ "code": "10598-2026-00123", "newExpireDate": "2026-07-06" }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `code` | string | 是 | 认证码 |
+| `newExpireDate` | string | 是 | 延期至日期（yyyy-MM-dd） |
+
+#### Response `data`
+
+```json
+{ "code": "10598-2026-00123", "newExpireTime": "2026-07-06 23:59:59" }
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `code` | string | 认证码 |
+| `newExpireTime` | string | 新的失效时间（yyyy-MM-dd HH:mm:ss） |
+
+### 业务规则
+
+- 延期至用户指定的日期（精确到天，后端自动加上 `23:59:59`）
+- 目标日期不得早于失效时间后一天
+- **目标日期不得晚于创建时间 + 28 天**（四周），防止无限延期
+- 已停用的认证码不可延期
+- 已失效超过 7 天的认证码不可延期
+- 延期母码：其下所有子码也一并延期至同一日期
+- 有效期内也可以延期（在 28 天窗口内自由选择）
+
+### 前端展示策略
+
+前端使用日期组件让用户选择具体日期：
+
+| 日期范围 | 状态 | `canRenew` |
+|----------|------|------------|
+| 失效时间及之前 | **灰色不可选** | — |
+| 失效时间后一天 ~ 创建时间+28天 | **白色可选**（默认失效后一天） | — |
+| 创建时间+28 天之后 | **灰色不可选** | — |
+| 人为停用 / 过期超 7 天 | 隐藏「延期」按钮 | `false` |
+
+---
+
+### 11) `GET /verification/codes/students` — 查看认证学生列表
+
+> **消费方**：`VerificationCodeManageModal` 子码操作栏「查看认证学生」按钮
+
+- **Method**：`GET`
+- **Path**：`/verification/codes/students`
+- **Auth**：是（需机构管理员）
+- **Query**：`code=`
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `code` | string | 是 | 子码（仅子码调用） |
+
+#### Response `data`
+
+```json
+{
+  "students": [
+    {
+      "uid": "USa1B2c3D4e5F",
+      "nickname": "张同学",
+      "realName": "张三",
+      "studentId": "2024001234",
+      "graduationYear": 2030,
+      "subCode": "10598-2026-00123-0456",
+      "activatedAt": "2026-06-09 14:30:00"
+    }
+  ],
+  "total": 1
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `students[].uid` | string | 学生用户 uid |
+| `students[].nickname` | string | 昵称 |
+| `students[].realName` | string | 实名 |
+| `students[].studentId` | string | 学号 |
+| `students[].graduationYear` | number | 毕业年份 |
+| `students[].subCode` | string | 该学生激活时使用的子码 |
+| `students[].activatedAt` | string | 激活时间 |
+| `total` | number | 总数 |
+
+### 业务规则
+
+- 仅查询子码：返回通过该子码激活的学生
+- 母码不可直接调用此接口（母码使用 §12 查看附属子码）
+
+---
+
+### 12) `GET /verification/codes/sub-codes` — 查看附属子码列表
+
+> **消费方**：`VerificationCodeManageModal` 母码操作栏「查看附属子码」按钮
+
+- **Method**：`GET`
+- **Path**：`/verification/codes/sub-codes`
+- **Auth**：是（需机构管理员）
+- **Query**：`masterCode=`
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `masterCode` | string | 是 | 母码 code |
+
+#### Response `data`
+
+```json
+{
+  "codes": [
+    {
+      "code": "10598-2026-00123-0456",
+      "maxQuota": 50,
+      "usedQuota": 12,
+      "description": "计算机专业 3 班认证码",
+      "createdBy": "USx9Y8z7W6v5U",
+      "createdByName": "王辅导员",
+      "isActive": true,
+      "isMaster": false,
+      "canRenew": false,
+      "createdAt": "2026-06-09 09:00:00",
+      "expireTime": "2026-06-23 23:59:59"
+    }
+  ],
+  "total": 1
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `codes[].code` | string | 子码 |
+| `codes[].maxQuota` | number | 总额度 |
+| `codes[].usedQuota` | number | 已使用额度 |
+| `codes[].description` | string \| null | 用途描述 |
+| `codes[].createdBy` | string | 创建者 uid |
+| `codes[].createdByName` | string | 创建者显示名称 |
+| `codes[].isActive` | boolean | 是否有效（**必须 JSON boolean**） |
+| `codes[].isMaster` | boolean | 固定为 false |
+| `codes[].canRenew` | boolean | 是否可以延期 |
+| `codes[].createdAt` | string | 创建时间 |
+| `codes[].expireTime` | string | 失效时间 |
+| `total` | number | 子码总数 |
+
+### 业务规则
+
+- 返回该母码下所有子码，字段与 §8 一致
+- `isMaster` 固定为 false
+- 按创建时间倒序排列
+
+---
+
 ### 母子码生命周期说明
 
 | 阶段 | 母码 | 子码 |
@@ -3100,6 +3313,8 @@ VerificationPage
 | **额度** | `max_quota`=总额度（默认1000），`used_quota`=已分配子码总额度 | `max_quota`=班级额度（默认50），`used_quota`=已激活学生数 |
 | **扣减** | 子码生成时原子递增 | 学生激活时原子递增 |
 | **失效** | 创建日期 + 14 天自动过期 / `is_active=0` / 额度耗尽 | 同上 |
+| **延期** | 最多延长至创建时间 + 28 天，母码延期级联所有子码 | 同母码规则，也可独立延期 |
+| **canRenew** | 后端判断：人为停用=false；自然过期≤7天=true；过期>7天=false | 同母码规则 |
 
 ---
 

@@ -21,6 +21,8 @@ export interface EditableOrgMemberItem {
 interface UseOrgMembersManageFormOptions {
   entityCode: EntityCode
   initialMembers: ProfileOrgMemberItem[]
+  /** 机构类型，用于区分角色选项（UNIVERSITY → 导师/辅导员，ENTERPRISE → 项目经理） */
+  entityType: 'UNIVERSITY' | 'ENTERPRISE'
   onCancel: () => void
   onSaved: () => void
   onApiError: (message: string) => void
@@ -34,12 +36,16 @@ export interface UseOrgMembersManageFormResult {
   /** 添加人员表单字段 */
   newMemberUid: string
   newMemberDisplayName: string
+  newMemberRole: OrgPublicMemberRole
   isPreviewLoading: boolean
   setNewMemberUid: (value: string) => void
+  setNewMemberRole: (value: OrgPublicMemberRole) => void
   lookupNewMemberPreview: () => Promise<void>
   addMember: () => void
   removeMember: (uid: string) => void
   resolveRoleLabel: (orgRole: OrgPublicMemberRole) => string
+  /** 根据机构类型获取可选角色列表 */
+  roleOptions: { value: OrgPublicMemberRole; label: string }[]
   handleCancel: () => void
 }
 
@@ -75,7 +81,7 @@ function mapInitialOrgMembers(members: ProfileOrgMemberItem[]): EditableOrgMembe
 export function useOrgMembersManageForm(
   options: UseOrgMembersManageFormOptions,
 ): UseOrgMembersManageFormResult {
-  const { entityCode, initialMembers, onCancel, onSaved, onApiError } = options
+  const { entityCode, initialMembers, entityType, onCancel, onSaved, onApiError } = options
 
   const [members, setMembers] = useState<EditableOrgMemberItem[]>(() =>
     mapInitialOrgMembers(initialMembers),
@@ -88,7 +94,18 @@ export function useOrgMembersManageForm(
   const [newMemberPreviewNickname, setNewMemberPreviewNickname] = useState('')
   const [newMemberPreviewRealName, setNewMemberPreviewRealName] = useState<string | null>(null)
   const [newMemberDisplayName, setNewMemberDisplayName] = useState('')
+  const [newMemberRole, setNewMemberRole] = useState<OrgPublicMemberRole>(
+    entityType === 'UNIVERSITY' ? 'MENTOR' : 'PM',
+  )
   const [isPreviewLoading, setIsPreviewLoading] = useState(false)
+
+  const roleOptions: { value: OrgPublicMemberRole; label: string }[] =
+    entityType === 'UNIVERSITY'
+      ? [
+          { value: 'MENTOR', label: '导师' },
+          { value: 'COUNSELOR', label: '辅导员' },
+        ]
+      : [{ value: 'PM', label: '项目经理' }]
 
   useEffect(() => {
     setMembers(mapInitialOrgMembers(initialMembers))
@@ -154,10 +171,11 @@ export function useOrgMembersManageForm(
     setErrorMessage(null)
     setIsSaving(true)
 
-    void addEntityProfileMember({ entityCode, uid: trimmedUid })
+    void addEntityProfileMember({ entityCode, uid: trimmedUid, role: newMemberRole })
       .then((result) => {
+        const role = result.role?.trim().toUpperCase()
         const resolvedRole: OrgPublicMemberRole =
-          result.role === 'MENTOR' ? 'MENTOR' : 'PM'
+          role === 'MENTOR' ? 'MENTOR' : role === 'COUNSELOR' ? 'COUNSELOR' : 'PM'
         setMembers((current) => [
           ...current,
           {
@@ -213,7 +231,13 @@ export function useOrgMembersManageForm(
 
   // 13）解析角色文案（resolveRoleLabel）
   const resolveRoleLabel = useCallback((orgRole: OrgPublicMemberRole): string => {
-    return orgRole === 'PM' ? '员工' : '导师'
+    if (orgRole === 'PM') {
+      return '员工'
+    }
+    if (orgRole === 'MENTOR') {
+      return '导师'
+    }
+    return '辅导员'
   }, [])
 
   return {
@@ -222,12 +246,15 @@ export function useOrgMembersManageForm(
     errorMessage,
     newMemberUid,
     newMemberDisplayName,
+    newMemberRole,
     isPreviewLoading,
     setNewMemberUid,
+    setNewMemberRole,
     lookupNewMemberPreview,
     addMember,
     removeMember,
     resolveRoleLabel,
+    roleOptions,
     handleCancel,
   }
 }

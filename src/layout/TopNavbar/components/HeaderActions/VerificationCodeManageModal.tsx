@@ -12,6 +12,8 @@ import './VerificationCodeManageModal.css'
 interface VerificationCodeManageModalProps {
   open: boolean
   onClose: () => void
+  /** 辅导员模式：仅展示自己生成的子码，标题改为「认证子码管理」 */
+  counselorMode?: boolean
 }
 
 // 02）延期确认弹窗参数（RenewConfirmModalProps）
@@ -329,7 +331,7 @@ function SubCodeListModal({ masterCode, onClose }: SubCodeListModalProps) {
  * - 返回值：JSX.Element | null
  * - 副作用：调用 API、锁定 body overflow、注册键盘事件
  */
-export function VerificationCodeManageModal({ open, onClose }: VerificationCodeManageModalProps) {
+export function VerificationCodeManageModal({ open, onClose, counselorMode = false }: VerificationCodeManageModalProps) {
   const [codes, setCodes] = useState<VerificationCodeItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -457,7 +459,7 @@ export function VerificationCodeManageModal({ open, onClose }: VerificationCodeM
 
         {/* 弹窗头部 */}
         <div className="vcm__header">
-          <h2>认证码管理</h2>
+          <h2>{counselorMode ? '认证子码管理' : '认证码管理'}</h2>
         </div>
 
         {actionError ? <div className="vcm__error" role="alert">{actionError}</div> : null}

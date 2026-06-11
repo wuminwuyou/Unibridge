@@ -27,11 +27,11 @@ export interface ProfileNoteItem {
 export type { TeamMemberRole } from '../../../api/teamProfile/types'
 
 // 01）机构认证 role（OrgAuthRole，含 user_auth_link 全量枚举）
-export type OrgAuthRole = 'PM' | 'MENTOR' | 'STUDENT'
+export type OrgAuthRole = 'PM' | 'MENTOR' | 'COUNSELOR' | 'STUDENT'
 
 // 02）机构公开展示人员 role（OrgPublicMemberRole）
-/** 机构空间「人员」区块仅展示 PM / MENTOR，不含 STUDENT */
-export type OrgPublicMemberRole = 'PM' | 'MENTOR'
+/** 机构空间「人员」区块仅展示 PM / MENTOR / COUNSELOR，不含 STUDENT */
+export type OrgPublicMemberRole = 'PM' | 'MENTOR' | 'COUNSELOR'
 
 // 03）机构关联人员项（ProfileOrgMemberItem）
 export interface ProfileOrgMemberItem {

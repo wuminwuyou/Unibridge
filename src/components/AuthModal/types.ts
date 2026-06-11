@@ -2,7 +2,7 @@
 export type AuthStatus = 'verified' | 'unverified'
 
 // 02）用户角色类型定义（AuthUserRole）
-export type AuthUserRole = 'student' | 'mentor' | 'pm' | 'organization-admin'
+export type AuthUserRole = 'student' | 'mentor' | 'pm' | 'counselor' | 'organization-admin'
 
 // 03）登录通道类型定义（AuthTabType）
 export type AuthTabType = 'personal' | 'organization'
