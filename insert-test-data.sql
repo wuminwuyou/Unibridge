@@ -1,12 +1,14 @@
 -- =========================================================================
 -- 测试数据：db.sql 业务表 + note（10 条，便于 Feed 换一换联调）
 -- 前置：已执行 init-db.ps1 或 db.sql 建表；system_admin 种子数据已存在
--- 主体根密码：SHA256("123456")；各管理员独立密码见下方 @pwd_admin_* 注释
+-- 不包含主体账号管理员(sys_entity_totp_credentials)和认证码(sys_verification_codes)数据
+-- 主体根密码：SHA256("123456")
 -- =========================================================================
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 TRUNCATE TABLE achievement_archive;
+TRUNCATE TABLE t_user_identity;
 TRUNCATE TABLE project_commercial_secret;
 TRUNCATE TABLE project;
 TRUNCATE TABLE team_member;
@@ -17,20 +19,12 @@ TRUNCATE TABLE sys_credit_logs;
 TRUNCATE TABLE sys_credit_profiles;
 TRUNCATE TABLE user_profile;
 TRUNCATE TABLE `user`;
-TRUNCATE TABLE sys_entity_totp_credentials;
 TRUNCATE TABLE entity_profile;
 TRUNCATE TABLE entity;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
 SET @pwd_entity = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
--- admin10598a / admin10598b / admin10003a / admin10003b / admin914403a / admin914403b
-SET @pwd_admin_10598_a = 'd7d97989a24ced836a2a2d936beda77d2c19da082262e5906a57dd615d476654';
-SET @pwd_admin_10598_b = '05adb53318d68feeec8cb2bb863f027636a2d6e98ffd798c6cdd0e8b68d34fab';
-SET @pwd_admin_10003_a = '4f4ec2ae72b189f30e21e374ab88afc8df046fac75f6ec687f69b30d1e158f43';
-SET @pwd_admin_10003_b = 'f4e0449037ede58fc3d6d8ea126268346af2365956f232e27cfc2e427ae232ae';
-SET @pwd_admin_914_a = '21c38192859c721ae8f318899b9b00e54554e565f1ed0622494c296cf6aa40eb';
-SET @pwd_admin_914_b = '5d75d0bb19ed1a9470f87ee8766e3350db06927cb19f02cb5e74548aa6e2219e';
 
 INSERT INTO entity (id, entity_code, password_hash, balance, audit_status, audit_admin_id, audited_at, account_status, last_login_at) VALUES
 (1, '10598', @pwd_entity, 50000.00,  'APPROVED', 'admin_master',  '2026-01-10 09:00:00', 'ACTIVE', '2026-05-01 08:30:00'),
@@ -42,37 +36,37 @@ INSERT INTO entity_profile (id, entity_code, name, location, type, logo_url, ban
 (2, '10003', '清华大学', '北京·海淀', 'UNIVERSITY', 'https://cdn.example.com/logo/thu.png', 'https://cdn.example.com/banner/thu.jpg', '国内顶尖研究型大学', '欢迎企业发布联合科研课题'),
 (3, '91440300708461136T', '深圳市腾讯计算机系统有限公司', '广东·深圳', 'ENTERPRISE', 'https://cdn.example.com/logo/tencent.png', 'https://cdn.example.com/banner/tencent.jpg', '互联网与数字产业领军企业', '开放多个校企联合研发岗位');
 
-INSERT INTO sys_entity_totp_credentials (id, admin_uid, entity_code, password_hash, totp_secret, display_name, is_primary, account_status, last_login_at) VALUES
-(1, 'EA00000000001', '10598', @pwd_admin_10598_a, NULL, '深大教务管理员', 1, 'ACTIVE', '2026-05-01 08:00:00'),
-(2, 'EA00000000002', '10598', @pwd_admin_10598_b, NULL, '深大学工管理员', 0, 'ACTIVE', '2026-05-01 09:00:00'),
-(3, 'EA00000000003', '10003', @pwd_admin_10003_a, NULL, '清华教务管理员', 1, 'ACTIVE', NULL),
-(4, 'EA00000000004', '10003', @pwd_admin_10003_b, NULL, '清华科研管理员', 0, 'ACTIVE', NULL),
-(5, 'EA00000000005', '91440300708461136T', @pwd_admin_914_a, NULL, '腾讯 HR 管理员', 1, 'ACTIVE', NULL),
-(6, 'EA00000000006', '91440300708461136T', @pwd_admin_914_b, NULL, '腾讯项目管理员', 0, 'ACTIVE', NULL);
-
 INSERT INTO `user` (id, user_uid, phone, email, password_hash, account_status, last_login_at) VALUES
 (1, 'US00000000001', '13800001001', 'zhangming@test.com',  @pwd_entity, 'ACTIVE', '2026-05-20 18:00:00'),
 (2, 'US00000000002', '13800001002', 'limentor@test.com',   @pwd_entity, 'ACTIVE', '2026-05-20 19:30:00'),
 (3, 'US00000000003', '13800001003', 'wangpm@tencent.com',  @pwd_entity, 'ACTIVE', '2026-05-21 09:00:00');
 
-INSERT INTO user_profile (id, user_uid, nick_name, real_name, avatar_url, current_entity_name, level, bio_data, career_data, graduation_year, education_history, intro, announcement) VALUES
-(1, 'US00000000001', '用户#1001', '张明', 'https://api.dicebear.com/9.x/initials/svg?seed=ZM', '深圳大学', 'SR',
+INSERT INTO user_profile (id, user_uid, nick_name, avatar_url, level, bio_data, career_data, graduation_year, education_history, intro, announcement) VALUES
+(1, 'US00000000001', '用户#1001', 'https://api.dicebear.com/9.x/initials/svg?seed=ZM', 'SR',
  JSON_ARRAY('Java', 'Spring Boot', 'MySQL'),
  JSON_OBJECT('school', '深圳大学', 'major', '软件工程', 'grade', '2022级'),
  2026, JSON_ARRAY(), '全栈方向在读学生', '正在寻找暑期实习项目'),
-(2, 'US00000000002', '用户#1002', '李导师', 'https://api.dicebear.com/9.x/initials/svg?seed=LM', '深圳大学', 'UR',
+(2, 'US00000000002', '用户#1002', 'https://api.dicebear.com/9.x/initials/svg?seed=LM', 'UR',
  JSON_ARRAY('人工智能', '机器学习', 'Python'),
  JSON_OBJECT('title', '副教授', 'department', '计算机学院'),
  NULL, NULL, 'AI 实验室负责人', '实验室开放 2 个本科科研名额'),
-(3, 'US00000000003', '用户#1003', '王经理', 'https://api.dicebear.com/9.x/initials/svg?seed=WM', '腾讯科技', 'SSR',
+(3, 'US00000000003', '用户#1003', 'https://api.dicebear.com/9.x/initials/svg?seed=WM', 'SSR',
  JSON_ARRAY('项目管理', '产品设计', '敏捷开发'),
  JSON_OBJECT('title', '高级项目经理', 'department', 'CSIG'),
  NULL, NULL, '负责校企合作项目对接', '欢迎高校团队投递方案');
 
 INSERT INTO user_auth_link (id, user_uid, entity_code, role, auth_serial_no, proof_artifact_url, audit_status, audit_uid, audited_at, is_active, remark) VALUES
 (1, 'US00000000001', '10598', 'STUDENT', '2022001001', 'https://cdn.example.com/proof/student-zhang.jpg', 'PENDING', NULL, NULL, 1, NULL),
-(2, 'US00000000002', '10598', 'MENTOR',  'T2020008',   'https://cdn.example.com/proof/mentor-li.jpg',    'APPROVED', 'EA00000000001', '2026-05-20 19:30:00', 1, NULL),
-(3, 'US00000000003', '91440300708461136T', 'PM', 'E10086', 'https://cdn.example.com/proof/pm-wang.jpg', 'APPROVED', 'EA00000000005', '2026-05-21 09:00:00', 1, NULL);
+(2, 'US00000000002', '10598', 'MENTOR',  'T2020008',   'https://cdn.example.com/proof/mentor-li.jpg',    'PENDING', NULL, NULL, 1, NULL),
+(3, 'US00000000003', '91440300708461136T', 'PM', 'E10086', 'https://cdn.example.com/proof/pm-wang.jpg', 'PENDING', NULL, NULL, 1, NULL);
+
+-- real_name 已从 user_profile 迁移至独立的 t_user_identity 表
+-- encrypted_real_name = NULL（预留加密位置）；real_name_mask 根据 role 生成
+-- id_card_no = ''（空字符串占位，后续人脸核身填补）；id_card_hash 使用 user_uid 生成唯一占位值（防 UK 冲突）
+INSERT INTO t_user_identity (user_uid, encrypted_real_name, real_name_mask, id_card_no, id_card_hash, encryption_key_id, verified_at) VALUES
+('US00000000001', NULL, '张同学', '', SHA2(CONCAT('placeholder-', 'US00000000001'), 256), NULL, NULL),
+('US00000000002', NULL, '李导师', '', SHA2(CONCAT('placeholder-', 'US00000000002'), 256), NULL, NULL),
+('US00000000003', NULL, '王经理', '', SHA2(CONCAT('placeholder-', 'US00000000003'), 256), NULL, NULL);
 
 INSERT INTO sys_credit_profiles (id, user_uid, credit_score, account_status, last_changed_at) VALUES
 (1, 'US00000000001', 720, 'ACTIVE', '2026-05-20 18:00:00'),
@@ -91,7 +85,7 @@ INSERT INTO team (id, team_uid, type, owner_uid, owner_name, entity_code, team_n
 (1, 'LB00000000001', 'LAB', 'US00000000002', '李导师', '10598', '深大 AI 实验室',
  JSON_ARRAY('人工智能', '深度学习', 'NLP'), '聚焦 NLP 与知识图谱方向',
  '2026 春季招新进行中，欢迎对 NLP 感兴趣的同学加入', 'lab-ai@szu.edu.cn',
- 'APPROVED', 'EA00000000001', '2026-01-20 10:00:00', 'ACTIVE'),
+ 'APPROVED', NULL, NULL, 'ACTIVE'),
 (2, 'ST00000000001', 'STUDENT_TEAM', 'US00000000001', '张明', NULL, '极客创新队',
  JSON_ARRAY('全栈', 'React', 'Java'), '校内自发项目团队，承接课程与竞赛项目',
  '本队正在招募前端与后端各 1 名', 'geek-team@example.com',
@@ -99,7 +93,7 @@ INSERT INTO team (id, team_uid, type, owner_uid, owner_name, entity_code, team_n
 (3, 'LB00000000002', 'LAB', 'US00000000002', '李导师', '10003', '清华软工联合实验室',
  JSON_ARRAY('软件工程', '云原生', 'DevOps'), '跨校联合软件工程实践平台',
  '联合实验室开放企业合作项目对接', 'lab-se@tsinghua.edu.cn',
- 'APPROVED', 'EA00000000003', '2026-02-01 11:00:00', 'ACTIVE');
+ 'APPROVED', NULL, NULL, 'ACTIVE');
 
 INSERT INTO team_member (id, team_uid, user_uid, role, lab_user_uid, career, is_admin, invited_by_uid) VALUES
 (1, 'LB00000000001', 'US00000000002', 'MENTOR', NULL, 'NLP · 知识图谱', 1, NULL),

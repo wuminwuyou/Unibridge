@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 public class UserSearchItem {
     private String uid;
     private String nickname;
-    private String realName;
+    private String displayName;
     private String avatarUrl;
 }

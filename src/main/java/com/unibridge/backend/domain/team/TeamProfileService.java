@@ -32,6 +32,7 @@ import com.unibridge.backend.infrastructure.entities.ClientTeam;
 import com.unibridge.backend.infrastructure.entities.ClientTeamMember;
 import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
 import com.unibridge.backend.infrastructure.entities.UserAuthLink;
+import com.unibridge.backend.infrastructure.entities.UserIdentity;
 import com.unibridge.backend.infrastructure.persistence.mapper.AchievementArchiveMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
@@ -40,6 +41,7 @@ import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMemberMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.util.TeamUidGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -133,6 +135,9 @@ public class TeamProfileService {
 
     @Autowired
     private UserAuthLinkMapper userAuthLinkMapper;
+
+    @Autowired
+    private UserIdentityMapper userIdentityMapper;
 
     public TeamProfileSpaceResponse getTeamProfileSpace(String authorization, String teamUid) {
         ClientTeam team = requireAccessibleTeam(teamUid);
@@ -392,14 +397,16 @@ public class TeamProfileService {
         if (orderedSlice.isEmpty()) {
             return Collections.emptyList();
         }
-        Map<String, ClientUserProfile> profileMap = loadProfileMap(
-                orderedSlice.stream().map(ClientTeamMember::getUserUid).collect(Collectors.toList()));
+        List<String> uids = orderedSlice.stream().map(ClientTeamMember::getUserUid).collect(Collectors.toList());
+        Map<String, ClientUserProfile> profileMap = loadProfileMap(uids);
+        Map<String, UserIdentity> identityMap = loadIdentityMap(uids);
         List<TeamMemberItem> items = new ArrayList<>();
         for (ClientTeamMember membership : orderedSlice) {
             ClientUserProfile profile = profileMap.get(membership.getUserUid());
+            UserIdentity identity = identityMap.get(membership.getUserUid());
             items.add(TeamMemberItem.builder()
                     .uid(membership.getUserUid())
-                    .nickname(resolveMemberDisplayName(profile, showRealName))
+                    .nickname(resolveMemberDisplayName(profile, showRealName, identity))
                     .role(resolveMemberRole(membership))
                     .career(trimToNull(membership.getCareer()))
                     .isAdmin(resolveIsAdmin(team, membership))
@@ -490,6 +497,19 @@ public class TeamProfileService {
         return profileMap;
     }
 
+    private Map<String, UserIdentity> loadIdentityMap(List<String> userUids) {
+        if (userUids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<UserIdentity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(UserIdentity::getUserUid, userUids);
+        Map<String, UserIdentity> identityMap = new HashMap<>();
+        for (UserIdentity identity : userIdentityMapper.selectList(wrapper)) {
+            identityMap.put(identity.getUserUid(), identity);
+        }
+        return identityMap;
+    }
+
     private ClientUserProfile loadProfile(String userUid) {
         LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
@@ -504,9 +524,9 @@ public class TeamProfileService {
     }
 
     /** 管理成员场景：优先 real_name，否则回退 nickname。 */
-    private String resolveRealNameOrNickname(ClientUserProfile profile) {
-        if (profile != null && StringUtils.hasText(profile.getRealName())) {
-            return profile.getRealName().trim();
+    private String resolveRealNameOrNickname(ClientUserProfile profile, UserIdentity identity) {
+        if (identity != null && StringUtils.hasText(identity.getRealNameMask())) {
+            return identity.getRealNameMask().trim();
         }
         return resolveNickname(profile);
     }
@@ -514,9 +534,9 @@ public class TeamProfileService {
     /**
      * members[].nickname 展示名：团队成员查看时填 real_name，否则填 nickname。
      */
-    private String resolveMemberDisplayName(ClientUserProfile profile, boolean showRealName) {
+    private String resolveMemberDisplayName(ClientUserProfile profile, boolean showRealName, UserIdentity identity) {
         if (showRealName) {
-            return resolveRealNameOrNickname(profile);
+            return resolveRealNameOrNickname(profile, identity);
         }
         return resolveNickname(profile);
     }

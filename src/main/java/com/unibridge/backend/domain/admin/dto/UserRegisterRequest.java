@@ -11,7 +11,6 @@ public class UserRegisterRequest {
     @Data
     public static class Profile {
         private String realName;
-        private String currentEntityName;
         private String bioData;
         private String careerData;
         private String intro;

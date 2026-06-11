@@ -15,4 +15,7 @@ public class AddMemberRequest {
 
     @Schema(description = "用户 uid", requiredMode = Schema.RequiredMode.REQUIRED, example = "US00000000099")
     private String uid;
+
+    @Schema(description = "角色：PM / MENTOR / COUNSELOR", example = "COUNSELOR")
+    private String role;
 }

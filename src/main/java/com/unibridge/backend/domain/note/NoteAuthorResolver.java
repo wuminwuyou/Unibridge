@@ -55,9 +55,6 @@ public class NoteAuthorResolver {
                 return entityProfile.getName().trim();
             }
         }
-        if (profile != null && StringUtils.hasText(profile.getCurrentEntityName())) {
-            return profile.getCurrentEntityName().trim();
-        }
         return "";
     }
 

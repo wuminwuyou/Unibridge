@@ -18,6 +18,6 @@ public class EntityTeamPreviewItem {
     private Integer memberCount;
     /** 实验室负责人对外 uid（= team.owner_uid），无负责人时为 null */
     private String leaderUid;
-    /** 负责人展示名称（realName || nickname），无负责人时为 null */
+    /** 负责人展示名称（realNameMask || nickname），无负责人时为 null */
     private String leaderDisplayName;
 }

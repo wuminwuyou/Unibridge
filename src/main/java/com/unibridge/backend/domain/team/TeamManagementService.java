@@ -15,11 +15,13 @@ import com.unibridge.backend.infrastructure.entities.ClientTeamMember;
 import com.unibridge.backend.infrastructure.entities.ClientUser;
 import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
 import com.unibridge.backend.infrastructure.entities.UserAuthLink;
+import com.unibridge.backend.infrastructure.entities.UserIdentity;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMemberMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.util.TeamUidGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
@@ -70,6 +72,9 @@ public class TeamManagementService {
 
     @Autowired
     private UserAuthLinkMapper userAuthLinkMapper;
+
+    @Autowired
+    private UserIdentityMapper userIdentityMapper;
 
     // ===================== 团队创建 =====================
 
@@ -194,9 +199,10 @@ public class TeamManagementService {
         ClientUser user = loadUserByUid(uid.trim());
         if (user == null) throw BusinessException.notFound("USER_NOT_FOUND");
         ClientUserProfile profile = loadProfile(uid.trim());
+        UserIdentity identity = loadIdentity(uid.trim());
         return UserPublicPreviewResponse.builder()
                 .uid(user.getUserUid())
-                .nickname(resolveRealNameOrNickname(profile))
+                .nickname(resolveRealNameOrNickname(profile, identity))
                 .avatarUrl(trimToNull(profile == null ? null : profile.getAvatarUrl()))
                 .build();
     }
@@ -303,13 +309,16 @@ public class TeamManagementService {
 
     private List<TeamMemberItem> buildMemberItems(ClientTeam team, List<ClientTeamMember> orderedSlice, boolean showRealName) {
         if (orderedSlice.isEmpty()) return Collections.emptyList();
-        Map<String, ClientUserProfile> pm = loadProfileMap(orderedSlice.stream().map(ClientTeamMember::getUserUid).collect(Collectors.toList()));
+        List<String> uids = orderedSlice.stream().map(ClientTeamMember::getUserUid).collect(Collectors.toList());
+        Map<String, ClientUserProfile> pm = loadProfileMap(uids);
+        Map<String, UserIdentity> im = loadIdentityMap(uids);
         List<TeamMemberItem> items = new ArrayList<>();
         for (ClientTeamMember m : orderedSlice) {
             ClientUserProfile p = pm.get(m.getUserUid());
+            UserIdentity identity = im.get(m.getUserUid());
             items.add(TeamMemberItem.builder()
                     .uid(m.getUserUid())
-                    .nickname(resolveMemberDisplayName(p, showRealName))
+                    .nickname(resolveMemberDisplayName(p, showRealName, identity))
                     .role(resolveMemberRole(m))
                     .career(trimToNull(m.getCareer()))
                     .isAdmin(resolveIsAdmin(team, m))
@@ -402,8 +411,25 @@ public class TeamManagementService {
 
     private Map<String, ClientTeamMember> loadMemberMap(String teamUid) { Map<String, ClientTeamMember> m = new HashMap<>(); for (var member : loadTeamMemberships(teamUid)) m.put(member.getUserUid(), member); return m; }
     private String resolveNickname(ClientUserProfile p) { return p == null || !StringUtils.hasText(p.getNickName()) ? "用户" : p.getNickName().trim(); }
-    private String resolveRealNameOrNickname(ClientUserProfile p) { if (p != null && StringUtils.hasText(p.getRealName())) return p.getRealName().trim(); return resolveNickname(p); }
-    private String resolveMemberDisplayName(ClientUserProfile p, boolean showRealName) { return showRealName ? resolveRealNameOrNickname(p) : resolveNickname(p); }
+    private String resolveRealNameOrNickname(ClientUserProfile p, UserIdentity identity) { if (identity != null && StringUtils.hasText(identity.getRealNameMask())) return identity.getRealNameMask().trim(); return resolveNickname(p); }
+    private String resolveMemberDisplayName(ClientUserProfile p, boolean showRealName, UserIdentity identity) { return showRealName ? resolveRealNameOrNickname(p, identity) : resolveNickname(p); }
     private boolean isOwnerUid(ClientTeam t, String uid) { return StringUtils.hasText(t.getOwnerUid()) && t.getOwnerUid().equals(uid); }
     private String trimToNull(String v) { return StringUtils.hasText(v) ? v.trim() : null; }
+
+    private UserIdentity loadIdentity(String userUid) {
+        LambdaQueryWrapper<UserIdentity> w = new LambdaQueryWrapper<>();
+        w.eq(UserIdentity::getUserUid, userUid).last("LIMIT 1");
+        return userIdentityMapper.selectOne(w);
+    }
+
+    private Map<String, UserIdentity> loadIdentityMap(List<String> userUids) {
+        if (userUids.isEmpty()) return Collections.emptyMap();
+        LambdaQueryWrapper<UserIdentity> w = new LambdaQueryWrapper<>();
+        w.in(UserIdentity::getUserUid, userUids);
+        Map<String, UserIdentity> m = new HashMap<>();
+        for (UserIdentity id : userIdentityMapper.selectList(w)) {
+            m.put(id.getUserUid(), id);
+        }
+        return m;
+    }
 }

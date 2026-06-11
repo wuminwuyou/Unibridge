@@ -1,3 +1,9 @@
+-- =========================================================================
+-- UnibridgeBackend 数据库初始化脚本
+-- 该文件用于数据库初始化
+-- db.sql文件仅支持开发环境下使用。
+-- =========================================================================
+
 -- =========================
 -- 01）会话初始化
 -- =========================
@@ -19,6 +25,11 @@ DROP TABLE IF EXISTS project;
 DROP TABLE IF EXISTS team_member;
 DROP TABLE IF EXISTS team;
 DROP TABLE IF EXISTS laboratory;
+DROP TABLE IF EXISTS t_user_identity;
+DROP TABLE IF EXISTS sys_data_encryption_keys;
+DROP TABLE IF EXISTS sys_policy_config;
+DROP TABLE IF EXISTS user_real_name;
+DROP TABLE IF EXISTS sys_personal_info_consent;
 DROP TABLE IF EXISTS user_auth_link;
 DROP TABLE IF EXISTS user_profile;
 DROP TABLE IF EXISTS `user`;
@@ -34,6 +45,7 @@ DROP TABLE IF EXISTS system_admin;
 
 -- =========================================================================
 -- 03）主体核心表 (entity) -> 只负责主体（高校/企业）的 Root 账号鉴权与资金控制
+-- TODO：balance 后续需要实现信息安全处理，需要合规，使用外表进行管理
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS entity (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -162,9 +174,8 @@ CREATE TABLE IF NOT EXISTS user_profile (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_uid CHAR(13) NOT NULL COMMENT '关联的用户 UID（无独立 profile uid）',
   nick_name VARCHAR(128) NULL COMMENT '用户昵称',
-  real_name VARCHAR(128) NULL COMMENT '用户实名信息',
+  -- real_name 已迁移至独立安全表 user_real_name（实名信息独立加密存储，PIPL 合规）
   avatar_url VARCHAR(255) NULL COMMENT '头像访问 URL',
-  current_entity_name VARCHAR(255) NULL COMMENT '当前所属主体名称',
   level VARCHAR(16) NULL COMMENT '用户等级：N | R | SR | SSR | UR',
   bio_data JSON NULL COMMENT '技术栈/兴趣标签（JSON 格式：["Java", "React"]）',
   career_data JSON NULL COMMENT '职业/学籍背景数据结构',
@@ -184,6 +195,238 @@ CREATE TABLE IF NOT EXISTS user_profile (
     graduation_year IS NULL OR (graduation_year >= 1950 AND graduation_year <= 2100)
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- =========================================================================
+-- 06.1）用户实名身份独立存储表（t_user_identity）
+-- real_name 从 user_profile 拆出独立存储，使用信封加密（Envelope Encryption）+ 脱敏展示
+-- 关联 sys_data_encryption_keys 的 DEK UUID 实现密钥轮转兼容（算法 AES-256-GCM / SM4-GCM）
+-- ON DELETE RESTRICT 确保用户注销时实名记录不被级联删除（司法取证保留 ≥ 3 年）
+--
+-- 脱敏展示规则（API 层实现，根据 user_auth_link.role 生成 real_name_mask）：
+--   PM          → *经理（role='PM'，企业项目经理/员工，取姓氏首字+经理）
+--   MENTOR      → *导师（role='MENTOR'，学校指导老师）
+--   COUNSELOR   → *导员（role='COUNSELOR'，学校辅导员）
+--   STUDENT     → *同学（role='STUDENT'，学生）
+--   无名/多角色  → *用户（fallback，无有效 role 时兜底）
+--
+-- 访问控制矩阵（待议，以下为推荐分层方案）：
+--   ========================================================================
+--   │ 场景                         │ 返回内容                        │ 审计 │
+--   │------------------------------│---------------------------------│------│
+--   │ 本人查看个人主页/设置页        │ 解密 encrypted_real_name 返回原文│ YES  │
+--   │ 同机构管理员（EA+11）审核      │ 解密原文 + 记录 sys_pii_access_log│ YES  │
+--   │ 同实验室/团队负责人（LEADER）  │ 解密原文（需 lab 成员关系校验）   │ YES  │
+--   │ 同项目 PM 查看成员            │ 解密原文（需 project.owner_uid）  │ YES  │
+--   │ 前端列表页/搜索结果           │ real_name_mask 脱敏值            │ NO   │
+--   │ Feed 笔记公开作者区           │ real_name_mask 脱敏值            │ NO   │
+--   │ 其他机构/陌生用户             │ "***" 三字星号（完全隐藏）       │ NO   │
+--   │ 平台超管审核（system_admin）  │ 解密原文 + 完整审批流水           │ YES  │
+--   ========================================================================
+--
+--   关键原则：
+--     · 能够看到原文的：同项目PM、同机构管理员、同团队LEADER/MENTOR、平台超管
+--     · 只能看到 mask 的：公开列表、Feed、搜索结果
+--     · 完全不可见的：平台其余用户（保持完全模糊）
+--     · 所有解密原文请求必须写入 sys_pii_access_log
+-- =========================================================================
+CREATE TABLE t_user_identity (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_uid CHAR(13) NOT NULL COMMENT '关联的用户 UID（US+11位 NanoID）',
+  -- 加密存储层
+  encrypted_real_name VARCHAR(512) NULL COMMENT '真实姓名密文（Base64，由 sys_data_encryption_keys 对应的 DEK 加密，格式：iv:ciphertext:auth_tag）',
+  real_name_mask VARCHAR(32) NULL COMMENT '脱敏展示名（根据 user_auth_link.role 计算：*经理/*导师/*导员/*同学/*用户），API 层写入，前端列表/搜索结果等非鉴权场景使用',
+  -- 身份证信息（PIPL C3 级敏感，全库唯一防作弊）
+  id_card_no VARCHAR(128) NOT NULL COMMENT '经 AES/SM4 加密的身份证号密文（Base64，iv:ciphertext:auth_tag）。统一由 DEK 加密，与 encrypted_real_name 共享 encryption_key_id',
+  id_card_hash CHAR(64) NOT NULL COMMENT '身份证号的 SHA-256 哈希值（十六进制小写），用于全库唯一性防作弊碰撞。不可逆设计，仅做等值匹配，不存储明文',
+  encryption_key_id CHAR(36) NULL COMMENT '加密所用的 DEK UUID（关联 sys_data_encryption_keys.key_id）',
+  -- 审计
+  verified_at DATETIME NULL COMMENT '最近一次人脸核身/实名验证通过时间',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_identity_uid (user_uid),   -- 🔒 1:1 关系
+  UNIQUE KEY uk_user_identity_id_card_hash (id_card_hash), -- 🔒 身份证全网唯一（防一人多号作弊，仅哈希碰撞）
+  KEY idx_identity_encryption_key (encryption_key_id),
+  CONSTRAINT fk_user_identity_user FOREIGN KEY (user_uid) REFERENCES `user`(user_uid)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT chk_user_identity_id_card_hash CHECK (LENGTH(id_card_hash) = 64) -- SHA-256 输出固定 64 字符
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='用户实名身份独立存储（PIPL §51 加密 + §47 数据删除权，基于 role 的脱敏展示）';
+
+-- =========================================================================
+-- 06.2）协议/政策配置管理表（sys_policy_config）
+-- 提供实名认证协议与隐私政策的 Markdown 原文后台管理 + 客户端动态拉取能力
+--
+-- 设计要点：
+--   1. policy_content 存储 Markdown 全文，content_hash 为 SHA-256 哈希作为不可否认性锚点
+--      sys_personal_info_consent.policy_content_hash 与本表 content_hash 联动，形成完整证据链
+--   2. 同一 policy_type 下任意时刻至多 1 条记录 is_active = 1（应用层事务 enforce）
+--      客户端拉取时 `SELECT ... WHERE policy_type = ? AND is_active = 1 LIMIT 1` 即可命中
+--   3. 版本迭代时管理员 INSERT 新版本 + is_active=1，同时将旧版本 is_active 置 0
+--      保留历史版本以支持 AB 对比与合规审计
+--   4. policy_content 类型为 LONGTEXT（Markdown 协议原文可达数十 KB，普通 TEXT 65535 字节不够）
+-- =========================================================================
+CREATE TABLE sys_policy_config (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  -- 协议元信息
+  policy_type VARCHAR(32) NOT NULL COMMENT '协议类型（应用层字典管控）：IDENTITY_AUTH（实名认证协议）| PRIVACY（隐私政策）| TERMS_OF_SERVICE（用户服务协议）',
+  version_code VARCHAR(16) NOT NULL COMMENT '语义化版本号（SemVer，如 1.0.0、2.3.1），用于客户端版本比对与升级提示',
+  -- 完整性与不可否认性
+  content_hash CHAR(64) NOT NULL COMMENT 'policy_content 全文 SHA-256 哈希（十六进制小写）。作为 sys_personal_info_consent.policy_content_hash 的锚定来源',
+  policy_content LONGTEXT NOT NULL COMMENT '协议全文（Markdown 格式）。客户端按版本拉取后由前端 Markdown 渲染器展示',
+  -- 生效管控
+  is_active TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '是否当前生效版本：1=已发布生效（客户端拉取、用户授权弹窗均取此版本）| 0=历史版本（仅审计可查看）',
+  -- 审计元数据
+  operator_key VARCHAR(64) NULL COMMENT '发布/编辑操作人标识（system_admin.id），用于等保审计问责',
+  remark VARCHAR(255) NULL COMMENT '版本变更说明（如"新增生物特征授权条款"），便于运营回溯',
+  -- 时间戳
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+  -- =====================================================================
+  -- 约束 & 索引
+  -- =====================================================================
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_policy_type_version (policy_type, version_code),
+  KEY idx_policy_active_lookup (policy_type, is_active),   -- 客户端拉取生效协议热点查询
+  KEY idx_policy_content_hash (content_hash),               -- 按哈希反查协议版本归属
+  CONSTRAINT chk_policy_is_active CHECK (is_active IN (0, 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='协议/政策配置管理表（实名认证协议、隐私政策 Markdown 原文管理，客户端动态拉取）';
+
+-- =========================================================================
+-- 06.3）个人信息处理授权记录表（sys_personal_info_consent）
+-- PIPL 第13/14/47条合规 + GB/T 35273-2020 §8 + 等保2.0 三级审计要求
+--
+-- 设计原则：
+--   1. ON DELETE RESTRICT：即使 user 表注销，授权记录必须物理保留 ≥3 年（司法取证要求）
+--      用户注销流程：先"匿名化归档" user 记录，再软删除 user_profile，不得 DELETE user 行。
+--   2. ip_address 存储加盐哈希（SHA-256），阻断运维/数据库管理员直接窥探用户 IP
+--   3. policy_content_hash 实现政策文本的不可否认性：记录用户授权时所见的政策全文哈希，
+--      若发生纠纷可回溯验证政策文本是否被篡改（GB/T 35273 §8.5）
+--   4. consent_type 不再使用 CHECK 约束硬编码，改为应用层字典管控
+--      （避免在线 DDL 对亿级大表加约束锁，同时支持业务灵活扩展）
+-- =========================================================================
+CREATE TABLE sys_personal_info_consent (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  -- -----------------------------------------------------------------------
+  -- 操作主体与授权范围
+  -- -----------------------------------------------------------------------
+  user_uid CHAR(13) NOT NULL COMMENT '用户 UID（US+11位 NanoID，外键关联 user.user_uid）',
+  consent_type VARCHAR(64) NOT NULL COMMENT '授权类型（应用层字典管控）：REAL_NAME | FACE_DATA | EDUCATION | CAREER | PRECISE_LOCATION 等',
+  consent_action VARCHAR(16) NOT NULL COMMENT '授权动作：GRANT（授权） | WITHDRAW（撤回）',
+  -- -----------------------------------------------------------------------
+  -- 隐私政策版本及防篡改追溯
+  -- -----------------------------------------------------------------------
+  consent_version VARCHAR(16) NOT NULL COMMENT '隐私政策版本号（语义化版本，如 v1.0.0、v2.3.1），用于版本间授权比对',
+  policy_content_hash VARCHAR(64) NOT NULL COMMENT '授权时前端/服务端展示的政策全文 SHA-256 哈希（不可否认性证明，GB/T 35273 §8.5 合规要求）',
+  -- -----------------------------------------------------------------------
+  -- 审计溯源
+  -- -----------------------------------------------------------------------
+  consented_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '授权时间（毫秒精度，用于时序排重）',
+  source VARCHAR(64) NULL COMMENT '授权来源渠道：REGISTER_PAGE | SETTINGS_PAGE | PRIVACY_CENTER | UPGRADE_BANNER 等',
+  ip_address_hash VARCHAR(64) NULL COMMENT '授权时客户端 IPv4/IPv6 经加盐 SHA-256 哈希后的密文。原始 IP 明文不入库（去标识化技术，PIPL 第51条）',
+  ip_address_salt CHAR(16) NULL COMMENT 'ip_address_hash 所使用的随机盐值（16字节，Base64编码存储），加盐策略：HMAC-SHA256(salt, raw_ip)',
+  -- -----------------------------------------------------------------------
+  -- 约束与索引
+  -- -----------------------------------------------------------------------
+  PRIMARY KEY (id),
+  KEY idx_consent_user_uid (user_uid),
+  KEY idx_consent_user_version (user_uid, consent_version),
+  KEY idx_consent_type_action (consent_type, consent_action),
+  KEY idx_consent_consented_at (consented_at),
+  CONSTRAINT fk_consent_user FOREIGN KEY (user_uid) REFERENCES `user`(user_uid)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT chk_consent_action CHECK (consent_action IN ('GRANT', 'WITHDRAW')),
+  CONSTRAINT chk_consent_policy_hash CHECK (LENGTH(policy_content_hash) = 64)   -- SHA-256 输出固定 64 字符十六进制
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='个人信息处理授权记录（PIPL 第13/14/47条，不可否认性，授权撤回去标识化审计）';
+
+-- =========================================================================
+-- 06.4）数据加密密钥管理表（sys_data_encryption_keys）
+-- 《密码法》第24条 + 商用密码应用安全性评估（密评3级） + GB/T 35273-2020 §7
+-- + 等保2.0 三级"数据保密性"要求（GB/T 22239-2019 §8.1.4.3）
+--
+-- 分层密钥体系（Envelope Encryption）：
+--   KMS/HSM → Master Key (Key Encryption Key, KEK)
+--          → Data Encryption Key (DEK) ← 本表存储
+--          → 业务 PII 字段密文（t_user_identity.encrypted_real_name 等）
+--   每次加密：随机生成 DEK 或选取 ACTIVE DEK → 用 MK 包裹 DEK 存 encrypted_key
+--   每次解密：根据 PII 行携带的 encryption_key_id → 查出 encrypted_key → 用 MK 解密 DEK → 解密 PII
+--
+-- 算法兼容性：
+--   AES-256-GCM（当前默认，FIPS 140-2 认证）
+--   SM4-GCM（国密，《密码法》合规，密评强制要求）。通过 algorithm 字段实现算法共存，
+--   后续国密迁移时仅需 INSERT 一行 SM4 ACTIVE 记录即可，无需 ALTER TABLE。
+--
+-- 密钥生命周期状态机（严格单向不可逆）：
+--   INITIALIZED(已生成未激活) → ACTIVE(使用中) → ROTATED(已轮替) ⇢ REVOKED(已吊销)
+--                                                    ↓ 全库异步重加密后
+--
+--   | 状态         | 加密新数据 | 解密历史数据 | 是否可物理删除 |
+--   |-------------|-----------|-------------|---------------|
+--   | INITIALIZED  | NO        | NO          | YES（未使用）  |
+--   | ACTIVE       | YES       | YES         | 绝对禁止       |
+--   | ROTATED      | NO        | YES（只读）  | 绝对禁止       |
+--   | REVOKED      | NO        | NO          | 审计满3年后可  |
+--
+--   关键约束（应用层 enforce）：
+--     · 同 key_type 同时最多存在 1 个 ACTIVE 和 1 个 INITIALIZED（轮转过渡态）
+--     · ROTATED → REVOKED 变更前必须全库确认 0 行 PII 仍引用此 key_id
+--     · REVOKED 密钥至少保留 3 年后再物理清理（等保审计要求）
+-- =========================================================================
+CREATE TABLE sys_data_encryption_keys (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  -- -----------------------------------------------------------------------
+  -- 密钥标识
+  -- -----------------------------------------------------------------------
+  key_id CHAR(36) NOT NULL COMMENT 'DEK 全局唯一标识（UUID v7 格式，如 018f3a7e-9b3c-7345-b1d2-e6f4a8c0d1e2）。由应用层生成，内置时间戳保证全局有序+无碰撞',
+  key_version INT UNSIGNED NOT NULL DEFAULT 1 COMMENT '同 key_id 的密钥版本号（递增正整数，表示当前实例的代数）。轮转时 key_id 不变，key_version += 1',
+  key_type VARCHAR(32) NOT NULL COMMENT '密钥用途分类：PII（个人信息）、FINANCE（金融数据）、AUTH_CREDENTIAL（鉴权凭证）',
+  -- -----------------------------------------------------------------------
+  -- 算法协商
+  -- -----------------------------------------------------------------------
+  algorithm VARCHAR(32) NOT NULL DEFAULT 'AES-256-GCM' COMMENT '数据加密算法：AES-256-GCM（国际标准） | SM4-GCM（国密标准，《密码法》合规）。应用层根据此字段自动选择对应 Cipher 实例',
+  -- -----------------------------------------------------------------------
+  -- 信封加密（Envelope Encryption）核心
+  -- -----------------------------------------------------------------------
+  encrypted_key VARCHAR(768) NOT NULL COMMENT '经根密钥/主密钥（Master Key / KEK）AES-256-GCM 或 SM4-GCM-Wrap 加密后的 DEK 明文密文。格式：Base64(wrapping_iv:ciphertext:auth_tag)',
+  master_key_id VARCHAR(128) NOT NULL COMMENT '用于包裹（wrap）本 DEK 的根密钥/主密钥的唯一标识。格式如 KMS:cn-shenzhen/key-abc123 或 aws:arn:... 或 vault:transit/dek-pii。多根密钥并存时唯一决定解密通路',
+  wrapping_algorithm VARCHAR(32) NOT NULL DEFAULT 'AES-256-GCM-WRAP' COMMENT '密钥包裹算法：AES-256-GCM-WRAP | AES-256-KWP | SM4-GCM-WRAP。注意 WRAP 模式与数据加密 GCM 不同',
+  -- -----------------------------------------------------------------------
+  -- 密钥状态与时间窗口
+  -- -----------------------------------------------------------------------
+  key_status VARCHAR(16) NOT NULL DEFAULT 'INITIALIZED' COMMENT '密钥状态（严格状态机）：INITIALIZED（已生成未激活）| ACTIVE（有效期：允许加解密）| ROTATED（已过期轮替：禁止加密，仅解密只读，永久保留直至全库重密）| REVOKED（全库已无存量密文引用，等待审计期满后物理清除）',
+  activated_at DATETIME(3) NULL COMMENT '密钥激活时间（应用层调用正式生效时精确到毫秒）。INITIALIZED 状态时为 NULL',
+  rotation_at DATETIME(3) NULL COMMENT '计划轮转时间（通常 = activated_at + 90天）。到期后密钥自动切换为 ACTIVE→ROTATED（定时任务或 KMS 回调触发）',
+  revoked_at DATETIME(3) NULL COMMENT '吊销时间（全库异步重密完成后的最后一步）。REVOKED 状态下必填',
+  auto_retire_on DATETIME(3) NULL COMMENT 'REVOKED 密钥的审计保留截止日（revoked_at + 3年）。到期后运维方可物理 DELETE 此条记录',
+  -- -----------------------------------------------------------------------
+  -- 审计溯源（GB/T 35273 §8.1 安全审计 + 等保2.0 问责要求）
+  -- -----------------------------------------------------------------------
+  created_by VARCHAR(64) NOT NULL COMMENT '密钥创建操作人：SYSTEM（自动化密钥管理服务） | system_admin.id（手动应急创建）。审计必备',
+  rotated_by VARCHAR(64) NULL COMMENT '密钥轮转操作人标识。ACTIVE→ROTATED 时回填',
+  revoked_by VARCHAR(64) NULL COMMENT '密钥吊销操作人标识。ROTATED→REVOKED 时回填。三权分立：created/rotated/revoked 可能由不同角色执行',
+  -- -----------------------------------------------------------------------
+  -- 元数据时间戳
+  -- -----------------------------------------------------------------------
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- -----------------------------------------------------------------------
+  -- 约束与索引
+  -- -----------------------------------------------------------------------
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_key_id_version (key_id, key_version),
+  KEY idx_key_type_status (key_type, key_status),
+  KEY idx_key_active_alg (key_type, key_status, algorithm),
+  KEY idx_key_master (master_key_id),
+  KEY idx_key_rotation_at (rotation_at),
+  KEY idx_key_algorithm (algorithm),
+  KEY idx_key_created_by (created_by),
+  CONSTRAINT chk_key_algorithm CHECK (algorithm IN ('AES-256-GCM', 'SM4-GCM', 'AES-256-CBC', 'SM4-CBC')),
+  CONSTRAINT chk_key_status CHECK (key_status IN ('INITIALIZED', 'ACTIVE', 'ROTATED', 'REVOKED')),
+  CONSTRAINT chk_key_wrapping_alg CHECK (wrapping_algorithm IN ('AES-256-GCM-WRAP', 'AES-256-KWP', 'SM4-GCM-WRAP', 'RSA-OAEP-256'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='数据加密密钥管理表（《密码法》+密评3级+分层信封加密+国密兼容+全生命周期审计）';
 
 -- ===================================================
 -- 07）用户机构认证关联表（user_auth_link）
@@ -600,7 +843,7 @@ CREATE TABLE IF NOT EXISTS sys_approval_flows (
   KEY idx_approval_target_status (target_key, status),
   KEY idx_approval_business_type (business_type),
   CONSTRAINT chk_approval_key CHECK (approval_key REGEXP '^APP-[0-9]{8}-[A-Za-z0-9]{11}$'),
-  CONSTRAINT chk_approval_business_type CHECK (business_type IN ('PROJECT_FUND', 'LAB_CREATE', 'MENTOR_AUTH')),
+  CONSTRAINT chk_approval_business_type CHECK (business_type IN ('PROJECT_FUND', 'LAB_CREATE', 'MENTOR_AUTH', 'STUDENT_AUTH')),
   CONSTRAINT chk_approval_status CHECK (status IN (0, 1, 2, 3))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -825,36 +1068,6 @@ CREATE TABLE IF NOT EXISTS sys_credit_logs (
 --   ADD CONSTRAINT fk_entity_audit_admin FOREIGN KEY (audit_admin_id) REFERENCES system_admin(id)
 --     ON DELETE SET NULL ON UPDATE CASCADE;
 
--- =========================
--- 23）测试数据：认证码（母码 + 子码）
--- =========================
--- 母码：深圳大学 2026 届（总额度 1000，expire_time = 2026-12-31）
-INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
-VALUES ('10598-2026-00001', '10598', 1, NULL, 1000, 0, '深圳大学2026届通用认证母码', 'US00000000002', '2026-12-31 23:59:59', 1);
-
--- 母码：深圳大学 2027 届（总额度 800，expire_time = 2027-12-31）
-INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
-VALUES ('10598-2027-00001', '10598', 1, NULL, 800, 0, '深圳大学2027届通用认证母码', 'US00000000002', '2027-12-31 23:59:59', 1);
-
--- 子码：计算机专业（基于 2026 母码，额度 200）
-INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
-VALUES ('10598-2026-00001-0001', '10598', 0, 1, 60, 0, '深圳大学2026届计算机专业学生认证码', 'US00000000003', '2026-12-31 23:59:59', 1);
-
--- 子码：软件工程专业（基于 2026 母码，额度 150）
-INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
-VALUES ('10598-2026-00001-0002', '10598', 0, 1, 60, 0, '深圳大学2026届软件工程专业学生认证码', 'US00000000003', '2026-12-31 23:59:59', 1);
-
--- 子码：数学专业（基于 2026 母码，额度 100）
-INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
-VALUES ('10598-2026-00001-0003', '10598', 0, 1, 60, 0, '深圳大学2026届数学专业学生认证码', 'US00000000003', '2026-12-31 23:59:59', 1);
-
--- 子码：电子商务专业（基于 2027 母码，额度 120）
-INSERT INTO sys_verification_codes (code, entity_code, is_master, parent_id, max_quota, used_quota, description, created_by, expire_time, is_active)
-VALUES ('10598-2027-00001-0001', '10598', 0, 2, 60, 0, '深圳大学2027届电子商务专业学生认证码', 'US00000000003', '2027-12-31 23:59:59', 1);
-
--- 更新母码 used_quota（已分配子码总额度：200+150+100=240 / 120）
-UPDATE sys_verification_codes SET used_quota = 240 WHERE id = 1;
-UPDATE sys_verification_codes SET used_quota = 60 WHERE id = 2;
 
 -- =========================
 -- 24）收尾

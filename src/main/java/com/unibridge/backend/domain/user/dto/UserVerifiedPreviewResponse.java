@@ -11,9 +11,10 @@ import lombok.NoArgsConstructor;
 @Builder
 public class UserVerifiedPreviewResponse {
     private String uid;
-    private String realName;
+    private String realNameMask;
     private String nickname;
     private String avatarUrl;
     private boolean verified;
     private String role;
 }
+

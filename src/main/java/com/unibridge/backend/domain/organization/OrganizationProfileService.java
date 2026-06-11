@@ -35,6 +35,7 @@ import com.unibridge.backend.infrastructure.entities.ClientUser;
 import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
 import com.unibridge.backend.infrastructure.entities.SysEntityTotpCredentials;
 import com.unibridge.backend.infrastructure.entities.UserAuthLink;
+import com.unibridge.backend.infrastructure.entities.UserIdentity;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
@@ -45,6 +46,7 @@ import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.SysEntityTotpCredentialsMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
 import com.unibridge.backend.infrastructure.util.TeamUidGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -106,6 +108,9 @@ public class OrganizationProfileService {
 
     @Autowired
     private UserAuthLinkMapper userAuthLinkMapper;
+
+    @Autowired
+    private UserIdentityMapper userIdentityMapper;
 
     @Autowired
     private ClientUserProfileMapper clientUserProfileMapper;
@@ -368,7 +373,7 @@ public class OrganizationProfileService {
                 .in(UserAuthLink::getRole, MEMBER_ROLES)
                 .eq(UserAuthLink::getAuditStatus, "APPROVED")
                 .eq(UserAuthLink::getIsActive, 1)
-                .last("ORDER BY FIELD(role,'MENTOR','PM'), id ASC");
+                .last("ORDER BY FIELD(role,'MENTOR','COUNSELOR','PM'), id ASC");
         return wrapper;
     }
 
@@ -443,9 +448,14 @@ public class OrganizationProfileService {
                 .map(ClientTeam::getOwnerUid)
                 .filter(StringUtils::hasText)
                 .collect(Collectors.toSet());
+        List<String> ownerUidList = new ArrayList<>(ownerUids);
         Map<String, ClientUserProfile> leaderProfileMap = ownerUids.isEmpty()
                 ? Collections.emptyMap()
-                : loadProfileMap(new ArrayList<>(ownerUids));
+                : loadProfileMap(ownerUidList);
+        // 批量加载负责人的实名掩码
+        Map<String, UserIdentity> leaderIdentityMap = ownerUids.isEmpty()
+                ? Collections.emptyMap()
+                : loadIdentityMap(ownerUidList);
 
         List<EntityTeamPreviewItem> items = new ArrayList<>();
         for (ClientTeam team : teams) {
@@ -453,11 +463,14 @@ public class OrganizationProfileService {
             String leaderDisplayName = null;
             if (leaderUid != null) {
                 ClientUserProfile leaderProfile = leaderProfileMap.get(leaderUid);
-                if (leaderProfile != null) {
-                    // 优先 realName，否则 nickname
-                    leaderDisplayName = StringUtils.hasText(leaderProfile.getRealName())
-                            ? leaderProfile.getRealName()
-                            : (StringUtils.hasText(leaderProfile.getNickName()) ? leaderProfile.getNickName() : null);
+                UserIdentity leaderIdentity = leaderIdentityMap.get(leaderUid);
+                if (leaderProfile != null || leaderIdentity != null) {
+                    // 优先 realNameMask（来自 t_user_identity），否则 nickname
+                    leaderDisplayName = resolveDisplayName(leaderProfile, leaderIdentity);
+                    // 如果回退到了默认值"用户"则置空
+                    if ("用户".equals(leaderDisplayName)) {
+                        leaderDisplayName = null;
+                    }
                 }
             }
             items.add(EntityTeamPreviewItem.builder()
@@ -488,22 +501,25 @@ public class OrganizationProfileService {
 
     /**
      * 组装人员预览项（页壳）。
-     * 机构为公开场合，nickname 和 realName 均优先返回实名。
+     * 机构为公开场合，nickname 和 realName 均优先返回实名掩码（来自 t_user_identity）。
      */
     private List<EntityMemberItem> toMemberPreviewItems(List<UserAuthLink> links) {
         if (links.isEmpty()) {
             return Collections.emptyList();
         }
-        Map<String, ClientUserProfile> profileMap = loadProfileMap(
-                links.stream().map(UserAuthLink::getUserUid).collect(Collectors.toList()));
+        List<String> userUids = links.stream().map(UserAuthLink::getUserUid).collect(Collectors.toList());
+        Map<String, ClientUserProfile> profileMap = loadProfileMap(userUids);
+        Map<String, UserIdentity> identityMap = loadIdentityMap(userUids);
         List<EntityMemberItem> items = new ArrayList<>();
         for (UserAuthLink link : links) {
             ClientUserProfile profile = profileMap.get(link.getUserUid());
-            String realName = resolveDisplayName(profile);
+            UserIdentity identity = identityMap.get(link.getUserUid());
+            String displayName = resolveDisplayName(profile, identity);
+            String realNameMask = identity != null ? identity.getRealNameMask() : null;
             items.add(EntityMemberItem.builder()
                     .uid(link.getUserUid())
-                    .nickname(realName)
-                    .realName(realName)
+                    .nickname(displayName)
+                    .displayName(realNameMask)
                     .role(link.getRole())
                     .avatarUrl(trimToNull(profile == null ? null : profile.getAvatarUrl()))
                     .level(resolveLevel(profile))
@@ -513,22 +529,25 @@ public class OrganizationProfileService {
     }
 
     /**
-     * 组装成员 Tab 列表（实名优先）。
+     * 组装成员 Tab 列表（实名掩码优先，来自 t_user_identity）。
      */
     private List<EntityMemberItem> toMemberTabItems(List<UserAuthLink> links) {
         if (links.isEmpty()) {
             return Collections.emptyList();
         }
-        Map<String, ClientUserProfile> profileMap = loadProfileMap(
-                links.stream().map(UserAuthLink::getUserUid).collect(Collectors.toList()));
+        List<String> userUids = links.stream().map(UserAuthLink::getUserUid).collect(Collectors.toList());
+        Map<String, ClientUserProfile> profileMap = loadProfileMap(userUids);
+        Map<String, UserIdentity> identityMap = loadIdentityMap(userUids);
         List<EntityMemberItem> items = new ArrayList<>();
         for (UserAuthLink link : links) {
             ClientUserProfile profile = profileMap.get(link.getUserUid());
-            String realName = resolveDisplayName(profile);
+            UserIdentity identity = identityMap.get(link.getUserUid());
+            String displayName = resolveDisplayName(profile, identity);
+            String realNameMask = identity != null ? identity.getRealNameMask() : null;
             items.add(EntityMemberItem.builder()
                     .uid(link.getUserUid())
-                    .nickname(realName)
-                    .realName(realName)
+                    .nickname(displayName)
+                    .displayName(realNameMask)
                     .role(link.getRole())
                     .avatarUrl(trimToNull(profile == null ? null : profile.getAvatarUrl()))
                     .level(resolveLevel(profile))
@@ -548,6 +567,19 @@ public class OrganizationProfileService {
             profileMap.put(profile.getUserUid(), profile);
         }
         return profileMap;
+    }
+
+    private Map<String, UserIdentity> loadIdentityMap(List<String> userUids) {
+        if (userUids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<UserIdentity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(UserIdentity::getUserUid, userUids);
+        Map<String, UserIdentity> identityMap = new HashMap<>();
+        for (UserIdentity identity : userIdentityMapper.selectList(wrapper)) {
+            identityMap.put(identity.getUserUid(), identity);
+        }
+        return identityMap;
     }
 
     private List<EntityProfileSpaceResponse.EntityInfoRow> buildInfoRows(String entityCode,
@@ -616,11 +648,12 @@ public class OrganizationProfileService {
     }
 
     /**
-     * 机构公开场合的展示名：优先 realName，无则回退 nickname，最后回退"用户"。
+     * 机构公开场合的展示名：优先 realNameMask（来自 t_user_identity），无则回退 nickname，最后回退"用户"。
+     * real_name 已迁移至 t_user_identity 加密存储，展示侧使用掩码 realNameMask。
      */
-    private String resolveDisplayName(ClientUserProfile profile) {
-        if (profile != null && StringUtils.hasText(profile.getRealName())) {
-            return profile.getRealName().trim();
+    private String resolveDisplayName(ClientUserProfile profile, UserIdentity identity) {
+        if (identity != null && StringUtils.hasText(identity.getRealNameMask())) {
+            return identity.getRealNameMask().trim();
         }
         if (profile != null && StringUtils.hasText(profile.getNickName())) {
             return profile.getNickName().trim();
@@ -813,9 +846,18 @@ public class OrganizationProfileService {
                 .orderByDesc(UserAuthLink::getUpdatedAt)
                 .last("LIMIT 1");
         UserAuthLink anyExisting = userAuthLinkMapper.selectOne(roleLookupWrapper);
-        String role = (anyExisting != null && StringUtils.hasText(anyExisting.getRole()))
-                ? anyExisting.getRole().toUpperCase(Locale.ROOT)
-                : "MENTOR";
+        // 判断角色：优先使用请求体中传来的 role，否则沿用已有记录，默认 MENTOR
+        String role;
+        if (request.getRole() != null && !request.getRole().trim().isEmpty()) {
+            role = request.getRole().trim().toUpperCase(Locale.ROOT);
+            if (!MEMBER_ROLES.contains(role)) {
+                throw BusinessException.badRequest("INVALID_MEMBER_ROLE");
+            }
+        } else {
+            role = (anyExisting != null && StringUtils.hasText(anyExisting.getRole()))
+                    ? anyExisting.getRole().toUpperCase(Locale.ROOT)
+                    : "MENTOR";
+        }
 
         // 按 (entityCode, uid, role) 精确查找同类型记录（含 is_active=0 的历史记录）
         LambdaQueryWrapper<UserAuthLink> exactWrapper = new LambdaQueryWrapper<>();
@@ -892,7 +934,11 @@ public class OrganizationProfileService {
     // ===================== 用户搜索 =====================
 
     /**
-     * 模糊搜索用户（按 uid / nickname / realName 前缀或包含匹配）。
+     * 模糊搜索用户（按 uid / nickname 前缀或包含匹配）。
+     * <p>
+     * 注意：real_name 已迁移至 t_user_identity 加密存储，无法按明文模糊搜索，已从搜索条件中移除。
+     * 搜索结果中的 realName 字段使用 t_user_identity.real_name_mask 填充。
+     * </p>
      * <p>
      * 【权限控制】通过 Authorization 头中的 CLIENT_ORG token 提取 entity_code，
      * 仅返回该机构下 {@code user_auth_link.audit_status = 'APPROVED'} 的用户，
@@ -928,24 +974,34 @@ public class OrganizationProfileService {
         String kw = keyword.trim();
 
         // 在 profile 中模糊搜索，并限制 user_uid 属于该机构
+        // NOTE: real_name has been removed from user_profile table and moved to t_user_identity (encrypted),
+        // plaintext fuzzy search on real_name is no longer possible.
         LambdaQueryWrapper<ClientUserProfile> profileWrapper = new LambdaQueryWrapper<>();
         profileWrapper.in(ClientUserProfile::getUserUid, entityUserUids)
                 .and(w -> w
                         .like(ClientUserProfile::getUserUid, kw)
                         .or()
-                        .like(ClientUserProfile::getNickName, kw)
-                        .or()
-                        .like(ClientUserProfile::getRealName, kw))
+                        .like(ClientUserProfile::getNickName, kw))
                 .last("LIMIT 20");
         List<ClientUserProfile> profiles = clientUserProfileMapper.selectList(profileWrapper);
 
+        // 批量加载实名掩码用于填充 realName 字段
+        List<String> profileUserUids = profiles.stream()
+                .map(ClientUserProfile::getUserUid)
+                .collect(Collectors.toList());
+        Map<String, UserIdentity> identityMap = loadIdentityMap(profileUserUids);
+
         List<UserSearchItem> users = profiles.stream()
-                .map(p -> UserSearchItem.builder()
-                        .uid(p.getUserUid())
-                        .nickname(StringUtils.hasText(p.getNickName()) ? p.getNickName() : "用户")
-                        .realName(StringUtils.hasText(p.getRealName()) ? p.getRealName() : null)
-                        .avatarUrl(p.getAvatarUrl())
-                        .build())
+                .map(p -> {
+                    UserIdentity identity = identityMap.get(p.getUserUid());
+                    return UserSearchItem.builder()
+                            .uid(p.getUserUid())
+                            .nickname(StringUtils.hasText(p.getNickName()) ? p.getNickName() : "用户")
+                            .displayName(identity != null && StringUtils.hasText(identity.getRealNameMask())
+                                    ? identity.getRealNameMask() : null)
+                            .avatarUrl(p.getAvatarUrl())
+                            .build();
+                })
                 .collect(Collectors.toList());
 
         return UserSearchResponse.builder().users(users).build();

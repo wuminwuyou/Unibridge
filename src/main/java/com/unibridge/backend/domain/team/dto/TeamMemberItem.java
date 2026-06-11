@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 public class TeamMemberItem {
     @Schema(description = "成员 user_uid")
     private String uid;
-    @Schema(description = "展示名：团队成员查看时为 real_name（无则 nickname），否则为 nickname")
+    @Schema(description = "展示名：团队成员查看时为 t_user_identity.real_name_mask（无则 nickname），否则为 nickname")
     private String nickname;
     @Schema(description = "身份枚举：LEADER | MENTOR | MEMBER", example = "MENTOR")
     private String role;
@@ -30,3 +30,4 @@ public class TeamMemberItem {
     @Schema(description = "能力等级 N/R/SR/SSR/UR，无效时 null")
     private String level;
 }
+

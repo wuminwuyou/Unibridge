@@ -20,12 +20,8 @@ public class ClientUserProfile {
     private String userUid;
     @TableField("nick_name")
     private String nickName;
-    @TableField("real_name")
-    private String realName;
     @TableField("avatar_url")
     private String avatarUrl;
-    @TableField("current_entity_name")
-    private String currentEntityName;
     @TableField("level")
     private String level;
     @TableField("bio_data")

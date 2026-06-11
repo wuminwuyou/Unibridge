@@ -12,9 +12,10 @@ import lombok.NoArgsConstructor;
 public class CodeStudentItem {
     private String uid;
     private String nickname;
-    private String realName;
+    private String realNameMask;
     private String studentId;
     private Integer graduationYear;
     private String subCode;
     private String activatedAt;
 }
+

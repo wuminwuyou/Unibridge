@@ -7,6 +7,8 @@ import com.unibridge.backend.domain.verification.dto.*;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.unibridge.backend.infrastructure.entities.*;
 import com.unibridge.backend.infrastructure.persistence.mapper.*;
+import com.unibridge.backend.infrastructure.entities.UserIdentity;
+import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
 import com.unibridge.backend.infrastructure.util.PublicUidGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -77,6 +79,9 @@ public class VerificationService {
 
     @Autowired
     private SysVerificationCodeMapper sysVerificationCodeMapper;
+
+    @Autowired
+    private UserIdentityMapper userIdentityMapper;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -259,11 +264,24 @@ public class VerificationService {
         flow.setPayload(buildStaffPayload(request));
         sysApprovalFlowMapper.insert(flow);
 
-        // 同步 user_profile.real_name
+        // 同步 real_name 到 t_user_identity
         ClientUserProfile profile = loadProfileByUid(userUid);
-        if (profile != null && !StringUtils.hasText(profile.getRealName())) {
-            profile.setRealName(request.getRealName().trim());
-            clientUserProfileMapper.updateById(profile);
+        if (profile != null) {
+            UserIdentity identity = loadIdentityByUid(userUid);
+            if (identity == null) {
+                identity = new UserIdentity();
+                identity.setUserUid(userUid);
+                identity.setEncryptedRealName(request.getRealName().trim());
+                identity.setRealNameMask(buildRealNameMask(request.getRealName().trim()));
+                identity.setCreatedAt(LocalDateTime.now());
+                identity.setUpdatedAt(LocalDateTime.now());
+                userIdentityMapper.insert(identity);
+            } else if (!StringUtils.hasText(identity.getEncryptedRealName())) {
+                identity.setEncryptedRealName(request.getRealName().trim());
+                identity.setRealNameMask(buildRealNameMask(request.getRealName().trim()));
+                identity.setUpdatedAt(LocalDateTime.now());
+                userIdentityMapper.updateById(identity);
+            }
         }
 
         return StaffApplyResponse.builder()
@@ -336,14 +354,39 @@ public class VerificationService {
             throw BusinessException.badRequest("VERIFICATION_CODE_MASTER_NOT_FOR_ACTIVATE");
         }
 
-        // 毕业年份不一致预警：子码有 graduationYear 且与学生填写不一致 → 预留辅导员通知接口
+        // 毕业年份不一致预警：子码有 graduationYear 且与学生填写不一致 → 生成辅导员核验通知
         Integer codeGradYear = invCode.getGraduationYear();
         if (codeGradYear != null && !codeGradYear.equals(gradYear)) {
             log.warn("[VERIFICATION-CODE-MISMATCH] code={}, counselorUid={}, studentUid={}, studentRealName={}, "
                     + "codeGraduationYear={}, studentGraduationYear={} — 辅导员需核实花名册",
                     code, invCode.getCreatedBy(), userUid, request.getRealName().trim(),
                     codeGradYear, gradYear);
-            // TODO: 对接辅导员通知接口（推送、站内信等）
+
+            // 写入审核通知记录（独立申请编号，符合约束格式）
+            String datePart = LocalDateTime.now().format(DATE_FORMATTER);
+            String alertKey = "APP-" + datePart + "-" + generateApprovalSuffix(uid -> isApplicationIdUnique(uid));
+            SysApprovalFlow alertFlow = new SysApprovalFlow();
+            alertFlow.setApprovalKey(alertKey);
+            alertFlow.setBusinessType("MENTOR_AUTH");
+            alertFlow.setApplicantKey(invCode.getCreatedBy()); // 辅导员 uid
+            alertFlow.setTargetKey(entityCode);
+            alertFlow.setStatus(0); // 待处理
+
+            Map<String, Object> alertPayload = new LinkedHashMap<>();
+            alertPayload.put("type", "verification_code_mismatch");
+            alertPayload.put("code", code);
+            alertPayload.put("studentUid", userUid);
+            alertPayload.put("studentRealName", request.getRealName().trim());
+            alertPayload.put("studentId", request.getStudentId().trim());
+            alertPayload.put("studentGraduationYear", gradYear);
+            alertPayload.put("counselorGraduationYear", codeGradYear);
+
+            try {
+                alertFlow.setPayload(OBJECT_MAPPER.writeValueAsString(alertPayload));
+            } catch (JsonProcessingException e) {
+                alertFlow.setPayload("{}");
+            }
+            sysApprovalFlowMapper.insert(alertFlow);
         }
 
         // 原子递增 used_quota
@@ -356,10 +399,6 @@ public class VerificationService {
         if (rows == 0) {
             throw BusinessException.badRequest("VERIFICATION_CODE_EXHAUSTED");
         }
-
-        // 写入毕业年份到子码记录
-        invCode.setGraduationYear(gradYear);
-        sysVerificationCodeMapper.updateById(invCode);
 
         // 写入 user_auth_link
         String datePart = LocalDateTime.now().format(DATE_FORMATTER);
@@ -374,12 +413,28 @@ public class VerificationService {
         link.setRemark("activation via " + code + " grad:" + gradYear);
         userAuthLinkMapper.insert(link);
 
-        // 写入毕业年份到 user_profile
+        // 写入毕业年份到 user_profile + 同步 real_name 到 t_user_identity
         ClientUserProfile userProfile = loadProfileByUid(userUid);
         if (userProfile != null) {
             userProfile.setGraduationYear(gradYear);
-            userProfile.setRealName(request.getRealName().trim());
             clientUserProfileMapper.updateById(userProfile);
+        }
+
+        // 写入/更新 real_name 到 t_user_identity
+        UserIdentity identity = loadIdentityByUid(userUid);
+        if (identity == null) {
+            identity = new UserIdentity();
+            identity.setUserUid(userUid);
+            identity.setEncryptedRealName(request.getRealName().trim());
+            identity.setRealNameMask(buildRealNameMask(request.getRealName().trim()));
+            identity.setCreatedAt(LocalDateTime.now());
+            identity.setUpdatedAt(LocalDateTime.now());
+            userIdentityMapper.insert(identity);
+        } else {
+            identity.setEncryptedRealName(request.getRealName().trim());
+            identity.setRealNameMask(buildRealNameMask(request.getRealName().trim()));
+            identity.setUpdatedAt(LocalDateTime.now());
+            userIdentityMapper.updateById(identity);
         }
 
         // 写入 sys_approval_flows
@@ -572,30 +627,66 @@ public class VerificationService {
      * 获取本机构下的认证码列表（母码+子码）。
      */
     public CodeListResponse listCodes(String authorization) {
+        // 尝试提取 entityCode（机构管理员 token）
         String entityCode = extractEntityCodeFromToken(authorization);
-        if (!StringUtils.hasText(entityCode)) {
-            throw BusinessException.unauthorized("认证失败：无法从Token中提取主体代码，请尝试重新登录以获取新的Token");
+        // 若非机构管理员 token，尝试判定当前用户是否为 COUNSELOR
+        String userUid = accessService.resolveOptionalCurrentUserUid(authorization);
+
+        boolean isCounselor = StringUtils.hasText(userUid) && userHasRole(userUid, "COUNSELOR");
+        if (!StringUtils.hasText(entityCode) && !isCounselor) {
+            throw BusinessException.unauthorized("无权限访问认证码列表，请确认登录身份");
         }
 
         LambdaQueryWrapper<SysVerificationCode> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysVerificationCode::getEntityCode, entityCode)
-                .orderByDesc(SysVerificationCode::getIsMaster)
+
+        if (isCounselor && !StringUtils.hasText(entityCode)) {
+            // 辅导员模式：仅返回自己创建的子码
+            wrapper.eq(SysVerificationCode::getCreatedBy, userUid)
+                    .eq(SysVerificationCode::getIsMaster, 0);
+        } else {
+            // 机构管理员模式：返回本机构所有认证码
+            wrapper.eq(SysVerificationCode::getEntityCode, entityCode);
+        }
+        wrapper.orderByDesc(SysVerificationCode::getIsMaster)
                 .orderByDesc(SysVerificationCode::getCreatedAt);
 
         List<SysVerificationCode> all = sysVerificationCodeMapper.selectList(wrapper);
 
-        // 批量加载创建者名称
+        // 批量加载创建者名称（从 t_user_identity 读取 real_name_mask）
         Set<String> creatorUids = all.stream().map(SysVerificationCode::getCreatedBy)
                 .filter(StringUtils::hasText).collect(Collectors.toSet());
         Map<String, String> creatorNameMap = new HashMap<>();
         if (!creatorUids.isEmpty()) {
+            List<String> uidList = new ArrayList<>(creatorUids);
+            // 批量加载 UserIdentity
+            LambdaQueryWrapper<UserIdentity> identityWrapper = new LambdaQueryWrapper<>();
+            identityWrapper.in(UserIdentity::getUserUid, uidList);
+            List<UserIdentity> identities = userIdentityMapper.selectList(identityWrapper);
+            Map<String, UserIdentity> identityMap = new HashMap<>();
+            for (UserIdentity id : identities) {
+                identityMap.put(id.getUserUid(), id);
+            }
+            // 批量加载 user_profile（作为 fallback）
             LambdaQueryWrapper<ClientUserProfile> profileWrapper = new LambdaQueryWrapper<>();
-            profileWrapper.in(ClientUserProfile::getUserUid, new ArrayList<>(creatorUids));
+            profileWrapper.in(ClientUserProfile::getUserUid, uidList);
             List<ClientUserProfile> profiles = clientUserProfileMapper.selectList(profileWrapper);
+            Map<String, ClientUserProfile> profileMap = new HashMap<>();
             for (ClientUserProfile p : profiles) {
-                creatorNameMap.put(p.getUserUid(),
-                        StringUtils.hasText(p.getRealName()) ? p.getRealName()
-                                : StringUtils.hasText(p.getNickName()) ? p.getNickName() : "用户");
+                profileMap.put(p.getUserUid(), p);
+            }
+            for (String uid : uidList) {
+                UserIdentity id = identityMap.get(uid);
+                String maskedName = null;
+                if (id != null && StringUtils.hasText(id.getRealNameMask())) {
+                    maskedName = id.getRealNameMask();
+                }
+                if (StringUtils.hasText(maskedName)) {
+                    creatorNameMap.put(uid, maskedName);
+                } else {
+                    ClientUserProfile p = profileMap.get(uid);
+                    creatorNameMap.put(uid,
+                            p != null && StringUtils.hasText(p.getNickName()) ? p.getNickName() : "用户");
+                }
             }
         }
 
@@ -767,10 +858,11 @@ public class VerificationService {
             List<UserAuthLink> links = userAuthLinkMapper.selectList(linkWrapper);
             for (UserAuthLink link : links) {
                 ClientUserProfile profile = loadProfileByUid(link.getUserUid());
+                UserIdentity identity = loadIdentityByUid(link.getUserUid());
                 students.add(CodeStudentItem.builder()
                         .uid(link.getUserUid())
                         .nickname(profile != null && StringUtils.hasText(profile.getNickName()) ? profile.getNickName() : "用户")
-                        .realName(profile != null ? profile.getRealName() : null)
+                        .realNameMask(identity != null ? identity.getRealNameMask() : null)
                         .studentId(link.getAuthSerialNo())
                         .graduationYear(profile != null ? profile.getGraduationYear() : null)
                         .subCode(sc)
@@ -804,12 +896,33 @@ public class VerificationService {
         Set<String> uids = subs.stream().map(SysVerificationCode::getCreatedBy)
                 .filter(StringUtils::hasText).collect(Collectors.toSet());
         if (!uids.isEmpty()) {
+            List<String> uidList = new ArrayList<>(uids);
+            LambdaQueryWrapper<UserIdentity> identityWrapper = new LambdaQueryWrapper<>();
+            identityWrapper.in(UserIdentity::getUserUid, uidList);
+            List<UserIdentity> identities = userIdentityMapper.selectList(identityWrapper);
+            Map<String, UserIdentity> identityMap = new HashMap<>();
+            for (UserIdentity id : identities) {
+                identityMap.put(id.getUserUid(), id);
+            }
             LambdaQueryWrapper<ClientUserProfile> pw = new LambdaQueryWrapper<>();
-            pw.in(ClientUserProfile::getUserUid, new ArrayList<>(uids));
+            pw.in(ClientUserProfile::getUserUid, uidList);
+            Map<String, ClientUserProfile> profileMap = new HashMap<>();
             clientUserProfileMapper.selectList(pw).forEach(p ->
-                creatorNameMap.put(p.getUserUid(),
-                    StringUtils.hasText(p.getRealName()) ? p.getRealName()
-                        : StringUtils.hasText(p.getNickName()) ? p.getNickName() : "用户"));
+                profileMap.put(p.getUserUid(), p));
+            for (String uid : uidList) {
+                UserIdentity id = identityMap.get(uid);
+                String maskedName = null;
+                if (id != null && StringUtils.hasText(id.getRealNameMask())) {
+                    maskedName = id.getRealNameMask();
+                }
+                if (StringUtils.hasText(maskedName)) {
+                    creatorNameMap.put(uid, maskedName);
+                } else {
+                    ClientUserProfile p = profileMap.get(uid);
+                    creatorNameMap.put(uid,
+                            p != null && StringUtils.hasText(p.getNickName()) ? p.getNickName() : "用户");
+                }
+            }
         }
 
         List<CodeListItem> items = subs.stream().map(c -> {
@@ -932,6 +1045,17 @@ public class VerificationService {
         }
     }
 
+    /** 返回用户是否具有指定角色之一（非抛出版本）。 */
+    private boolean userHasRole(String userUid, String... allowedRoles) {
+        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserAuthLink::getUserUid, userUid)
+                .eq(UserAuthLink::getAuditStatus, "APPROVED")
+                .eq(UserAuthLink::getIsActive, 1)
+                .in(UserAuthLink::getRole, (Object[]) allowedRoles)
+                .last("LIMIT 1");
+        return userAuthLinkMapper.selectOne(wrapper) != null;
+    }
+
     // ===================== 私有辅助方法 =====================
 
     private ClientEntity loadEntityByCode(String entityCode) {
@@ -950,6 +1074,41 @@ public class VerificationService {
         LambdaQueryWrapper<ClientUserProfile> w = new LambdaQueryWrapper<>();
         w.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
         return clientUserProfileMapper.selectOne(w);
+    }
+
+    private UserIdentity loadIdentityByUid(String userUid) {
+        LambdaQueryWrapper<UserIdentity> w = new LambdaQueryWrapper<>();
+        w.eq(UserIdentity::getUserUid, userUid).last("LIMIT 1");
+        return userIdentityMapper.selectOne(w);
+    }
+
+    /**
+     * 基于真实姓名构建脱敏显示名，规则：
+     * 中文 2 字 → "张*"；中文 3 字及以上 → "张*李"
+     * 英文 → 首字母 + "***" + 尾字母
+     * 其他 → 仅显示首字符 + "***"
+     */
+    private String buildRealNameMask(String realName) {
+        if (!StringUtils.hasText(realName)) return null;
+        String name = realName.trim();
+        int len = name.length();
+        // 判断是否以中文字符开头
+        boolean isChinese = Character.UnicodeScript.of(name.charAt(0)) == Character.UnicodeScript.HAN;
+        if (isChinese) {
+            if (len == 1) {
+                return name + "*";
+            } else if (len == 2) {
+                return name.charAt(0) + "*";
+            } else {
+                return name.charAt(0) + "*" + name.charAt(len - 1);
+            }
+        }
+        // 英文/其他
+        if (len == 1) {
+            return name + "***";
+        } else {
+            return name.charAt(0) + "***" + name.charAt(len - 1);
+        }
     }
 
     private String loadEntityType(String entityCode) {

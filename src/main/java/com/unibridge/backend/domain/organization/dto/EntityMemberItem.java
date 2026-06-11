@@ -13,9 +13,10 @@ import lombok.NoArgsConstructor;
 public class EntityMemberItem {
     private String uid;
     private String nickname;
-    /** 页壳预览专用；成员 Tab 可不填 */
-    private String realName;
+    /** 脱敏展示名（来自 t_user_identity.real_name_mask，如 *同学、*经理） */
+    private String displayName;
     private String role;
     private String avatarUrl;
     private String level;
 }
+

@@ -52,7 +52,7 @@ public class UserPublicController {
         }
     }
 
-    @Operation(summary = "用户模糊搜索", description = "搜索 uid / nickname / realName，限定为本机构已审核用户，用于实验室负责人/人员添加下拉",
+    @Operation(summary = "用户模糊搜索", description = "搜索 uid / nickname / entity_name，限定为本机构已审核用户，用于实验室负责人/人员添加下拉",
             security = @SecurityRequirement(name = BEARER_AUTH))
     @GetMapping("/search")
     public Result searchUsers(

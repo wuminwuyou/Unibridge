@@ -20,8 +20,6 @@ public class ClientUserProfile {
     private Long userId;
     @TableField("nick_name")
     private String nickName;
-    @TableField("real_name")
-    private String realName;
     @TableField("avatar_url")
     private String avatarUrl;
     @TableField("current_entity_name")

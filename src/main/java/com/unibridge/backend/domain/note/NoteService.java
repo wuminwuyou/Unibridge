@@ -10,8 +10,10 @@ import com.unibridge.backend.domain.note.dto.PublishNoteRequest;
 import com.unibridge.backend.domain.note.dto.PublishNoteResponse;
 import com.unibridge.backend.infrastructure.entities.ClientNote;
 import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
+import com.unibridge.backend.infrastructure.entities.UserIdentity;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.unibridge.backend.infrastructure.util.IpUtil;
 import com.unibridge.backend.infrastructure.util.NoteContentTypeCodeGenerator;
@@ -54,17 +56,20 @@ public class NoteService {
     private final AccessService clientAccessService;
     private final ClientNoteMapper clientNoteMapper;
     private final ClientUserProfileMapper clientUserProfileMapper;
+    private final UserIdentityMapper userIdentityMapper;
     private final NoteViewTracker noteViewTracker;
     private final ContentUidResolver contentUidResolver;
 
     public NoteService(AccessService clientAccessService,
                              ClientNoteMapper clientNoteMapper,
                              ClientUserProfileMapper clientUserProfileMapper,
+                             UserIdentityMapper userIdentityMapper,
                              NoteViewTracker noteViewTracker,
                              ContentUidResolver contentUidResolver) {
         this.clientAccessService = clientAccessService;
         this.clientNoteMapper = clientNoteMapper;
         this.clientUserProfileMapper = clientUserProfileMapper;
+        this.userIdentityMapper = userIdentityMapper;
         this.noteViewTracker = noteViewTracker;
         this.contentUidResolver = contentUidResolver;
     }
@@ -241,8 +246,12 @@ public class NoteService {
         String name = "用户";
         if (profile != null && StringUtils.hasText(profile.getNickName())) {
             name = profile.getNickName().trim();
-        } else if (profile != null && StringUtils.hasText(profile.getRealName())) {
-            name = profile.getRealName().trim();
+        } else if (profile != null) {
+            // real_name 已迁移至 t_user_identity，优先取脱敏展示名
+            UserIdentity identity = loadIdentity(profile.getUserUid());
+            if (identity != null && StringUtils.hasText(identity.getRealNameMask())) {
+                name = identity.getRealNameMask().trim();
+            }
         }
 
         return NoteDetailResponse.Author.builder()
@@ -452,5 +461,11 @@ public class NoteService {
             return null;
         }
         return dateTime.atZone(ZONE_SHANGHAI).format(ISO_OFFSET_FORMATTER);
+    }
+
+    private UserIdentity loadIdentity(String userUid) {
+        LambdaQueryWrapper<UserIdentity> w = new LambdaQueryWrapper<>();
+        w.eq(UserIdentity::getUserUid, userUid).last("LIMIT 1");
+        return userIdentityMapper.selectOne(w);
     }
 }

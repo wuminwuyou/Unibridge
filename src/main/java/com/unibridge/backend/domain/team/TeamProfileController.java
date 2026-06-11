@@ -44,7 +44,7 @@ public class TeamProfileController {
         return Result.success(TeamProfileService.getTeamProfileHome(teamUid, projectLimit, noteLimit, achievementLimit));
     }
 
-    @Operation(summary = "团队成员 Tab", description = "完整成员列表；团队成员登录可见 real_name，否则 nickname")
+    @Operation(summary = "团队成员 Tab", description = "完整成员列表；团队成员登录可见 real_name_mask，否则 nickname")
     @GetMapping("/members")
     public Result getTeamProfileMembers(
             @RequestHeader(value = "Authorization", required = false) String authorization,

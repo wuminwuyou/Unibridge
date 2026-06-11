@@ -64,10 +64,6 @@ public class ProjectPublisherEntityResolver {
     }
 
     private String fallbackOrganizationName(String ownerUid) {
-        ClientUserProfile profile = loadUserProfile(ownerUid);
-        if (profile != null && StringUtils.hasText(profile.getCurrentEntityName())) {
-            return profile.getCurrentEntityName().trim();
-        }
         return "";
     }
 

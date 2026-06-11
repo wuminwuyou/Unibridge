@@ -21,6 +21,7 @@ import com.unibridge.backend.infrastructure.entities.ClientTeamMember;
 import com.unibridge.backend.infrastructure.entities.ClientUser;
 import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
 import com.unibridge.backend.infrastructure.entities.UserAuthLink;
+import com.unibridge.backend.infrastructure.entities.UserIdentity;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientProjectCommercialSecretMapper;
@@ -29,6 +30,7 @@ import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMemberMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
 import com.unibridge.backend.domain.auth.AccessService;
 import com.unibridge.backend.infrastructure.common.BusinessException;
@@ -117,6 +119,9 @@ public class UserProfileService {
 
     @Autowired
     private ClientNoteMapper clientNoteMapper;
+
+    @Autowired
+    private UserIdentityMapper userIdentityMapper;
 
     /** UserProfileMenu 顶部菜单初始化数据，含三级认证状态。 */
     public ProfileMenuResponse getProfileMenu(String authorization, String queryUid) {
@@ -317,7 +322,7 @@ public class UserProfileService {
                 return entityProfile.getName();
             }
         }
-        return nullSafe(profile == null ? null : profile.getCurrentEntityName());
+        return null;
     }
 
     private ProfileSpaceResponse.ExtendInfo buildExtendInfo(ClientUser user,
@@ -338,7 +343,7 @@ public class UserProfileService {
      * 实名/认证状态判定：
      * <ul>
      *   <li>机构认证：user_auth_link.audit_status=APPROVED 且 is_active=1</li>
-     *   <li>已实名：user_profile.real_name 非空（含毕业/退出机构 is_active=0 时的回退）</li>
+     *   <li>已实名：t_user_identity.verified_at 非空（含毕业/退出机构 is_active=0 时的回退）</li>
      * </ul>
      */
     private String resolveVerifyStatus(ClientUserProfile profile, UserAuthLink authLink) {
@@ -355,11 +360,13 @@ public class UserProfileService {
         return "";
     }
 
-    /** 已实名：user_profile.real_name 非空。 */
+    /** 已实名：t_user_identity.verified_at 非空。 */
     private boolean isRealNameVerified(ClientUserProfile profile) {
-        return profile != null
-                && profile.getRealName() != null
-                && !profile.getRealName().isBlank();
+        if (profile == null) {
+            return false;
+        }
+        UserIdentity identity = loadIdentity(profile.getUserUid());
+        return identity != null && identity.getVerifiedAt() != null;
     }
 
     /** 机构认证通过：user_auth_link.audit_status=APPROVED 且 is_active=1。 */
@@ -374,6 +381,12 @@ public class UserProfileService {
         LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
         return clientUserProfileMapper.selectOne(wrapper);
+    }
+
+    private UserIdentity loadIdentity(String userUid) {
+        LambdaQueryWrapper<UserIdentity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserIdentity::getUserUid, userUid).last("LIMIT 1");
+        return userIdentityMapper.selectOne(wrapper);
     }
 
     private UserAuthLink loadCurrentAuthLink(String userUid) {
@@ -808,15 +821,16 @@ public class UserProfileService {
             throw BusinessException.forbidden("USER_NOT_VERIFIED");
         }
 
-        String realName = profile != null && StringUtils.hasText(profile.getRealName())
-                ? profile.getRealName().trim() : null;
+        UserIdentity identity = loadIdentity(uid.trim());
+        String realName = identity != null && StringUtils.hasText(identity.getRealNameMask())
+                ? identity.getRealNameMask().trim() : null;
         String nickname = profile != null && StringUtils.hasText(profile.getNickName())
                 ? profile.getNickName().trim() : "用户";
         String role = authLink.getRole();
 
         return UserVerifiedPreviewResponse.builder()
                 .uid(user.getUserUid())
-                .realName(realName)
+                .realNameMask(realName)
                 .nickname(nickname)
                 .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
                 .verified(true)
@@ -829,16 +843,16 @@ public class UserProfileService {
     /**
      * 三级认证状态判定。
      * <ul>
-     *   <li>{@code "unverified"}：未身份验证（real_name 为空）</li>
-     *   <li>{@code "identity_only"}：仅身份验证（real_name 非空但无 APPROVED 机构认证）</li>
+     *   <li>{@code "unverified"}：未身份验证（t_user_identity.verified_at 为空）</li>
+     *   <li>{@code "identity_only"}：仅身份验证（verified_at 非空但无 APPROVED 机构认证）</li>
      *   <li>{@code "verified"}：身份验证 + 机构认证均已通过</li>
      * </ul>
-     * 身份验证来源：{@code user_profile.real_name} 非空。
+     * 身份验证来源：{@code t_user_identity.verified_at} 非空。
      * 机构认证来源：{@code user_auth_link.audit_status = 'APPROVED' AND is_active = 1}。
      */
     private String resolveVerifyStatus(String userUid) {
-        ClientUserProfile profile = loadProfile(userUid);
-        boolean identityVerified = profile != null && StringUtils.hasText(profile.getRealName());
+        UserIdentity identity = loadIdentity(userUid);
+        boolean identityVerified = identity != null && identity.getVerifiedAt() != null;
 
         LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserAuthLink::getUserUid, userUid)
