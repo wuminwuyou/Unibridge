@@ -1,47 +1,47 @@
 -- =========================================================================
 -- 测试数据：db.sql 业务表 + note（10 条，便于 Feed 换一换联调）
--- 前置：已执行 init-db.ps1 或 db.sql 建表；system_admin 种子数据已存在
+-- 前置：已执行 init-db.ps1 或 db.sql 建表；sys_admin 种子数据已存在
 -- 不包含主体账号管理员(sys_entity_totp_credentials)和认证码(sys_verification_codes)数据
 -- 主体根密码：SHA256("123456")
 -- =========================================================================
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-TRUNCATE TABLE achievement_archive;
+TRUNCATE TABLE t_project_achievement;
 TRUNCATE TABLE t_user_identity;
-TRUNCATE TABLE project_commercial_secret;
-TRUNCATE TABLE project;
-TRUNCATE TABLE team_member;
-TRUNCATE TABLE team;
-TRUNCATE TABLE user_auth_link;
-TRUNCATE TABLE note;
+TRUNCATE TABLE t_project_secret;
+TRUNCATE TABLE t_project;
+TRUNCATE TABLE t_team_member;
+TRUNCATE TABLE t_team;
+TRUNCATE TABLE t_user_organization_binding;
+TRUNCATE TABLE t_user_note;
 TRUNCATE TABLE sys_credit_logs;
 TRUNCATE TABLE sys_credit_profiles;
-TRUNCATE TABLE user_profile;
-TRUNCATE TABLE `user`;
-TRUNCATE TABLE entity_profile;
-TRUNCATE TABLE entity;
+TRUNCATE TABLE p_user_profile;
+TRUNCATE TABLE t_user;
+TRUNCATE TABLE p_tenant_org_profile;
+TRUNCATE TABLE t_tenant_organization;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
 SET @pwd_entity = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
 
-INSERT INTO entity (id, entity_code, password_hash, balance, audit_status, audit_admin_id, audited_at, account_status, last_login_at) VALUES
+INSERT INTO t_tenant_organization (id, entity_code, password_hash, balance, audit_status, audit_admin_id, audited_at, account_status, last_login_at) VALUES
 (1, '10598', @pwd_entity, 50000.00,  'APPROVED', 'admin_master',  '2026-01-10 09:00:00', 'ACTIVE', '2026-05-01 08:30:00'),
 (2, '10003', @pwd_entity, 120000.00, 'APPROVED', 'admin_manager', '2026-01-12 10:00:00', 'ACTIVE', '2026-05-02 09:15:00'),
 (3, '91440300708461136T', @pwd_entity, 500000.00, 'APPROVED', 'admin_auditor', '2026-01-15 14:00:00', 'ACTIVE', '2026-05-03 11:00:00');
 
-INSERT INTO entity_profile (id, entity_code, name, location, type, logo_url, banner_url, intro, announcement) VALUES
+INSERT INTO p_tenant_org_profile (id, entity_code, name, location, type, logo_url, banner_url, intro, announcement) VALUES
 (1, '10598', '深圳大学', '广东·深圳', 'UNIVERSITY', 'https://cdn.example.com/logo/szu.png', 'https://cdn.example.com/banner/szu.jpg', '特区综合性大学，产学研协同创新', '2026 春季产学研合作季正式启动'),
 (2, '10003', '清华大学', '北京·海淀', 'UNIVERSITY', 'https://cdn.example.com/logo/thu.png', 'https://cdn.example.com/banner/thu.jpg', '国内顶尖研究型大学', '欢迎企业发布联合科研课题'),
 (3, '91440300708461136T', '深圳市腾讯计算机系统有限公司', '广东·深圳', 'ENTERPRISE', 'https://cdn.example.com/logo/tencent.png', 'https://cdn.example.com/banner/tencent.jpg', '互联网与数字产业领军企业', '开放多个校企联合研发岗位');
 
-INSERT INTO `user` (id, user_uid, phone, email, password_hash, account_status, last_login_at) VALUES
+INSERT INTO t_user (id, user_uid, phone, email, password_hash, account_status, last_login_at) VALUES
 (1, 'US00000000001', '13800001001', 'zhangming@test.com',  @pwd_entity, 'ACTIVE', '2026-05-20 18:00:00'),
 (2, 'US00000000002', '13800001002', 'limentor@test.com',   @pwd_entity, 'ACTIVE', '2026-05-20 19:30:00'),
 (3, 'US00000000003', '13800001003', 'wangpm@tencent.com',  @pwd_entity, 'ACTIVE', '2026-05-21 09:00:00');
 
-INSERT INTO user_profile (id, user_uid, nick_name, avatar_url, level, bio_data, career_data, graduation_year, education_history, intro, announcement) VALUES
+INSERT INTO p_user_profile (id, user_uid, nick_name, avatar_url, level, bio_data, career_data, graduation_year, education_history, intro, announcement) VALUES
 (1, 'US00000000001', '用户#1001', 'https://api.dicebear.com/9.x/initials/svg?seed=ZM', 'SR',
  JSON_ARRAY('Java', 'Spring Boot', 'MySQL'),
  JSON_OBJECT('school', '深圳大学', 'major', '软件工程', 'grade', '2022级'),
@@ -55,7 +55,7 @@ INSERT INTO user_profile (id, user_uid, nick_name, avatar_url, level, bio_data, 
  JSON_OBJECT('title', '高级项目经理', 'department', 'CSIG'),
  NULL, NULL, '负责校企合作项目对接', '欢迎高校团队投递方案');
 
-INSERT INTO user_auth_link (id, user_uid, entity_code, role, auth_serial_no, proof_artifact_url, audit_status, audit_uid, audited_at, is_active, remark) VALUES
+INSERT INTO t_user_organization_binding (id, user_uid, entity_code, role, auth_serial_no, proof_artifact_url, audit_status, audit_uid, audited_at, is_active, remark) VALUES
 (1, 'US00000000001', '10598', 'STUDENT', '2022001001', 'https://cdn.example.com/proof/student-zhang.jpg', 'PENDING', NULL, NULL, 1, NULL),
 (2, 'US00000000002', '10598', 'MENTOR',  'T2020008',   'https://cdn.example.com/proof/mentor-li.jpg',    'PENDING', NULL, NULL, 1, NULL),
 (3, 'US00000000003', '91440300708461136T', 'PM', 'E10086', 'https://cdn.example.com/proof/pm-wang.jpg', 'PENDING', NULL, NULL, 1, NULL);
@@ -81,7 +81,7 @@ INSERT INTO sys_credit_logs (id, user_uid, change_amount, score_before, score_af
 (5, 'US00000000003', 600,   0, 600, 'REGISTER',         NULL,            'SYSTEM',       '注册初始化信用分',           '2026-05-01 10:00:00'),
 (6, 'US00000000003',  80, 600, 680, 'PROJECT_COMPLETE', 'PR20212345678', 'SYSTEM',       '项目发布履约加分',         '2026-05-21 09:00:00');
 
-INSERT INTO team (id, team_uid, type, owner_uid, owner_name, entity_code, team_name, tag, intro, announcement, contact_email, audit_status, audit_uid, audited_at, account_status) VALUES
+INSERT INTO t_team (id, team_uid, type, owner_uid, owner_name, entity_code, team_name, tag, intro, announcement, contact_email, audit_status, audit_uid, audited_at, account_status) VALUES
 (1, 'LB00000000001', 'LAB', 'US00000000002', '李导师', '10598', '深大 AI 实验室',
  JSON_ARRAY('人工智能', '深度学习', 'NLP'), '聚焦 NLP 与知识图谱方向',
  '2026 春季招新进行中，欢迎对 NLP 感兴趣的同学加入', 'lab-ai@szu.edu.cn',
@@ -95,13 +95,13 @@ INSERT INTO team (id, team_uid, type, owner_uid, owner_name, entity_code, team_n
  '联合实验室开放企业合作项目对接', 'lab-se@tsinghua.edu.cn',
  'APPROVED', NULL, NULL, 'ACTIVE');
 
-INSERT INTO team_member (id, team_uid, user_uid, role, lab_user_uid, career, is_admin, invited_by_uid) VALUES
+INSERT INTO t_team_member (id, team_uid, user_uid, role, lab_user_uid, career, is_admin, invited_by_uid) VALUES
 (1, 'LB00000000001', 'US00000000002', 'MENTOR', NULL, 'NLP · 知识图谱', 1, NULL),
 (2, 'LB00000000001', 'US00000000001', 'MEMBER', 'US00000000001', '前端开发', 0, 'US00000000002'),
 (3, 'ST00000000001', 'US00000000001', 'LEADER', NULL, '后端开发', 1, NULL),
 (4, 'LB00000000002', 'US00000000002', 'MENTOR', NULL, '软件工程 · 云原生', 1, NULL);
 
-INSERT INTO project (id, project_uid, extended_uid, category, recruitment_type, owner_uid, team_uid, title, preview, editor_type, description, tags, duration, team_size, deadline, level, status, published_at) VALUES
+INSERT INTO t_project (id, project_uid, extended_uid, category, recruitment_type, owner_uid, team_uid, title, preview, editor_type, description, tags, duration, team_size, deadline, level, status, published_at) VALUES
 (1, 'PR20212345678', '91440300708461136T', 'COMMERCIAL', NULL, 'US00000000003', NULL, '智能客服系统研发',
  '面向客服场景的多轮对话与工单联动系统', 'MARKDOWN',
  '# 项目背景\n\n企业希望建设面向客服场景的多轮对话与工单联动系统。',
@@ -118,12 +118,12 @@ INSERT INTO project (id, project_uid, extended_uid, category, recruitment_type, 
  JSON_ARRAY('移动端', '社交', '外包'), '6 周', '2-4 人', '2026-07-01', 'R', 'OPEN',
  '2026-05-01 09:30:00');
 
-INSERT INTO project_commercial_secret (project_uid, total_budget, commercial_status) VALUES
+INSERT INTO t_project_secret (project_uid, total_budget, commercial_status) VALUES
 ('PR20212345678', 500000.00, 'PENDING_START'),
 ('PRnews1234567', 800000.00, 'PROCESSING'),
 ('PR1T1w2K4x6O8', 300000.00, 'SUBMIT_REVIEW');
 
-INSERT INTO note (
+INSERT INTO t_user_note (
   id, user_uid, content_type_code, extended_uid, title, summary, editor_type, content, cover_url,
   video_url, video_duration, tags,
   view_count, like_count, collect_count, comment_count, status, published_at, created_at
@@ -209,7 +209,7 @@ INSERT INTO note (
  JSON_ARRAY('答辩', '产学研', '演讲'),
  388, 52, 24, 9, 'PUBLISHED', '2026-05-10 18:30:00', '2026-05-10 18:30:00');
 
-INSERT INTO achievement_archive (
+INSERT INTO t_project_achievement (
   id, achievement_uid, user_uid, source_project_uid, masked_project_name, task_description, technical_tags, completed_at
 ) VALUES
 (1, 'AC20212345678', 'US00000000001', 'PR1T1w2K4x6O8', '校园社交 App（脱敏）',

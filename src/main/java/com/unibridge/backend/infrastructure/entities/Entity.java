@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("entity")
+@TableName("tenant_organization")
 public class Entity {
     @TableId(type = IdType.AUTO)
     private Long id;

@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 /** 商业项目敏感扩展，映射 `project_commercial_secret` 表。 */
 @Data
-@TableName("project_commercial_secret")
+@TableName("project_secret")
 public class ClientProjectCommercialSecret {
     @TableId("project_id")
     private Long projectId;

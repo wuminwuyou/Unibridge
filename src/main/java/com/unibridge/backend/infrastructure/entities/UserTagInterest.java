@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 
 /** 用户标签兴趣画像，映射 {@code user_tag_interests}。 */
 @Data
-@TableName("user_tag_interests")
+@TableName("p_user_interest_tag")
 public class UserTagInterest {
     @TableId(type = IdType.AUTO)
     private Long id;

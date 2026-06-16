@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 /** 用户内容互动状态，映射 {@code user_content_interaction}。 */
 @Data
-@TableName("user_content_interaction")
+@TableName("user_interaction")
 public class UserContentInteraction {
     @TableId(type = IdType.AUTO)
     private Long id;

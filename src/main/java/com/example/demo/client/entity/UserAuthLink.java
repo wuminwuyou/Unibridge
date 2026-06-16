@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  * 用户与主体认证关系实体，映射 `user_auth_link` 表。
  */
 @Data
-@TableName("user_auth_link")
+@TableName("user_organization_binding")
 public class UserAuthLink {
     @TableId(type = IdType.AUTO)
     private Long id;

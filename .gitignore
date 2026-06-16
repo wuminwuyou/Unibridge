@@ -22,6 +22,8 @@ target/
 logs/*
 db-*.sql
 *-admin.md
+projectDescription.md
+InstentMessage.sql
 
 ### NetBeans ###
 /nbproject/private/

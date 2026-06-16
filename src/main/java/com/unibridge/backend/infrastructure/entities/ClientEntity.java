@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  * Client 端主体账号实体，映射 `entity` 表。
  */
 @Data
-@TableName("entity")
+@TableName("tenant_organization")
 public class ClientEntity {
     @TableId(type = IdType.AUTO)
     private Long id;

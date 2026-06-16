@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 /** 主体档案实体，映射 `entity_profile` 表。 */
 @Data
-@TableName("entity_profile")
+@TableName("p_tenant_org_profile")
 public class ClientEntityProfile {
     @TableId(type = IdType.AUTO)
     private Long id;

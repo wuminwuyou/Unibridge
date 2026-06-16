@@ -62,7 +62,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "[4/4] Verifying admin seed data"
-$adminCount = & $MySqlExe -h $MySqlHost -P $MySqlPort -u $MySqlUser "-p$MySqlPassword" -N -D $DatabaseName -e "SELECT COUNT(*) FROM system_admin;"
+$adminCount = & $MySqlExe -h $MySqlHost -P $MySqlPort -u $MySqlUser "-p$MySqlPassword" -N -D $DatabaseName -e "SELECT COUNT(*) FROM sys_admin;"
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to query admin seed data."
 }
@@ -71,7 +71,7 @@ Write-Host ""
 Write-Host "Database initialization completed."
 Write-Host "Database: $DatabaseName"
 Write-Host "Total tables: $tableCount"
-Write-Host "system_admin rows: $adminCount"
+Write-Host "sys_admin rows: $adminCount"
 Write-Host ""
 Write-Host "Tip: If password differs from application-dev.properties, pass it explicitly:"
 Write-Host ".\init-db.ps1 -MySqlPassword '<your_password>'"

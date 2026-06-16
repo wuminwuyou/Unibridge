@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  * Client 端个人资料实体，映射 `user_profile` 表。
  */
 @Data
-@TableName("user_profile")
+@TableName("p_user_profile")
 public class ClientUserProfile {
     @TableId(type = IdType.AUTO)
     private Long id;

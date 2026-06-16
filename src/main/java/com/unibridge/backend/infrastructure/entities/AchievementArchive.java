@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 /** 成就归档实体，映射 `achievement_archive` 表。 */
 @Data
-@TableName("achievement_archive")
+@TableName("project_achievement")
 public class AchievementArchive {
     @TableId(type = IdType.AUTO)
     private Long id;

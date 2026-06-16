@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 /** 文件资产记录，映射 {@code file_records} 表。 */
 @Data
-@TableName("file_records")
+@TableName("file_record")
 public class FileRecord {
     @TableId(type = IdType.AUTO)
     private Long id;

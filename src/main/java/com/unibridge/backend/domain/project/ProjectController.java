@@ -46,7 +46,7 @@ public class ProjectController {
         return Result.success(projectService.updateProject(authorization, uid, request));
     }
 
-    @Operation(summary = "项目详情", description = "已发布项目公开详情")
+    @Operation(summary = "项目详情", description = "已发布项目详情，需要登录", security = @SecurityRequirement(name = BEARER_AUTH))
     @GetMapping("/{uid}")
     public Result getProjectDetail(
             @RequestHeader(value = "Authorization", required = false) String authorization,

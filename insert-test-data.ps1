@@ -48,16 +48,16 @@ Invoke-MySql -Arguments @(
 
 Write-Host "[2/3] Verifying row counts"
 $expectedCounts = @{
-    entity                     = 3
-    entity_profile             = 3
-    user                       = 3
-    user_profile               = 3
-    user_auth_link             = 3
-    team                       = 3
-    team_member                = 4
-    project                    = 3
-    project_commercial_secret  = 3
-    note                       = 10  # 10 条便于 Feed 换一换联调
+    t_tenant_organization      = 3
+    p_tenant_org_profile       = 3
+    t_user                     = 3
+    p_user_profile             = 3
+    t_user_organization_binding = 3
+    t_team                     = 3
+    t_team_member              = 4
+    t_project                  = 3
+    t_project_secret           = 3
+    t_user_note                = 10  # 10 条便于 Feed 换一换联调
     sys_credit_profiles        = 3
     sys_credit_logs            = 6
 }
@@ -65,11 +65,7 @@ $expectedCounts = @{
 foreach ($entry in $expectedCounts.GetEnumerator() | Sort-Object Name) {
     $table = $entry.Key
     $expected = $entry.Value
-    if ($table -eq "user") {
-        $countSql = "SELECT COUNT(*) FROM ``user``;"
-    } else {
-        $countSql = "SELECT COUNT(*) FROM $table;"
-    }
+    $countSql = "SELECT COUNT(*) FROM $table;"
     $count = & $MySqlExe -h $MySqlHost -P $MySqlPort -u $MySqlUser "-p$MySqlPassword" -N -D $DatabaseName -e $countSql
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to query row count for $table."

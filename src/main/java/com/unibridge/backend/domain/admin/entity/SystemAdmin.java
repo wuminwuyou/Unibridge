@@ -8,7 +8,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("system_admin")
+@TableName("sys_admin")
 public class SystemAdmin {
     @TableId(type = IdType.INPUT)
     private String id;

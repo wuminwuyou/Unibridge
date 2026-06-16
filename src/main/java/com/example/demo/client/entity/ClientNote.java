@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 /** 笔记实体，映射 `note` 表。 */
 @Data
-@TableName("note")
+@TableName("user_note")
 public class ClientNote {
     @TableId(type = IdType.AUTO)
     private Long id;

@@ -143,16 +143,16 @@ public class ProjectService {
     }
 
     /**
-     * 查询项目详情（公开读 + 草稿 owner 读）。
+     * 查询项目详情（需登录鉴权）。
      * <ul>
-     *   <li>已发布（OPEN/ONGOING/CLOSED）：可不登录</li>
-     *   <li>草稿（DRAFT）：仅 owner 可读；未登录或非 owner 分别返回 404 / 403</li>
+     *   <li>已发布（OPEN/ONGOING/CLOSED）：登录后可见</li>
+     *   <li>草稿（DRAFT）：仅 owner 可读；非 owner 返回 403</li>
      * </ul>
      */
     public ProjectDetailResponse getProjectDetail(String authorization, String projectUid) {
         ClientProject project = contentUidResolver.requireProjectByUid(projectUid);
 
-        String currentUserUid = clientAccessService.resolveOptionalCurrentUserUid(authorization);
+        String currentUserUid = clientAccessService.requireCurrentUserUid(authorization);
         assertProjectReadable(project, currentUserUid);
 
         ClientProjectCommercialSecret secret = loadCommercialSecret(project.getProjectUid());
@@ -194,9 +194,6 @@ public class ProjectService {
             return;
         }
         if (!STATUS_DRAFT.equals(project.getStatus())) {
-            throw BusinessException.notFound("PROJECT_NOT_FOUND");
-        }
-        if (currentUserUid == null) {
             throw BusinessException.notFound("PROJECT_NOT_FOUND");
         }
         if (!currentUserUid.equals(project.getOwnerUid())) {
