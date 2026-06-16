@@ -214,9 +214,9 @@ web-client/
 | `/org/:code`, `/org/:code/:tab` | 机构空间 | 否 |
 | `/verify` | 实名认证 | 是 |
 | `/verify/organization` | 机构员工认证 | 是 |
-| `/project-detail` | 项目详情 | 否 |
+| `/project-detail` | 项目详情 | 是 |
 | `/note-detail` | 笔记详情 | 否 |
-| `/messages` | 即时通讯 | 否 |
+| `/messages` | 即时通讯 | 是 |
 | `/publish/project` | 发布项目 | 是 |
 | `/publish/note` | 发布笔记 | 是 |
 | `/publish/markdown-editor` | 在线编辑器 | 是 |

@@ -1,0 +1,33 @@
+/* 01）IM 页面容器与布局（im-page / im-layout） */
+.im-page {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #09090b;
+  color: #e4e4e7;
+  display: flex;
+  flex-direction: column;
+}
+
+:root:not([data-theme='dark']) .im-page {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.im-layout {
+  flex: 1;
+  display: flex;
+  overflow: visible;
+  width: 100%;
+}
+
+/* 02）右栏聊天列（im-chat-column） */
+.im-chat-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 03）子组件样式由 InstantMessagePage.tsx 直接 import */

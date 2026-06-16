@@ -18,6 +18,9 @@ db.sql
 # API 需求文档
 API-request.md
 
+# UI/UX 设计文档
+design.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

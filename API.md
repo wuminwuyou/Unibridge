@@ -1449,7 +1449,7 @@ sequenceDiagram
 
 - **写接口**（`POST` / `PUT`）与 **草稿读接口**（`GET .../draft`）：需要登录态。
 - **详情读接口**（`GET /projects/{id}`、`GET /notes/{id}`）：
-  - `status` 为已发布态（项目 `OPEN|ONGOING|CLOSED`、笔记 `PUBLISHED`）：**可不登录**（公开读）。
+  - `status` 为已发布态（项目 `OPEN|ONGOING|CLOSED`、笔记 `PUBLISHED`）：**需要登录状态**。
   - `status=DRAFT`：仅 **owner** 登录后可读。
   - 笔记 `status=BANNED`：一律不可读（返回 `NOTE_NOT_FOUND` 或 `NOTE_BANNED`）。
 - 需要登录时，请求头统一携带：

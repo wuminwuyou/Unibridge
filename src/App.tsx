@@ -47,9 +47,23 @@ const appRouter = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  { path: '/project-detail', element: <ProjectDetailPage /> },
+  {
+    path: '/project-detail',
+    element: (
+      <ProtectedRoute>
+        <ProjectDetailPage />
+      </ProtectedRoute>
+    ),
+  },
   { path: '/note-detail', element: <NoteReaderPage /> },
-  { path: '/messages', element: <InstantMessagePage /> },
+  {
+    path: '/messages',
+    element: (
+      <ProtectedRoute>
+        <InstantMessagePage />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/publish/project',
     element: (
