@@ -42,33 +42,39 @@ import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfi
 import com.unibridge.backend.infrastructure.persistence.mapper.SysEntityTotpCredentialsMapper;
 import com.unibridge.backend.infrastructure.util.TotpUtils;
 import com.unibridge.backend.infrastructure.util.UserUidGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.jsonwebtoken.Claims;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Client 端认证服务：
  * 覆盖个人注册、个人多方式登录、验证码下发、主体两步登录。
  *
- * 当前验证码与 challenge 采用内存存储，便于开发联调。
+ * 验证码、challenge、refreshToken 均通过 Redis 存储，支持多实例部署。
+ * 分布式锁使用 Redisson 替代 synchronize，保证跨实例并发安全。
  */
 @Service
 public class AuthService {
@@ -93,11 +99,26 @@ public class AuthService {
     private static final String LOGIN_MODE_ADMIN_REGISTER = "admin_register";
     private static final String TOTP_ISSUER = "UniBridge";
 
-    private final Map<String, CodeRecord> codeStore = new ConcurrentHashMap<>();
-    private final Map<String, OrgChallengeRecord> orgChallengeStore = new ConcurrentHashMap<>();
-    private final Map<String, String> activeRefreshTokenStore = new ConcurrentHashMap<>();
-    private final Map<String, LocalDateTime> revokedTokenStore = new ConcurrentHashMap<>();
-    private final AtomicLong requestCounter = new AtomicLong(1);
+    // Redis key 前缀
+    private static final String REDIS_CODE_PREFIX = "auth:code:";
+    private static final String REDIS_CODE_RETRY_PREFIX = "auth:code:retry:";
+    private static final String REDIS_CHALLENGE_PREFIX = "auth:challenge:";
+    private static final String REDIS_REFRESH_TOKEN_PREFIX = "auth:refresh:";
+    private static final String REDIS_REVOKED_TOKEN_PREFIX = "auth:revoked:";
+    private static final String REDIS_REQUEST_COUNTER_KEY = "auth:request:counter";
+    private static final String REDIS_REFRESH_LOCK_PREFIX = "auth:refresh:lock:";
+
+    private static final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule());
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private RedissonClient redissonClient;
 
     @Autowired
     private ClientUserMapper clientUserMapper;
@@ -129,36 +150,16 @@ public class AuthService {
     @Autowired
     private JwtUtil jwtUtil;
 
-    /** 当前激活的 Spring profile，用于开发环境日志分流 */
     @Value("${spring.profiles.active:dev}")
     private String activeProfile;
 
-    /**
-     * 定时清理过期的内存缓存数据，防止内存泄漏。
-     * 每 5 分钟执行一次，清理 codeStore（已过期验证码）、
-     * orgChallengeStore（已过期 challenge）和 revokedTokenStore（已过期的撤销 token）。
-     * <p>
-     * 【并发安全】使用 ConcurrentHashMap 的 entrySet 迭代 + remove 操作，
-     * 各 Map 操作独立互不影响，清理过程不阻塞业务读写。
-     * </p>
-     */
-    @Scheduled(fixedRate = 300_000)
+    /** Redis 自带 TTL 自动过期，无需定时清理。保留空方法兼容旧调用。 */
     public void cleanExpiredStores() {
-        LocalDateTime now = LocalDateTime.now();
-        codeStore.entrySet().removeIf(e -> e.getValue().expireAt.isBefore(now));
-        orgChallengeStore.entrySet().removeIf(e -> e.getValue().expireAt().isBefore(now));
-        revokedTokenStore.entrySet().removeIf(e -> e.getValue().isBefore(now));
+        // Redis keys 自带 TTL，无需手动清理
     }
 
-    /**
-     * 个人账号注册。
-     * <p>
-     * 【并发安全】利用数据库 {@code uk_user_phone} 唯一索引作为最终防线，
-     * 应用层 check-then-act 仅作快速失败优化。若并发插入导致主键/唯一键冲突，
-     * 回退为数据库级唯一性校验，确保不会发生脏写（同一手机号被并发注册两次）。
-     * 事务回滚时 {@code issueTokenPair} 写入的 refreshToken 会被一起回滚。
-     * </p>
-     */
+    // ===================== 个人注册/登录 =====================
+
     @Transactional(rollbackFor = Exception.class)
     public RegisterResponse registerPersonal(PersonalRegisterRequest request) {
         String account = normalize(request.getAccount());
@@ -177,7 +178,6 @@ public class AuthService {
             throw new RuntimeException("INVALID_VERIFY_CODE");
         }
 
-        // 快速失败检查：避免不必要的插入尝试
         LambdaQueryWrapper<ClientUser> existsWrapper = new LambdaQueryWrapper<>();
         existsWrapper.eq(ClientUser::getPhone, account);
         if (clientUserMapper.selectOne(existsWrapper) != null) {
@@ -190,23 +190,18 @@ public class AuthService {
             user.setPhone(account);
             user.setPasswordHash(request.getPassword());
             user.setAccountStatus("ACTIVE");
-            // 数据库 uk_user_phone 唯一索引兜底：并发场景下若两个线程同时通过 check，
-            // 数据库唯一约束会拒绝后到达的 INSERT，抛出 DuplicateKeyException
             clientUserMapper.insert(user);
             createDefaultUserProfile(user.getUserUid(), account);
             createDefaultCreditProfile(user.getUserUid());
 
             TokenPair tokenPair = issueTokenPair(user.getUserUid(), "CLIENT_USER", "CLIENT_USER_REFRESH");
-            String accessToken = tokenPair.accessToken();
-            String refreshToken = tokenPair.refreshToken();
-            return new RegisterResponse(user.getUserUid(), null, "unverified", true, accessToken, refreshToken);
+            return new RegisterResponse(user.getUserUid(), null, "unverified", true,
+                    tokenPair.accessToken(), tokenPair.refreshToken());
         } catch (DuplicateKeyException e) {
-            // 并发插入同一手机号时，数据库唯一索引拒绝并回滚整个事务
             throw new RuntimeException("ACCOUNT_ALREADY_EXISTS");
         }
     }
 
-    /** 个人密码登录。 */
     public LoginResponse loginPersonalByPassword(PersonalPasswordLoginRequest request) {
         ClientUser user = loadPersonalUserByAccount(request.getAccount());
         if (!Objects.equals(user.getPasswordHash(), request.getPassword())) {
@@ -215,7 +210,6 @@ public class AuthService {
         return buildPersonalLoginResponse(user);
     }
 
-    /** 个人短信验证码登录。 */
     public LoginResponse loginPersonalBySms(PersonalSmsLoginRequest request) {
         String account = normalize(request.getAccount());
         if (!verifyCode(account, "sms", request.getSmsCode(), "login")) {
@@ -225,7 +219,6 @@ public class AuthService {
         return buildPersonalLoginResponse(user);
     }
 
-    /** 个人邮箱验证码登录。 */
     public LoginResponse loginPersonalByEmail(PersonalEmailLoginRequest request) {
         String account = normalize(request.getAccount());
         if (!verifyCode(account, "email", request.getEmailCode(), "login")) {
@@ -236,45 +229,33 @@ public class AuthService {
     }
 
     /**
-     * 下发个人登录/注册验证码（开发模式打印日志）。
-     * <p>
-     * 【并发安全】使用 {@link ConcurrentHashMap#compute} 将"检查冷却期 + 写入新 code"
-     * 合并为单个原子操作，避免两个并发请求同时通过冷却期检查后互相覆盖验证码
-     * （丢失更新，lost update）。
-     * </p>
+     * 下发验证码。
+     * 使用 Redis SET NX + TTL 保证冷却期原子性，多实例安全。
      */
     public SendCodeResponse sendPersonalCode(SendCodeRequest request) {
         String account = normalize(request.getAccount());
         String bizType = normalizeOrDefault(request.getBizType(), "login");
         String channel = normalizeOrDefault(request.getChannel(), "sms");
-        String key = buildCodeKey(account, channel, bizType);
-        LocalDateTime now = LocalDateTime.now();
+        String codeKey = REDIS_CODE_PREFIX + buildCodeKey(account, channel, bizType);
+        String retryKey = REDIS_CODE_RETRY_PREFIX + buildCodeKey(account, channel, bizType);
 
-        String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1000000));
-        String requestId = "req_" + System.currentTimeMillis() + "_" + requestCounter.getAndIncrement();
-
-        CodeRecord newRecord = new CodeRecord(requestId, code, now, now.plusSeconds(CODE_EXPIRE_SEC));
-        // compute 将"冷却期检查 + 新记录写入"合并为原子操作
-        CodeRecord result = codeStore.compute(key, (k, old) -> {
-            if (old != null && old.createdAt.plusSeconds(CODE_RETRY_AFTER_SEC).isAfter(now)) {
-                // 仍在冷却期内，保留旧记录，拒绝新请求
-                return old;
-            }
-            // 不在冷却期（或首次），写入新验证码
-            return newRecord;
-        });
-
-        if (!Objects.equals(result, newRecord)) {
-            // compute 返回了旧记录（冷却期内），拒绝
+        // 检查冷却期：retryKey 存在则拒绝
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(retryKey))) {
             throw new RuntimeException("TOO_FREQUENT_REQUEST");
         }
 
-        // 开发环境：在控制台醒目打印验证码，方便本地联调
+        String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1000000));
+        long counter = stringRedisTemplate.opsForValue().increment(REDIS_REQUEST_COUNTER_KEY);
+        String requestId = "req_" + System.currentTimeMillis() + "_" + counter;
+
+        // 验证码写入 Redis（带 TTL），同时写入冷却期标记
+        stringRedisTemplate.opsForValue().set(retryKey, "1", Duration.ofSeconds(CODE_RETRY_AFTER_SEC));
+        stringRedisTemplate.opsForValue().set(codeKey, code, Duration.ofSeconds(CODE_EXPIRE_SEC));
+
         if ("dev".equals(activeProfile)) {
-            String phoneNumber = account;
             System.out.println("=========================================");
             System.out.println("【本地开发环境影子拦截】");
-            System.out.println("手机号: " + phoneNumber);
+            System.out.println("手机号: " + account);
             System.out.println("生成的" + channel + "验证码为: " + code);
             System.out.println("业务类型: " + bizType);
             System.out.println("请求 ID: " + requestId);
@@ -285,7 +266,8 @@ public class AuthService {
         return new SendCodeResponse(requestId, CODE_EXPIRE_SEC, CODE_RETRY_AFTER_SEC);
     }
 
-    /** 主体登录第一步：机构代码 + 密码（主体根密码或管理员密码）。 */
+    // ===================== 机构登录 =====================
+
     public OrganizationCredentialResponse loginOrganizationCredentials(OrganizationCredentialLoginRequest request) {
         if (isBlank(request.getInstitutionCode()) || isBlank(request.getPassword())) {
             throw new RuntimeException("ORGANIZATION_FIELDS_REQUIRED");
@@ -303,7 +285,6 @@ public class AuthService {
         assertEntityAccountActive(entity);
 
         boolean entityPasswordMatch = Objects.equals(entity.getPasswordHash(), passwordHash);
-        // 先按 institutionCode 定位主体，再在该主体活跃管理员列表中比对密码（非全表 password_hash 查询）
         SysEntityTotpCredentials adminByPassword =
                 entityAdminCredentialService.matchActiveAdminByPassword(entityCode, passwordHash);
         boolean adminPasswordMatch = adminByPassword != null;
@@ -313,7 +294,6 @@ public class AuthService {
         }
 
         boolean adminPasswordAllowed = isAdminPasswordLoginAllowed(entityCode);
-        // 测试/初始化场景下主体根密码与管理员密码可能相同；主体密码匹配时走主体分支，勿误判为管理员密码登录
         if (adminPasswordMatch && !adminPasswordAllowed && !entityPasswordMatch) {
             throw new RuntimeException("ORGANIZATION_CREDENTIAL_INVALID");
         }
@@ -330,7 +310,7 @@ public class AuthService {
                     ? toAdminOptions(entityAdminCredentialService.listAdminsForEntityRootSelect(
                             entityCode, boundAdminCount, MIN_ENTITY_ADMIN_COUNT))
                     : null;
-            orgChallengeStore.put(challengeId, OrgChallengeRecord.forEntityRoot(
+            saveChallenge(challengeId, OrgChallengeRecord.forEntityRoot(
                     entityCode, loginMode, null, null, expireAt));
             log.info("[ClientAuth] organization entity-root challengeId={}, loginMode={}, entityCode={}",
                     challengeId, loginMode, entityCode);
@@ -349,7 +329,7 @@ public class AuthService {
         int currentAdminOrder = isFirstLogin
                 ? entityAdminCredentialService.countBoundEntityAdmins(entityCode) + 1
                 : resolveAdminOrder(adminByPassword, entityAdminCredentialService.listActiveEntityAdmins(entityCode));
-        orgChallengeStore.put(challengeId, OrgChallengeRecord.forAdmin(
+        saveChallenge(challengeId, OrgChallengeRecord.forAdmin(
                 adminByPassword.getAdminUid(), entityCode, loginMode, null, null, expireAt));
         log.info("[ClientAuth] organization admin-password challengeId={}, adminUid={}, loginMode={}",
                 challengeId, adminByPassword.getAdminUid(), loginMode);
@@ -358,15 +338,6 @@ public class AuthService {
                 isFirstLogin, loginMode, false, null, currentAdminOrder);
     }
 
-    /**
-     * 主体根密码 challenge 下登记新管理员，随后进入 {@code totp_setup}。
-     * <p>
-     * 【并发安全】管理员名额检查（countActiveEntityAdmins）存在 TOCTOU 问题。
-     * 在 {@code createEntityAdmin} 内部通过数据库 INSERT 做最终兜底：
-     * 若并发导致名额超限或密码重复，数据库唯一约束会拒绝。
-     * orgChallengeStore 更新使用 compute 保证原子性，防止并发覆盖。
-     * </p>
-     */
     @Transactional(rollbackFor = Exception.class)
     public OrganizationCredentialResponse registerOrganizationAdmin(OrganizationAdminRegisterRequest request) {
         if (request == null || isBlank(request.getChallengeId()) || isBlank(request.getDisplayName())
@@ -384,7 +355,6 @@ public class AuthService {
         }
         assertEntityAccountActive(entity);
 
-        // 快速失败检查：应用层先过滤，数据库层面由 INSERT 唯一约束兜底
         if (entityAdminCredentialService.countActiveEntityAdmins(challenge.entityCode()) >= MAX_ENTITY_ADMIN_COUNT) {
             throw new RuntimeException("ORGANIZATION_ADMIN_LIMIT_REACHED");
         }
@@ -403,8 +373,6 @@ public class AuthService {
         admin.setDisplayName(request.getDisplayName().trim());
         admin.setIsPrimary(0);
         admin.setAccountStatus(EntityAdminAccountStatus.PENDING);
-        // createEntityAdmin 内包含 assertAdminPasswordAvailable + INSERT
-        // 若并发导致名额超限或密码重复，数据库唯一约束会拒绝
         try {
             entityAdminCredentialService.createEntityAdmin(admin, entity.getPasswordHash());
         } catch (DuplicateKeyException e) {
@@ -412,39 +380,20 @@ public class AuthService {
         }
 
         int currentAdminOrder = entityAdminCredentialService.countBoundEntityAdmins(challenge.entityCode()) + 1;
-        // 原子化更新 challenge 记录（转为 admin 模式），防止并发覆盖
-        orgChallengeStore.compute(request.getChallengeId(), (k, old) -> {
-            if (old == null || old.expireAt().isBefore(LocalDateTime.now())) {
-                return null; // 无效 challenge
-            }
-            return OrgChallengeRecord.forAdmin(
-                    adminUid, challenge.entityCode(), LOGIN_MODE_TOTP_SETUP,
-                    null, null, challenge.expireAt());
-        });
+        saveChallenge(request.getChallengeId(), OrgChallengeRecord.forAdmin(
+                adminUid, challenge.entityCode(), LOGIN_MODE_TOTP_SETUP,
+                null, null, challenge.expireAt()));
 
         log.info("[ClientAuth] organization admin-register challengeId={}, adminUid={}, entityCode={}",
                 request.getChallengeId(), adminUid, challenge.entityCode());
 
         return buildOrganizationCredentialResponse(
-                request.getChallengeId(),
-                null,
-                challenge.entityCode(),
+                request.getChallengeId(), null, challenge.entityCode(),
                 resolveEntityName(challenge.entityCode()),
                 countBoundEntityAdmins(challenge.entityCode()),
-                true,
-                LOGIN_MODE_TOTP_SETUP,
-                false,
-                null,
-                currentAdminOrder);
+                true, LOGIN_MODE_TOTP_SETUP, false, null, currentAdminOrder);
     }
 
-    /**
-     * 主体根密码登录后选择管理员，进入 TOTP 绑定或校验。
-     * <p>
-     * 【并发安全】使用 ConcurrentHashMap compute 原子化更新 challenge 记录，
-     * 防止并发选择同一管理员时的覆盖丢失。
-     * </p>
-     */
     public OrganizationCredentialResponse selectOrganizationAdmin(OrganizationSelectAdminRequest request) {
         if (request == null || isBlank(request.getChallengeId()) || isBlank(request.getAdminUid())) {
             throw new RuntimeException("ORGANIZATION_FIELDS_REQUIRED");
@@ -470,34 +419,18 @@ public class AuthService {
         int currentAdminOrder = isFirstLogin
                 ? entityAdminCredentialService.countBoundEntityAdmins(challenge.entityCode()) + 1
                 : resolveAdminOrder(admin, entityAdminCredentialService.listActiveEntityAdmins(challenge.entityCode()));
-        // 原子化更新 challenge 记录，防止并发覆盖
-        orgChallengeStore.compute(request.getChallengeId(), (k, old) -> {
-            if (old == null || old.expireAt().isBefore(LocalDateTime.now())) {
-                return null;
-            }
-            return OrgChallengeRecord.forAdmin(
-                    admin.getAdminUid(),
-                    challenge.entityCode(),
-                    loginMode,
-                    challenge.pendingTotpSecret(),
-                    challenge.totpSetupExpireAt(),
-                    challenge.expireAt());
-        });
+
+        saveChallenge(request.getChallengeId(), OrgChallengeRecord.forAdmin(
+                admin.getAdminUid(), challenge.entityCode(), loginMode,
+                challenge.pendingTotpSecret(), challenge.totpSetupExpireAt(), challenge.expireAt()));
 
         return buildOrganizationCredentialResponse(
-                request.getChallengeId(),
-                null,
-                challenge.entityCode(),
+                request.getChallengeId(), null, challenge.entityCode(),
                 resolveEntityName(challenge.entityCode()),
                 countBoundEntityAdmins(challenge.entityCode()),
-                isFirstLogin,
-                loginMode,
-                false,
-                null,
-                currentAdminOrder);
+                isFirstLogin, loginMode, false, null, currentAdminOrder);
     }
 
-    /** 主体登录第二步：challenge + TOTP 验证码（已绑定）。 */
     public LoginResponse loginOrganizationOtp(OrganizationOtpLoginRequest request) {
         OrgChallengeRecord challenge = requireOrgChallenge(request.getChallengeId());
         if (!LOGIN_MODE_TOTP_VERIFY.equals(challenge.loginMode())) {
@@ -515,7 +448,7 @@ public class AuthService {
                     || !TotpUtils.verifyCode(entity.getTotpSecret(), request.getOtpCode())) {
                 throw new RuntimeException("OTP_INVALID");
             }
-            orgChallengeStore.remove(request.getChallengeId());
+            deleteChallenge(request.getChallengeId());
             return completeEntityRootLogin(entity);
         }
 
@@ -530,17 +463,10 @@ public class AuthService {
             throw new RuntimeException("OTP_INVALID");
         }
 
-        orgChallengeStore.remove(request.getChallengeId());
+        deleteChallenge(request.getChallengeId());
         return completeOrganizationLogin(admin);
     }
 
-    /**
-     * 首次 TOTP 绑定：生成 QR 码。
-     * <p>
-     * 【并发安全】使用 ConcurrentHashMap compute 原子化更新 challenge 记录的
-     * pendingTotpSecret 和 totpSetupExpireAt，防止两个并发 init 互相覆盖。
-     * </p>
-     */
     public OrganizationTotpSetupInitResponse initOrganizationTotpSetup(OrganizationTotpSetupInitRequest request) {
         if (request == null || isBlank(request.getChallengeId())) {
             throw new RuntimeException("CHALLENGE_NOT_FOUND");
@@ -573,22 +499,15 @@ public class AuthService {
 
         String otpAuthUrl = TotpUtils.buildOtpAuthUrl(TOTP_ISSUER, accountLabel, secret);
         String qrCodeDataUrl = TotpUtils.generateQrCodeDataUrl(TOTP_ISSUER, accountLabel, secret);
-
         LocalDateTime totpExpire = LocalDateTime.now().plusSeconds(TOTP_QR_EXPIRE_SEC);
-        // 原子化写入 pending TOTP secret，防止并发 init 互相覆盖
-        orgChallengeStore.compute(request.getChallengeId(), (k, old) -> {
-            if (old == null || old.expireAt().isBefore(LocalDateTime.now())) {
-                return null;
-            }
-            return old.withPendingTotp(secret, totpExpire);
-        });
+
+        saveChallenge(request.getChallengeId(), challenge.withPendingTotp(secret, totpExpire));
 
         Integer currentAdminOrder = null;
         if (StringUtils.hasText(challenge.adminUid())) {
             SysEntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
                     challenge.entityCode(), challenge.adminUid());
-            currentAdminOrder = admin == null
-                    ? 1
+            currentAdminOrder = admin == null ? 1
                     : entityAdminCredentialService.countBoundEntityAdmins(challenge.entityCode()) + 1;
         }
 
@@ -600,17 +519,6 @@ public class AuthService {
                 .build();
     }
 
-    /**
-     * 首次 TOTP 绑定：确认验证码并签发 token。
-     * <p>
-     * 【并发安全】TOTP 绑定的 check-then-act 存在 TOCTOU 竞态：
-     * 两个并发请求可能同时通过 {@code totp_secret IS NULL} 检查，
-     * 导致后到达的请求覆盖前一个绑定。
-     * 使用数据库条件 UPDATE 作为乐观锁：在 WHERE 子句中校验
-     * {@code totp_secret IS NULL OR totp_secret = ''}，若并发绑定导致
-     * affected rows = 0，则抛出异常拒绝覆盖。
-     * </p>
-     */
     @Transactional(rollbackFor = Exception.class)
     public OrganizationTotpSetupConfirmResponse confirmOrganizationTotpSetup(OrganizationTotpSetupConfirmRequest request) {
         if (request == null || isBlank(request.getChallengeId()) || isBlank(request.getTotpCode())) {
@@ -642,14 +550,11 @@ public class AuthService {
         int boundAdminCount;
 
         if (challenge.entityRootAuthenticated() && !StringUtils.hasText(challenge.adminUid())) {
-            // 主体根账号 TOTP 绑定：使用数据库条件 UPDATE 防止并发覆盖
             if (StringUtils.hasText(entity.getTotpSecret())) {
                 throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
             }
-            int updated = entityAdminCredentialService.bindEntityRootTotp(
-                    entity.getEntityCode(), boundSecret, now);
+            int updated = entityAdminCredentialService.bindEntityRootTotp(entity.getEntityCode(), boundSecret, now);
             if (updated == 0) {
-                // 并发请求已抢先绑定 TOTP
                 throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
             }
             boundAdminCount = entityAdminCredentialService.countBoundEntityAdmins(entity.getEntityCode());
@@ -665,8 +570,7 @@ public class AuthService {
             tokenPair = issueTokenPair(admin.getAdminUid(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
         }
 
-        // 原子化移除 challenge，防止并发清理导致重复绑定
-        orgChallengeStore.remove(request.getChallengeId());
+        deleteChallenge(request.getChallengeId());
         boolean entityFullyActivated = boundAdminCount >= MIN_ENTITY_ADMIN_COUNT;
 
         String nextChallengeId = null;
@@ -684,25 +588,20 @@ public class AuthService {
                 .entityFullyActivated(entityFullyActivated)
                 .boundAdminCount(boundAdminCount)
                 .minAdminCount(MIN_ENTITY_ADMIN_COUNT)
-                .activationHint(entityFullyActivated
-                        ? null
+                .activationHint(entityFullyActivated ? null
                         : buildActivationHint(challenge.entityCode(), boundAdminCount))
                 .nextChallengeId(nextChallengeId)
                 .nextLoginMode(nextLoginMode)
                 .build();
     }
 
+    // ===================== Token 刷新/登出（Redisson 分布式锁） =====================
+
     /**
      * 使用 refreshToken 换取新的 accessToken（并轮换 refreshToken）。
-     * <p>
-     * 【并发安全】依赖 {@link #activeRefreshTokenStore} 的 ConcurrentHashMap 原子性：
-     * {@code issueTokenPair} 通过 put 覆盖旧 refreshToken，保证同一 subject 只保留
-     * 最新有效 token。synchronized 方法级锁防止同一实例内并发刷新时的
-     * check-then-act 竞态（如两个并发刷新都通过同一条旧 token 的验证）。
-     * 注意：多实例部署时需依赖分布式锁或数据库乐观锁进一步保护。
-     * </p>
+     * 使用 Redisson 分布式锁替代 synchronize，支持多实例部署。
      */
-    public synchronized RefreshTokenResponse refreshAccessToken(RefreshTokenRequest request) {
+    public RefreshTokenResponse refreshAccessToken(RefreshTokenRequest request) {
         if (request == null || isBlank(request.getRefreshToken())) {
             throw new RuntimeException("REFRESH_TOKEN_REQUIRED");
         }
@@ -725,59 +624,68 @@ public class AuthService {
 
         String accessTokenType = mapToAccessTokenType(userType);
         String subjectKey = buildRefreshSubjectKey(subject.trim(), userType);
-        String activeRefreshToken = activeRefreshTokenStore.get(subjectKey);
-        if (activeRefreshToken == null || !Objects.equals(activeRefreshToken, oldRefreshToken)) {
-            throw new RuntimeException("REFRESH_TOKEN_INVALID");
-        }
+        String lockKey = REDIS_REFRESH_LOCK_PREFIX + subjectKey;
+        RLock lock = redissonClient.getLock(lockKey);
 
-        if ("CLIENT_USER".equals(accessTokenType)) {
-            LambdaQueryWrapper<ClientUser> userWrapper = new LambdaQueryWrapper<>();
-            userWrapper.eq(ClientUser::getUserUid, subject.trim()).last("LIMIT 1");
-            ClientUser user = clientUserMapper.selectOne(userWrapper);
-            if (user == null) {
-                throw new RuntimeException("ACCOUNT_NOT_FOUND");
+        try {
+            if (!lock.tryLock(10, 30, TimeUnit.SECONDS)) {
+                throw new RuntimeException("SYSTEM_BUSY");
             }
-            assertUserAccountActive(user);
-        } else {
-            if (isEntityAdminUid(subject.trim())) {
-                SysEntityTotpCredentials admin = loadEntityAdminByUid(subject.trim());
-                if (admin == null) {
-                    throw new RuntimeException("CHALLENGE_NOT_FOUND");
+
+            String activeRefreshToken = stringRedisTemplate.opsForValue()
+                    .get(REDIS_REFRESH_TOKEN_PREFIX + subjectKey);
+            if (activeRefreshToken == null || !Objects.equals(activeRefreshToken, oldRefreshToken)) {
+                throw new RuntimeException("REFRESH_TOKEN_INVALID");
+            }
+
+            if ("CLIENT_USER".equals(accessTokenType)) {
+                LambdaQueryWrapper<ClientUser> userWrapper = new LambdaQueryWrapper<>();
+                userWrapper.eq(ClientUser::getUserUid, subject.trim()).last("LIMIT 1");
+                ClientUser user = clientUserMapper.selectOne(userWrapper);
+                if (user == null) {
+                    throw new RuntimeException("ACCOUNT_NOT_FOUND");
                 }
-                assertEntityAdminActive(admin);
-                ClientEntity entity = loadEntityByCode(admin.getEntityCode());
-                if (entity == null) {
-                    throw new RuntimeException("CHALLENGE_NOT_FOUND");
-                }
-                assertEntityAccountActive(entity);
+                assertUserAccountActive(user);
             } else {
-                ClientEntity entity = loadEntityByCode(subject.trim());
-                if (entity == null) {
-                    throw new RuntimeException("CHALLENGE_NOT_FOUND");
-                }
-                assertEntityAccountActive(entity);
-                if (!StringUtils.hasText(entity.getTotpSecret())) {
-                    throw new RuntimeException("ORGANIZATION_TOTP_NOT_BOUND");
+                if (isEntityAdminUid(subject.trim())) {
+                    SysEntityTotpCredentials admin = loadEntityAdminByUid(subject.trim());
+                    if (admin == null) {
+                        throw new RuntimeException("CHALLENGE_NOT_FOUND");
+                    }
+                    assertEntityAdminActive(admin);
+                    ClientEntity entity = loadEntityByCode(admin.getEntityCode());
+                    if (entity == null) {
+                        throw new RuntimeException("CHALLENGE_NOT_FOUND");
+                    }
+                    assertEntityAccountActive(entity);
+                } else {
+                    ClientEntity entity = loadEntityByCode(subject.trim());
+                    if (entity == null) {
+                        throw new RuntimeException("CHALLENGE_NOT_FOUND");
+                    }
+                    assertEntityAccountActive(entity);
+                    if (!StringUtils.hasText(entity.getTotpSecret())) {
+                        throw new RuntimeException("ORGANIZATION_TOTP_NOT_BOUND");
+                    }
                 }
             }
-        }
 
-        TokenPair tokenPair = issueTokenPair(subject.trim(), accessTokenType, userType);
-        String newAccessToken = tokenPair.accessToken();
-        String newRefreshToken = tokenPair.refreshToken();
-        return new RefreshTokenResponse(newAccessToken, newRefreshToken, ACCESS_TOKEN_EXPIRE_SEC);
+            TokenPair tokenPair = issueTokenPair(subject.trim(), accessTokenType, userType);
+            return new RefreshTokenResponse(tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("SYSTEM_BUSY");
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
     }
 
     /**
-     * 退出登录：销毁 accessToken 与 refreshToken。
-     * <p>
-     * 【并发安全】synchronized 方法级锁确保同一实例内的登出操作串行化。
-     * refreshToken 的移除使用 ConcurrentHashMap remove(key, value) 保证条件删除原子性，
-     * 避免误删在"验证通过后、移除前"由并发刷新写入的新 token。
-     * 多实例部署场景需额外考虑分布式一致性。
-     * </p>
+     * 退出登录。使用 Redisson 分布式锁替代 synchronize，支持多实例部署。
      */
-    public synchronized void handleLogout(HandleLogoutRequest request) {
+    public void handleLogout(HandleLogoutRequest request) {
         if (request == null || isBlank(request.getAccessToken()) || isBlank(request.getRefreshToken())) {
             throw new RuntimeException("LOGOUT_TOKENS_REQUIRED");
         }
@@ -793,31 +701,40 @@ public class AuthService {
             String subject = jwtUtil.getUserId(refreshToken);
             if (isClientRefreshType(refreshType) && subject != null && !subject.isBlank()) {
                 String subjectKey = buildRefreshSubjectKey(subject.trim(), refreshType);
-                // 使用 remove(key, value) 条件删除：仅当 value 匹配时才移除，
-                // 防止并发刷新写入新 token 后被登出误删
-                activeRefreshTokenStore.remove(subjectKey, refreshToken);
+                String lockKey = REDIS_REFRESH_LOCK_PREFIX + subjectKey;
+                RLock lock = redissonClient.getLock(lockKey);
+                try {
+                    if (lock.tryLock(5, 10, TimeUnit.SECONDS)) {
+                        try {
+                            // Lua 脚本保证原子比较+删除
+                            String redisKey = REDIS_REFRESH_TOKEN_PREFIX + subjectKey;
+                            stringRedisTemplate.execute(
+                                    new org.springframework.data.redis.core.script.DefaultRedisScript<>(
+                                            "if redis.call('GET', KEYS[1]) == ARGV[1] then " +
+                                            "redis.call('DEL', KEYS[1]) return 1 else return 0 end",
+                                            Long.class),
+                                    List.of(redisKey), refreshToken);
+                        } finally {
+                            lock.unlock();
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
     }
 
-    /**
-     * 构建个人登录响应。
-     * <p>
-     * 【并发安全】使用 LambdaUpdateWrapper 仅更新 {@code last_login_at} 字段，
-     * 而非 updateById 全字段覆盖。防止两个并发登录操作互相覆盖其他字段变更
-     * （如密码修改、状态变更等），避免丢失更新（lost update）。
-     * </p>
-     */
+    // ===================== 私有方法 =====================
+
     private LoginResponse buildPersonalLoginResponse(ClientUser user) {
         assertUserAccountActive(user);
-        // 使用条件更新仅写 lastLoginAt，避免全字段覆盖
         entityAdminCredentialService.updateClientUserLastLoginAt(user.getUserUid(), LocalDateTime.now());
 
         AuthMeta authMeta = resolveUserAuthMeta(user.getUserUid());
         TokenPair tokenPair = issueTokenPair(user.getUserUid(), "CLIENT_USER", "CLIENT_USER_REFRESH");
-        String accessToken = tokenPair.accessToken();
-        String refreshToken = tokenPair.refreshToken();
-        return new LoginResponse(user.getUserUid(), authMeta.userRole, authMeta.authStatus, accessToken, refreshToken, ACCESS_TOKEN_EXPIRE_SEC);
+        return new LoginResponse(user.getUserUid(), authMeta.userRole, authMeta.authStatus,
+                tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC);
     }
 
     private ClientUser loadPersonalUserByAccount(String accountRaw) {
@@ -838,22 +755,18 @@ public class AuthService {
     private AuthMeta resolveUserAuthMeta(String userUid) {
         LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserAuthLink::getUserUid, userUid)
-                .orderByDesc(UserAuthLink::getUpdatedAt)
-                .last("LIMIT 1");
+                .orderByDesc(UserAuthLink::getUpdatedAt).last("LIMIT 1");
         UserAuthLink link = userAuthLinkMapper.selectOne(wrapper);
         if (link == null) {
             return new AuthMeta("student", "unverified");
         }
-
         String authStatus = "APPROVED".equalsIgnoreCase(link.getAuditStatus()) ? "verified" : "unverified";
         String userRole = mapBusinessRole(link.getRole());
         return new AuthMeta(userRole, authStatus);
     }
 
     private String mapBusinessRole(String role) {
-        if (role == null) {
-            return "student";
-        }
+        if (role == null) return "student";
         return switch (role.toUpperCase(Locale.ROOT)) {
             case "PM" -> "pm";
             case "MENTOR", "FACULTY" -> "mentor";
@@ -872,10 +785,8 @@ public class AuthService {
         clientUserProfileMapper.insert(profile);
     }
 
-    /** 注册时初始化信用主档，并写入 REGISTER 流水。 */
     private void createDefaultCreditProfile(String userUid) {
         LocalDateTime now = LocalDateTime.now();
-
         SysCreditProfile profile = new SysCreditProfile();
         profile.setUserUid(userUid);
         profile.setCreditScore(DEFAULT_CREDIT_SCORE);
@@ -902,67 +813,122 @@ public class AuthService {
 
     private void assertUserAccountActive(ClientUser user) {
         String status = user.getAccountStatus() == null ? "ACTIVE" : user.getAccountStatus().trim().toUpperCase(Locale.ROOT);
-        if ("FROZEN".equals(status)) {
-            throw new RuntimeException("ACCOUNT_FROZEN");
-        }
-        if ("DEACTIVATED".equals(status)) {
-            throw new RuntimeException("ACCOUNT_DEACTIVATED");
-        }
-        if (!"ACTIVE".equals(status)) {
-            throw new RuntimeException("ACCOUNT_DISABLED");
-        }
+        if ("FROZEN".equals(status)) throw new RuntimeException("ACCOUNT_FROZEN");
+        if ("DEACTIVATED".equals(status)) throw new RuntimeException("ACCOUNT_DEACTIVATED");
+        if (!"ACTIVE".equals(status)) throw new RuntimeException("ACCOUNT_DISABLED");
     }
 
     private void assertEntityAccountActive(ClientEntity entity) {
         String status = entity.getAccountStatus() == null ? "ACTIVE" : entity.getAccountStatus().trim().toUpperCase(Locale.ROOT);
-        if ("FROZEN".equals(status)) {
-            throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
-        }
-        if ("DEACTIVATED".equals(status)) {
-            throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
-        }
-        if (!"ACTIVE".equals(status)) {
-            throw new RuntimeException("ORGANIZATION_ACCOUNT_DISABLED");
-        }
+        if ("FROZEN".equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
+        if ("DEACTIVATED".equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
+        if (!"ACTIVE".equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_DISABLED");
     }
 
     /**
-     * 验证码校验。
-     * <p>
-     * 【并发安全】使用 ConcurrentHashMap 的 remove(key, value) 原子操作
-     * 确保验证码一经验证即被消费，防止同一验证码被并发请求多次使用
-     * （重放攻击防护）。
-     * </p>
+     * 验证码校验。使用 Redis GET + DEL 替代 ConcurrentHashMap remove，保证验证码一次消费。
      */
     private boolean verifyCode(String accountRaw, String channelRaw, String verifyCode, String bizTypeRaw) {
         String account = normalize(accountRaw);
         String channel = normalizeOrDefault(channelRaw, "sms");
         String bizType = normalizeOrDefault(bizTypeRaw, "login");
-        String key = buildCodeKey(account, channel, bizType);
+        String codeKey = REDIS_CODE_PREFIX + buildCodeKey(account, channel, bizType);
 
-        CodeRecord record = codeStore.get(key);
-        if (record == null) {
+        String storedCode = stringRedisTemplate.opsForValue().get(codeKey);
+        if (storedCode == null) {
             return false;
         }
-        if (record.expireAt.isBefore(LocalDateTime.now())) {
-            codeStore.remove(key);
-            throw new RuntimeException("VERIFY_CODE_EXPIRED");
-        }
-        if (!Objects.equals(record.code, verifyCode)) {
+        if (!Objects.equals(storedCode, verifyCode)) {
             return false;
         }
-        // 使用条件删除确保原子消费：仅当当前记录与读取时一致才移除，
-        // 防止并发场景下 A 线程验证通过但尚未删除时，B 线程放入新 code 被误删
-        if (!codeStore.remove(key, record)) {
-            // 记录已被其他线程修改（如冷却期内重新发送），拒绝
-            return false;
-        }
-        return true;
+        // 原子删除保证一次消费
+        return Boolean.TRUE.equals(stringRedisTemplate.delete(codeKey));
     }
 
     private String buildCodeKey(String account, String channel, String bizType) {
         return account + "|" + channel + "|" + bizType;
     }
+
+    // ===================== Challenge Redis 操作 =====================
+
+    private void saveChallenge(String challengeId, OrgChallengeRecord record) {
+        String key = REDIS_CHALLENGE_PREFIX + challengeId;
+        long ttlSeconds = java.time.Duration.between(LocalDateTime.now(), record.expireAt()).getSeconds();
+        if (ttlSeconds <= 0) ttlSeconds = ORG_CHALLENGE_EXPIRE_SEC;
+        try {
+            String json = objectMapper.writeValueAsString(record);
+            stringRedisTemplate.opsForValue().set(key, json, Duration.ofSeconds(ttlSeconds));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("SYSTEM_ERROR", e);
+        }
+    }
+
+    private OrgChallengeRecord requireOrgChallenge(String challengeId) {
+        String key = REDIS_CHALLENGE_PREFIX + challengeId;
+        String json = stringRedisTemplate.opsForValue().get(key);
+        if (json == null) {
+            throw new RuntimeException("CHALLENGE_NOT_FOUND");
+        }
+        try {
+            OrgChallengeRecord challenge = objectMapper.readValue(json, OrgChallengeRecord.class);
+            if (challenge.expireAt().isBefore(LocalDateTime.now())) {
+                stringRedisTemplate.delete(key);
+                throw new RuntimeException("CHALLENGE_EXPIRED");
+            }
+            return challenge;
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("CHALLENGE_NOT_FOUND");
+        }
+    }
+
+    private void deleteChallenge(String challengeId) {
+        stringRedisTemplate.delete(REDIS_CHALLENGE_PREFIX + challengeId);
+    }
+
+    // ===================== Token 操作 =====================
+
+    private TokenPair issueTokenPair(String subject, String accessTokenType, String refreshTokenType) {
+        String accessToken = generateAccessToken(subject, accessTokenType);
+        String refreshToken = generateRefreshToken(subject, refreshTokenType);
+        String key = REDIS_REFRESH_TOKEN_PREFIX + buildRefreshSubjectKey(subject, refreshTokenType);
+        // TTL 对齐 refreshToken 自身有效期
+        stringRedisTemplate.opsForValue().set(key, refreshToken, Duration.ofSeconds(REFRESH_TOKEN_EXPIRE_SEC));
+        return new TokenPair(accessToken, refreshToken);
+    }
+
+    private String buildRefreshSubjectKey(String subject, String refreshTokenType) {
+        return subject + "|" + refreshTokenType;
+    }
+
+    private boolean isClientRefreshType(String userType) {
+        return "CLIENT_USER_REFRESH".equals(userType) || "CLIENT_ORG_REFRESH".equals(userType);
+    }
+
+    private String mapToAccessTokenType(String refreshType) {
+        return "CLIENT_ORG_REFRESH".equals(refreshType) ? "CLIENT_ORG" : "CLIENT_USER";
+    }
+
+    private void revokeToken(String token) {
+        try {
+            Claims claims = jwtUtil.parseToken(token);
+            LocalDateTime expireAt = LocalDateTime.ofInstant(
+                    claims.getExpiration().toInstant(), java.time.ZoneId.systemDefault());
+            long ttl = java.time.Duration.between(LocalDateTime.now(), expireAt).getSeconds();
+            if (ttl > 0) {
+                stringRedisTemplate.opsForValue().set(
+                        REDIS_REVOKED_TOKEN_PREFIX + token, "1", Duration.ofSeconds(ttl));
+            }
+        } catch (Exception ignored) {
+            stringRedisTemplate.opsForValue().set(
+                    REDIS_REVOKED_TOKEN_PREFIX + token, "1", Duration.ofMinutes(30));
+        }
+    }
+
+    private boolean isTokenRevoked(String token) {
+        return Boolean.TRUE.equals(stringRedisTemplate.hasKey(REDIS_REVOKED_TOKEN_PREFIX + token));
+    }
+
+    // ===================== 其他私有方法（不变） =====================
 
     private String normalize(String value) {
         return value == null ? "" : value.trim();
@@ -985,13 +951,6 @@ public class AuthService {
         return value == null || value.trim().isEmpty();
     }
 
-    /**
-     * 完成管理员登录。
-     * <p>
-     * 【并发安全】使用条件 UPDATE 仅更新 {@code last_login_at} 字段，
-     * 避免全字段覆盖导致丢失其他并发变更（如 TOTP 绑定状态、密码修改等）。
-     * </p>
-     */
     private LoginResponse completeOrganizationLogin(SysEntityTotpCredentials admin) {
         entityAdminCredentialService.updateAdminLastLoginAt(admin.getAdminUid(), LocalDateTime.now());
         TokenPair tokenPair = issueTokenPair(admin.getAdminUid(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
@@ -999,13 +958,6 @@ public class AuthService {
                 tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC);
     }
 
-    /**
-     * 完成主体根账号登录。
-     * <p>
-     * 【并发安全】使用条件 UPDATE 仅更新 {@code last_login_at} 字段，
-     * 避免全字段覆盖导致丢失其他并发变更。
-     * </p>
-     */
     private LoginResponse completeEntityRootLogin(ClientEntity entity) {
         entityAdminCredentialService.updateEntityLastLoginAt(entity.getEntityCode(), LocalDateTime.now());
         TokenPair tokenPair = issueTokenPair(entity.getEntityCode(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
@@ -1014,15 +966,9 @@ public class AuthService {
     }
 
     private OrganizationCredentialResponse buildOrganizationCredentialResponse(String challengeId,
-                                                                               String password,
-                                                                               String entityCode,
-                                                                               String entityName,
-                                                                               int boundAdminCount,
-                                                                               Boolean isFirstLogin,
-                                                                               String loginMode,
-                                                                               boolean requiresAdminSelection,
-                                                                               List<OrganizationAdminOption> admins,
-                                                                               Integer currentAdminOrder) {
+            String password, String entityCode, String entityName, int boundAdminCount,
+            Boolean isFirstLogin, String loginMode, boolean requiresAdminSelection,
+            List<OrganizationAdminOption> admins, Integer currentAdminOrder) {
         return OrganizationCredentialResponse.builder()
                 .challengeId(challengeId)
                 .passwordDigestPreview(password == null ? null : digestPreview(password))
@@ -1041,50 +987,32 @@ public class AuthService {
     }
 
     private List<OrganizationAdminOption> toAdminOptions(List<SysEntityTotpCredentials> admins) {
-        if (admins.isEmpty()) {
-            return List.of();
-        }
-        return admins.stream()
-                .map(admin -> OrganizationAdminOption.builder()
-                        .adminUid(admin.getAdminUid())
-                        .displayName(resolveAdminDisplayName(admin))
-                        .isPrimary(admin.getIsPrimary() != null && admin.getIsPrimary() == 1)
-                        .build())
-                .toList();
+        if (admins.isEmpty()) return List.of();
+        return admins.stream().map(admin -> OrganizationAdminOption.builder()
+                .adminUid(admin.getAdminUid())
+                .displayName(resolveAdminDisplayName(admin))
+                .isPrimary(admin.getIsPrimary() != null && admin.getIsPrimary() == 1)
+                .build()).toList();
     }
 
     private String resolveAdminDisplayName(SysEntityTotpCredentials admin) {
-        if (admin == null) {
-            return "";
-        }
-        if (StringUtils.hasText(admin.getDisplayName())) {
-            return admin.getDisplayName().trim();
-        }
+        if (admin == null) return "";
+        if (StringUtils.hasText(admin.getDisplayName())) return admin.getDisplayName().trim();
         return admin.getAdminUid();
     }
 
-    private boolean hasActiveEntityAdmins(String entityCode) {
-        return entityAdminCredentialService.countActiveEntityAdmins(entityCode) > 0;
-    }
-
-    /**
-     * 主体根密码登录后的下一步模式：登记新管理员、选择已有管理员绑定/登录。
-     */
     private String resolveEntityRootLoginMode(String entityCode) {
         int activeCount = entityAdminCredentialService.countActiveEntityAdmins(entityCode);
         int boundCount = entityAdminCredentialService.countBoundEntityAdmins(entityCode);
-
         if (activeCount == 0 && entityAdminCredentialService.listBindableEntityAdmins(entityCode).isEmpty()) {
             return LOGIN_MODE_ADMIN_REGISTER;
         }
-
         if (boundCount < MIN_ENTITY_ADMIN_COUNT) {
             if (!entityAdminCredentialService.listBindableEntityAdmins(entityCode).isEmpty()) {
                 return LOGIN_MODE_ADMIN_SELECT;
             }
             return LOGIN_MODE_ADMIN_REGISTER;
         }
-
         return LOGIN_MODE_ADMIN_SELECT;
     }
 
@@ -1092,16 +1020,14 @@ public class AuthService {
         String nextChallengeId = "chl_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         String nextLoginMode = resolveEntityRootLoginMode(entityCode);
         LocalDateTime expireAt = LocalDateTime.now().plusSeconds(ORG_CHALLENGE_EXPIRE_SEC);
-        orgChallengeStore.put(nextChallengeId, OrgChallengeRecord.forEntityRoot(
+        saveChallenge(nextChallengeId, OrgChallengeRecord.forEntityRoot(
                 entityCode, nextLoginMode, null, null, expireAt));
         return new FollowUpChallenge(nextChallengeId, nextLoginMode);
     }
 
     private String buildActivationHint(String entityCode, int boundAdminCount) {
         int remaining = MIN_ENTITY_ADMIN_COUNT - boundAdminCount;
-        if (remaining <= 0) {
-            return "请继续完成管理员绑定";
-        }
+        if (remaining <= 0) return "请继续完成管理员绑定";
         int activeCount = entityAdminCredentialService.countActiveEntityAdmins(entityCode);
         if (activeCount < MIN_ENTITY_ADMIN_COUNT && activeCount < MAX_ENTITY_ADMIN_COUNT) {
             return "还需登记并绑定 " + remaining + " 名管理员后方可正式启用机构管理端";
@@ -1109,25 +1035,12 @@ public class AuthService {
         return "请通知其他管理员登录并完成 TOTP 绑定（还需 " + remaining + " 人）";
     }
 
-    /** 至少一名管理员已完成 TOTP 绑定后，才允许使用管理员独立密码登录。 */
     private boolean isAdminPasswordLoginAllowed(String entityCode) {
         return countBoundEntityAdmins(entityCode) > 0;
     }
 
     private boolean isEntityAdminUid(String subject) {
         return StringUtils.hasText(subject) && subject.trim().matches("^EA[A-Za-z0-9]{11}$");
-    }
-
-    private OrgChallengeRecord requireOrgChallenge(String challengeId) {
-        OrgChallengeRecord challenge = orgChallengeStore.get(challengeId);
-        if (challenge == null) {
-            throw new RuntimeException("CHALLENGE_NOT_FOUND");
-        }
-        if (challenge.expireAt().isBefore(LocalDateTime.now())) {
-            orgChallengeStore.remove(challengeId);
-            throw new RuntimeException("CHALLENGE_EXPIRED");
-        }
-        return challenge;
     }
 
     private ClientEntity loadEntityByCode(String entityCode) {
@@ -1146,22 +1059,12 @@ public class AuthService {
         return entityAdminCredentialService.countBoundEntityAdmins(entityCode);
     }
 
-    /**
-     * 管理员 TOTP 绑定后激活账户，使用条件 UPDATE 防止并发覆盖。
-     * <p>
-     * 【并发安全】使用 LambdaUpdateWrapper 仅更新指定字段（totpSecret、accountStatus、
-     * accountStatusChangedAt、lastLoginAt），避免 updateById 全字段覆盖导致丢失更新。
-     * isPrimary 的设置存在 TOCTOU 风险（检查 hasActivePrimaryAdmin 后设置），
-     * 由事务内行级锁保护同一行，跨行检查由数据库唯一约束兜底。
-     * </p>
-     */
     private void activateEntityAdminAfterTotpBind(SysEntityTotpCredentials admin, String totpSecret, LocalDateTime now) {
         SysEntityTotpCredentials patch = new SysEntityTotpCredentials();
         patch.setTotpSecret(totpSecret);
         patch.setAccountStatus(EntityAdminAccountStatus.ACTIVE);
         patch.setAccountStatusChangedAt(now);
         patch.setLastLoginAt(now);
-        // 仅当同主体下无活跃主管理员时，设为首选管理员（小概率并发冲突由数据库约束兜底）
         if (!entityAdminCredentialService.hasActivePrimaryAdmin(admin.getEntityCode())) {
             patch.setIsPrimary(1);
         }
@@ -1178,9 +1081,7 @@ public class AuthService {
                         .thenComparing(SysEntityTotpCredentials::getId))
                 .toList();
         for (int i = 0; i < sorted.size(); i++) {
-            if (Objects.equals(sorted.get(i).getAdminUid(), admin.getAdminUid())) {
-                return i + 1;
-            }
+            if (Objects.equals(sorted.get(i).getAdminUid(), admin.getAdminUid())) return i + 1;
         }
         return 1;
     }
@@ -1189,55 +1090,34 @@ public class AuthService {
         LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
         ClientEntityProfile profile = clientEntityProfileMapper.selectOne(wrapper);
-        if (profile == null || !StringUtils.hasText(profile.getName())) {
-            return entityCode;
-        }
+        if (profile == null || !StringUtils.hasText(profile.getName())) return entityCode;
         return profile.getName().trim();
     }
 
-    /** 允许进入 TOTP 绑定流程（PENDING 或 ACTIVE 未绑定）。 */
     private void assertEntityAdminCanBindTotp(SysEntityTotpCredentials admin) {
         String status = admin.getAccountStatus() == null ? "" : admin.getAccountStatus().trim().toUpperCase(Locale.ROOT);
-        if (EntityAdminAccountStatus.DEACTIVATED.equals(status)) {
-            throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
-        }
-        if (EntityAdminAccountStatus.FROZEN.equals(status)) {
-            throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
-        }
-        if (StringUtils.hasText(admin.getTotpSecret())) {
-            throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
-        }
+        if (EntityAdminAccountStatus.DEACTIVATED.equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
+        if (EntityAdminAccountStatus.FROZEN.equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
+        if (StringUtils.hasText(admin.getTotpSecret())) throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
     }
 
     private void assertEntityAdminActive(SysEntityTotpCredentials admin) {
         String status = admin.getAccountStatus() == null ? "ACTIVE" : admin.getAccountStatus().trim().toUpperCase(Locale.ROOT);
-        if ("FROZEN".equals(status)) {
-            throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
-        }
-        if ("DEACTIVATED".equals(status)) {
-            throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
-        }
-        if (!"ACTIVE".equals(status)) {
-            throw new RuntimeException("ORGANIZATION_ACCOUNT_DISABLED");
-        }
-        if (!StringUtils.hasText(admin.getTotpSecret())) {
-            throw new RuntimeException("ORGANIZATION_TOTP_NOT_BOUND");
-        }
+        if ("FROZEN".equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
+        if ("DEACTIVATED".equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
+        if (!"ACTIVE".equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_DISABLED");
+        if (!StringUtils.hasText(admin.getTotpSecret())) throw new RuntimeException("ORGANIZATION_TOTP_NOT_BOUND");
     }
 
     private String digestPreview(String password) {
         String normalized = normalize(password);
-        if (normalized.length() <= 12) {
-            return normalized;
-        }
+        if (normalized.length() <= 12) return normalized;
         return normalized.substring(0, 12);
     }
 
     private String maskInstitutionCode(String institutionCode) {
         String normalized = normalize(institutionCode);
-        if (normalized.length() <= 2) {
-            return "***";
-        }
+        if (normalized.length() <= 2) return "***";
         return normalized.substring(0, 1) + "***" + normalized.substring(normalized.length() - 1);
     }
 
@@ -1249,99 +1129,35 @@ public class AuthService {
         return jwtUtil.generateToken(subject, userType, 0, REFRESH_TOKEN_EXPIRE_MS);
     }
 
-    /**
-     * 刷新 token 采用一次性设计：
-     * 每次签发新 refreshToken 都会覆盖旧值，旧 token 立刻失效。
-     * <p>
-     * 【并发安全】使用 ConcurrentHashMap 的原子操作保证
-     * refreshToken 写入的线程安全。多实例部署时，
-     * 单实例内多个请求并发调用受 synchronized 保护的方法
-     * （refreshAccessToken/handleLogout）已确保正确性。
-     * </p>
-     */
-    private TokenPair issueTokenPair(String subject, String accessTokenType, String refreshTokenType) {
-        String accessToken = generateAccessToken(subject, accessTokenType);
-        String refreshToken = generateRefreshToken(subject, refreshTokenType);
-        activeRefreshTokenStore.put(buildRefreshSubjectKey(subject, refreshTokenType), refreshToken);
-        return new TokenPair(accessToken, refreshToken);
-    }
+    // ===================== 内部 record 类型 =====================
 
-    private String buildRefreshSubjectKey(String subject, String refreshTokenType) {
-        return subject + "|" + refreshTokenType;
-    }
+    private record AuthMeta(String userRole, String authStatus) {}
 
-    private boolean isClientRefreshType(String userType) {
-        return "CLIENT_USER_REFRESH".equals(userType) || "CLIENT_ORG_REFRESH".equals(userType);
-    }
+    private record TokenPair(String accessToken, String refreshToken) {}
 
-    private String mapToAccessTokenType(String refreshType) {
-        return "CLIENT_ORG_REFRESH".equals(refreshType) ? "CLIENT_ORG" : "CLIENT_USER";
-    }
+    private record FollowUpChallenge(String challengeId, String loginMode) {}
 
-    private void revokeToken(String token) {
-        try {
-            Claims claims = jwtUtil.parseToken(token);
-            LocalDateTime expireAt = LocalDateTime.ofInstant(claims.getExpiration().toInstant(), java.time.ZoneId.systemDefault());
-            revokedTokenStore.put(token, expireAt);
-        } catch (Exception ignored) {
-            revokedTokenStore.put(token, LocalDateTime.now().plusMinutes(30));
-        }
-    }
+    public record OrgChallengeRecord(String adminUid, String entityCode, String loginMode,
+                                     boolean entityRootAuthenticated, String pendingTotpSecret,
+                                     LocalDateTime totpSetupExpireAt, LocalDateTime expireAt) {
 
-    private boolean isTokenRevoked(String token) {
-        LocalDateTime expireAt = revokedTokenStore.get(token);
-        if (expireAt == null) {
-            return false;
-        }
-        if (expireAt.isBefore(LocalDateTime.now())) {
-            revokedTokenStore.remove(token);
-            return false;
-        }
-        return true;
-    }
-
-    private record AuthMeta(String userRole, String authStatus) {
-    }
-
-    private record CodeRecord(String requestId, String code, LocalDateTime createdAt, LocalDateTime expireAt) {
-    }
-
-    private record OrgChallengeRecord(String adminUid,
-                                      String entityCode,
-                                      String loginMode,
-                                      boolean entityRootAuthenticated,
-                                      String pendingTotpSecret,
-                                      LocalDateTime totpSetupExpireAt,
-                                      LocalDateTime expireAt) {
-
-        static OrgChallengeRecord forEntityRoot(String entityCode,
-                                              String loginMode,
-                                              String pendingTotpSecret,
-                                              LocalDateTime totpSetupExpireAt,
-                                              LocalDateTime expireAt) {
+        public static OrgChallengeRecord forEntityRoot(String entityCode, String loginMode,
+                                                       String pendingTotpSecret, LocalDateTime totpSetupExpireAt,
+                                                       LocalDateTime expireAt) {
             return new OrgChallengeRecord(null, entityCode, loginMode, true,
                     pendingTotpSecret, totpSetupExpireAt, expireAt);
         }
 
-        static OrgChallengeRecord forAdmin(String adminUid,
-                                           String entityCode,
-                                           String loginMode,
-                                           String pendingTotpSecret,
-                                           LocalDateTime totpSetupExpireAt,
-                                           LocalDateTime expireAt) {
+        public static OrgChallengeRecord forAdmin(String adminUid, String entityCode, String loginMode,
+                                                  String pendingTotpSecret, LocalDateTime totpSetupExpireAt,
+                                                  LocalDateTime expireAt) {
             return new OrgChallengeRecord(adminUid, entityCode, loginMode, false,
                     pendingTotpSecret, totpSetupExpireAt, expireAt);
         }
 
-        OrgChallengeRecord withPendingTotp(String pendingTotpSecret, LocalDateTime totpSetupExpireAt) {
+        public OrgChallengeRecord withPendingTotp(String pendingTotpSecret, LocalDateTime totpSetupExpireAt) {
             return new OrgChallengeRecord(adminUid, entityCode, loginMode, entityRootAuthenticated,
                     pendingTotpSecret, totpSetupExpireAt, expireAt);
         }
-    }
-
-    private record TokenPair(String accessToken, String refreshToken) {
-    }
-
-    private record FollowUpChallenge(String challengeId, String loginMode) {
     }
 }

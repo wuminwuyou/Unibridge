@@ -1,23 +1,31 @@
 package com.unibridge.backend.domain.note;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.time.Duration;
 
 /**
  * 笔记浏览量短时去重：同一访问者对同一笔记在窗口期内只计一次有效浏览。
  * <p>
  * 访问者标识：登录用户 {@code u:{userId}}；未登录 {@code ip:{clientIp}}。
- * 单节点内存实现，适用于联调与小规模部署；集群环境可替换为 Redis。
+ * 使用 Redis 存储，支持多实例部署。
  * </p>
  */
 @Component
 public class NoteViewTracker {
 
-    /** 同一访问者对同一笔记的浏览计次冷却窗口（毫秒） */
-    private static final long THROTTLE_WINDOW_MS = 30L * 60 * 1000;
+    private static final String REDIS_PREFIX = "note:view:";
 
-    private final ConcurrentHashMap<String, Long> lastViewAtMs = new ConcurrentHashMap<>();
+    /** 同一访问者对同一笔记的浏览计次冷却窗口 */
+    private static final Duration THROTTLE_WINDOW = Duration.ofMinutes(30);
+
+    /** 最大容量，用于触发过期清理 */
+    private static final long MAX_SIZE = 10_000;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     /**
      * 判断是否应计入一次有效浏览，并在首次/冷却结束后记录本次访问时间。
@@ -30,20 +38,10 @@ public class NoteViewTracker {
         if (viewerKey == null || viewerKey.isBlank() || noteId == null) {
             return false;
         }
-        String cacheKey = viewerKey + ":note:" + noteId;
-        long now = System.currentTimeMillis();
-        Long last = lastViewAtMs.get(cacheKey);
-        if (last != null && now - last < THROTTLE_WINDOW_MS) {
-            return false;
-        }
-        lastViewAtMs.put(cacheKey, now);
-        if (lastViewAtMs.size() > 10_000) {
-            purgeExpired(now);
-        }
-        return true;
-    }
-
-    private void purgeExpired(long now) {
-        lastViewAtMs.entrySet().removeIf(entry -> now - entry.getValue() >= THROTTLE_WINDOW_MS);
+        String cacheKey = REDIS_PREFIX + viewerKey + ":note:" + noteId;
+        // SET NX 保证原子性：key 不存在才 SET，否则返回 false
+        Boolean success = stringRedisTemplate.opsForValue()
+                .setIfAbsent(cacheKey, String.valueOf(System.currentTimeMillis()), THROTTLE_WINDOW);
+        return Boolean.TRUE.equals(success);
     }
 }

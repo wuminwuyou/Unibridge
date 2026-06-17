@@ -13,9 +13,11 @@ import com.unibridge.backend.infrastructure.util.JwtUtil;
 import com.unibridge.backend.infrastructure.util.PublicUidGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -23,12 +25,12 @@ import org.springframework.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -41,7 +43,9 @@ public class VerificationService {
 
     private static final Logger log = LoggerFactory.getLogger(VerificationService.class);
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .registerModule(new JavaTimeModule());
+    private static final String REDIS_FACE_PREFIX = "verification:face:";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter EXPIRE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -49,8 +53,8 @@ public class VerificationService {
     private static final Pattern VERIFICATION_CODE_PATTERN = Pattern.compile("^\\d{1,32}-\\d{4}-\\d{5}$");
     private static final int FACE_TOKEN_EXPIRE_SEC = 300;
 
-    /** 开发环境 mock 核身 token → info 存储 */
-    private final Map<String, FaceRecord> faceStore = new ConcurrentHashMap<>();
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
 
     /** 当前激活的 Spring profile */
     @Value("${spring.profiles.active:dev}")
@@ -113,7 +117,8 @@ public class VerificationService {
             // ====== 开发环境：mock 核身 ======
             String token = "face_mock_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
             String mockUrl = "about:blank"; // 无实际核身页面
-            faceStore.put(token, new FaceRecord(userUid, request.getRealName().trim(), request.getIdCard().trim(), LocalDateTime.now()));
+            FaceRecord record = new FaceRecord(userUid, request.getRealName().trim(), request.getIdCard().trim(), LocalDateTime.now());
+            redisTemplate.opsForValue().set(REDIS_FACE_PREFIX + token, record, Duration.ofSeconds(FACE_TOKEN_EXPIRE_SEC));
             return FaceInitResponse.builder()
                     .url(mockUrl)
                     .token(token)
@@ -142,15 +147,12 @@ public class VerificationService {
 
         if ("dev".equals(activeProfile)) {
             // ====== 开发环境：直接通过 ======
-            FaceRecord record = faceStore.get(token);
+            String key = REDIS_FACE_PREFIX + token;
+            FaceRecord record = (FaceRecord) redisTemplate.opsForValue().get(key);
             if (record == null) {
                 return FaceResultResponse.builder().passed(false).build();
             }
-            if (record.createdAt.plusSeconds(FACE_TOKEN_EXPIRE_SEC).isBefore(LocalDateTime.now())) {
-                faceStore.remove(token);
-                return FaceResultResponse.builder().passed(false).build();
-            }
-            faceStore.remove(token);
+            redisTemplate.delete(key);
             return FaceResultResponse.builder()
                     .passed(true)
                     .realName(record.realName)
