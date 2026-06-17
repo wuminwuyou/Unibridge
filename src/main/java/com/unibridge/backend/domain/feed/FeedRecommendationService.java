@@ -7,12 +7,12 @@ import com.unibridge.backend.domain.feed.dto.FeedShuffleResponse;
 import com.unibridge.backend.domain.feed.dto.HomeFeedResponse;
 import com.unibridge.backend.domain.note.NoteCardAssembler;
 import com.unibridge.backend.domain.project.ProjectCardAssembler;
-import com.unibridge.backend.infrastructure.entities.ClientNote;
-import com.unibridge.backend.infrastructure.entities.ClientProject;
-import com.unibridge.backend.infrastructure.entities.UserTagInterest;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientProjectMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserTagInterestMapper;
+import com.unibridge.backend.infrastructure.entities.note.Note;
+import com.unibridge.backend.infrastructure.entities.project.Project;
+import com.unibridge.backend.infrastructure.entities.interaction.UserInterestTag;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.interaction.UserInterestTagMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -90,24 +90,24 @@ public class FeedRecommendationService {
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
     };
 
-    private final UserTagInterestMapper userTagInterestMapper;
-    private final ClientNoteMapper clientNoteMapper;
-    private final ClientProjectMapper clientProjectMapper;
+    private final UserInterestTagMapper userInterestTagMapper;
+    private final NoteMapper noteMapper;
+    private final ProjectMapper projectMapper;
     private final FeedShuffleCacheService feedShuffleCacheService;
     private final ContentUidResolver contentUidResolver;
     private final ProjectCardAssembler projectCardAssembler;
     private final NoteCardAssembler noteCardAssembler;
 
-    public FeedRecommendationService(UserTagInterestMapper userTagInterestMapper,
-                                     ClientNoteMapper clientNoteMapper,
-                                     ClientProjectMapper clientProjectMapper,
+    public FeedRecommendationService(UserInterestTagMapper userInterestTagMapper,
+                                     NoteMapper noteMapper,
+                                     ProjectMapper projectMapper,
                                      @Lazy FeedShuffleCacheService feedShuffleCacheService,
                                      ContentUidResolver contentUidResolver,
                                      ProjectCardAssembler projectCardAssembler,
                                      NoteCardAssembler noteCardAssembler) {
-        this.userTagInterestMapper = userTagInterestMapper;
-        this.clientNoteMapper = clientNoteMapper;
-        this.clientProjectMapper = clientProjectMapper;
+        this.userInterestTagMapper = userInterestTagMapper;
+        this.noteMapper = noteMapper;
+        this.projectMapper = projectMapper;
         this.feedShuffleCacheService = feedShuffleCacheService;
         this.contentUidResolver = contentUidResolver;
         this.projectCardAssembler = projectCardAssembler;
@@ -288,7 +288,7 @@ public class FeedRecommendationService {
     public List<ContentVO> getSimilarNotes(String noteUid, int limit) {
         int safeLimit = Math.min(Math.max(limit, 1), 30);
 
-        ClientNote source = contentUidResolver.requireNoteByUid(noteUid);
+        Note source = contentUidResolver.requireNoteByUid(noteUid);
         if (!NOTE_STATUS_PUBLISHED.equals(source.getStatus())) {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
@@ -301,12 +301,12 @@ public class FeedRecommendationService {
                     .collect(Collectors.toList());
         }
 
-        List<ClientNote> candidates = loadPublishedNotes(SIMILAR_CANDIDATE_LIMIT).stream()
+        List<Note> candidates = loadPublishedNotes(SIMILAR_CANDIDATE_LIMIT).stream()
                 .filter(note -> !note.getId().equals(sourceInternalId))
                 .collect(Collectors.toList());
 
         List<ScoredContent> scored = new ArrayList<>();
-        for (ClientNote note : candidates) {
+        for (Note note : candidates) {
             Set<String> tags = new HashSet<>(parseTags(note.getTags()));
             double similarity = jaccardSimilarity(sourceTags, tags);
             if (similarity <= 0) {
@@ -328,13 +328,13 @@ public class FeedRecommendationService {
         if (userUid == null || userUid.isBlank() || ANONYMOUS_USER.equals(userUid)) {
             return Map.of();
         }
-        LambdaQueryWrapper<UserTagInterest> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserTagInterest::getUserUid, userUid)
-                .orderByDesc(UserTagInterest::getWeight)
+        LambdaQueryWrapper<UserInterestTag> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserInterestTag::getUserUid, userUid)
+                .orderByDesc(UserInterestTag::getWeight)
                 .last("LIMIT 50");
-        List<UserTagInterest> interests = userTagInterestMapper.selectList(wrapper);
+        List<UserInterestTag> interests = userInterestTagMapper.selectList(wrapper);
         Map<String, Double> weights = new HashMap<>();
-        for (UserTagInterest interest : interests) {
+        for (UserInterestTag interest : interests) {
             if (interest.getWeight() != null && StringUtils.hasText(interest.getTag())) {
                 weights.put(interest.getTag().trim(), interest.getWeight().doubleValue());
             }
@@ -349,50 +349,50 @@ public class FeedRecommendationService {
         return userUid.trim();
     }
 
-    private List<ClientNote> loadPublishedNotes(int limit) {
+    private List<Note> loadPublishedNotes(int limit) {
         return loadPublishedNotes(limit, null);
     }
 
-    private List<ClientNote> loadPublishedNotes(int limit, String noteType) {
-        LambdaQueryWrapper<ClientNote> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientNote::getStatus, NOTE_STATUS_PUBLISHED);
+    private List<Note> loadPublishedNotes(int limit, String noteType) {
+        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Note::getStatus, NOTE_STATUS_PUBLISHED);
         if (noteType != null) {
-            wrapper.likeRight(ClientNote::getContentTypeCode, noteTypeToCodePrefix(noteType));
+            wrapper.likeRight(Note::getContentTypeCode, noteTypeToCodePrefix(noteType));
         }
-        wrapper.orderByDesc(ClientNote::getPublishedAt)
-                .orderByDesc(ClientNote::getCreatedAt)
+        wrapper.orderByDesc(Note::getPublishedAt)
+                .orderByDesc(Note::getCreatedAt)
                 .last("LIMIT " + limit);
-        return clientNoteMapper.selectList(wrapper);
+        return noteMapper.selectList(wrapper);
     }
 
-    private List<ClientNote> loadTopLikedNotes(Long excludeId, int limit) {
-        LambdaQueryWrapper<ClientNote> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientNote::getStatus, NOTE_STATUS_PUBLISHED)
-                .ne(ClientNote::getId, excludeId)
-                .orderByDesc(ClientNote::getLikeCount)
+    private List<Note> loadTopLikedNotes(Long excludeId, int limit) {
+        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Note::getStatus, NOTE_STATUS_PUBLISHED)
+                .ne(Note::getId, excludeId)
+                .orderByDesc(Note::getLikeCount)
                 .last("LIMIT " + limit);
-        return clientNoteMapper.selectList(wrapper);
+        return noteMapper.selectList(wrapper);
     }
 
-    private List<ClientProject> loadPublicProjects(int limit) {
+    private List<Project> loadPublicProjects(int limit) {
         return loadPublicProjects(limit, null);
     }
 
-    private List<ClientProject> loadPublicProjects(int limit, String category) {
-        LambdaQueryWrapper<ClientProject> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(ClientProject::getStatus, PUBLIC_PROJECT_STATUS);
+    private List<Project> loadPublicProjects(int limit, String category) {
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(Project::getStatus, PUBLIC_PROJECT_STATUS);
         if (category != null) {
-            wrapper.eq(ClientProject::getCategory, category);
+            wrapper.eq(Project::getCategory, category);
         }
-        wrapper.orderByDesc(ClientProject::getPublishedAt)
-                .orderByDesc(ClientProject::getCreatedAt)
+        wrapper.orderByDesc(Project::getPublishedAt)
+                .orderByDesc(Project::getCreatedAt)
                 .last("LIMIT " + limit);
-        return clientProjectMapper.selectList(wrapper);
+        return projectMapper.selectList(wrapper);
     }
 
-    private List<ScoredContent> scoreNotes(List<ClientNote> notes, Map<String, Double> tagWeights) {
+    private List<ScoredContent> scoreNotes(List<Note> notes, Map<String, Double> tagWeights) {
         List<ScoredContent> result = new ArrayList<>();
-        for (ClientNote note : notes) {
+        for (Note note : notes) {
             double score = computeScore(parseTags(note.getTags()), tagWeights,
                     resolvePublishTime(note.getPublishedAt(), note.getCreatedAt()),
                     nullSafe(note.getLikeCount()), nullSafe(note.getCollectCount()));
@@ -401,9 +401,9 @@ public class FeedRecommendationService {
         return result;
     }
 
-    private List<ScoredContent> scoreProjects(List<ClientProject> projects, Map<String, Double> tagWeights) {
+    private List<ScoredContent> scoreProjects(List<Project> projects, Map<String, Double> tagWeights) {
         List<ScoredContent> result = new ArrayList<>();
-        for (ClientProject project : projects) {
+        for (Project project : projects) {
             double score = computeScore(parseTags(project.getTags()), tagWeights,
                     resolvePublishTime(project.getPublishedAt(), project.getCreatedAt()),
                     0, 0);
@@ -446,11 +446,11 @@ public class FeedRecommendationService {
         return union.isEmpty() ? 0 : (double) intersection.size() / union.size();
     }
 
-    private ContentVO toNoteVo(ClientNote note, double score) {
+    private ContentVO toNoteVo(Note note, double score) {
         return noteCardAssembler.toFeedNoteVo(note, score);
     }
 
-    private ContentVO toProjectVo(ClientProject project, double score) {
+    private ContentVO toProjectVo(Project project, double score) {
         return projectCardAssembler.toFeedProjectVo(project, score);
     }
 
@@ -554,13 +554,13 @@ public class FeedRecommendationService {
      * 机制 B：拉取候选后在 Java 层跨类型混排（与首页 shuffle 一致，避免 MySQL {@code RAND(seed)} 排序失效）。
      */
     private List<ContentVO> buildHomeFeedRandomPage(String userUid, long seed, int page, int size) {
-        List<ClientNote> notes = loadPublishedNotes(HOME_CANDIDATE_LIMIT, null);
-        List<ClientProject> projects = loadPublicProjects(HOME_CANDIDATE_LIMIT, null);
+        List<Note> notes = loadPublishedNotes(HOME_CANDIDATE_LIMIT, null);
+        List<Project> projects = loadPublicProjects(HOME_CANDIDATE_LIMIT, null);
         List<ContentVO> pool = new ArrayList<>(notes.size() + projects.size());
-        for (ClientNote note : notes) {
+        for (Note note : notes) {
             pool.add(toNoteVo(note, 0.0));
         }
-        for (ClientProject project : projects) {
+        for (Project project : projects) {
             pool.add(toProjectVo(project, 0.0));
         }
         Collections.shuffle(pool, new Random(seed));
@@ -638,21 +638,21 @@ public class FeedRecommendationService {
     }
 
     private long countPublishedNotes(String noteType) {
-        LambdaQueryWrapper<ClientNote> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientNote::getStatus, NOTE_STATUS_PUBLISHED);
+        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Note::getStatus, NOTE_STATUS_PUBLISHED);
         if (noteType != null) {
-            wrapper.likeRight(ClientNote::getContentTypeCode, noteTypeToCodePrefix(noteType));
+            wrapper.likeRight(Note::getContentTypeCode, noteTypeToCodePrefix(noteType));
         }
-        return clientNoteMapper.selectCount(wrapper);
+        return noteMapper.selectCount(wrapper);
     }
 
     private long countPublicProjects(String category) {
-        LambdaQueryWrapper<ClientProject> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(ClientProject::getStatus, PUBLIC_PROJECT_STATUS);
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(Project::getStatus, PUBLIC_PROJECT_STATUS);
         if (category != null) {
-            wrapper.eq(ClientProject::getCategory, category);
+            wrapper.eq(Project::getCategory, category);
         }
-        return clientProjectMapper.selectCount(wrapper);
+        return projectMapper.selectCount(wrapper);
     }
 
     private int normalizeShuffleSize(int size, int defaultSize) {

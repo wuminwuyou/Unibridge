@@ -7,10 +7,10 @@ import com.unibridge.backend.domain.auth.AccessService;
 import com.unibridge.backend.domain.interaction.dto.ContentInteractionRequest;
 import com.unibridge.backend.domain.interaction.dto.ContentViewSyncRequest;
 import com.unibridge.backend.domain.note.NoteViewTracker;
-import com.unibridge.backend.infrastructure.entities.ClientNote;
-import com.unibridge.backend.infrastructure.entities.UserContentInteraction;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserContentInteractionMapper;
+import com.unibridge.backend.infrastructure.entities.note.Note;
+import com.unibridge.backend.infrastructure.entities.interaction.UserInteraction;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.interaction.UserInteractionMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.unibridge.backend.infrastructure.util.IpUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,18 +37,18 @@ public class InteractionService {
     private static final Set<String> VALID_TARGET_TYPES = Set.of(TARGET_NOTE, TARGET_PROJECT);
 
     private final AccessService clientAccessService;
-    private final ClientNoteMapper clientNoteMapper;
-    private final UserContentInteractionMapper interactionMapper;
+    private final NoteMapper noteMapper;
+    private final UserInteractionMapper interactionMapper;
     private final NoteViewTracker noteViewTracker;
     private final ContentUidResolver contentUidResolver;
 
     public InteractionService(AccessService clientAccessService,
-                                     ClientNoteMapper clientNoteMapper,
-                                     UserContentInteractionMapper interactionMapper,
+                                     NoteMapper noteMapper,
+                                     UserInteractionMapper interactionMapper,
                                      NoteViewTracker noteViewTracker,
                                      ContentUidResolver contentUidResolver) {
         this.clientAccessService = clientAccessService;
-        this.clientNoteMapper = clientNoteMapper;
+        this.noteMapper = noteMapper;
         this.interactionMapper = interactionMapper;
         this.noteViewTracker = noteViewTracker;
         this.contentUidResolver = contentUidResolver;
@@ -80,7 +80,7 @@ public class InteractionService {
             return;
         }
 
-        ClientNote note = contentUidResolver.requireNoteByUid(request.getTargetUid());
+        Note note = contentUidResolver.requireNoteByUid(request.getTargetUid());
         if (!NOTE_STATUS_PUBLISHED.equals(note.getStatus())) {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
@@ -95,10 +95,10 @@ public class InteractionService {
         }
 
         // 数据库原子自增，避免 read-modify-write 竞态
-        LambdaUpdateWrapper<ClientNote> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ClientNote::getId, note.getId())
+        LambdaUpdateWrapper<Note> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Note::getId, note.getId())
                 .setSql("view_count = COALESCE(view_count, 0) + 1");
-        clientNoteMapper.update(null, wrapper);
+        noteMapper.update(null, wrapper);
     }
 
     /**
@@ -117,7 +117,7 @@ public class InteractionService {
         String targetType = request.getTargetType().toUpperCase(Locale.ROOT);
         String targetUid = normalizeTargetUid(targetType, request.getTargetUid());
 
-        UserContentInteraction interaction = loadOrCreateInteraction(userUid, targetType, targetUid);
+        UserInteraction interaction = loadOrCreateInteraction(userUid, targetType, targetUid);
         int before = field == InteractionField.LIKE ? nullSafe(interaction.getLiked()) : nullSafe(interaction.getCollected());
         int after = active ? 1 : 0;
         if (before == after) {
@@ -125,14 +125,14 @@ public class InteractionService {
         }
 
         // 使用条件更新仅写目标字段，防止并发的 LIKE/COLLECT 互相覆盖
-        LambdaUpdateWrapper<UserContentInteraction> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(UserContentInteraction::getUserUid, userUid)
-                .eq(UserContentInteraction::getTargetType, targetType)
-                .eq(UserContentInteraction::getTargetUid, targetUid);
+        LambdaUpdateWrapper<UserInteraction> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(UserInteraction::getUserUid, userUid)
+                .eq(UserInteraction::getTargetType, targetType)
+                .eq(UserInteraction::getTargetUid, targetUid);
         if (field == InteractionField.LIKE) {
-            updateWrapper.set(UserContentInteraction::getLiked, after);
+            updateWrapper.set(UserInteraction::getLiked, after);
         } else {
-            updateWrapper.set(UserContentInteraction::getCollected, after);
+            updateWrapper.set(UserInteraction::getCollected, after);
         }
         interactionMapper.update(null, updateWrapper);
 
@@ -161,10 +161,10 @@ public class InteractionService {
             return;
         }
         String column = field == InteractionField.LIKE ? "like_count" : "collect_count";
-        LambdaUpdateWrapper<ClientNote> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ClientNote::getId, noteId)
+        LambdaUpdateWrapper<Note> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Note::getId, noteId)
                 .setSql(column + " = GREATEST(0, COALESCE(" + column + ", 0) + " + delta + ")");
-        clientNoteMapper.update(null, wrapper);
+        noteMapper.update(null, wrapper);
     }
 
     /**
@@ -176,17 +176,17 @@ public class InteractionService {
      * 此时回退为重新 select，由事务回滚或异常捕获保护数据一致性。
      * </p>
      */
-    private UserContentInteraction loadOrCreateInteraction(String userUid, String targetType, String targetUid) {
-        LambdaQueryWrapper<UserContentInteraction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserContentInteraction::getUserUid, userUid)
-                .eq(UserContentInteraction::getTargetType, targetType)
-                .eq(UserContentInteraction::getTargetUid, targetUid)
+    private UserInteraction loadOrCreateInteraction(String userUid, String targetType, String targetUid) {
+        LambdaQueryWrapper<UserInteraction> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserInteraction::getUserUid, userUid)
+                .eq(UserInteraction::getTargetType, targetType)
+                .eq(UserInteraction::getTargetUid, targetUid)
                 .last("LIMIT 1");
-        UserContentInteraction existing = interactionMapper.selectOne(wrapper);
+        UserInteraction existing = interactionMapper.selectOne(wrapper);
         if (existing != null) {
             return existing;
         }
-        UserContentInteraction created = new UserContentInteraction();
+        UserInteraction created = new UserInteraction();
         created.setUserUid(userUid);
         created.setTargetType(targetType);
         created.setTargetUid(targetUid);

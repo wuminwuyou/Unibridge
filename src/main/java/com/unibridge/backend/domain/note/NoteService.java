@@ -8,12 +8,12 @@ import com.unibridge.backend.domain.note.dto.NoteDetailResponse;
 import com.unibridge.backend.domain.note.dto.PublishNoteDraftResponse;
 import com.unibridge.backend.domain.note.dto.PublishNoteRequest;
 import com.unibridge.backend.domain.note.dto.PublishNoteResponse;
-import com.unibridge.backend.infrastructure.entities.ClientNote;
-import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
-import com.unibridge.backend.infrastructure.entities.UserIdentity;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
+import com.unibridge.backend.infrastructure.entities.note.Note;
+import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
+import com.unibridge.backend.infrastructure.entities.profile.UserIdentity;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.unibridge.backend.infrastructure.util.IpUtil;
 import com.unibridge.backend.infrastructure.util.NoteContentTypeCodeGenerator;
@@ -54,21 +54,21 @@ public class NoteService {
     };
 
     private final AccessService clientAccessService;
-    private final ClientNoteMapper clientNoteMapper;
-    private final ClientUserProfileMapper clientUserProfileMapper;
+    private final NoteMapper noteMapper;
+    private final UserProfileMapper userProfileMapper;
     private final UserIdentityMapper userIdentityMapper;
     private final NoteViewTracker noteViewTracker;
     private final ContentUidResolver contentUidResolver;
 
     public NoteService(AccessService clientAccessService,
-                             ClientNoteMapper clientNoteMapper,
-                             ClientUserProfileMapper clientUserProfileMapper,
+                             NoteMapper noteMapper,
+                             UserProfileMapper userProfileMapper,
                              UserIdentityMapper userIdentityMapper,
                              NoteViewTracker noteViewTracker,
                              ContentUidResolver contentUidResolver) {
         this.clientAccessService = clientAccessService;
-        this.clientNoteMapper = clientNoteMapper;
-        this.clientUserProfileMapper = clientUserProfileMapper;
+        this.noteMapper = noteMapper;
+        this.userProfileMapper = userProfileMapper;
         this.userIdentityMapper = userIdentityMapper;
         this.noteViewTracker = noteViewTracker;
         this.contentUidResolver = contentUidResolver;
@@ -81,13 +81,13 @@ public class NoteService {
         String userUid = clientAccessService.requireCurrentUserUid(authorization);
         validateRequest(request, null);
 
-        ClientNote note = new ClientNote();
+        Note note = new Note();
         note.setUserUid(userUid);
         note.setContentTypeCode(generateContentTypeCode(request.getContentType()));
         applyRequestToNote(note, request, null);
-        clientNoteMapper.insert(note);
+        noteMapper.insert(note);
 
-        ClientNote persisted = clientNoteMapper.selectById(note.getId());
+        Note persisted = noteMapper.selectById(note.getId());
         return buildResponse(persisted, request.getPublishAction());
     }
 
@@ -96,21 +96,21 @@ public class NoteService {
             condition = "#request.publishAction == 'PUBLISH'")
     public PublishNoteResponse updateNote(String authorization, String noteUid, PublishNoteRequest request) {
         String userUid = clientAccessService.requireCurrentUserUid(authorization);
-        ClientNote note = requireOwnedNote(noteUid, userUid);
+        Note note = requireOwnedNote(noteUid, userUid);
 
         validateRequest(request, note);
         assertContentTypeImmutable(note, request.getContentType());
 
         applyRequestToNote(note, request, note.getContentTypeCode());
-        clientNoteMapper.updateById(note);
+        noteMapper.updateById(note);
 
-        ClientNote persisted = clientNoteMapper.selectById(note.getId());
+        Note persisted = noteMapper.selectById(note.getId());
         return buildResponse(persisted, request.getPublishAction());
     }
 
     public PublishNoteDraftResponse getNoteDraft(String authorization, String noteUid) {
         String userUid = clientAccessService.requireCurrentUserUid(authorization);
-        ClientNote note = requireOwnedNote(noteUid, userUid);
+        Note note = requireOwnedNote(noteUid, userUid);
 
         return PublishNoteDraftResponse.builder()
                 .uid(note.getContentTypeCode())
@@ -137,7 +137,7 @@ public class NoteService {
      */
     @Transactional
     public NoteDetailResponse getNoteDetail(String authorization, String noteUid, HttpServletRequest request) {
-        ClientNote note = contentUidResolver.requireNoteByUid(noteUid);
+        Note note = contentUidResolver.requireNoteByUid(noteUid);
         if (STATUS_BANNED.equals(note.getStatus())) {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
@@ -146,14 +146,14 @@ public class NoteService {
         assertNoteReadable(note, currentUserUid);
 
         if (tryIncrementViewCount(note, currentUserUid, request)) {
-            note = clientNoteMapper.selectById(note.getId());
+            note = noteMapper.selectById(note.getId());
         }
 
         return buildNoteDetailResponse(note);
     }
 
-    private NoteDetailResponse buildNoteDetailResponse(ClientNote note) {
-        ClientUserProfile profile = loadUserProfile(note.getUserUid());
+    private NoteDetailResponse buildNoteDetailResponse(Note note) {
+        UserProfile profile = loadUserProfile(note.getUserUid());
         LocalDateTime displayPublishTime = resolveDisplayTime(note.getPublishedAt(), note.getCreatedAt());
 
         return NoteDetailResponse.builder()
@@ -177,7 +177,7 @@ public class NoteService {
                 .build();
     }
 
-    private void assertNoteReadable(ClientNote note, String currentUserUid) {
+    private void assertNoteReadable(Note note, String currentUserUid) {
         if (STATUS_PUBLISHED.equals(note.getStatus())) {
             return;
         }
@@ -197,7 +197,7 @@ public class NoteService {
      *
      * @return 是否已执行 +1（便于调用方决定是否重新加载 note）
      */
-    private boolean tryIncrementViewCount(ClientNote note, String currentUserUid, HttpServletRequest request) {
+    private boolean tryIncrementViewCount(Note note, String currentUserUid, HttpServletRequest request) {
         if (!STATUS_PUBLISHED.equals(note.getStatus())) {
             return false;
         }
@@ -230,19 +230,19 @@ public class NoteService {
      */
     private void incrementViewCount(Long noteId) {
         // 使用 MyBatis-Plus LambdaUpdateWrapper 执行原子自增
-        LambdaUpdateWrapper<ClientNote> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ClientNote::getId, noteId)
+        LambdaUpdateWrapper<Note> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Note::getId, noteId)
                 .setSql("view_count = COALESCE(view_count, 0) + 1");
-        clientNoteMapper.update(null, wrapper);
+        noteMapper.update(null, wrapper);
     }
 
-    private ClientUserProfile loadUserProfile(String userUid) {
-        LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
-        return clientUserProfileMapper.selectOne(wrapper);
+    private UserProfile loadUserProfile(String userUid) {
+        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserProfile::getUserUid, userUid).last("LIMIT 1");
+        return userProfileMapper.selectOne(wrapper);
     }
 
-    private NoteDetailResponse.Author buildAuthor(ClientUserProfile profile, String userUid) {
+    private NoteDetailResponse.Author buildAuthor(UserProfile profile, String userUid) {
         String name = "用户";
         if (profile != null && StringUtils.hasText(profile.getNickName())) {
             name = profile.getNickName().trim();
@@ -261,7 +261,7 @@ public class NoteService {
                 .build();
     }
 
-    private String buildAuthorHandle(ClientUserProfile profile, String userUid) {
+    private String buildAuthorHandle(UserProfile profile, String userUid) {
         if (profile != null && StringUtils.hasText(profile.getNickName())) {
             String slug = profile.getNickName().trim()
                     .replaceAll("\\s+", "")
@@ -281,15 +281,15 @@ public class NoteService {
         return StringUtils.hasText(editorType) ? editorType : EDITOR_TYPE_MARKDOWN;
     }
 
-    private ClientNote requireOwnedNote(String noteUid, String userUid) {
-        ClientNote note = contentUidResolver.requireNoteByUid(noteUid);
+    private Note requireOwnedNote(String noteUid, String userUid) {
+        Note note = contentUidResolver.requireNoteByUid(noteUid);
         if (!userUid.equals(note.getUserUid())) {
             throw new BusinessException(403, "NOTE_NOT_OWNER");
         }
         return note;
     }
 
-    private void validateRequest(PublishNoteRequest request, ClientNote existingNote) {
+    private void validateRequest(PublishNoteRequest request, Note existingNote) {
         if (request == null) {
             throw BusinessException.badRequest("VALIDATION_FAILED");
         }
@@ -333,14 +333,14 @@ public class NoteService {
         }
     }
 
-    private void assertContentTypeImmutable(ClientNote note, String requestedContentType) {
+    private void assertContentTypeImmutable(Note note, String requestedContentType) {
         String existingDisplay = mapContentTypeCodeToDisplay(note.getContentTypeCode());
         if (!Objects.equals(existingDisplay, requestedContentType)) {
             throw BusinessException.badRequest("NOTE_TYPE_IMMUTABLE");
         }
     }
 
-    private void applyRequestToNote(ClientNote note, PublishNoteRequest request, String existingContentTypeCode) {
+    private void applyRequestToNote(Note note, PublishNoteRequest request, String existingContentTypeCode) {
         note.setTitle(request.getTitle().trim());
         note.setSummary(StringUtils.hasText(request.getSummary()) ? request.getSummary().trim() : "");
         note.setEditorType(EDITOR_TYPE_MARKDOWN);
@@ -394,12 +394,12 @@ public class NoteService {
     }
 
     private boolean isContentTypeCodeUnique(String code) {
-        LambdaQueryWrapper<ClientNote> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientNote::getContentTypeCode, code);
-        return clientNoteMapper.selectCount(wrapper) == 0;
+        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Note::getContentTypeCode, code);
+        return noteMapper.selectCount(wrapper) == 0;
     }
 
-    private PublishNoteResponse buildResponse(ClientNote note, String publishAction) {
+    private PublishNoteResponse buildResponse(Note note, String publishAction) {
         return PublishNoteResponse.builder()
                 .uid(note.getContentTypeCode())
                 .publishAction(publishAction)

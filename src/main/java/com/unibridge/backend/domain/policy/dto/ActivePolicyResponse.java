@@ -1,7 +1,7 @@
 package com.unibridge.backend.domain.policy.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.unibridge.backend.infrastructure.entities.SysPolicyConfig;
+import com.unibridge.backend.infrastructure.entities.compliance.PolicyConfig;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
@@ -33,13 +33,13 @@ public class ActivePolicyResponse {
     @JsonProperty("effectiveAt")
     private LocalDateTime effectiveAt;
 
-    public static ActivePolicyResponse fromEntity(SysPolicyConfig entity) {
+    public static ActivePolicyResponse fromEntity(PolicyConfig TenantOrganization) {
         return ActivePolicyResponse.builder()
-                .policyType(entity.getPolicyType())
-                .versionCode(entity.getVersionCode())
-                .contentHash(entity.getContentHash())
-                .policyContent(entity.getPolicyContent())
-                .effectiveAt(entity.getCreatedAt())
+                .policyType(TenantOrganization.getPolicyType())
+                .versionCode(TenantOrganization.getVersionCode())
+                .contentHash(TenantOrganization.getContentHash())
+                .policyContent(TenantOrganization.getPolicyContent())
+                .effectiveAt(TenantOrganization.getCreatedAt())
                 .build();
     }
 }

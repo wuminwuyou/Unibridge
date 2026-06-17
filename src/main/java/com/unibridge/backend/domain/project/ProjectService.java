@@ -8,12 +8,12 @@ import com.unibridge.backend.domain.project.dto.ProjectDetailResponse;
 import com.unibridge.backend.domain.project.dto.PublishProjectDraftResponse;
 import com.unibridge.backend.domain.project.dto.PublishProjectRequest;
 import com.unibridge.backend.domain.project.dto.PublishProjectResponse;
-import com.unibridge.backend.infrastructure.entities.ClientProject;
-import com.unibridge.backend.infrastructure.entities.ClientProjectCommercialSecret;
-import com.unibridge.backend.infrastructure.entities.UserAuthLink;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientProjectCommercialSecretMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientProjectMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
+import com.unibridge.backend.infrastructure.entities.project.Project;
+import com.unibridge.backend.infrastructure.entities.project.ProjectSecret;
+import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
+import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectSecretMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.unibridge.backend.infrastructure.util.ProjectUidGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -63,20 +63,20 @@ public class ProjectService {
     };
 
     private final AccessService clientAccessService;
-    private final ClientProjectMapper clientProjectMapper;
-    private final ClientProjectCommercialSecretMapper commercialSecretMapper;
-    private final UserAuthLinkMapper userAuthLinkMapper;
+    private final ProjectMapper projectMapper;
+    private final ProjectSecretMapper projectSecretMapper;
+    private final UserOrganizationBindingMapper userOrganizationBindingMapper;
     private final ContentUidResolver contentUidResolver;
 
     public ProjectService(AccessService clientAccessService,
-                                ClientProjectMapper clientProjectMapper,
-                                ClientProjectCommercialSecretMapper commercialSecretMapper,
-                                UserAuthLinkMapper userAuthLinkMapper,
+                                ProjectMapper projectMapper,
+                                ProjectSecretMapper projectSecretMapper,
+                                UserOrganizationBindingMapper userOrganizationBindingMapper,
                                 ContentUidResolver contentUidResolver) {
         this.clientAccessService = clientAccessService;
-        this.clientProjectMapper = clientProjectMapper;
-        this.commercialSecretMapper = commercialSecretMapper;
-        this.userAuthLinkMapper = userAuthLinkMapper;
+        this.projectMapper = projectMapper;
+        this.projectSecretMapper = projectSecretMapper;
+        this.userOrganizationBindingMapper = userOrganizationBindingMapper;
         this.contentUidResolver = contentUidResolver;
     }
 
@@ -88,14 +88,14 @@ public class ProjectService {
         validateRequest(request);
         assertPublishPermission(userUid, request.getChannel());
 
-        ClientProject project = new ClientProject();
+        Project project = new Project();
         project.setOwnerUid(userUid);
         project.setProjectUid(ProjectUidGenerator.generate(this::isProjectUidUnique));
         applyRequestToProject(project, request);
-        clientProjectMapper.insert(project);
+        projectMapper.insert(project);
 
         syncCommercialSecret(project.getProjectUid(), request);
-        ClientProject persisted = clientProjectMapper.selectById(project.getId());
+        Project persisted = projectMapper.selectById(project.getId());
         return buildResponse(persisted, request.getPublishAction());
     }
 
@@ -106,23 +106,23 @@ public class ProjectService {
                                                 String projectUid,
                                                 PublishProjectRequest request) {
         String userUid = clientAccessService.requireCurrentUserUid(authorization);
-        ClientProject project = requireOwnedProject(projectUid, userUid);
+        Project project = requireOwnedProject(projectUid, userUid);
 
         validateRequest(request);
         assertPublishPermission(userUid, request.getChannel());
 
         applyRequestToProject(project, request);
-        clientProjectMapper.updateById(project);
+        projectMapper.updateById(project);
 
         syncCommercialSecret(project.getProjectUid(), request);
-        ClientProject persisted = clientProjectMapper.selectById(project.getId());
+        Project persisted = projectMapper.selectById(project.getId());
         return buildResponse(persisted, request.getPublishAction());
     }
 
     public PublishProjectDraftResponse getProjectDraft(String authorization, String projectUid) {
         String userUid = clientAccessService.requireCurrentUserUid(authorization);
-        ClientProject project = requireOwnedProject(projectUid, userUid);
-        ClientProjectCommercialSecret secret = loadCommercialSecret(project.getProjectUid());
+        Project project = requireOwnedProject(projectUid, userUid);
+        ProjectSecret secret = loadCommercialSecret(project.getProjectUid());
 
         return PublishProjectDraftResponse.builder()
                 .uid(project.getProjectUid())
@@ -150,17 +150,17 @@ public class ProjectService {
      * </ul>
      */
     public ProjectDetailResponse getProjectDetail(String authorization, String projectUid) {
-        ClientProject project = contentUidResolver.requireProjectByUid(projectUid);
+        Project project = contentUidResolver.requireProjectByUid(projectUid);
 
         String currentUserUid = clientAccessService.requireCurrentUserUid(authorization);
         assertProjectReadable(project, currentUserUid);
 
-        ClientProjectCommercialSecret secret = loadCommercialSecret(project.getProjectUid());
+        ProjectSecret secret = loadCommercialSecret(project.getProjectUid());
         return buildProjectDetailResponse(project, secret, currentUserUid);
     }
 
-    private ProjectDetailResponse buildProjectDetailResponse(ClientProject project,
-                                                             ClientProjectCommercialSecret secret,
+    private ProjectDetailResponse buildProjectDetailResponse(Project project,
+                                                             ProjectSecret secret,
                                                              String currentUserUid) {
         String channel = mapCategoryToChannel(project.getCategory());
         String amount = null;
@@ -189,7 +189,7 @@ public class ProjectService {
                 .build();
     }
 
-    private void assertProjectReadable(ClientProject project, String currentUserUid) {
+    private void assertProjectReadable(Project project, String currentUserUid) {
         if (PUBLIC_PROJECT_STATUSES.contains(project.getStatus())) {
             return;
         }
@@ -205,8 +205,8 @@ public class ProjectService {
         return StringUtils.hasText(editorType) ? editorType : EDITOR_TYPE_MARKDOWN;
     }
 
-    private ClientProject requireOwnedProject(String projectUid, String userUid) {
-        ClientProject project = contentUidResolver.requireProjectByUid(projectUid);
+    private Project requireOwnedProject(String projectUid, String userUid) {
+        Project project = contentUidResolver.requireProjectByUid(projectUid);
         if (!userUid.equals(project.getOwnerUid())) {
             throw new BusinessException(403, "PROJECT_NOT_OWNER");
         }
@@ -214,9 +214,9 @@ public class ProjectService {
     }
 
     private boolean isProjectUidUnique(String projectUid) {
-        LambdaQueryWrapper<ClientProject> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientProject::getProjectUid, projectUid);
-        return clientProjectMapper.selectCount(wrapper) == 0;
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getProjectUid, projectUid);
+        return projectMapper.selectCount(wrapper) == 0;
     }
 
     private void validateRequest(PublishProjectRequest request) {
@@ -282,7 +282,7 @@ public class ProjectService {
     }
 
     private void assertPublishPermission(String userUid, String channel) {
-        UserAuthLink authLink = loadCurrentAuthLink(userUid);
+        UserOrganizationBinding authLink = loadCurrentAuthLink(userUid);
         if (authLink == null || !StringUtils.hasText(authLink.getRole())) {
             throw new BusinessException(403, "PROJECT_PUBLISH_FORBIDDEN");
         }
@@ -300,16 +300,16 @@ public class ProjectService {
         }
     }
 
-    private UserAuthLink loadCurrentAuthLink(String userUid) {
-        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserUid, userUid)
-                .eq(UserAuthLink::getIsActive, 1)
-                .orderByDesc(UserAuthLink::getUpdatedAt)
+    private UserOrganizationBinding loadCurrentAuthLink(String userUid) {
+        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
+                .eq(UserOrganizationBinding::getIsActive, 1)
+                .orderByDesc(UserOrganizationBinding::getUpdatedAt)
                 .last("LIMIT 1");
-        return userAuthLinkMapper.selectOne(wrapper);
+        return userOrganizationBindingMapper.selectOne(wrapper);
     }
 
-    private void applyRequestToProject(ClientProject project, PublishProjectRequest request) {
+    private void applyRequestToProject(Project project, PublishProjectRequest request) {
         String channel = request.getChannel().trim();
         project.setCategory(CHANNEL_ENTERPRISE.equals(channel) ? CATEGORY_COMMERCIAL : CATEGORY_RECRUITMENT);
         project.setRecruitmentType(CHANNEL_CAMPUS.equals(channel) ? request.getCampusRecruitType().trim() : null);
@@ -334,41 +334,41 @@ public class ProjectService {
 
     private void syncCommercialSecret(String projectUid, PublishProjectRequest request) {
         if (CHANNEL_CAMPUS.equals(request.getChannel())) {
-            commercialSecretMapper.deleteById(projectUid);
+            projectSecretMapper.deleteById(projectUid);
             return;
         }
 
         BigDecimal budget = parseAmount(request.getAmount());
-        ClientProjectCommercialSecret existing = commercialSecretMapper.selectById(projectUid);
+        ProjectSecret existing = projectSecretMapper.selectById(projectUid);
         if (existing == null) {
-            ClientProjectCommercialSecret secret = new ClientProjectCommercialSecret();
+            ProjectSecret secret = new ProjectSecret();
             secret.setProjectUid(projectUid);
             secret.setTotalBudget(budget);
             secret.setCommercialStatus(COMMERCIAL_STATUS_PENDING);
             // 并发场景下，若两个请求同时 delete→insert，数据库主键/唯一约束会拒绝
             try {
-                commercialSecretMapper.insert(secret);
+                projectSecretMapper.insert(secret);
             } catch (org.springframework.dao.DuplicateKeyException e) {
-                existing = commercialSecretMapper.selectById(projectUid);
+                existing = projectSecretMapper.selectById(projectUid);
                 if (existing != null) {
                     existing.setTotalBudget(budget);
-                    commercialSecretMapper.updateById(existing);
+                    projectSecretMapper.updateById(existing);
                 }
             }
             return;
         }
 
         // 仅更新 totalBudget，避免全字段覆盖
-        ClientProjectCommercialSecret patch = new ClientProjectCommercialSecret();
+        ProjectSecret patch = new ProjectSecret();
         patch.setProjectUid(projectUid);
         patch.setTotalBudget(budget);
-        LambdaUpdateWrapper<ClientProjectCommercialSecret> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ClientProjectCommercialSecret::getProjectUid, projectUid);
-        commercialSecretMapper.update(patch, wrapper);
+        LambdaUpdateWrapper<ProjectSecret> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ProjectSecret::getProjectUid, projectUid);
+        projectSecretMapper.update(patch, wrapper);
     }
 
-    private ClientProjectCommercialSecret loadCommercialSecret(String projectUid) {
-        return commercialSecretMapper.selectById(projectUid);
+    private ProjectSecret loadCommercialSecret(String projectUid) {
+        return projectSecretMapper.selectById(projectUid);
     }
 
     private BigDecimal parseAmount(String amountText) {
@@ -393,7 +393,7 @@ public class ProjectService {
         return amount.stripTrailingZeros().toPlainString();
     }
 
-    private PublishProjectResponse buildResponse(ClientProject project, String publishAction) {
+    private PublishProjectResponse buildResponse(Project project, String publishAction) {
         return PublishProjectResponse.builder()
                 .uid(project.getProjectUid())
                 .publishAction(publishAction)

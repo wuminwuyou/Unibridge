@@ -25,28 +25,28 @@ import com.unibridge.backend.domain.organization.dto.EntityTeamPreviewItem;
 import com.unibridge.backend.application.shared.dto.ProfileNoteItem;
 import com.unibridge.backend.application.shared.dto.ProfileProjectItem;
 import com.unibridge.backend.infrastructure.common.BusinessException;
-import com.unibridge.backend.infrastructure.entities.ClientEntity;
-import com.unibridge.backend.infrastructure.entities.ClientEntityProfile;
-import com.unibridge.backend.infrastructure.entities.ClientNote;
-import com.unibridge.backend.infrastructure.entities.ClientProject;
-import com.unibridge.backend.infrastructure.entities.ClientTeam;
-import com.unibridge.backend.infrastructure.entities.ClientTeamMember;
-import com.unibridge.backend.infrastructure.entities.ClientUser;
-import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
-import com.unibridge.backend.infrastructure.entities.SysEntityTotpCredentials;
-import com.unibridge.backend.infrastructure.entities.UserAuthLink;
-import com.unibridge.backend.infrastructure.entities.UserIdentity;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientProjectMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMemberMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.SysEntityTotpCredentialsMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
+import com.unibridge.backend.infrastructure.entities.auth.TenantOrganization;
+import com.unibridge.backend.infrastructure.entities.profile.TenantOrgProfile;
+import com.unibridge.backend.infrastructure.entities.note.Note;
+import com.unibridge.backend.infrastructure.entities.project.Project;
+import com.unibridge.backend.infrastructure.entities.team.Team;
+import com.unibridge.backend.infrastructure.entities.team.TeamMember;
+import com.unibridge.backend.infrastructure.entities.auth.User;
+import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
+import com.unibridge.backend.infrastructure.entities.auth.EntityTotpCredentials;
+import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
+import com.unibridge.backend.infrastructure.entities.profile.UserIdentity;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.TenantOrganizationMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.TenantOrgProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.team.TeamMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.team.TeamMemberMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.UserMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.EntityTotpCredentialsMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
 import com.unibridge.backend.infrastructure.util.TeamUidGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -95,31 +95,31 @@ public class OrganizationProfileService {
     private EntityAdminCredentialService entityAdminCredentialService;
 
     @Autowired
-    private ClientEntityMapper clientEntityMapper;
+    private TenantOrganizationMapper tenantOrganizationMapper;
 
     @Autowired
-    private ClientEntityProfileMapper clientEntityProfileMapper;
+    private TenantOrgProfileMapper tenantOrgProfileMapper;
 
     @Autowired
-    private ClientTeamMapper clientTeamMapper;
+    private TeamMapper teamMapper;
 
     @Autowired
-    private ClientTeamMemberMapper clientTeamMemberMapper;
+    private TeamMemberMapper teamMemberMapper;
 
     @Autowired
-    private UserAuthLinkMapper userAuthLinkMapper;
+    private UserOrganizationBindingMapper userOrganizationBindingMapper;
 
     @Autowired
     private UserIdentityMapper userIdentityMapper;
 
     @Autowired
-    private ClientUserProfileMapper clientUserProfileMapper;
+    private UserProfileMapper userProfileMapper;
 
     @Autowired
-    private ClientProjectMapper clientProjectMapper;
+    private ProjectMapper projectMapper;
 
     @Autowired
-    private ClientNoteMapper clientNoteMapper;
+    private NoteMapper noteMapper;
 
     @Autowired
     private ProjectCardAssembler projectCardAssembler;
@@ -128,20 +128,20 @@ public class OrganizationProfileService {
     private NoteCardAssembler noteCardAssembler;
 
     @Autowired
-    private ClientUserMapper clientUserMapper;
+    private UserMapper userMapper;
 
     @Autowired
     private JwtUtil jwtUtil;
 
     @Autowired
-    private SysEntityTotpCredentialsMapper sysEntityTotpCredentialsMapper;
+    private EntityTotpCredentialsMapper entityTotpCredentialsMapper;
 
     public EntityProfileMenuResponse getEntityProfileMenu(String entityCode) {
-        ClientEntity entity = requireAccessibleEntity(entityCode);
-        ClientEntityProfile profile = requireEntityProfile(entity.getEntityCode());
-        int boundAdminCount = entityAdminCredentialService.countBoundEntityAdmins(entity.getEntityCode());
+        TenantOrganization TenantOrganization = requireAccessibleEntity(entityCode);
+        TenantOrgProfile profile = requireEntityProfile(TenantOrganization.getEntityCode());
+        int boundAdminCount = entityAdminCredentialService.countBoundEntityAdmins(TenantOrganization.getEntityCode());
         return EntityProfileMenuResponse.builder()
-                .entityCode(entity.getEntityCode())
+                .entityCode(TenantOrganization.getEntityCode())
                 .entityName(profile.getName())
                 .logoUrl(profile.getLogoUrl())
                 .boundAdminCount(boundAdminCount)
@@ -152,20 +152,20 @@ public class OrganizationProfileService {
     }
 
     public EntityProfileSpaceResponse getEntityProfileSpace(String entityCode) {
-        ClientEntity entity = requireAccessibleEntity(entityCode);
-        ClientEntityProfile profile = requireEntityProfile(entity.getEntityCode());
-        boolean supportsLabs = supportsLabs(entity.getEntityCode());
+        TenantOrganization TenantOrganization = requireAccessibleEntity(entityCode);
+        TenantOrgProfile profile = requireEntityProfile(TenantOrganization.getEntityCode());
+        boolean supportsLabs = supportsLabs(TenantOrganization.getEntityCode());
 
-        long teamCount = supportsLabs ? countEntityLabs(entity.getEntityCode()) : 0L;
+        long teamCount = supportsLabs ? countEntityLabs(TenantOrganization.getEntityCode()) : 0L;
         List<EntityTeamPreviewItem> teamsPreview = supportsLabs
-                ? toTeamPreviewItems(loadEntityLabs(entity.getEntityCode(), DEFAULT_SPACE_TEAM_PREVIEW, 0))
+                ? toTeamPreviewItems(loadEntityLabs(TenantOrganization.getEntityCode(), DEFAULT_SPACE_TEAM_PREVIEW, 0))
                 : Collections.emptyList();
         List<EntityMemberItem> membersPreview = toMemberPreviewItems(
-                loadEntityMembers(entity.getEntityCode(), DEFAULT_SPACE_MEMBER_PREVIEW, 0));
+                loadEntityMembers(TenantOrganization.getEntityCode(), DEFAULT_SPACE_MEMBER_PREVIEW, 0));
 
         EntityProfileSpaceResponse.EntityCoreProfile coreProfile =
                 EntityProfileSpaceResponse.EntityCoreProfile.builder()
-                        .entityCode(entity.getEntityCode())
+                        .entityCode(TenantOrganization.getEntityCode())
                         .name(nullSafe(profile.getName()))
                         .intro(nullSafe(profile.getIntro()))
                         .location(nullSafe(profile.getLocation()))
@@ -176,14 +176,14 @@ public class OrganizationProfileService {
                         .build();
 
         return EntityProfileSpaceResponse.builder()
-                .entityCode(entity.getEntityCode())
+                .entityCode(TenantOrganization.getEntityCode())
                 .coreProfile(coreProfile)
                 .extendedProfile(EntityProfileSpaceResponse.EntityExtendedProfile.builder()
                         .announcement(nullSafe(profile.getAnnouncement()))
                         .build())
                 .teamsPreview(teamsPreview)
                 .membersPreview(membersPreview)
-                .infoRows(buildInfoRows(entity.getEntityCode(), profile, supportsLabs, teamCount))
+                .infoRows(buildInfoRows(TenantOrganization.getEntityCode(), profile, supportsLabs, teamCount))
                 .build();
     }
 
@@ -191,33 +191,33 @@ public class OrganizationProfileService {
                                                           Integer teamLimit,
                                                           Integer projectLimit,
                                                           Integer noteLimit) {
-        ClientEntity entity = requireAccessibleEntity(entityCode);
-        boolean supportsLabs = supportsLabs(entity.getEntityCode());
+        TenantOrganization TenantOrganization = requireAccessibleEntity(entityCode);
+        boolean supportsLabs = supportsLabs(TenantOrganization.getEntityCode());
 
         int resolvedTeamLimit = supportsLabs ? normalizeLimit(teamLimit, DEFAULT_HOME_TEAM_LIMIT) : 0;
         int resolvedProjectLimit = normalizeLimit(projectLimit, DEFAULT_HOME_PROJECT_LIMIT);
         int resolvedNoteLimit = normalizeLimit(noteLimit, DEFAULT_HOME_NOTE_LIMIT);
 
         List<EntityTeamPreviewItem> teams = supportsLabs
-                ? toTeamPreviewItems(loadEntityLabs(entity.getEntityCode(), resolvedTeamLimit, 0))
+                ? toTeamPreviewItems(loadEntityLabs(TenantOrganization.getEntityCode(), resolvedTeamLimit, 0))
                 : Collections.emptyList();
 
         return EntityProfileHomeResponse.builder()
-                .entityCode(entity.getEntityCode())
+                .entityCode(TenantOrganization.getEntityCode())
                 .teams(teams)
-                .projects(toProjectItems(loadEntityProjects(entity.getEntityCode(), resolvedProjectLimit, 0)))
-                .notes(toNoteItems(loadEntityNotes(entity.getEntityCode(), null, resolvedNoteLimit, 0)))
-                .teamTotal(supportsLabs ? countEntityLabs(entity.getEntityCode()) : 0L)
-                .projectTotal(countEntityProjects(entity.getEntityCode()))
-                .noteTotal(countEntityNotes(entity.getEntityCode(), null))
+                .projects(toProjectItems(loadEntityProjects(TenantOrganization.getEntityCode(), resolvedProjectLimit, 0)))
+                .notes(toNoteItems(loadEntityNotes(TenantOrganization.getEntityCode(), null, resolvedNoteLimit, 0)))
+                .teamTotal(supportsLabs ? countEntityLabs(TenantOrganization.getEntityCode()) : 0L)
+                .projectTotal(countEntityProjects(TenantOrganization.getEntityCode()))
+                .noteTotal(countEntityNotes(TenantOrganization.getEntityCode(), null))
                 .build();
     }
 
     public EntityProfileTeamsResponse getEntityProfileTeams(String entityCode, Integer page, Integer pageSize) {
-        ClientEntity entity = requireAccessibleEntity(entityCode);
-        if (!supportsLabs(entity.getEntityCode())) {
+        TenantOrganization TenantOrganization = requireAccessibleEntity(entityCode);
+        if (!supportsLabs(TenantOrganization.getEntityCode())) {
             return EntityProfileTeamsResponse.builder()
-                    .entityCode(entity.getEntityCode())
+                    .entityCode(TenantOrganization.getEntityCode())
                     .teams(Collections.emptyList())
                     .total(0L)
                     .page(normalizePage(page))
@@ -228,11 +228,11 @@ public class OrganizationProfileService {
         int resolvedPage = normalizePage(page);
         int resolvedPageSize = normalizePageSize(pageSize, DEFAULT_TEAM_PAGE_SIZE);
         int offset = (resolvedPage - 1) * resolvedPageSize;
-        long total = countEntityLabs(entity.getEntityCode());
+        long total = countEntityLabs(TenantOrganization.getEntityCode());
 
         return EntityProfileTeamsResponse.builder()
-                .entityCode(entity.getEntityCode())
-                .teams(toTeamPreviewItems(loadEntityLabs(entity.getEntityCode(), resolvedPageSize, offset)))
+                .entityCode(TenantOrganization.getEntityCode())
+                .teams(toTeamPreviewItems(loadEntityLabs(TenantOrganization.getEntityCode(), resolvedPageSize, offset)))
                 .total(total)
                 .page(resolvedPage)
                 .pageSize(resolvedPageSize)
@@ -240,16 +240,16 @@ public class OrganizationProfileService {
     }
 
     public EntityProfileMembersResponse getEntityProfileMembers(String entityCode, Integer page, Integer pageSize) {
-        ClientEntity entity = requireAccessibleEntity(entityCode);
+        TenantOrganization TenantOrganization = requireAccessibleEntity(entityCode);
 
         int resolvedPage = normalizePage(page);
         int resolvedPageSize = normalizePageSize(pageSize, DEFAULT_MEMBER_PAGE_SIZE);
         int offset = (resolvedPage - 1) * resolvedPageSize;
-        long total = countEntityMembers(entity.getEntityCode());
-        List<UserAuthLink> links = loadEntityMembers(entity.getEntityCode(), resolvedPageSize, offset);
+        long total = countEntityMembers(TenantOrganization.getEntityCode());
+        List<UserOrganizationBinding> links = loadEntityMembers(TenantOrganization.getEntityCode(), resolvedPageSize, offset);
 
         return EntityProfileMembersResponse.builder()
-                .entityCode(entity.getEntityCode())
+                .entityCode(TenantOrganization.getEntityCode())
                 .members(toMemberTabItems(links))
                 .total(total)
                 .page(resolvedPage)
@@ -258,16 +258,16 @@ public class OrganizationProfileService {
     }
 
     public EntityProfileProjectsResponse getEntityProfileProjects(String entityCode, Integer page, Integer pageSize) {
-        ClientEntity entity = requireAccessibleEntity(entityCode);
+        TenantOrganization TenantOrganization = requireAccessibleEntity(entityCode);
 
         int resolvedPage = normalizePage(page);
         int resolvedPageSize = normalizePageSize(pageSize, DEFAULT_PROJECT_PAGE_SIZE);
         int offset = (resolvedPage - 1) * resolvedPageSize;
 
         return EntityProfileProjectsResponse.builder()
-                .entityCode(entity.getEntityCode())
-                .projects(toProjectItems(loadEntityProjects(entity.getEntityCode(), resolvedPageSize, offset)))
-                .total(countEntityProjects(entity.getEntityCode()))
+                .entityCode(TenantOrganization.getEntityCode())
+                .projects(toProjectItems(loadEntityProjects(TenantOrganization.getEntityCode(), resolvedPageSize, offset)))
+                .total(countEntityProjects(TenantOrganization.getEntityCode()))
                 .page(resolvedPage)
                 .pageSize(resolvedPageSize)
                 .build();
@@ -277,7 +277,7 @@ public class OrganizationProfileService {
                                                             Integer page,
                                                             Integer pageSize,
                                                             String contentType) {
-        ClientEntity entity = requireAccessibleEntity(entityCode);
+        TenantOrganization TenantOrganization = requireAccessibleEntity(entityCode);
 
         int resolvedPage = normalizePage(page);
         int resolvedPageSize = normalizePageSize(pageSize, DEFAULT_NOTE_PAGE_SIZE);
@@ -285,28 +285,28 @@ public class OrganizationProfileService {
         String dbContentType = mapNoteContentTypeFilter(contentType);
 
         return EntityProfileNotesResponse.builder()
-                .entityCode(entity.getEntityCode())
-                .notes(toNoteItems(loadEntityNotes(entity.getEntityCode(), dbContentType, resolvedPageSize, offset)))
-                .total(countEntityNotes(entity.getEntityCode(), dbContentType))
+                .entityCode(TenantOrganization.getEntityCode())
+                .notes(toNoteItems(loadEntityNotes(TenantOrganization.getEntityCode(), dbContentType, resolvedPageSize, offset)))
+                .total(countEntityNotes(TenantOrganization.getEntityCode(), dbContentType))
                 .page(resolvedPage)
                 .pageSize(resolvedPageSize)
                 .build();
     }
 
-    private ClientEntity requireAccessibleEntity(String entityCode) {
+    private TenantOrganization requireAccessibleEntity(String entityCode) {
         validateEntityCodeFormat(entityCode);
-        ClientEntity entity = loadEntityByCode(entityCode.trim());
-        if (entity == null) {
+        TenantOrganization TenantOrganization = loadEntityByCode(entityCode.trim());
+        if (TenantOrganization == null) {
             throw BusinessException.notFound("ENTITY_NOT_FOUND");
         }
-        if (!isEntityPubliclyVisible(entity)) {
+        if (!isEntityPubliclyVisible(TenantOrganization)) {
             throw BusinessException.forbidden("ENTITY_NOT_ACCESSIBLE");
         }
-        return entity;
+        return TenantOrganization;
     }
 
-    private ClientEntityProfile requireEntityProfile(String entityCode) {
-        ClientEntityProfile profile = loadEntityProfileByCode(entityCode);
+    private TenantOrgProfile requireEntityProfile(String entityCode) {
+        TenantOrgProfile profile = loadEntityProfileByCode(entityCode);
         if (profile == null) {
             throw BusinessException.notFound("ENTITY_NOT_FOUND");
         }
@@ -324,110 +324,110 @@ public class OrganizationProfileService {
                 && UNIVERSITY_ENTITY_CODE_PATTERN.matcher(entityCode.trim()).matches();
     }
 
-    private ClientEntity loadEntityByCode(String entityCode) {
-        LambdaQueryWrapper<ClientEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientEntity::getEntityCode, entityCode).last("LIMIT 1");
-        return clientEntityMapper.selectOne(wrapper);
+    private TenantOrganization loadEntityByCode(String entityCode) {
+        LambdaQueryWrapper<TenantOrganization> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TenantOrganization::getEntityCode, entityCode).last("LIMIT 1");
+        return tenantOrganizationMapper.selectOne(wrapper);
     }
 
-    private ClientEntityProfile loadEntityProfileByCode(String entityCode) {
-        LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
-        return clientEntityProfileMapper.selectOne(wrapper);
+    private TenantOrgProfile loadEntityProfileByCode(String entityCode) {
+        LambdaQueryWrapper<TenantOrgProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TenantOrgProfile::getEntityCode, entityCode).last("LIMIT 1");
+        return tenantOrgProfileMapper.selectOne(wrapper);
     }
 
-    private boolean isEntityPubliclyVisible(ClientEntity entity) {
-        if (entity == null) {
+    private boolean isEntityPubliclyVisible(TenantOrganization TenantOrganization) {
+        if (TenantOrganization == null) {
             return false;
         }
-        if (!"ACTIVE".equalsIgnoreCase(entity.getAccountStatus())) {
+        if (!"ACTIVE".equalsIgnoreCase(TenantOrganization.getAccountStatus())) {
             return false;
         }
-        return "APPROVED".equalsIgnoreCase(entity.getAuditStatus());
+        return "APPROVED".equalsIgnoreCase(TenantOrganization.getAuditStatus());
     }
 
-    private LambdaQueryWrapper<ClientTeam> baseEntityLabWrapper(String entityCode) {
-        LambdaQueryWrapper<ClientTeam> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientTeam::getEntityCode, entityCode)
-                .eq(ClientTeam::getType, "LAB")
-                .eq(ClientTeam::getAuditStatus, "APPROVED")
-                .eq(ClientTeam::getAccountStatus, "ACTIVE")
+    private LambdaQueryWrapper<Team> baseEntityLabWrapper(String entityCode) {
+        LambdaQueryWrapper<Team> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Team::getEntityCode, entityCode)
+                .eq(Team::getType, "LAB")
+                .eq(Team::getAuditStatus, "APPROVED")
+                .eq(Team::getAccountStatus, "ACTIVE")
                 .last("ORDER BY created_at DESC, id DESC");
         return wrapper;
     }
 
-    private List<ClientTeam> loadEntityLabs(String entityCode, int pageSize, int offset) {
+    private List<Team> loadEntityLabs(String entityCode, int pageSize, int offset) {
         int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
-        Page<ClientTeam> page = new Page<>(pageNum, pageSize);
+        Page<Team> page = new Page<>(pageNum, pageSize);
         page.setSearchCount(false);
-        return clientTeamMapper.selectPage(page, baseEntityLabWrapper(entityCode)).getRecords();
+        return teamMapper.selectPage(page, baseEntityLabWrapper(entityCode)).getRecords();
     }
 
     private long countEntityLabs(String entityCode) {
-        return clientTeamMapper.selectCount(baseEntityLabWrapper(entityCode));
+        return teamMapper.selectCount(baseEntityLabWrapper(entityCode));
     }
 
-    private LambdaQueryWrapper<UserAuthLink> baseEntityMemberWrapper(String entityCode) {
-        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getEntityCode, entityCode)
-                .in(UserAuthLink::getRole, MEMBER_ROLES)
-                .eq(UserAuthLink::getAuditStatus, "APPROVED")
-                .eq(UserAuthLink::getIsActive, 1)
+    private LambdaQueryWrapper<UserOrganizationBinding> baseEntityMemberWrapper(String entityCode) {
+        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserOrganizationBinding::getEntityCode, entityCode)
+                .in(UserOrganizationBinding::getRole, MEMBER_ROLES)
+                .eq(UserOrganizationBinding::getAuditStatus, "APPROVED")
+                .eq(UserOrganizationBinding::getIsActive, 1)
                 .last("ORDER BY FIELD(role,'MENTOR','COUNSELOR','PM'), id ASC");
         return wrapper;
     }
 
-    private List<UserAuthLink> loadEntityMembers(String entityCode, int pageSize, int offset) {
+    private List<UserOrganizationBinding> loadEntityMembers(String entityCode, int pageSize, int offset) {
         int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
-        Page<UserAuthLink> page = new Page<>(pageNum, pageSize);
+        Page<UserOrganizationBinding> page = new Page<>(pageNum, pageSize);
         page.setSearchCount(false);
-        return userAuthLinkMapper.selectPage(page, baseEntityMemberWrapper(entityCode)).getRecords();
+        return userOrganizationBindingMapper.selectPage(page, baseEntityMemberWrapper(entityCode)).getRecords();
     }
 
     private long countEntityMembers(String entityCode) {
-        return userAuthLinkMapper.selectCount(baseEntityMemberWrapper(entityCode));
+        return userOrganizationBindingMapper.selectCount(baseEntityMemberWrapper(entityCode));
     }
 
-    private LambdaQueryWrapper<ClientProject> baseEntityProjectWrapper(String entityCode) {
-        LambdaQueryWrapper<ClientProject> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientProject::getExtendedUid, entityCode)
-                .ne(ClientProject::getStatus, PROJECT_STATUS_DRAFT)
-                .isNotNull(ClientProject::getPublishedAt)
+    private LambdaQueryWrapper<Project> baseEntityProjectWrapper(String entityCode) {
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getExtendedUid, entityCode)
+                .ne(Project::getStatus, PROJECT_STATUS_DRAFT)
+                .isNotNull(Project::getPublishedAt)
                 .last("ORDER BY COALESCE(published_at, created_at) DESC, id DESC");
         return wrapper;
     }
 
-    private List<ClientProject> loadEntityProjects(String entityCode, int pageSize, int offset) {
+    private List<Project> loadEntityProjects(String entityCode, int pageSize, int offset) {
         int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
-        Page<ClientProject> page = new Page<>(pageNum, pageSize);
+        Page<Project> page = new Page<>(pageNum, pageSize);
         page.setSearchCount(false);
-        return clientProjectMapper.selectPage(page, baseEntityProjectWrapper(entityCode)).getRecords();
+        return projectMapper.selectPage(page, baseEntityProjectWrapper(entityCode)).getRecords();
     }
 
     private long countEntityProjects(String entityCode) {
-        return clientProjectMapper.selectCount(baseEntityProjectWrapper(entityCode));
+        return projectMapper.selectCount(baseEntityProjectWrapper(entityCode));
     }
 
-    private LambdaQueryWrapper<ClientNote> baseEntityNoteWrapper(String entityCode, String dbContentType) {
-        LambdaQueryWrapper<ClientNote> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientNote::getExtendedUid, entityCode)
-                .eq(ClientNote::getStatus, NOTE_STATUS_PUBLISHED);
+    private LambdaQueryWrapper<Note> baseEntityNoteWrapper(String entityCode, String dbContentType) {
+        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Note::getExtendedUid, entityCode)
+                .eq(Note::getStatus, NOTE_STATUS_PUBLISHED);
         if (dbContentType != null) {
-            wrapper.likeRight(ClientNote::getContentTypeCode, dbContentType);
+            wrapper.likeRight(Note::getContentTypeCode, dbContentType);
         }
         wrapper.last("ORDER BY COALESCE(published_at, created_at) DESC, id DESC");
         return wrapper;
     }
 
-    private List<ClientNote> loadEntityNotes(String entityCode, String dbContentType, int pageSize, int offset) {
+    private List<Note> loadEntityNotes(String entityCode, String dbContentType, int pageSize, int offset) {
         int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
-        Page<ClientNote> page = new Page<>(pageNum, pageSize);
+        Page<Note> page = new Page<>(pageNum, pageSize);
         page.setSearchCount(false);
-        return clientNoteMapper.selectPage(page, baseEntityNoteWrapper(entityCode, dbContentType)).getRecords();
+        return noteMapper.selectPage(page, baseEntityNoteWrapper(entityCode, dbContentType)).getRecords();
     }
 
     private long countEntityNotes(String entityCode, String dbContentType) {
-        return clientNoteMapper.selectCount(baseEntityNoteWrapper(entityCode, dbContentType));
+        return noteMapper.selectCount(baseEntityNoteWrapper(entityCode, dbContentType));
     }
 
     /**
@@ -436,20 +436,20 @@ public class OrganizationProfileService {
      * 批量加载负责人（owner_uid）的 profile，避免 N+1 查询。
      * </p>
      */
-    private List<EntityTeamPreviewItem> toTeamPreviewItems(List<ClientTeam> teams) {
+    private List<EntityTeamPreviewItem> toTeamPreviewItems(List<Team> teams) {
         if (teams.isEmpty()) {
             return Collections.emptyList();
         }
         Map<String, Long> memberCountByTeam = loadMemberCounts(
-                teams.stream().map(ClientTeam::getTeamUid).collect(Collectors.toList()));
+                teams.stream().map(Team::getTeamUid).collect(Collectors.toList()));
 
         // 批量加载所有负责人的 profile
         Set<String> ownerUids = teams.stream()
-                .map(ClientTeam::getOwnerUid)
+                .map(Team::getOwnerUid)
                 .filter(StringUtils::hasText)
                 .collect(Collectors.toSet());
         List<String> ownerUidList = new ArrayList<>(ownerUids);
-        Map<String, ClientUserProfile> leaderProfileMap = ownerUids.isEmpty()
+        Map<String, UserProfile> leaderProfileMap = ownerUids.isEmpty()
                 ? Collections.emptyMap()
                 : loadProfileMap(ownerUidList);
         // 批量加载负责人的实名掩码
@@ -458,11 +458,11 @@ public class OrganizationProfileService {
                 : loadIdentityMap(ownerUidList);
 
         List<EntityTeamPreviewItem> items = new ArrayList<>();
-        for (ClientTeam team : teams) {
+        for (Team team : teams) {
             String leaderUid = StringUtils.hasText(team.getOwnerUid()) ? team.getOwnerUid() : null;
             String leaderDisplayName = null;
             if (leaderUid != null) {
-                ClientUserProfile leaderProfile = leaderProfileMap.get(leaderUid);
+                UserProfile leaderProfile = leaderProfileMap.get(leaderUid);
                 UserIdentity leaderIdentity = leaderIdentityMap.get(leaderUid);
                 if (leaderProfile != null || leaderIdentity != null) {
                     // 优先 realNameMask（来自 t_user_identity），否则 nickname
@@ -490,10 +490,10 @@ public class OrganizationProfileService {
         if (teamUids.isEmpty()) {
             return Collections.emptyMap();
         }
-        LambdaQueryWrapper<ClientTeamMember> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(ClientTeamMember::getTeamUid, teamUids);
+        LambdaQueryWrapper<TeamMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(TeamMember::getTeamUid, teamUids);
         Map<String, Long> counts = new HashMap<>();
-        for (ClientTeamMember member : clientTeamMemberMapper.selectList(wrapper)) {
+        for (TeamMember member : teamMemberMapper.selectList(wrapper)) {
             counts.merge(member.getTeamUid(), 1L, Long::sum);
         }
         return counts;
@@ -503,16 +503,16 @@ public class OrganizationProfileService {
      * 组装人员预览项（页壳）。
      * 机构为公开场合，nickname 和 realName 均优先返回实名掩码（来自 t_user_identity）。
      */
-    private List<EntityMemberItem> toMemberPreviewItems(List<UserAuthLink> links) {
+    private List<EntityMemberItem> toMemberPreviewItems(List<UserOrganizationBinding> links) {
         if (links.isEmpty()) {
             return Collections.emptyList();
         }
-        List<String> userUids = links.stream().map(UserAuthLink::getUserUid).collect(Collectors.toList());
-        Map<String, ClientUserProfile> profileMap = loadProfileMap(userUids);
+        List<String> userUids = links.stream().map(UserOrganizationBinding::getUserUid).collect(Collectors.toList());
+        Map<String, UserProfile> profileMap = loadProfileMap(userUids);
         Map<String, UserIdentity> identityMap = loadIdentityMap(userUids);
         List<EntityMemberItem> items = new ArrayList<>();
-        for (UserAuthLink link : links) {
-            ClientUserProfile profile = profileMap.get(link.getUserUid());
+        for (UserOrganizationBinding link : links) {
+            UserProfile profile = profileMap.get(link.getUserUid());
             UserIdentity identity = identityMap.get(link.getUserUid());
             String displayName = resolveDisplayName(profile, identity);
             String realNameMask = identity != null ? identity.getRealNameMask() : null;
@@ -531,16 +531,16 @@ public class OrganizationProfileService {
     /**
      * 组装成员 Tab 列表（实名掩码优先，来自 t_user_identity）。
      */
-    private List<EntityMemberItem> toMemberTabItems(List<UserAuthLink> links) {
+    private List<EntityMemberItem> toMemberTabItems(List<UserOrganizationBinding> links) {
         if (links.isEmpty()) {
             return Collections.emptyList();
         }
-        List<String> userUids = links.stream().map(UserAuthLink::getUserUid).collect(Collectors.toList());
-        Map<String, ClientUserProfile> profileMap = loadProfileMap(userUids);
+        List<String> userUids = links.stream().map(UserOrganizationBinding::getUserUid).collect(Collectors.toList());
+        Map<String, UserProfile> profileMap = loadProfileMap(userUids);
         Map<String, UserIdentity> identityMap = loadIdentityMap(userUids);
         List<EntityMemberItem> items = new ArrayList<>();
-        for (UserAuthLink link : links) {
-            ClientUserProfile profile = profileMap.get(link.getUserUid());
+        for (UserOrganizationBinding link : links) {
+            UserProfile profile = profileMap.get(link.getUserUid());
             UserIdentity identity = identityMap.get(link.getUserUid());
             String displayName = resolveDisplayName(profile, identity);
             String realNameMask = identity != null ? identity.getRealNameMask() : null;
@@ -556,14 +556,14 @@ public class OrganizationProfileService {
         return items;
     }
 
-    private Map<String, ClientUserProfile> loadProfileMap(List<String> userUids) {
+    private Map<String, UserProfile> loadProfileMap(List<String> userUids) {
         if (userUids.isEmpty()) {
             return Collections.emptyMap();
         }
-        LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(ClientUserProfile::getUserUid, userUids);
-        Map<String, ClientUserProfile> profileMap = new HashMap<>();
-        for (ClientUserProfile profile : clientUserProfileMapper.selectList(wrapper)) {
+        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(UserProfile::getUserUid, userUids);
+        Map<String, UserProfile> profileMap = new HashMap<>();
+        for (UserProfile profile : userProfileMapper.selectList(wrapper)) {
             profileMap.put(profile.getUserUid(), profile);
         }
         return profileMap;
@@ -583,7 +583,7 @@ public class OrganizationProfileService {
     }
 
     private List<EntityProfileSpaceResponse.EntityInfoRow> buildInfoRows(String entityCode,
-                                                                         ClientEntityProfile profile,
+                                                                         TenantOrgProfile profile,
                                                                          boolean supportsLabs,
                                                                          long teamCount) {
         List<EntityProfileSpaceResponse.EntityInfoRow> rows = new ArrayList<>();
@@ -614,23 +614,23 @@ public class OrganizationProfileService {
         };
     }
 
-    private List<ProfileProjectItem> toProjectItems(List<ClientProject> projects) {
+    private List<ProfileProjectItem> toProjectItems(List<Project> projects) {
         if (projects.isEmpty()) {
             return Collections.emptyList();
         }
         List<ProfileProjectItem> items = new ArrayList<>();
-        for (ClientProject project : projects) {
+        for (Project project : projects) {
             items.add(projectCardAssembler.toProfileProjectItem(project));
         }
         return items;
     }
 
-    private List<ProfileNoteItem> toNoteItems(List<ClientNote> notes) {
+    private List<ProfileNoteItem> toNoteItems(List<Note> notes) {
         if (notes.isEmpty()) {
             return Collections.emptyList();
         }
         List<ProfileNoteItem> items = new ArrayList<>();
-        for (ClientNote note : notes) {
+        for (Note note : notes) {
             items.add(noteCardAssembler.toProfileNoteItem(note));
         }
         return items;
@@ -651,7 +651,7 @@ public class OrganizationProfileService {
      * 机构公开场合的展示名：优先 realNameMask（来自 t_user_identity），无则回退 nickname，最后回退"用户"。
      * real_name 已迁移至 t_user_identity 加密存储，展示侧使用掩码 realNameMask。
      */
-    private String resolveDisplayName(ClientUserProfile profile, UserIdentity identity) {
+    private String resolveDisplayName(UserProfile profile, UserIdentity identity) {
         if (identity != null && StringUtils.hasText(identity.getRealNameMask())) {
             return identity.getRealNameMask().trim();
         }
@@ -661,7 +661,7 @@ public class OrganizationProfileService {
         return "用户";
     }
 
-    private String resolveLevel(ClientUserProfile profile) {
+    private String resolveLevel(UserProfile profile) {
         if (profile == null || !StringUtils.hasText(profile.getLevel())) {
             return null;
         }
@@ -720,10 +720,10 @@ public class OrganizationProfileService {
         if (!StringUtils.hasText(request.getName())) {
             throw BusinessException.badRequest("TEAM_NAME_REQUIRED");
         }
-        // 名称唯一性校验（同一 entity 下）
+        // 名称唯一性校验（同一 TenantOrganization 下）
         assertLabNameUnique(entityCode, request.getName().trim());
 
-        ClientTeam team = new ClientTeam();
+        Team team = new Team();
         team.setTeamUid(TeamUidGenerator.generateLab(uid -> isTeamUidUnique(uid)));
         team.setEntityCode(entityCode);
         team.setType("LAB");
@@ -733,7 +733,7 @@ public class OrganizationProfileService {
         team.setAuditStatus("APPROVED");
 
         try {
-            clientTeamMapper.insert(team);
+            teamMapper.insert(team);
         } catch (DuplicateKeyException e) {
             throw BusinessException.conflict("TEAM_NAME_DUPLICATE");
         }
@@ -757,7 +757,7 @@ public class OrganizationProfileService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void updateLab(String teamUid, UpdateLabRequest request) {
-        ClientTeam team = requireAccessibleLab(teamUid);
+        Team team = requireAccessibleLab(teamUid);
         boolean changed = false;
 
         if (StringUtils.hasText(request.getName())) {
@@ -794,13 +794,13 @@ public class OrganizationProfileService {
         if (changed) {
             // 使用 LambdaUpdateWrapper 显式设置所有变更字段，
             // 避免 MyBatis-Plus updateById 的 NOT_NULL 策略跳过 null 值
-            LambdaUpdateWrapper<ClientTeam> updateWrapper = new LambdaUpdateWrapper<>();
-            updateWrapper.eq(ClientTeam::getTeamUid, teamUid);
+            LambdaUpdateWrapper<Team> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(Team::getTeamUid, teamUid);
             if (StringUtils.hasText(team.getTeamName())) {
-                updateWrapper.set(ClientTeam::getTeamName, team.getTeamName());
+                updateWrapper.set(Team::getTeamName, team.getTeamName());
             }
-            updateWrapper.set(ClientTeam::getOwnerUid, team.getOwnerUid());
-            clientTeamMapper.update(null, updateWrapper);
+            updateWrapper.set(Team::getOwnerUid, team.getOwnerUid());
+            teamMapper.update(null, updateWrapper);
         }
     }
 
@@ -809,15 +809,15 @@ public class OrganizationProfileService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void deleteLab(String teamUid) {
-        ClientTeam team = requireAccessibleLab(teamUid);
+        Team team = requireAccessibleLab(teamUid);
         // 级联清除团队内成员记录
-        LambdaQueryWrapper<ClientTeamMember> memberWrapper = new LambdaQueryWrapper<>();
-        memberWrapper.eq(ClientTeamMember::getTeamUid, teamUid);
-        clientTeamMemberMapper.delete(memberWrapper);
+        LambdaQueryWrapper<TeamMember> memberWrapper = new LambdaQueryWrapper<>();
+        memberWrapper.eq(TeamMember::getTeamUid, teamUid);
+        teamMemberMapper.delete(memberWrapper);
         // 按 team_uid 删除（非主键）
-        LambdaQueryWrapper<ClientTeam> teamWrapper = new LambdaQueryWrapper<>();
-        teamWrapper.eq(ClientTeam::getTeamUid, teamUid);
-        clientTeamMapper.delete(teamWrapper);
+        LambdaQueryWrapper<Team> teamWrapper = new LambdaQueryWrapper<>();
+        teamWrapper.eq(Team::getTeamUid, teamUid);
+        teamMapper.delete(teamWrapper);
     }
 
     // ===================== 机构人员管理（写接口） =====================
@@ -839,13 +839,13 @@ public class OrganizationProfileService {
         String uid = normalizeUserUid(request.getUid());
         assertUserExists(uid);
 
-        // 先判断用户在当前 entity 下的已有 role，再按该 role 查精确记录
-        LambdaQueryWrapper<UserAuthLink> roleLookupWrapper = new LambdaQueryWrapper<>();
-        roleLookupWrapper.eq(UserAuthLink::getEntityCode, entityCode)
-                .eq(UserAuthLink::getUserUid, uid)
-                .orderByDesc(UserAuthLink::getUpdatedAt)
+        // 先判断用户在当前 TenantOrganization 下的已有 role，再按该 role 查精确记录
+        LambdaQueryWrapper<UserOrganizationBinding> roleLookupWrapper = new LambdaQueryWrapper<>();
+        roleLookupWrapper.eq(UserOrganizationBinding::getEntityCode, entityCode)
+                .eq(UserOrganizationBinding::getUserUid, uid)
+                .orderByDesc(UserOrganizationBinding::getUpdatedAt)
                 .last("LIMIT 1");
-        UserAuthLink anyExisting = userAuthLinkMapper.selectOne(roleLookupWrapper);
+        UserOrganizationBinding anyExisting = userOrganizationBindingMapper.selectOne(roleLookupWrapper);
         // 判断角色：优先使用请求体中传来的 role，否则沿用已有记录，默认 MENTOR
         String role;
         if (request.getRole() != null && !request.getRole().trim().isEmpty()) {
@@ -860,12 +860,12 @@ public class OrganizationProfileService {
         }
 
         // 按 (entityCode, uid, role) 精确查找同类型记录（含 is_active=0 的历史记录）
-        LambdaQueryWrapper<UserAuthLink> exactWrapper = new LambdaQueryWrapper<>();
-        exactWrapper.eq(UserAuthLink::getEntityCode, entityCode)
-                .eq(UserAuthLink::getUserUid, uid)
-                .eq(UserAuthLink::getRole, role)
+        LambdaQueryWrapper<UserOrganizationBinding> exactWrapper = new LambdaQueryWrapper<>();
+        exactWrapper.eq(UserOrganizationBinding::getEntityCode, entityCode)
+                .eq(UserOrganizationBinding::getUserUid, uid)
+                .eq(UserOrganizationBinding::getRole, role)
                 .last("LIMIT 1");
-        UserAuthLink exactExisting = userAuthLinkMapper.selectOne(exactWrapper);
+        UserOrganizationBinding exactExisting = userOrganizationBindingMapper.selectOne(exactWrapper);
 
         // 已是 APPROVED 且当前活跃 → 拒绝重复添加
         if (exactExisting != null
@@ -879,7 +879,7 @@ public class OrganizationProfileService {
             // 重新激活并设为 APPROVED
             exactExisting.setAuditStatus("APPROVED");
             exactExisting.setIsActive(1);
-            userAuthLinkMapper.updateById(exactExisting);
+            userOrganizationBindingMapper.updateById(exactExisting);
             return AddMemberResponse.builder()
                     .uid(uid)
                     .role(role)
@@ -887,13 +887,13 @@ public class OrganizationProfileService {
         }
 
         // 无记录，创建新的 APPROVED 记录
-        UserAuthLink link = new UserAuthLink();
+        UserOrganizationBinding link = new UserOrganizationBinding();
         link.setUserUid(uid);
         link.setEntityCode(entityCode);
         link.setRole(role);
         link.setAuditStatus("APPROVED");
         link.setIsActive(1);
-        userAuthLinkMapper.insert(link);
+        userOrganizationBindingMapper.insert(link);
 
         return AddMemberResponse.builder()
                 .uid(uid)
@@ -916,18 +916,18 @@ public class OrganizationProfileService {
         uid = normalizeUserUid(uid);
 
         // 查找所有状态（含 REJECTED）的记录，一并清理
-        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getEntityCode, entityCode)
-                .eq(UserAuthLink::getUserUid, uid)
-                .in(UserAuthLink::getAuditStatus, "APPROVED", "PENDING", "REJECTED");
-        List<UserAuthLink> links = userAuthLinkMapper.selectList(wrapper);
+        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserOrganizationBinding::getEntityCode, entityCode)
+                .eq(UserOrganizationBinding::getUserUid, uid)
+                .in(UserOrganizationBinding::getAuditStatus, "APPROVED", "PENDING", "REJECTED");
+        List<UserOrganizationBinding> links = userOrganizationBindingMapper.selectList(wrapper);
         if (links.isEmpty()) {
             throw BusinessException.notFound("MEMBER_NOT_FOUND");
         }
 
-        for (UserAuthLink link : links) {
+        for (UserOrganizationBinding link : links) {
             link.setIsActive(0);
-            userAuthLinkMapper.updateById(link);
+            userOrganizationBindingMapper.updateById(link);
         }
     }
 
@@ -957,13 +957,13 @@ public class OrganizationProfileService {
         }
 
         // 查询该机构下所有已审核且活跃用户的 user_auth_link
-        LambdaQueryWrapper<UserAuthLink> authWrapper = new LambdaQueryWrapper<>();
-        authWrapper.eq(UserAuthLink::getEntityCode, entityCode)
-                .eq(UserAuthLink::getAuditStatus, "APPROVED")
-                .eq(UserAuthLink::getIsActive, 1)
-                .select(UserAuthLink::getUserUid);
-        List<String> entityUserUids = userAuthLinkMapper.selectList(authWrapper).stream()
-                .map(UserAuthLink::getUserUid)
+        LambdaQueryWrapper<UserOrganizationBinding> authWrapper = new LambdaQueryWrapper<>();
+        authWrapper.eq(UserOrganizationBinding::getEntityCode, entityCode)
+                .eq(UserOrganizationBinding::getAuditStatus, "APPROVED")
+                .eq(UserOrganizationBinding::getIsActive, 1)
+                .select(UserOrganizationBinding::getUserUid);
+        List<String> entityUserUids = userOrganizationBindingMapper.selectList(authWrapper).stream()
+                .map(UserOrganizationBinding::getUserUid)
                 .filter(StringUtils::hasText)
                 .collect(Collectors.toList());
 
@@ -976,18 +976,18 @@ public class OrganizationProfileService {
         // 在 profile 中模糊搜索，并限制 user_uid 属于该机构
         // NOTE: real_name has been removed from user_profile table and moved to t_user_identity (encrypted),
         // plaintext fuzzy search on real_name is no longer possible.
-        LambdaQueryWrapper<ClientUserProfile> profileWrapper = new LambdaQueryWrapper<>();
-        profileWrapper.in(ClientUserProfile::getUserUid, entityUserUids)
+        LambdaQueryWrapper<UserProfile> profileWrapper = new LambdaQueryWrapper<>();
+        profileWrapper.in(UserProfile::getUserUid, entityUserUids)
                 .and(w -> w
-                        .like(ClientUserProfile::getUserUid, kw)
+                        .like(UserProfile::getUserUid, kw)
                         .or()
-                        .like(ClientUserProfile::getNickName, kw))
+                        .like(UserProfile::getNickName, kw))
                 .last("LIMIT 20");
-        List<ClientUserProfile> profiles = clientUserProfileMapper.selectList(profileWrapper);
+        List<UserProfile> profiles = userProfileMapper.selectList(profileWrapper);
 
         // 批量加载实名掩码用于填充 realName 字段
         List<String> profileUserUids = profiles.stream()
-                .map(ClientUserProfile::getUserUid)
+                .map(UserProfile::getUserUid)
                 .collect(Collectors.toList());
         Map<String, UserIdentity> identityMap = loadIdentityMap(profileUserUids);
 
@@ -1009,14 +1009,14 @@ public class OrganizationProfileService {
 
     // ===================== 私有辅助方法 =====================
 
-    private ClientTeam requireAccessibleLab(String teamUid) {
+    private Team requireAccessibleLab(String teamUid) {
         if (!StringUtils.hasText(teamUid)) {
             throw BusinessException.notFound("TEAM_NOT_FOUND");
         }
         // 按 team_uid 查询（非主键 id），使用 LambdaQueryWrapper
-        LambdaQueryWrapper<ClientTeam> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientTeam::getTeamUid, teamUid.trim()).last("LIMIT 1");
-        ClientTeam team = clientTeamMapper.selectOne(wrapper);
+        LambdaQueryWrapper<Team> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Team::getTeamUid, teamUid.trim()).last("LIMIT 1");
+        Team team = teamMapper.selectOne(wrapper);
         if (team == null || !"LAB".equalsIgnoreCase(team.getType())) {
             throw BusinessException.notFound("TEAM_NOT_FOUND");
         }
@@ -1027,9 +1027,9 @@ public class OrganizationProfileService {
     }
 
     private boolean isTeamUidUnique(String teamUid) {
-        LambdaQueryWrapper<ClientTeam> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientTeam::getTeamUid, teamUid);
-        return clientTeamMapper.selectCount(wrapper) == 0;
+        LambdaQueryWrapper<Team> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Team::getTeamUid, teamUid);
+        return teamMapper.selectCount(wrapper) == 0;
     }
 
     private void assertSupportsLabs(String entityCode) {
@@ -1039,41 +1039,41 @@ public class OrganizationProfileService {
     }
 
     private void assertLabNameUnique(String entityCode, String name) {
-        LambdaQueryWrapper<ClientTeam> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientTeam::getEntityCode, entityCode)
-                .eq(ClientTeam::getType, "LAB")
-                .eq(ClientTeam::getTeamName, name)
+        LambdaQueryWrapper<Team> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Team::getEntityCode, entityCode)
+                .eq(Team::getType, "LAB")
+                .eq(Team::getTeamName, name)
                 .last("LIMIT 1");
-        if (clientTeamMapper.selectOne(wrapper) != null) {
+        if (teamMapper.selectOne(wrapper) != null) {
             throw BusinessException.conflict("TEAM_NAME_DUPLICATE");
         }
     }
 
     private void assertUserExists(String userUid) {
-        LambdaQueryWrapper<ClientUser> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUser::getUserUid, userUid).last("LIMIT 1");
-        if (clientUserMapper.selectOne(wrapper) == null) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getUserUid, userUid).last("LIMIT 1");
+        if (userMapper.selectOne(wrapper) == null) {
             throw BusinessException.notFound("USER_NOT_FOUND");
         }
     }
 
     private void addOwnerAsTeamMember(String teamUid, String ownerUid) {
         // 若已存在 team_member 记录则跳过
-        LambdaQueryWrapper<ClientTeamMember> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientTeamMember::getTeamUid, teamUid)
-                .eq(ClientTeamMember::getUserUid, ownerUid)
+        LambdaQueryWrapper<TeamMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TeamMember::getTeamUid, teamUid)
+                .eq(TeamMember::getUserUid, ownerUid)
                 .last("LIMIT 1");
-        if (clientTeamMemberMapper.selectOne(wrapper) != null) {
+        if (teamMemberMapper.selectOne(wrapper) != null) {
             return;
         }
-        ClientTeamMember member = new ClientTeamMember();
+        TeamMember member = new TeamMember();
         member.setTeamUid(teamUid);
         member.setUserUid(ownerUid);
         member.setRole("MENTOR");
         member.setIsAdmin(1);
         member.setInvitedByUid(null);
         try {
-            clientTeamMemberMapper.insert(member);
+            teamMemberMapper.insert(member);
         } catch (DuplicateKeyException e) {
             // 并发创建时忽略
         }
@@ -1134,10 +1134,10 @@ public class OrganizationProfileService {
      * 通过管理员 uid 反查所属主体代码。
      */
     private String lookupEntityCodeByAdminUid(String adminUid) {
-        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getAdminUid, adminUid)
+        LambdaQueryWrapper<EntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getAdminUid, adminUid)
                 .last("LIMIT 1");
-        SysEntityTotpCredentials admin = sysEntityTotpCredentialsMapper.selectOne(wrapper);
+        EntityTotpCredentials admin = entityTotpCredentialsMapper.selectOne(wrapper);
         return admin != null ? admin.getEntityCode() : null;
     }
 }

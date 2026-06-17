@@ -3,7 +3,7 @@ package com.unibridge.backend.domain.note;
 import com.unibridge.backend.application.shared.ContentUidResolver;
 import com.unibridge.backend.domain.feed.dto.ContentVO;
 import com.unibridge.backend.application.shared.dto.ProfileNoteItem;
-import com.unibridge.backend.infrastructure.entities.ClientNote;
+import com.unibridge.backend.infrastructure.entities.note.Note;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
@@ -42,7 +42,7 @@ public class NoteCardAssembler {
         this.noteAuthorResolver = noteAuthorResolver;
     }
 
-    public ContentVO toFeedNoteVo(ClientNote note, double score) {
+    public ContentVO toFeedNoteVo(Note note, double score) {
         NoteAuthorResolver.NoteAuthorContext author = noteAuthorResolver.resolve(note.getUserUid());
         LocalDateTime publishTime = resolvePublishTime(note.getPublishedAt(), note.getCreatedAt());
 
@@ -67,7 +67,7 @@ public class NoteCardAssembler {
                 .build();
     }
 
-    public ProfileNoteItem toProfileNoteItem(ClientNote note) {
+    public ProfileNoteItem toProfileNoteItem(Note note) {
         NoteAuthorResolver.NoteAuthorContext author = noteAuthorResolver.resolve(note.getUserUid());
         LocalDateTime publishTime = resolvePublishTime(note.getPublishedAt(), note.getCreatedAt());
 

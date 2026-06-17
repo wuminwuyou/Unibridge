@@ -2,12 +2,12 @@ package com.unibridge.backend.domain.auth;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.unibridge.backend.infrastructure.entities.ClientEntity;
-import com.unibridge.backend.infrastructure.entities.ClientUser;
-import com.unibridge.backend.infrastructure.entities.SysEntityTotpCredentials;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.SysEntityTotpCredentialsMapper;
+import com.unibridge.backend.infrastructure.entities.auth.TenantOrganization;
+import com.unibridge.backend.infrastructure.entities.auth.User;
+import com.unibridge.backend.infrastructure.entities.auth.EntityTotpCredentials;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.TenantOrganizationMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.UserMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.EntityTotpCredentialsMapper;
 import com.unibridge.backend.infrastructure.util.EntityAdminUidGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -36,22 +36,22 @@ import java.util.Objects;
 public class EntityAdminCredentialService {
 
     @Autowired
-    private SysEntityTotpCredentialsMapper sysEntityTotpCredentialsMapper;
+    private EntityTotpCredentialsMapper entityTotpCredentialsMapper;
 
     @Autowired
-    private ClientEntityMapper clientEntityMapper;
+    private TenantOrganizationMapper tenantOrganizationMapper;
 
     @Autowired
-    private ClientUserMapper clientUserMapper;
+    private UserMapper userMapper;
 
     /**
      * 在指定主体下，按密码匹配唯一已激活管理员（不含 PENDING）。
      */
-    public SysEntityTotpCredentials matchActiveAdminByPassword(String entityCode, String passwordHash) {
+    public EntityTotpCredentials matchActiveAdminByPassword(String entityCode, String passwordHash) {
         if (!StringUtils.hasText(entityCode) || !StringUtils.hasText(passwordHash)) {
             return null;
         }
-        List<SysEntityTotpCredentials> matched = listActiveEntityAdmins(entityCode).stream()
+        List<EntityTotpCredentials> matched = listActiveEntityAdmins(entityCode).stream()
                 .filter(admin -> Objects.equals(admin.getPasswordHash(), passwordHash))
                 .toList();
         if (matched.isEmpty()) {
@@ -90,28 +90,28 @@ public class EntityAdminCredentialService {
 
     /** 已完成 TOTP 绑定的已激活管理员数。 */
     public int countBoundEntityAdmins(String entityCode) {
-        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getEntityCode, entityCode)
-                .eq(SysEntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.ACTIVE)
-                .isNotNull(SysEntityTotpCredentials::getTotpSecret)
-                .ne(SysEntityTotpCredentials::getTotpSecret, "");
-        Long count = sysEntityTotpCredentialsMapper.selectCount(wrapper);
+        LambdaQueryWrapper<EntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getEntityCode, entityCode)
+                .eq(EntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.ACTIVE)
+                .isNotNull(EntityTotpCredentials::getTotpSecret)
+                .ne(EntityTotpCredentials::getTotpSecret, "");
+        Long count = entityTotpCredentialsMapper.selectCount(wrapper);
         return count == null ? 0 : Math.toIntExact(count);
     }
 
     public boolean hasActivePrimaryAdmin(String entityCode) {
-        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getEntityCode, entityCode)
-                .eq(SysEntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.ACTIVE)
-                .eq(SysEntityTotpCredentials::getIsPrimary, 1)
+        LambdaQueryWrapper<EntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getEntityCode, entityCode)
+                .eq(EntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.ACTIVE)
+                .eq(EntityTotpCredentials::getIsPrimary, 1)
                 .last("LIMIT 1");
-        return sysEntityTotpCredentialsMapper.selectOne(wrapper) != null;
+        return entityTotpCredentialsMapper.selectOne(wrapper) != null;
     }
 
     public boolean adminUidExists(String adminUid) {
-        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getAdminUid, adminUid).last("LIMIT 1");
-        return sysEntityTotpCredentialsMapper.selectOne(wrapper) != null;
+        LambdaQueryWrapper<EntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getAdminUid, adminUid).last("LIMIT 1");
+        return entityTotpCredentialsMapper.selectOne(wrapper) != null;
     }
 
     public String generateAdminUid() {
@@ -119,19 +119,19 @@ public class EntityAdminCredentialService {
     }
 
     /** 已激活（ACTIVE）管理员。 */
-    public List<SysEntityTotpCredentials> listActiveEntityAdmins(String entityCode) {
-        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getEntityCode, entityCode)
-                .eq(SysEntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.ACTIVE)
-                .orderByDesc(SysEntityTotpCredentials::getIsPrimary)
-                .orderByAsc(SysEntityTotpCredentials::getId);
-        return sysEntityTotpCredentialsMapper.selectList(wrapper);
+    public List<EntityTotpCredentials> listActiveEntityAdmins(String entityCode) {
+        LambdaQueryWrapper<EntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getEntityCode, entityCode)
+                .eq(EntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.ACTIVE)
+                .orderByDesc(EntityTotpCredentials::getIsPrimary)
+                .orderByAsc(EntityTotpCredentials::getId);
+        return entityTotpCredentialsMapper.selectList(wrapper);
     }
 
     /**
      * 待绑定 TOTP 的管理员：PENDING，或历史种子数据中 ACTIVE 但未绑定 TOTP。
      */
-    public List<SysEntityTotpCredentials> listBindableEntityAdmins(String entityCode) {
+    public List<EntityTotpCredentials> listBindableEntityAdmins(String entityCode) {
         return listNonDeactivatedEntityAdmins(entityCode).stream()
                 .filter(this::isBindableAdmin)
                 .toList();
@@ -140,7 +140,7 @@ public class EntityAdminCredentialService {
     /**
      * 主体根密码 {@code admin_select} 列表：未达标时返回待绑定；已达标时返回已绑定 TOTP 的 ACTIVE 管理员（供登录选择）。
      */
-    public List<SysEntityTotpCredentials> listAdminsForEntityRootSelect(
+    public List<EntityTotpCredentials> listAdminsForEntityRootSelect(
             String entityCode, int boundAdminCount, int minBoundCount) {
         if (boundAdminCount < minBoundCount) {
             return listBindableEntityAdmins(entityCode);
@@ -150,33 +150,33 @@ public class EntityAdminCredentialService {
                 .toList();
     }
 
-    public List<SysEntityTotpCredentials> listNonDeactivatedEntityAdmins(String entityCode) {
-        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getEntityCode, entityCode)
-                .ne(SysEntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.DEACTIVATED)
-                .orderByDesc(SysEntityTotpCredentials::getIsPrimary)
-                .orderByAsc(SysEntityTotpCredentials::getId);
-        return sysEntityTotpCredentialsMapper.selectList(wrapper);
+    public List<EntityTotpCredentials> listNonDeactivatedEntityAdmins(String entityCode) {
+        LambdaQueryWrapper<EntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getEntityCode, entityCode)
+                .ne(EntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.DEACTIVATED)
+                .orderByDesc(EntityTotpCredentials::getIsPrimary)
+                .orderByAsc(EntityTotpCredentials::getId);
+        return entityTotpCredentialsMapper.selectList(wrapper);
     }
 
-    public SysEntityTotpCredentials loadActiveAdmin(String entityCode, String adminUid) {
+    public EntityTotpCredentials loadActiveAdmin(String entityCode, String adminUid) {
         if (!StringUtils.hasText(entityCode) || !StringUtils.hasText(adminUid)) {
             return null;
         }
-        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getEntityCode, entityCode)
-                .eq(SysEntityTotpCredentials::getAdminUid, adminUid.trim())
-                .eq(SysEntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.ACTIVE)
+        LambdaQueryWrapper<EntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getEntityCode, entityCode)
+                .eq(EntityTotpCredentials::getAdminUid, adminUid.trim())
+                .eq(EntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.ACTIVE)
                 .last("LIMIT 1");
-        return sysEntityTotpCredentialsMapper.selectOne(wrapper);
+        return entityTotpCredentialsMapper.selectOne(wrapper);
     }
 
     /** 绑定 TOTP 流程中加载管理员（含 PENDING）。 */
-    public SysEntityTotpCredentials loadAdminForTotpSetup(String entityCode, String adminUid) {
+    public EntityTotpCredentials loadAdminForTotpSetup(String entityCode, String adminUid) {
         if (!StringUtils.hasText(entityCode) || !StringUtils.hasText(adminUid)) {
             return null;
         }
-        SysEntityTotpCredentials admin = loadEntityAdminByUid(adminUid.trim());
+        EntityTotpCredentials admin = loadEntityAdminByUid(adminUid.trim());
         if (admin == null || !Objects.equals(admin.getEntityCode(), entityCode)) {
             return null;
         }
@@ -189,18 +189,18 @@ public class EntityAdminCredentialService {
         return admin;
     }
 
-    public SysEntityTotpCredentials loadEntityAdminByUid(String adminUid) {
-        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getAdminUid, adminUid.trim()).last("LIMIT 1");
-        return sysEntityTotpCredentialsMapper.selectOne(wrapper);
+    public EntityTotpCredentials loadEntityAdminByUid(String adminUid) {
+        LambdaQueryWrapper<EntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getAdminUid, adminUid.trim()).last("LIMIT 1");
+        return entityTotpCredentialsMapper.selectOne(wrapper);
     }
 
     /** 主体根 {@code admin_select} 后加载所选管理员（含待绑定 PENDING 与已绑定 ACTIVE）。 */
-    public SysEntityTotpCredentials loadAdminForEntityRootSelect(String entityCode, String adminUid) {
+    public EntityTotpCredentials loadAdminForEntityRootSelect(String entityCode, String adminUid) {
         if (!StringUtils.hasText(entityCode) || !StringUtils.hasText(adminUid)) {
             return null;
         }
-        SysEntityTotpCredentials admin = loadEntityAdminByUid(adminUid.trim());
+        EntityTotpCredentials admin = loadEntityAdminByUid(adminUid.trim());
         if (admin == null || !Objects.equals(admin.getEntityCode(), entityCode)) {
             return null;
         }
@@ -217,17 +217,17 @@ public class EntityAdminCredentialService {
      * 注销同主体下未完成的 PENDING 登记，避免失败重试占满密码或残留脏数据。
      */
     public void deactivateStalePendingAdmins(String entityCode, String exceptAdminUid) {
-        LambdaUpdateWrapper<SysEntityTotpCredentials> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getEntityCode, entityCode)
-                .eq(SysEntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.PENDING);
+        LambdaUpdateWrapper<EntityTotpCredentials> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getEntityCode, entityCode)
+                .eq(EntityTotpCredentials::getAccountStatus, EntityAdminAccountStatus.PENDING);
         if (StringUtils.hasText(exceptAdminUid)) {
-            wrapper.ne(SysEntityTotpCredentials::getAdminUid, exceptAdminUid.trim());
+            wrapper.ne(EntityTotpCredentials::getAdminUid, exceptAdminUid.trim());
         }
-        SysEntityTotpCredentials patch = new SysEntityTotpCredentials();
+        EntityTotpCredentials patch = new EntityTotpCredentials();
         patch.setAccountStatus(EntityAdminAccountStatus.DEACTIVATED);
         patch.setAccountStatusChangedAt(LocalDateTime.now());
         patch.setIsPrimary(0);
-        sysEntityTotpCredentialsMapper.update(patch, wrapper);
+        entityTotpCredentialsMapper.update(patch, wrapper);
     }
 
     /**
@@ -242,13 +242,13 @@ public class EntityAdminCredentialService {
      * </p>
      */
     @Transactional(rollbackFor = Exception.class)
-    public void createEntityAdmin(SysEntityTotpCredentials admin, String entityRootPasswordHash) {
+    public void createEntityAdmin(EntityTotpCredentials admin, String entityRootPasswordHash) {
         if (admin == null || !StringUtils.hasText(admin.getEntityCode()) || !StringUtils.hasText(admin.getPasswordHash())) {
             throw new RuntimeException("ORGANIZATION_FIELDS_REQUIRED");
         }
         assertAdminPasswordAvailable(
                 admin.getEntityCode(), admin.getPasswordHash(), entityRootPasswordHash, null);
-        sysEntityTotpCredentialsMapper.insert(admin);
+        entityTotpCredentialsMapper.insert(admin);
     }
 
     /**
@@ -266,15 +266,15 @@ public class EntityAdminCredentialService {
             String newPasswordHash,
             String entityRootPasswordHash) {
         assertAdminPasswordAvailable(entityCode, newPasswordHash, entityRootPasswordHash, adminUid);
-        SysEntityTotpCredentials patch = new SysEntityTotpCredentials();
+        EntityTotpCredentials patch = new EntityTotpCredentials();
         patch.setPasswordHash(newPasswordHash);
-        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getEntityCode, entityCode)
-                .eq(SysEntityTotpCredentials::getAdminUid, adminUid.trim());
-        sysEntityTotpCredentialsMapper.update(patch, wrapper);
+        LambdaQueryWrapper<EntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getEntityCode, entityCode)
+                .eq(EntityTotpCredentials::getAdminUid, adminUid.trim());
+        entityTotpCredentialsMapper.update(patch, wrapper);
     }
 
-    private boolean isBindableAdmin(SysEntityTotpCredentials admin) {
+    private boolean isBindableAdmin(EntityTotpCredentials admin) {
         if (admin == null) {
             return false;
         }
@@ -301,13 +301,13 @@ public class EntityAdminCredentialService {
      * @return 实际更新的行数（1 = 成功绑定，0 = 已被其他请求绑定）
      */
     public int bindEntityRootTotp(String entityCode, String totpSecret, LocalDateTime now) {
-        LambdaUpdateWrapper<ClientEntity> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ClientEntity::getEntityCode, entityCode)
-                .and(w -> w.isNull(ClientEntity::getTotpSecret).or().eq(ClientEntity::getTotpSecret, ""));
-        ClientEntity patch = new ClientEntity();
+        LambdaUpdateWrapper<TenantOrganization> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(TenantOrganization::getEntityCode, entityCode)
+                .and(w -> w.isNull(TenantOrganization::getTotpSecret).or().eq(TenantOrganization::getTotpSecret, ""));
+        TenantOrganization patch = new TenantOrganization();
         patch.setTotpSecret(totpSecret);
         patch.setLastLoginAt(now);
-        return clientEntityMapper.update(patch, wrapper);
+        return tenantOrganizationMapper.update(patch, wrapper);
     }
 
     /**
@@ -318,11 +318,11 @@ public class EntityAdminCredentialService {
      * </p>
      */
     public void updateAdminLastLoginAt(String adminUid, LocalDateTime now) {
-        LambdaUpdateWrapper<SysEntityTotpCredentials> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getAdminUid, adminUid);
-        SysEntityTotpCredentials patch = new SysEntityTotpCredentials();
+        LambdaUpdateWrapper<EntityTotpCredentials> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getAdminUid, adminUid);
+        EntityTotpCredentials patch = new EntityTotpCredentials();
         patch.setLastLoginAt(now);
-        sysEntityTotpCredentialsMapper.update(patch, wrapper);
+        entityTotpCredentialsMapper.update(patch, wrapper);
     }
 
     /**
@@ -332,11 +332,11 @@ public class EntityAdminCredentialService {
      * </p>
      */
     public void updateEntityLastLoginAt(String entityCode, LocalDateTime now) {
-        LambdaUpdateWrapper<ClientEntity> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ClientEntity::getEntityCode, entityCode);
-        ClientEntity patch = new ClientEntity();
+        LambdaUpdateWrapper<TenantOrganization> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(TenantOrganization::getEntityCode, entityCode);
+        TenantOrganization patch = new TenantOrganization();
         patch.setLastLoginAt(now);
-        clientEntityMapper.update(patch, wrapper);
+        tenantOrganizationMapper.update(patch, wrapper);
     }
 
     /**
@@ -346,10 +346,10 @@ public class EntityAdminCredentialService {
      * </p>
      */
     public void updateClientUserLastLoginAt(String userUid, LocalDateTime now) {
-        LambdaUpdateWrapper<ClientUser> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ClientUser::getUserUid, userUid);
-        ClientUser patch = new ClientUser();
+        LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(User::getUserUid, userUid);
+        User patch = new User();
         patch.setLastLoginAt(now);
-        clientUserMapper.update(patch, wrapper);
+        userMapper.update(patch, wrapper);
     }
 }

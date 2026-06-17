@@ -646,6 +646,7 @@ CREATE TABLE t_project_secret (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- 8.3 里程碑（t_project_milestone：project 1:N t_project_milestones）
+-- 注：t_project_milestone 依附于 IM 系统（Instant Message），作为项目即时通讯中的里程碑管理功能
 CREATE TABLE t_project_milestone (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   project_uid CHAR(13) NOT NULL,
@@ -662,6 +663,7 @@ CREATE TABLE t_project_milestone (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- 8.4 任务卡片（t_project_task_card：t_project_milestone 1:N task cards）
+-- 注：t_project_task_card 依附于 IM 系统（Instant Message），作为项目即时通讯中的任务卡片管理功能
 CREATE TABLE t_project_task_card (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   milestone_id BIGINT UNSIGNED NOT NULL,

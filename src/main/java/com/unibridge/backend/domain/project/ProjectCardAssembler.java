@@ -3,7 +3,7 @@ package com.unibridge.backend.domain.project;
 import com.unibridge.backend.domain.feed.dto.ContentTagLabel;
 import com.unibridge.backend.domain.feed.dto.ContentVO;
 import com.unibridge.backend.application.shared.dto.ProfileProjectItem;
-import com.unibridge.backend.infrastructure.entities.ClientProject;
+import com.unibridge.backend.infrastructure.entities.project.Project;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
@@ -35,7 +35,7 @@ public class ProjectCardAssembler {
         this.publisherEntityResolver = publisherEntityResolver;
     }
 
-    public ContentVO toFeedProjectVo(ClientProject project, double score) {
+    public ContentVO toFeedProjectVo(Project project, double score) {
         ProjectPublisherEntityResolver.PublisherEntityContext publisher =
                 publisherEntityResolver.resolve(project.getOwnerUid());
         LocalDateTime publishTime = resolvePublishTime(project.getPublishedAt(), project.getCreatedAt());
@@ -61,7 +61,7 @@ public class ProjectCardAssembler {
                 .build();
     }
 
-    public ProfileProjectItem toProfileProjectItem(ClientProject project) {
+    public ProfileProjectItem toProfileProjectItem(Project project) {
         ProjectPublisherEntityResolver.PublisherEntityContext publisher =
                 publisherEntityResolver.resolve(project.getOwnerUid());
         LocalDateTime publishTime = resolvePublishTime(project.getPublishedAt(), project.getCreatedAt());

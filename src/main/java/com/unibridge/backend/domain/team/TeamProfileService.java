@@ -21,27 +21,27 @@ import com.unibridge.backend.domain.team.dto.SyncTeamMembersRequest;
 import com.unibridge.backend.domain.team.dto.SyncTeamMembersResponse;
 import com.unibridge.backend.domain.team.dto.TeamProfileSpaceResponse;
 import com.unibridge.backend.infrastructure.common.BusinessException;
-import com.unibridge.backend.infrastructure.entities.ClientUser;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
+import com.unibridge.backend.infrastructure.entities.auth.User;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.UserMapper;
 import com.unibridge.backend.domain.user.dto.UserPublicPreviewResponse;
-import com.unibridge.backend.infrastructure.entities.AchievementArchive;
-import com.unibridge.backend.infrastructure.entities.ClientEntityProfile;
-import com.unibridge.backend.infrastructure.entities.ClientNote;
-import com.unibridge.backend.infrastructure.entities.ClientProject;
-import com.unibridge.backend.infrastructure.entities.ClientTeam;
-import com.unibridge.backend.infrastructure.entities.ClientTeamMember;
-import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
-import com.unibridge.backend.infrastructure.entities.UserAuthLink;
-import com.unibridge.backend.infrastructure.entities.UserIdentity;
-import com.unibridge.backend.infrastructure.persistence.mapper.AchievementArchiveMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientProjectMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMemberMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
+import com.unibridge.backend.infrastructure.entities.interaction.Achievement;
+import com.unibridge.backend.infrastructure.entities.profile.TenantOrgProfile;
+import com.unibridge.backend.infrastructure.entities.note.Note;
+import com.unibridge.backend.infrastructure.entities.project.Project;
+import com.unibridge.backend.infrastructure.entities.team.Team;
+import com.unibridge.backend.infrastructure.entities.team.TeamMember;
+import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
+import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
+import com.unibridge.backend.infrastructure.entities.profile.UserIdentity;
+import com.unibridge.backend.infrastructure.persistence.mapper.interaction.AchievementMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.TenantOrgProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.team.TeamMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.team.TeamMemberMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.util.TeamUidGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -101,25 +101,25 @@ public class TeamProfileService {
     );
 
     @Autowired
-    private ClientTeamMapper clientTeamMapper;
+    private TeamMapper teamMapper;
 
     @Autowired
-    private ClientTeamMemberMapper clientTeamMemberMapper;
+    private TeamMemberMapper teamMemberMapper;
 
     @Autowired
-    private ClientUserProfileMapper clientUserProfileMapper;
+    private UserProfileMapper userProfileMapper;
 
     @Autowired
-    private ClientEntityProfileMapper clientEntityProfileMapper;
+    private TenantOrgProfileMapper tenantOrgProfileMapper;
 
     @Autowired
-    private ClientProjectMapper clientProjectMapper;
+    private ProjectMapper projectMapper;
 
     @Autowired
-    private ClientNoteMapper clientNoteMapper;
+    private NoteMapper noteMapper;
 
     @Autowired
-    private AchievementArchiveMapper achievementArchiveMapper;
+    private AchievementMapper achievementMapper;
 
     @Autowired
     private ProjectCardAssembler projectCardAssembler;
@@ -131,17 +131,17 @@ public class TeamProfileService {
     private AccessService accessService;
 
     @Autowired
-    private ClientUserMapper clientUserMapper;
+    private UserMapper userMapper;
 
     @Autowired
-    private UserAuthLinkMapper userAuthLinkMapper;
+    private UserOrganizationBindingMapper userOrganizationBindingMapper;
 
     @Autowired
     private UserIdentityMapper userIdentityMapper;
 
     public TeamProfileSpaceResponse getTeamProfileSpace(String authorization, String teamUid) {
-        ClientTeam team = requireAccessibleTeam(teamUid);
-        List<ClientTeamMember> memberships = loadTeamMemberships(teamUid);
+        Team team = requireAccessibleTeam(teamUid);
+        List<TeamMember> memberships = loadTeamMemberships(teamUid);
         String organizationName = resolveOrganizationName(team);
         String researchDirection = formatResearchDirection(team.getTag());
         int memberCount = memberships.size();
@@ -179,16 +179,16 @@ public class TeamProfileService {
                                                       Integer projectLimit,
                                                       Integer noteLimit,
                                                       Integer achievementLimit) {
-        ClientTeam team = requireAccessibleTeam(teamUid);
+        Team team = requireAccessibleTeam(teamUid);
         List<String> memberUids = loadTeamMemberUids(team);
 
         int resolvedProjectLimit = normalizeLimit(projectLimit, DEFAULT_HOME_PROJECT_LIMIT);
         int resolvedNoteLimit = normalizeLimit(noteLimit, DEFAULT_HOME_NOTE_LIMIT);
         int resolvedAchievementLimit = normalizeLimit(achievementLimit, DEFAULT_HOME_ACHIEVEMENT_LIMIT);
 
-        List<ClientProject> projects = loadTeamProjects(teamUid, resolvedProjectLimit, 0);
-        List<ClientNote> notes = loadTeamNotes(teamUid, null, resolvedNoteLimit, 0);
-        List<AchievementArchive> achievements = loadTeamAchievements(memberUids, resolvedAchievementLimit, 0);
+        List<Project> projects = loadTeamProjects(teamUid, resolvedProjectLimit, 0);
+        List<Note> notes = loadTeamNotes(teamUid, null, resolvedNoteLimit, 0);
+        List<Achievement> achievements = loadTeamAchievements(memberUids, resolvedAchievementLimit, 0);
 
         return TeamProfileHomeResponse.builder()
                 .teamUid(team.getTeamUid())
@@ -205,17 +205,17 @@ public class TeamProfileService {
                                                             String teamUid,
                                                             Integer page,
                                                             Integer pageSize) {
-        ClientTeam team = requireAccessibleTeam(teamUid);
+        Team team = requireAccessibleTeam(teamUid);
         boolean showRealName = isViewerTeamMember(team, resolveOptionalViewerUid(authorization));
-        List<ClientTeamMember> memberships = loadTeamMemberships(teamUid);
-        List<ClientTeamMember> sorted = sortMembersForDisplay(team, memberships);
+        List<TeamMember> memberships = loadTeamMemberships(teamUid);
+        List<TeamMember> sorted = sortMembersForDisplay(team, memberships);
 
         int resolvedPage = normalizePage(page);
         int resolvedPageSize = normalizePageSize(pageSize, DEFAULT_MEMBER_PAGE_SIZE);
         long total = sorted.size();
         int fromIndex = Math.min((resolvedPage - 1) * resolvedPageSize, sorted.size());
         int toIndex = Math.min(fromIndex + resolvedPageSize, sorted.size());
-        List<ClientTeamMember> pageSlice = sorted.subList(fromIndex, toIndex);
+        List<TeamMember> pageSlice = sorted.subList(fromIndex, toIndex);
 
         return TeamProfileMembersResponse.builder()
                 .teamUid(team.getTeamUid())
@@ -227,13 +227,13 @@ public class TeamProfileService {
     }
 
     public TeamProfileProjectsResponse getTeamProfileProjects(String teamUid, Integer page, Integer pageSize) {
-        ClientTeam team = requireAccessibleTeam(teamUid);
+        Team team = requireAccessibleTeam(teamUid);
 
         int resolvedPage = normalizePage(page);
         int resolvedPageSize = normalizePageSize(pageSize, DEFAULT_PROJECT_PAGE_SIZE);
         int offset = (resolvedPage - 1) * resolvedPageSize;
 
-        List<ClientProject> projects = loadTeamProjects(teamUid, resolvedPageSize, offset);
+        List<Project> projects = loadTeamProjects(teamUid, resolvedPageSize, offset);
         long total = countTeamProjects(teamUid);
 
         return TeamProfileProjectsResponse.builder()
@@ -249,14 +249,14 @@ public class TeamProfileService {
                                                         Integer page,
                                                         Integer pageSize,
                                                         String contentType) {
-        ClientTeam team = requireAccessibleTeam(teamUid);
+        Team team = requireAccessibleTeam(teamUid);
 
         int resolvedPage = normalizePage(page);
         int resolvedPageSize = normalizePageSize(pageSize, DEFAULT_NOTE_PAGE_SIZE);
         int offset = (resolvedPage - 1) * resolvedPageSize;
         String dbContentType = mapNoteContentTypeFilter(contentType);
 
-        List<ClientNote> notes = loadTeamNotes(teamUid, dbContentType, resolvedPageSize, offset);
+        List<Note> notes = loadTeamNotes(teamUid, dbContentType, resolvedPageSize, offset);
         long total = countTeamNotes(teamUid, dbContentType);
 
         return TeamProfileNotesResponse.builder()
@@ -271,14 +271,14 @@ public class TeamProfileService {
     public TeamProfileAchievementsResponse getTeamProfileAchievements(String teamUid,
                                                                       Integer page,
                                                                       Integer pageSize) {
-        ClientTeam team = requireAccessibleTeam(teamUid);
+        Team team = requireAccessibleTeam(teamUid);
         List<String> memberUids = loadTeamMemberUids(team);
 
         int resolvedPage = normalizePage(page);
         int resolvedPageSize = normalizePageSize(pageSize, DEFAULT_ACHIEVEMENT_PAGE_SIZE);
         int offset = (resolvedPage - 1) * resolvedPageSize;
 
-        List<AchievementArchive> achievements = loadTeamAchievements(memberUids, resolvedPageSize, offset);
+        List<Achievement> achievements = loadTeamAchievements(memberUids, resolvedPageSize, offset);
         long total = countTeamAchievements(memberUids);
 
         return TeamProfileAchievementsResponse.builder()
@@ -290,9 +290,9 @@ public class TeamProfileService {
                 .build();
     }
 
-    private ClientTeam requireAccessibleTeam(String teamUid) {
+    private Team requireAccessibleTeam(String teamUid) {
         validateTeamUidFormat(teamUid);
-        ClientTeam team = loadTeamByUid(teamUid);
+        Team team = loadTeamByUid(teamUid);
         if (team == null) {
             throw BusinessException.notFound("TEAM_NOT_FOUND");
         }
@@ -308,14 +308,14 @@ public class TeamProfileService {
         }
     }
 
-    private ClientTeam loadTeamByUid(String teamUid) {
-        LambdaQueryWrapper<ClientTeam> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientTeam::getTeamUid, teamUid.trim()).last("LIMIT 1");
-        return clientTeamMapper.selectOne(wrapper);
+    private Team loadTeamByUid(String teamUid) {
+        LambdaQueryWrapper<Team> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Team::getTeamUid, teamUid.trim()).last("LIMIT 1");
+        return teamMapper.selectOne(wrapper);
     }
 
     /** LAB 须 audit_status=APPROVED；团队 account_status 须 ACTIVE。 */
-    private boolean isTeamPubliclyVisible(ClientTeam team) {
+    private boolean isTeamPubliclyVisible(Team team) {
         if (team == null || !"ACTIVE".equalsIgnoreCase(team.getAccountStatus())) {
             return false;
         }
@@ -325,15 +325,15 @@ public class TeamProfileService {
         return true;
     }
 
-    private List<ClientTeamMember> loadTeamMemberships(String teamUid) {
-        LambdaQueryWrapper<ClientTeamMember> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientTeamMember::getTeamUid, teamUid);
-        return clientTeamMemberMapper.selectList(wrapper);
+    private List<TeamMember> loadTeamMemberships(String teamUid) {
+        LambdaQueryWrapper<TeamMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TeamMember::getTeamUid, teamUid);
+        return teamMemberMapper.selectList(wrapper);
     }
 
-    private List<String> loadTeamMemberUids(ClientTeam team) {
+    private List<String> loadTeamMemberUids(Team team) {
         Set<String> uids = new HashSet<>();
-        for (ClientTeamMember membership : loadTeamMemberships(team.getTeamUid())) {
+        for (TeamMember membership : loadTeamMemberships(team.getTeamUid())) {
             if (StringUtils.hasText(membership.getUserUid())) {
                 uids.add(membership.getUserUid());
             }
@@ -344,21 +344,21 @@ public class TeamProfileService {
         return new ArrayList<>(uids);
     }
 
-    private String resolveOrganizationName(ClientTeam team) {
+    private String resolveOrganizationName(Team team) {
         if (!StringUtils.hasText(team.getEntityCode())) {
             return null;
         }
-        ClientEntityProfile entityProfile = loadEntityProfileByEntityCode(team.getEntityCode());
+        TenantOrgProfile entityProfile = loadEntityProfileByEntityCode(team.getEntityCode());
         if (entityProfile == null || !StringUtils.hasText(entityProfile.getName())) {
             return null;
         }
         return entityProfile.getName();
     }
 
-    private ClientEntityProfile loadEntityProfileByEntityCode(String entityCode) {
-        LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
-        return clientEntityProfileMapper.selectOne(wrapper);
+    private TenantOrgProfile loadEntityProfileByEntityCode(String entityCode) {
+        LambdaQueryWrapper<TenantOrgProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TenantOrgProfile::getEntityCode, entityCode).last("LIMIT 1");
+        return tenantOrgProfileMapper.selectOne(wrapper);
     }
 
     private String formatResearchDirection(String tagJson) {
@@ -369,7 +369,7 @@ public class TeamProfileService {
         return String.join(" · ", tags);
     }
 
-    private List<TeamProfileSpaceResponse.TeamInfoRow> buildInfoRows(ClientTeam team,
+    private List<TeamProfileSpaceResponse.TeamInfoRow> buildInfoRows(Team team,
                                                                      String organizationName,
                                                                      String researchDirection,
                                                                      int memberCount) {
@@ -391,18 +391,18 @@ public class TeamProfileService {
                 .build();
     }
 
-    private List<TeamMemberItem> buildMemberItems(ClientTeam team,
-                                                List<ClientTeamMember> orderedSlice,
+    private List<TeamMemberItem> buildMemberItems(Team team,
+                                                List<TeamMember> orderedSlice,
                                                 boolean showRealName) {
         if (orderedSlice.isEmpty()) {
             return Collections.emptyList();
         }
-        List<String> uids = orderedSlice.stream().map(ClientTeamMember::getUserUid).collect(Collectors.toList());
-        Map<String, ClientUserProfile> profileMap = loadProfileMap(uids);
+        List<String> uids = orderedSlice.stream().map(TeamMember::getUserUid).collect(Collectors.toList());
+        Map<String, UserProfile> profileMap = loadProfileMap(uids);
         Map<String, UserIdentity> identityMap = loadIdentityMap(uids);
         List<TeamMemberItem> items = new ArrayList<>();
-        for (ClientTeamMember membership : orderedSlice) {
-            ClientUserProfile profile = profileMap.get(membership.getUserUid());
+        for (TeamMember membership : orderedSlice) {
+            UserProfile profile = profileMap.get(membership.getUserUid());
             UserIdentity identity = identityMap.get(membership.getUserUid());
             items.add(TeamMemberItem.builder()
                     .uid(membership.getUserUid())
@@ -420,16 +420,16 @@ public class TeamProfileService {
     }
 
     /** 负责人 → 导师 → 学生/成员；同层按等级降序，再按 joined_at 升序。 */
-    private List<ClientTeamMember> sortMembersForDisplay(ClientTeam team, List<ClientTeamMember> memberships) {
+    private List<TeamMember> sortMembersForDisplay(Team team, List<TeamMember> memberships) {
         if (memberships.isEmpty()) {
             return Collections.emptyList();
         }
-        Map<String, ClientUserProfile> profileMap = loadProfileMap(
-                memberships.stream().map(ClientTeamMember::getUserUid).collect(Collectors.toList()));
+        Map<String, UserProfile> profileMap = loadProfileMap(
+                memberships.stream().map(TeamMember::getUserUid).collect(Collectors.toList()));
         return memberships.stream()
                 .sorted(Comparator
-                        .comparingInt((ClientTeamMember member) -> spacePreviewTier(team, member))
-                        .thenComparing((ClientTeamMember member) ->
+                        .comparingInt((TeamMember member) -> spacePreviewTier(team, member))
+                        .thenComparing((TeamMember member) ->
                                 levelOrder(profileMap.get(member.getUserUid())), Comparator.reverseOrder())
                         .thenComparing(member -> member.getJoinedAt() == null
                                 ? LocalDateTime.MAX
@@ -437,7 +437,7 @@ public class TeamProfileService {
                 .collect(Collectors.toList());
     }
 
-    private int spacePreviewTier(ClientTeam team, ClientTeamMember member) {
+    private int spacePreviewTier(Team team, TeamMember member) {
         if (StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(member.getUserUid())) {
             return 0;
         }
@@ -447,7 +447,7 @@ public class TeamProfileService {
         return 2;
     }
 
-    private int levelOrder(ClientUserProfile profile) {
+    private int levelOrder(UserProfile profile) {
         String level = resolveLevel(profile);
         if (level == null) {
             return 0;
@@ -455,20 +455,20 @@ public class TeamProfileService {
         return LEVEL_ORDER.getOrDefault(level, 0);
     }
 
-    private String resolveMemberRole(ClientTeamMember member) {
+    private String resolveMemberRole(TeamMember member) {
         if (!StringUtils.hasText(member.getRole())) {
             return "MEMBER";
         }
         return member.getRole().trim().toUpperCase(Locale.ROOT);
     }
 
-    private boolean resolveIsOwner(ClientTeam team, ClientTeamMember member) {
+    private boolean resolveIsOwner(Team team, TeamMember member) {
         return StringUtils.hasText(team.getOwnerUid())
                 && team.getOwnerUid().equals(member.getUserUid());
     }
 
     /** is_admin=1 或 team.owner_uid 匹配时视为管理员。 */
-    private boolean resolveIsAdmin(ClientTeam team, ClientTeamMember member) {
+    private boolean resolveIsAdmin(Team team, TeamMember member) {
         if (member.getIsAdmin() != null && member.getIsAdmin() == 1) {
             return true;
         }
@@ -477,21 +477,21 @@ public class TeamProfileService {
     }
 
     /** owner 入驻无邀请人；其余取 team_member.invited_by_uid。 */
-    private String resolveInvitedByUid(ClientTeam team, ClientTeamMember member) {
+    private String resolveInvitedByUid(Team team, TeamMember member) {
         if (StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(member.getUserUid())) {
             return null;
         }
         return trimToNull(member.getInvitedByUid());
     }
 
-    private Map<String, ClientUserProfile> loadProfileMap(List<String> userUids) {
+    private Map<String, UserProfile> loadProfileMap(List<String> userUids) {
         if (userUids.isEmpty()) {
             return Collections.emptyMap();
         }
-        LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(ClientUserProfile::getUserUid, userUids);
-        Map<String, ClientUserProfile> profileMap = new HashMap<>();
-        for (ClientUserProfile profile : clientUserProfileMapper.selectList(wrapper)) {
+        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(UserProfile::getUserUid, userUids);
+        Map<String, UserProfile> profileMap = new HashMap<>();
+        for (UserProfile profile : userProfileMapper.selectList(wrapper)) {
             profileMap.put(profile.getUserUid(), profile);
         }
         return profileMap;
@@ -510,13 +510,13 @@ public class TeamProfileService {
         return identityMap;
     }
 
-    private ClientUserProfile loadProfile(String userUid) {
-        LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
-        return clientUserProfileMapper.selectOne(wrapper);
+    private UserProfile loadProfile(String userUid) {
+        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserProfile::getUserUid, userUid).last("LIMIT 1");
+        return userProfileMapper.selectOne(wrapper);
     }
 
-    private String resolveNickname(ClientUserProfile profile) {
+    private String resolveNickname(UserProfile profile) {
         if (profile == null || !StringUtils.hasText(profile.getNickName())) {
             return "用户";
         }
@@ -524,7 +524,7 @@ public class TeamProfileService {
     }
 
     /** 管理成员场景：优先 real_name，否则回退 nickname。 */
-    private String resolveRealNameOrNickname(ClientUserProfile profile, UserIdentity identity) {
+    private String resolveRealNameOrNickname(UserProfile profile, UserIdentity identity) {
         if (identity != null && StringUtils.hasText(identity.getRealNameMask())) {
             return identity.getRealNameMask().trim();
         }
@@ -534,7 +534,7 @@ public class TeamProfileService {
     /**
      * members[].nickname 展示名：团队成员查看时填 real_name，否则填 nickname。
      */
-    private String resolveMemberDisplayName(ClientUserProfile profile, boolean showRealName, UserIdentity identity) {
+    private String resolveMemberDisplayName(UserProfile profile, boolean showRealName, UserIdentity identity) {
         if (showRealName) {
             return resolveRealNameOrNickname(profile, identity);
         }
@@ -546,7 +546,7 @@ public class TeamProfileService {
     }
 
     /** 当前登录用户是否为该团队成员（含 owner_uid）。 */
-    private boolean isViewerTeamMember(ClientTeam team, String viewerUid) {
+    private boolean isViewerTeamMember(Team team, String viewerUid) {
         if (!StringUtils.hasText(viewerUid)) {
             return false;
         }
@@ -556,7 +556,7 @@ public class TeamProfileService {
         return findMembership(team.getTeamUid(), viewerUid) != null;
     }
 
-    private String resolveLevel(ClientUserProfile profile) {
+    private String resolveLevel(UserProfile profile) {
         if (profile == null || !StringUtils.hasText(profile.getLevel())) {
             return null;
         }
@@ -564,99 +564,99 @@ public class TeamProfileService {
         return VALID_LEVELS.contains(level) ? level : null;
     }
 
-    private LambdaQueryWrapper<ClientProject> baseTeamProjectWrapper(String teamUid) {
-        LambdaQueryWrapper<ClientProject> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientProject::getTeamUid, teamUid)
-                .ne(ClientProject::getStatus, PROJECT_STATUS_DRAFT)
-                .isNotNull(ClientProject::getPublishedAt)
+    private LambdaQueryWrapper<Project> baseTeamProjectWrapper(String teamUid) {
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getTeamUid, teamUid)
+                .ne(Project::getStatus, PROJECT_STATUS_DRAFT)
+                .isNotNull(Project::getPublishedAt)
                 .last("ORDER BY COALESCE(published_at, created_at) DESC, id DESC");
         return wrapper;
     }
 
-    private List<ClientProject> loadTeamProjects(String teamUid, int pageSize, int offset) {
+    private List<Project> loadTeamProjects(String teamUid, int pageSize, int offset) {
         int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
-        Page<ClientProject> page = new Page<>(pageNum, pageSize);
+        Page<Project> page = new Page<>(pageNum, pageSize);
         page.setSearchCount(false);
-        return clientProjectMapper.selectPage(page, baseTeamProjectWrapper(teamUid)).getRecords();
+        return projectMapper.selectPage(page, baseTeamProjectWrapper(teamUid)).getRecords();
     }
 
     private long countTeamProjects(String teamUid) {
-        return clientProjectMapper.selectCount(baseTeamProjectWrapper(teamUid));
+        return projectMapper.selectCount(baseTeamProjectWrapper(teamUid));
     }
 
-    private LambdaQueryWrapper<ClientNote> baseTeamNoteWrapper(String teamUid, String dbContentType) {
-        LambdaQueryWrapper<ClientNote> wrapper = new LambdaQueryWrapper<>();
+    private LambdaQueryWrapper<Note> baseTeamNoteWrapper(String teamUid, String dbContentType) {
+        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
         // 按 notes.extended_uid = teamUid 查询团队关联笔记，非按作者 user_uid
-        wrapper.eq(ClientNote::getExtendedUid, teamUid)
-                .eq(ClientNote::getStatus, NOTE_STATUS_PUBLISHED);
+        wrapper.eq(Note::getExtendedUid, teamUid)
+                .eq(Note::getStatus, NOTE_STATUS_PUBLISHED);
         if (dbContentType != null) {
-            wrapper.likeRight(ClientNote::getContentTypeCode, dbContentType);
+            wrapper.likeRight(Note::getContentTypeCode, dbContentType);
         }
         wrapper.last("ORDER BY COALESCE(published_at, created_at) DESC, id DESC");
         return wrapper;
     }
 
-    private List<ClientNote> loadTeamNotes(String teamUid, String dbContentType, int pageSize, int offset) {
+    private List<Note> loadTeamNotes(String teamUid, String dbContentType, int pageSize, int offset) {
         int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
-        Page<ClientNote> page = new Page<>(pageNum, pageSize);
+        Page<Note> page = new Page<>(pageNum, pageSize);
         page.setSearchCount(false);
-        return clientNoteMapper.selectPage(page, baseTeamNoteWrapper(teamUid, dbContentType)).getRecords();
+        return noteMapper.selectPage(page, baseTeamNoteWrapper(teamUid, dbContentType)).getRecords();
     }
 
     private long countTeamNotes(String teamUid, String dbContentType) {
-        return clientNoteMapper.selectCount(baseTeamNoteWrapper(teamUid, dbContentType));
+        return noteMapper.selectCount(baseTeamNoteWrapper(teamUid, dbContentType));
     }
 
-    private LambdaQueryWrapper<AchievementArchive> baseTeamAchievementWrapper(List<String> memberUids) {
-        LambdaQueryWrapper<AchievementArchive> wrapper = new LambdaQueryWrapper<>();
+    private LambdaQueryWrapper<Achievement> baseTeamAchievementWrapper(List<String> memberUids) {
+        LambdaQueryWrapper<Achievement> wrapper = new LambdaQueryWrapper<>();
         if (memberUids.isEmpty()) {
-            wrapper.eq(AchievementArchive::getUserUid, "__NONE__");
+            wrapper.eq(Achievement::getUserUid, "__NONE__");
         } else {
-            wrapper.in(AchievementArchive::getUserUid, memberUids);
+            wrapper.in(Achievement::getUserUid, memberUids);
         }
         wrapper.last("ORDER BY COALESCE(completed_at, created_at) DESC, id DESC");
         return wrapper;
     }
 
-    private List<AchievementArchive> loadTeamAchievements(List<String> memberUids, int pageSize, int offset) {
+    private List<Achievement> loadTeamAchievements(List<String> memberUids, int pageSize, int offset) {
         int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
-        Page<AchievementArchive> page = new Page<>(pageNum, pageSize);
+        Page<Achievement> page = new Page<>(pageNum, pageSize);
         page.setSearchCount(false);
-        return achievementArchiveMapper.selectPage(page, baseTeamAchievementWrapper(memberUids)).getRecords();
+        return achievementMapper.selectPage(page, baseTeamAchievementWrapper(memberUids)).getRecords();
     }
 
     private long countTeamAchievements(List<String> memberUids) {
-        return achievementArchiveMapper.selectCount(baseTeamAchievementWrapper(memberUids));
+        return achievementMapper.selectCount(baseTeamAchievementWrapper(memberUids));
     }
 
-    private List<ProfileProjectItem> toProjectItems(List<ClientProject> projects) {
+    private List<ProfileProjectItem> toProjectItems(List<Project> projects) {
         if (projects.isEmpty()) {
             return Collections.emptyList();
         }
         List<ProfileProjectItem> items = new ArrayList<>();
-        for (ClientProject project : projects) {
+        for (Project project : projects) {
             items.add(projectCardAssembler.toProfileProjectItem(project));
         }
         return items;
     }
 
-    private List<ProfileNoteItem> toNoteItems(List<ClientNote> notes) {
+    private List<ProfileNoteItem> toNoteItems(List<Note> notes) {
         if (notes.isEmpty()) {
             return Collections.emptyList();
         }
         List<ProfileNoteItem> items = new ArrayList<>();
-        for (ClientNote note : notes) {
+        for (Note note : notes) {
             items.add(noteCardAssembler.toProfileNoteItem(note));
         }
         return items;
     }
 
-    private List<TeamAchievementItem> toAchievementItems(List<AchievementArchive> archives) {
+    private List<TeamAchievementItem> toAchievementItems(List<Achievement> archives) {
         if (archives.isEmpty()) {
             return Collections.emptyList();
         }
         List<TeamAchievementItem> items = new ArrayList<>();
-        for (AchievementArchive archive : archives) {
+        for (Achievement archive : archives) {
             items.add(TeamAchievementItem.builder()
                     .achievementUid(archive.getAchievementUid())
                     .maskedProjectName(nullSafe(archive.getMaskedProjectName()))
@@ -728,27 +728,27 @@ public class TeamProfileService {
         return value.trim();
     }
 
-    private void requireTeamAdmin(ClientTeam team, String currentUserUid) {
+    private void requireTeamAdmin(Team team, String currentUserUid) {
         if (StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(currentUserUid)) {
             return;
         }
-        ClientTeamMember membership = findMembership(team.getTeamUid(), currentUserUid);
+        TeamMember membership = findMembership(team.getTeamUid(), currentUserUid);
         if (membership == null || !resolveIsAdmin(team, membership)) {
             throw BusinessException.forbidden("TEAM_MEMBER_FORBIDDEN");
         }
     }
 
-    private ClientTeamMember findMembership(String teamUid, String userUid) {
-        LambdaQueryWrapper<ClientTeamMember> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientTeamMember::getTeamUid, teamUid)
-                .eq(ClientTeamMember::getUserUid, userUid)
+    private TeamMember findMembership(String teamUid, String userUid) {
+        LambdaQueryWrapper<TeamMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TeamMember::getTeamUid, teamUid)
+                .eq(TeamMember::getUserUid, userUid)
                 .last("LIMIT 1");
-        return clientTeamMemberMapper.selectOne(wrapper);
+        return teamMemberMapper.selectOne(wrapper);
     }
 
-    private Map<String, ClientTeamMember> loadMemberMap(String teamUid) {
-        Map<String, ClientTeamMember> map = new HashMap<>();
-        for (ClientTeamMember member : loadTeamMemberships(teamUid)) {
+    private Map<String, TeamMember> loadMemberMap(String teamUid) {
+        Map<String, TeamMember> map = new HashMap<>();
+        for (TeamMember member : loadTeamMemberships(teamUid)) {
             map.put(member.getUserUid(), member);
         }
         return map;
@@ -775,9 +775,9 @@ public class TeamProfileService {
         return request.getRemovals();
     }
 
-    private void validateRemovals(ClientTeam team,
+    private void validateRemovals(Team team,
                                   List<SyncTeamMembersRequest.MemberRemoval> removals,
-                                  Map<String, ClientTeamMember> memberByUid) {
+                                  Map<String, TeamMember> memberByUid) {
         if (removals.isEmpty()) {
             return;
         }
@@ -798,9 +798,9 @@ public class TeamProfileService {
         }
     }
 
-    private void validateUpdates(ClientTeam team,
+    private void validateUpdates(Team team,
                                  List<SyncTeamMembersRequest.MemberUpdate> updates,
-                                 Map<String, ClientTeamMember> memberByUid) {
+                                 Map<String, TeamMember> memberByUid) {
         for (SyncTeamMembersRequest.MemberUpdate update : updates) {
             String uid = normalizeRequiredUserUid(update.getUid());
             if (!memberByUid.containsKey(uid)) {
@@ -811,9 +811,9 @@ public class TeamProfileService {
         }
     }
 
-    private void validateAdditions(ClientTeam team,
+    private void validateAdditions(Team team,
                                    List<SyncTeamMembersRequest.MemberAddition> additions,
-                                   Map<String, ClientTeamMember> memberByUid) {
+                                   Map<String, TeamMember> memberByUid) {
         for (SyncTeamMembersRequest.MemberAddition addition : additions) {
             String uid = normalizeRequiredUserUid(addition.getUid());
             if (memberByUid.containsKey(uid)) {
@@ -829,12 +829,12 @@ public class TeamProfileService {
     }
 
     private void applyRemovals(List<SyncTeamMembersRequest.MemberRemoval> removals,
-                               Map<String, ClientTeamMember> memberByUid) {
+                               Map<String, TeamMember> memberByUid) {
         for (SyncTeamMembersRequest.MemberRemoval removal : removals) {
             String uid = removal.getUid().trim();
-            ClientTeamMember member = memberByUid.get(uid);
+            TeamMember member = memberByUid.get(uid);
             if (member != null) {
-                clientTeamMemberMapper.deleteById(member.getId());
+                teamMemberMapper.deleteById(member.getId());
                 memberByUid.remove(uid);
             }
         }
@@ -847,35 +847,35 @@ public class TeamProfileService {
      * 防止并发的不同字段更新操作互相覆盖。
      * </p>
      */
-    private void applyUpdates(ClientTeam team,
+    private void applyUpdates(Team team,
                               List<SyncTeamMembersRequest.MemberUpdate> updates,
-                              Map<String, ClientTeamMember> memberByUid) {
+                              Map<String, TeamMember> memberByUid) {
         for (SyncTeamMembersRequest.MemberUpdate update : updates) {
             String uid = update.getUid().trim();
-            ClientTeamMember member = memberByUid.get(uid);
+            TeamMember member = memberByUid.get(uid);
             if (member == null) {
                 continue;
             }
-            LambdaUpdateWrapper<ClientTeamMember> wrapper = new LambdaUpdateWrapper<>();
-            wrapper.eq(ClientTeamMember::getId, member.getId());
-            wrapper.set(ClientTeamMember::getCareer, update.getCareer().trim());
+            LambdaUpdateWrapper<TeamMember> wrapper = new LambdaUpdateWrapper<>();
+            wrapper.eq(TeamMember::getId, member.getId());
+            wrapper.set(TeamMember::getCareer, update.getCareer().trim());
             if (isOwnerUid(team, uid)) {
-                wrapper.set(ClientTeamMember::getIsAdmin, 1);
+                wrapper.set(TeamMember::getIsAdmin, 1);
             } else if (update.getIsAdmin() != null) {
-                wrapper.set(ClientTeamMember::getIsAdmin, Boolean.TRUE.equals(update.getIsAdmin()) ? 1 : 0);
+                wrapper.set(TeamMember::getIsAdmin, Boolean.TRUE.equals(update.getIsAdmin()) ? 1 : 0);
             }
-            clientTeamMemberMapper.update(null, wrapper);
+            teamMemberMapper.update(null, wrapper);
         }
     }
 
-    private void applyAdditions(ClientTeam team,
+    private void applyAdditions(Team team,
                                 List<SyncTeamMembersRequest.MemberAddition> additions,
-                                Map<String, ClientTeamMember> memberByUid,
+                                Map<String, TeamMember> memberByUid,
                                 String invitedByUid) {
         for (SyncTeamMembersRequest.MemberAddition addition : additions) {
             String uid = addition.getUid().trim();
             String role = normalizeAdditionRole(addition.getRole());
-            ClientTeamMember member = new ClientTeamMember();
+            TeamMember member = new TeamMember();
             member.setTeamUid(team.getTeamUid());
             member.setUserUid(uid);
             member.setRole(role);
@@ -886,7 +886,7 @@ public class TeamProfileService {
                 member.setLabUserUid(uid);
             }
             try {
-                clientTeamMemberMapper.insert(member);
+                teamMemberMapper.insert(member);
             } catch (DuplicateKeyException ex) {
                 throw BusinessException.conflict("TEAM_MEMBER_LAB_CONFLICT");
             }
@@ -901,17 +901,17 @@ public class TeamProfileService {
     }
 
     private void assertLabMembershipAvailable(String userUid) {
-        LambdaQueryWrapper<ClientTeamMember> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientTeamMember::getLabUserUid, userUid);
-        if (clientTeamMemberMapper.selectCount(wrapper) > 0) {
+        LambdaQueryWrapper<TeamMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TeamMember::getLabUserUid, userUid);
+        if (teamMemberMapper.selectCount(wrapper) > 0) {
             throw BusinessException.conflict("TEAM_MEMBER_LAB_CONFLICT");
         }
     }
 
-    private ClientUser loadUserByUid(String userUid) {
-        LambdaQueryWrapper<ClientUser> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUser::getUserUid, userUid).last("LIMIT 1");
-        return clientUserMapper.selectOne(wrapper);
+    private User loadUserByUid(String userUid) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getUserUid, userUid).last("LIMIT 1");
+        return userMapper.selectOne(wrapper);
     }
 
     private void validateUserUidFormat(String uid) {
@@ -942,7 +942,7 @@ public class TeamProfileService {
         }
     }
 
-    private boolean isOwnerUid(ClientTeam team, String userUid) {
+    private boolean isOwnerUid(Team team, String userUid) {
         return StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(userUid);
     }
 }

@@ -5,10 +5,24 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.unibridge.backend.domain.auth.AccessService;
 import com.unibridge.backend.domain.verification.dto.*;
 import com.unibridge.backend.infrastructure.common.BusinessException;
-import com.unibridge.backend.infrastructure.entities.*;
-import com.unibridge.backend.infrastructure.persistence.mapper.*;
-import com.unibridge.backend.infrastructure.entities.UserIdentity;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
+import com.unibridge.backend.infrastructure.entities.auth.User;
+import com.unibridge.backend.infrastructure.entities.auth.TenantOrganization;
+import com.unibridge.backend.infrastructure.entities.auth.EntityTotpCredentials;
+import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
+import com.unibridge.backend.infrastructure.entities.profile.TenantOrgProfile;
+import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
+import com.unibridge.backend.infrastructure.entities.verification.VerificationCode;
+import com.unibridge.backend.infrastructure.entities.verification.ApprovalFlow;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.UserMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.TenantOrganizationMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.EntityTotpCredentialsMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.TenantOrgProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.verification.VerificationCodeMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.verification.ApprovalFlowMapper;
+import com.unibridge.backend.infrastructure.entities.profile.UserIdentity;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
 import com.unibridge.backend.infrastructure.util.PublicUidGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -64,25 +78,25 @@ public class VerificationService {
     private AccessService accessService;
 
     @Autowired
-    private ClientUserMapper clientUserMapper;
+    private UserMapper userMapper;
 
     @Autowired
-    private ClientUserProfileMapper clientUserProfileMapper;
+    private UserProfileMapper userProfileMapper;
 
     @Autowired
-    private ClientEntityProfileMapper clientEntityProfileMapper;
+    private TenantOrgProfileMapper tenantOrgProfileMapper;
 
     @Autowired
-    private ClientEntityMapper clientEntityMapper;
+    private TenantOrganizationMapper tenantOrganizationMapper;
 
     @Autowired
-    private UserAuthLinkMapper userAuthLinkMapper;
+    private UserOrganizationBindingMapper userOrganizationBindingMapper;
 
     @Autowired
-    private SysApprovalFlowMapper sysApprovalFlowMapper;
+    private ApprovalFlowMapper approvalFlowMapper;
 
     @Autowired
-    private SysVerificationCodeMapper sysVerificationCodeMapper;
+    private VerificationCodeMapper verificationCodeMapper;
 
     @Autowired
     private UserIdentityMapper userIdentityMapper;
@@ -91,7 +105,7 @@ public class VerificationService {
     private JwtUtil jwtUtil;
 
     @Autowired
-    private SysEntityTotpCredentialsMapper sysEntityTotpCredentialsMapper;
+    private EntityTotpCredentialsMapper entityTotpCredentialsMapper;
 
     // ===================== 阶段一：人脸核身 =====================
 
@@ -176,20 +190,20 @@ public class VerificationService {
             return EntitySearchResponse.builder().entities(List.of()).build();
         }
 
-        LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<TenantOrgProfile> wrapper = new LambdaQueryWrapper<>();
         wrapper.and(w -> w
-                        .like(ClientEntityProfile::getName, keyword.trim())
+                        .like(TenantOrgProfile::getName, keyword.trim())
                         .or()
-                        .like(ClientEntityProfile::getEntityCode, keyword.trim()))
+                        .like(TenantOrgProfile::getEntityCode, keyword.trim()))
                 .last("LIMIT 20");
-        List<ClientEntityProfile> profiles = clientEntityProfileMapper.selectList(wrapper);
+        List<TenantOrgProfile> profiles = tenantOrgProfileMapper.selectList(wrapper);
 
         // 校验机构是否存在且公开可见
         List<EntitySearchItem> entities = profiles.stream()
                 .filter(p -> {
-                    ClientEntity entity = loadEntityByCode(p.getEntityCode());
-                    return entity != null && "ACTIVE".equalsIgnoreCase(entity.getAccountStatus())
-                            && "APPROVED".equalsIgnoreCase(entity.getAuditStatus());
+                    TenantOrganization TenantOrganization = loadEntityByCode(p.getEntityCode());
+                    return TenantOrganization != null && "ACTIVE".equalsIgnoreCase(TenantOrganization.getAccountStatus())
+                            && "APPROVED".equalsIgnoreCase(TenantOrganization.getAuditStatus());
                 })
                 .map(p -> EntitySearchItem.builder()
                         .entityCode(p.getEntityCode())
@@ -221,19 +235,19 @@ public class VerificationService {
             throw BusinessException.badRequest("VALIDATION_FAILED");
         }
 
-        ClientEntity entity = loadEntityByCode(request.getEntityCode().trim());
-        if (entity == null || !"ACTIVE".equalsIgnoreCase(entity.getAccountStatus())
-                || !"APPROVED".equalsIgnoreCase(entity.getAuditStatus())) {
+        TenantOrganization TenantOrganization = loadEntityByCode(request.getEntityCode().trim());
+        if (TenantOrganization == null || !"ACTIVE".equalsIgnoreCase(TenantOrganization.getAccountStatus())
+                || !"APPROVED".equalsIgnoreCase(TenantOrganization.getAuditStatus())) {
             throw BusinessException.notFound("ENTITY_NOT_FOUND");
         }
 
         // 检查是否已有同机构同角色的 PENDING/APPROVED 记录
-        LambdaQueryWrapper<UserAuthLink> existWrapper = new LambdaQueryWrapper<>();
-        existWrapper.eq(UserAuthLink::getUserUid, userUid)
-                .eq(UserAuthLink::getEntityCode, request.getEntityCode().trim())
-                .in(UserAuthLink::getAuditStatus, "PENDING", "APPROVED")
+        LambdaQueryWrapper<UserOrganizationBinding> existWrapper = new LambdaQueryWrapper<>();
+        existWrapper.eq(UserOrganizationBinding::getUserUid, userUid)
+                .eq(UserOrganizationBinding::getEntityCode, request.getEntityCode().trim())
+                .in(UserOrganizationBinding::getAuditStatus, "PENDING", "APPROVED")
                 .last("LIMIT 1");
-        if (userAuthLinkMapper.selectOne(existWrapper) != null) {
+        if (userOrganizationBindingMapper.selectOne(existWrapper) != null) {
             throw BusinessException.conflict("APPLICATION_ALREADY_EXISTS");
         }
 
@@ -246,7 +260,7 @@ public class VerificationService {
         String applicationId = "APP-" + datePart + "-" + generateApprovalSuffix(uid -> isApplicationIdUnique(uid));
 
         // 写入 user_auth_link（PENDING 状态）
-        UserAuthLink link = new UserAuthLink();
+        UserOrganizationBinding link = new UserOrganizationBinding();
         link.setUserUid(userUid);
         link.setEntityCode(request.getEntityCode().trim());
         link.setRole(role);
@@ -254,20 +268,20 @@ public class VerificationService {
         link.setAuditStatus("PENDING");
         link.setIsActive(0);
         link.setRemark("staffNumber:" + request.getStaffNumber().trim());
-        userAuthLinkMapper.insert(link);
+        userOrganizationBindingMapper.insert(link);
 
         // 写入 sys_approval_flows 审批流
-        SysApprovalFlow flow = new SysApprovalFlow();
+        ApprovalFlow flow = new ApprovalFlow();
         flow.setApprovalKey(applicationId);
         flow.setBusinessType("MENTOR_AUTH");
         flow.setApplicantKey(userUid);
         flow.setTargetKey(request.getEntityCode().trim());
         flow.setStatus(0); // 待审批
         flow.setPayload(buildStaffPayload(request));
-        sysApprovalFlowMapper.insert(flow);
+        approvalFlowMapper.insert(flow);
 
         // 同步 real_name 到 t_user_identity
-        ClientUserProfile profile = loadProfileByUid(userUid);
+        UserProfile profile = loadProfileByUid(userUid);
         if (profile != null) {
             UserIdentity identity = loadIdentityByUid(userUid);
             if (identity == null) {
@@ -317,9 +331,9 @@ public class VerificationService {
         }
 
         // 查询认证码（仅子码）
-        LambdaQueryWrapper<SysVerificationCode> codeWrapper = new LambdaQueryWrapper<>();
-        codeWrapper.eq(SysVerificationCode::getCode, code).last("LIMIT 1");
-        SysVerificationCode invCode = sysVerificationCodeMapper.selectOne(codeWrapper);
+        LambdaQueryWrapper<VerificationCode> codeWrapper = new LambdaQueryWrapper<>();
+        codeWrapper.eq(VerificationCode::getCode, code).last("LIMIT 1");
+        VerificationCode invCode = verificationCodeMapper.selectOne(codeWrapper);
         if (invCode == null || invCode.getIsActive() == null || invCode.getIsActive() == 0) {
             throw BusinessException.badRequest("VERIFICATION_CODE_INVALID");
         }
@@ -332,22 +346,22 @@ public class VerificationService {
         String entityCode = invCode.getEntityCode();
 
         // 校验机构存在
-        ClientEntity entity = loadEntityByCode(entityCode);
-        if (entity == null || !"ACTIVE".equalsIgnoreCase(entity.getAccountStatus())) {
+        TenantOrganization TenantOrganization = loadEntityByCode(entityCode);
+        if (TenantOrganization == null || !"ACTIVE".equalsIgnoreCase(TenantOrganization.getAccountStatus())) {
             throw BusinessException.notFound("ENTITY_NOT_FOUND");
         }
 
-        ClientEntityProfile entityProfile = loadEntityProfileByCode(entityCode);
+        TenantOrgProfile entityProfile = loadEntityProfileByCode(entityCode);
         String entityName = entityProfile != null ? entityProfile.getName() : entityCode;
 
         // 检查是否已激活
-        LambdaQueryWrapper<UserAuthLink> existWrapper = new LambdaQueryWrapper<>();
-        existWrapper.eq(UserAuthLink::getUserUid, userUid)
-                .eq(UserAuthLink::getEntityCode, entityCode)
-                .eq(UserAuthLink::getRole, "STUDENT")
-                .in(UserAuthLink::getAuditStatus, "PENDING", "APPROVED")
+        LambdaQueryWrapper<UserOrganizationBinding> existWrapper = new LambdaQueryWrapper<>();
+        existWrapper.eq(UserOrganizationBinding::getUserUid, userUid)
+                .eq(UserOrganizationBinding::getEntityCode, entityCode)
+                .eq(UserOrganizationBinding::getRole, "STUDENT")
+                .in(UserOrganizationBinding::getAuditStatus, "PENDING", "APPROVED")
                 .last("LIMIT 1");
-        if (userAuthLinkMapper.selectOne(existWrapper) != null) {
+        if (userOrganizationBindingMapper.selectOne(existWrapper) != null) {
             throw BusinessException.conflict("APPLICATION_ALREADY_EXISTS");
         }
 
@@ -367,7 +381,7 @@ public class VerificationService {
             // 写入审核通知记录（独立申请编号，符合约束格式）
             String datePart = LocalDateTime.now().format(DATE_FORMATTER);
             String alertKey = "APP-" + datePart + "-" + generateApprovalSuffix(uid -> isApplicationIdUnique(uid));
-            SysApprovalFlow alertFlow = new SysApprovalFlow();
+            ApprovalFlow alertFlow = new ApprovalFlow();
             alertFlow.setApprovalKey(alertKey);
             alertFlow.setBusinessType("MENTOR_AUTH");
             alertFlow.setApplicantKey(invCode.getCreatedBy()); // 辅导员 uid
@@ -388,16 +402,16 @@ public class VerificationService {
             } catch (JsonProcessingException e) {
                 alertFlow.setPayload("{}");
             }
-            sysApprovalFlowMapper.insert(alertFlow);
+            approvalFlowMapper.insert(alertFlow);
         }
 
         // 原子递增 used_quota
-        LambdaUpdateWrapper<SysVerificationCode> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(SysVerificationCode::getId, invCode.getId())
-                .eq(SysVerificationCode::getIsActive, 1)
-                .lt(SysVerificationCode::getUsedQuota, invCode.getMaxQuota())
+        LambdaUpdateWrapper<VerificationCode> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(VerificationCode::getId, invCode.getId())
+                .eq(VerificationCode::getIsActive, 1)
+                .lt(VerificationCode::getUsedQuota, invCode.getMaxQuota())
                 .setSql("used_quota = used_quota + 1");
-        int rows = sysVerificationCodeMapper.update(null, updateWrapper);
+        int rows = verificationCodeMapper.update(null, updateWrapper);
         if (rows == 0) {
             throw BusinessException.badRequest("VERIFICATION_CODE_EXHAUSTED");
         }
@@ -405,7 +419,7 @@ public class VerificationService {
         // 写入 user_auth_link
         String datePart = LocalDateTime.now().format(DATE_FORMATTER);
         String applicationId = "APP-" + datePart + "-" + generateApprovalSuffix(uid -> isApplicationIdUnique(uid));
-        UserAuthLink link = new UserAuthLink();
+        UserOrganizationBinding link = new UserOrganizationBinding();
         link.setUserUid(userUid);
         link.setEntityCode(entityCode);
         link.setRole("STUDENT");
@@ -413,13 +427,13 @@ public class VerificationService {
         link.setAuditStatus("APPROVED");
         link.setIsActive(1);
         link.setRemark("activation via " + code + " grad:" + gradYear);
-        userAuthLinkMapper.insert(link);
+        userOrganizationBindingMapper.insert(link);
 
         // 写入毕业年份到 user_profile + 同步 real_name 到 t_user_identity
-        ClientUserProfile userProfile = loadProfileByUid(userUid);
+        UserProfile userProfile = loadProfileByUid(userUid);
         if (userProfile != null) {
             userProfile.setGraduationYear(gradYear);
-            clientUserProfileMapper.updateById(userProfile);
+            userProfileMapper.updateById(userProfile);
         }
 
         // 写入/更新 real_name 到 t_user_identity
@@ -440,7 +454,7 @@ public class VerificationService {
         }
 
         // 写入 sys_approval_flows
-        SysApprovalFlow flow = new SysApprovalFlow();
+        ApprovalFlow flow = new ApprovalFlow();
         flow.setApprovalKey(applicationId);
         flow.setBusinessType("STUDENT_AUTH");
         flow.setApplicantKey(userUid);
@@ -457,7 +471,7 @@ public class VerificationService {
         } catch (JsonProcessingException e) {
             flow.setPayload("{}");
         }
-        sysApprovalFlowMapper.insert(flow);
+        approvalFlowMapper.insert(flow);
 
         return StudentActivateResponse.builder()
                 .entityCode(entityCode)
@@ -483,8 +497,8 @@ public class VerificationService {
             throw BusinessException.unauthorized("认证失败：无法从Token中提取主体代码，请尝试重新登录以获取新的Token");
         }
 
-        ClientEntity entity = loadEntityByCode(entityCode);
-        if (entity == null || !"ACTIVE".equalsIgnoreCase(entity.getAccountStatus())) {
+        TenantOrganization TenantOrganization = loadEntityByCode(entityCode);
+        if (TenantOrganization == null || !"ACTIVE".equalsIgnoreCase(TenantOrganization.getAccountStatus())) {
             throw BusinessException.notFound("ENTITY_NOT_FOUND");
         }
 
@@ -500,7 +514,7 @@ public class VerificationService {
         LocalDateTime expireTime = LocalDateTime.of(LocalDate.now().plusDays(14), LocalTime.of(23, 59, 59));
         String expireTimeStr = expireTime.format(DATE_TIME_FORMATTER);
 
-        SysVerificationCode inv = new SysVerificationCode();
+        VerificationCode inv = new VerificationCode();
         inv.setCode(code);
         inv.setEntityCode(entityCode);
         inv.setIsMaster(1);
@@ -514,7 +528,7 @@ public class VerificationService {
         inv.setIsActive(1);
 
         try {
-            sysVerificationCodeMapper.insert(inv);
+            verificationCodeMapper.insert(inv);
         } catch (DuplicateKeyException e) {
             throw BusinessException.conflict("VERIFICATION_CODE_DUPLICATE");
         }
@@ -553,12 +567,12 @@ public class VerificationService {
         if (!StringUtils.hasText(masterCode)) {
             throw BusinessException.badRequest("MASTER_CODE_REQUIRED");
         }
-        LambdaQueryWrapper<SysVerificationCode> masterWrapper = new LambdaQueryWrapper<>();
-        masterWrapper.eq(SysVerificationCode::getCode, masterCode.trim())
-                .eq(SysVerificationCode::getIsMaster, 1)
-                .eq(SysVerificationCode::getIsActive, 1)
+        LambdaQueryWrapper<VerificationCode> masterWrapper = new LambdaQueryWrapper<>();
+        masterWrapper.eq(VerificationCode::getCode, masterCode.trim())
+                .eq(VerificationCode::getIsMaster, 1)
+                .eq(VerificationCode::getIsActive, 1)
                 .last("LIMIT 1");
-        SysVerificationCode master = sysVerificationCodeMapper.selectOne(masterWrapper);
+        VerificationCode master = verificationCodeMapper.selectOne(masterWrapper);
         if (master == null) {
             throw BusinessException.notFound("MASTER_CODE_NOT_FOUND");
         }
@@ -576,12 +590,12 @@ public class VerificationService {
                 ? request.getGraduationYear() : null;
 
         // 原子扣减母码额度
-        LambdaUpdateWrapper<SysVerificationCode> masterUpdate = new LambdaUpdateWrapper<>();
-        masterUpdate.eq(SysVerificationCode::getId, master.getId())
-                .eq(SysVerificationCode::getIsActive, 1)
-                .le(SysVerificationCode::getUsedQuota, master.getMaxQuota() - subMaxQuota)
+        LambdaUpdateWrapper<VerificationCode> masterUpdate = new LambdaUpdateWrapper<>();
+        masterUpdate.eq(VerificationCode::getId, master.getId())
+                .eq(VerificationCode::getIsActive, 1)
+                .le(VerificationCode::getUsedQuota, master.getMaxQuota() - subMaxQuota)
                 .setSql("used_quota = used_quota + " + subMaxQuota);
-        int rows = sysVerificationCodeMapper.update(null, masterUpdate);
+        int rows = verificationCodeMapper.update(null, masterUpdate);
         if (rows == 0) {
             throw BusinessException.badRequest("MASTER_CODE_QUOTA_EXHAUSTED");
         }
@@ -594,7 +608,7 @@ public class VerificationService {
         LocalDateTime subExpireTime = LocalDateTime.of(LocalDate.now().plusDays(14), LocalTime.of(23, 59, 59));
         String subExpireTimeStr = subExpireTime.format(DATE_TIME_FORMATTER);
 
-        SysVerificationCode sub = new SysVerificationCode();
+        VerificationCode sub = new VerificationCode();
         sub.setCode(subCode);
         sub.setEntityCode(master.getEntityCode());
         sub.setIsMaster(0);
@@ -609,7 +623,7 @@ public class VerificationService {
         sub.setIsActive(1);
 
         try {
-            sysVerificationCodeMapper.insert(sub);
+            verificationCodeMapper.insert(sub);
         } catch (DuplicateKeyException e) {
             throw BusinessException.conflict("VERIFICATION_CODE_DUPLICATE");
         }
@@ -639,23 +653,23 @@ public class VerificationService {
             throw BusinessException.unauthorized("无权限访问认证码列表，请确认登录身份");
         }
 
-        LambdaQueryWrapper<SysVerificationCode> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<VerificationCode> wrapper = new LambdaQueryWrapper<>();
 
         if (isCounselor && !StringUtils.hasText(entityCode)) {
             // 辅导员模式：仅返回自己创建的子码
-            wrapper.eq(SysVerificationCode::getCreatedBy, userUid)
-                    .eq(SysVerificationCode::getIsMaster, 0);
+            wrapper.eq(VerificationCode::getCreatedBy, userUid)
+                    .eq(VerificationCode::getIsMaster, 0);
         } else {
             // 机构管理员模式：返回本机构所有认证码
-            wrapper.eq(SysVerificationCode::getEntityCode, entityCode);
+            wrapper.eq(VerificationCode::getEntityCode, entityCode);
         }
-        wrapper.orderByDesc(SysVerificationCode::getIsMaster)
-                .orderByDesc(SysVerificationCode::getCreatedAt);
+        wrapper.orderByDesc(VerificationCode::getIsMaster)
+                .orderByDesc(VerificationCode::getCreatedAt);
 
-        List<SysVerificationCode> all = sysVerificationCodeMapper.selectList(wrapper);
+        List<VerificationCode> all = verificationCodeMapper.selectList(wrapper);
 
         // 批量加载创建者名称（从 t_user_identity 读取 real_name_mask）
-        Set<String> creatorUids = all.stream().map(SysVerificationCode::getCreatedBy)
+        Set<String> creatorUids = all.stream().map(VerificationCode::getCreatedBy)
                 .filter(StringUtils::hasText).collect(Collectors.toSet());
         Map<String, String> creatorNameMap = new HashMap<>();
         if (!creatorUids.isEmpty()) {
@@ -669,11 +683,11 @@ public class VerificationService {
                 identityMap.put(id.getUserUid(), id);
             }
             // 批量加载 user_profile（作为 fallback）
-            LambdaQueryWrapper<ClientUserProfile> profileWrapper = new LambdaQueryWrapper<>();
-            profileWrapper.in(ClientUserProfile::getUserUid, uidList);
-            List<ClientUserProfile> profiles = clientUserProfileMapper.selectList(profileWrapper);
-            Map<String, ClientUserProfile> profileMap = new HashMap<>();
-            for (ClientUserProfile p : profiles) {
+            LambdaQueryWrapper<UserProfile> profileWrapper = new LambdaQueryWrapper<>();
+            profileWrapper.in(UserProfile::getUserUid, uidList);
+            List<UserProfile> profiles = userProfileMapper.selectList(profileWrapper);
+            Map<String, UserProfile> profileMap = new HashMap<>();
+            for (UserProfile p : profiles) {
                 profileMap.put(p.getUserUid(), p);
             }
             for (String uid : uidList) {
@@ -685,7 +699,7 @@ public class VerificationService {
                 if (StringUtils.hasText(maskedName)) {
                     creatorNameMap.put(uid, maskedName);
                 } else {
-                    ClientUserProfile p = profileMap.get(uid);
+                    UserProfile p = profileMap.get(uid);
                     creatorNameMap.put(uid,
                             p != null && StringUtils.hasText(p.getNickName()) ? p.getNickName() : "用户");
                 }
@@ -723,23 +737,23 @@ public class VerificationService {
             throw BusinessException.badRequest("CODE_REQUIRED");
         }
 
-        LambdaQueryWrapper<SysVerificationCode> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysVerificationCode::getCode, request.getCode().trim()).last("LIMIT 1");
-        SysVerificationCode code = sysVerificationCodeMapper.selectOne(wrapper);
+        LambdaQueryWrapper<VerificationCode> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(VerificationCode::getCode, request.getCode().trim()).last("LIMIT 1");
+        VerificationCode code = verificationCodeMapper.selectOne(wrapper);
         if (code == null) {
             throw BusinessException.notFound("CODE_NOT_FOUND");
         }
 
         // 停用自身
         code.setIsActive(0);
-        sysVerificationCodeMapper.updateById(code);
+        verificationCodeMapper.updateById(code);
 
         // 级联停用子码
         if (code.getIsMaster() != null && code.getIsMaster() == 1) {
-            LambdaUpdateWrapper<SysVerificationCode> subUpdate = new LambdaUpdateWrapper<>();
-            subUpdate.eq(SysVerificationCode::getParentId, code.getId())
-                    .set(SysVerificationCode::getIsActive, 0);
-            sysVerificationCodeMapper.update(null, subUpdate);
+            LambdaUpdateWrapper<VerificationCode> subUpdate = new LambdaUpdateWrapper<>();
+            subUpdate.eq(VerificationCode::getParentId, code.getId())
+                    .set(VerificationCode::getIsActive, 0);
+            verificationCodeMapper.update(null, subUpdate);
         }
     }
 
@@ -753,9 +767,9 @@ public class VerificationService {
             throw BusinessException.badRequest("CODE_REQUIRED");
         }
 
-        LambdaQueryWrapper<SysVerificationCode> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysVerificationCode::getCode, request.getCode().trim()).last("LIMIT 1");
-        SysVerificationCode code = sysVerificationCodeMapper.selectOne(wrapper);
+        LambdaQueryWrapper<VerificationCode> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(VerificationCode::getCode, request.getCode().trim()).last("LIMIT 1");
+        VerificationCode code = verificationCodeMapper.selectOne(wrapper);
         if (code == null) {
             throw BusinessException.notFound("CODE_NOT_FOUND");
         }
@@ -806,14 +820,14 @@ public class VerificationService {
         // 延期自身
         code.setExpireTime(newExpireTime);
         code.setIsActive(1);
-        sysVerificationCodeMapper.updateById(code);
+        verificationCodeMapper.updateById(code);
 
         // 级联延期子码
         if (code.getIsMaster() != null && code.getIsMaster() == 1) {
-            for (SysVerificationCode sub : loadSubCodes(code.getId())) {
+            for (VerificationCode sub : loadSubCodes(code.getId())) {
                 sub.setExpireTime(newExpireTime);
                 sub.setIsActive(1);
-                sysVerificationCodeMapper.updateById(sub);
+                verificationCodeMapper.updateById(sub);
             }
         }
 
@@ -830,36 +844,36 @@ public class VerificationService {
         }
 
         // 查找认证码
-        LambdaQueryWrapper<SysVerificationCode> codeWrapper = new LambdaQueryWrapper<>();
-        codeWrapper.eq(SysVerificationCode::getCode, targetCode.trim()).last("LIMIT 1");
-        SysVerificationCode code = sysVerificationCodeMapper.selectOne(codeWrapper);
+        LambdaQueryWrapper<VerificationCode> codeWrapper = new LambdaQueryWrapper<>();
+        codeWrapper.eq(VerificationCode::getCode, targetCode.trim()).last("LIMIT 1");
+        VerificationCode code = verificationCodeMapper.selectOne(codeWrapper);
         if (code == null) {
             throw BusinessException.notFound("CODE_NOT_FOUND");
         }
 
         // 获取子码集合
         List<String> subCodes = new ArrayList<>();
-        List<SysVerificationCode> subList;
+        List<VerificationCode> subList;
         if (code.getIsMaster() != null && code.getIsMaster() == 1) {
             subList = loadSubCodes(code.getId());
         } else {
             subList = List.of(code);
         }
-        for (SysVerificationCode sc : subList) {
+        for (VerificationCode sc : subList) {
             subCodes.add(sc.getCode());
         }
 
         // 查询通过这些子码激活的学生（在 user_auth_link 的 remark 中包含子码）
         List<CodeStudentItem> students = new ArrayList<>();
         for (String sc : subCodes) {
-            LambdaQueryWrapper<UserAuthLink> linkWrapper = new LambdaQueryWrapper<>();
-            linkWrapper.eq(UserAuthLink::getRole, "STUDENT")
-                    .eq(UserAuthLink::getAuditStatus, "APPROVED")
-                    .like(UserAuthLink::getRemark, sc)
+            LambdaQueryWrapper<UserOrganizationBinding> linkWrapper = new LambdaQueryWrapper<>();
+            linkWrapper.eq(UserOrganizationBinding::getRole, "STUDENT")
+                    .eq(UserOrganizationBinding::getAuditStatus, "APPROVED")
+                    .like(UserOrganizationBinding::getRemark, sc)
                     .last("LIMIT 500");
-            List<UserAuthLink> links = userAuthLinkMapper.selectList(linkWrapper);
-            for (UserAuthLink link : links) {
-                ClientUserProfile profile = loadProfileByUid(link.getUserUid());
+            List<UserOrganizationBinding> links = userOrganizationBindingMapper.selectList(linkWrapper);
+            for (UserOrganizationBinding link : links) {
+                UserProfile profile = loadProfileByUid(link.getUserUid());
                 UserIdentity identity = loadIdentityByUid(link.getUserUid());
                 students.add(CodeStudentItem.builder()
                         .uid(link.getUserUid())
@@ -885,17 +899,17 @@ public class VerificationService {
             throw BusinessException.badRequest("MASTER_CODE_REQUIRED");
         }
 
-        LambdaQueryWrapper<SysVerificationCode> masterWrapper = new LambdaQueryWrapper<>();
-        masterWrapper.eq(SysVerificationCode::getCode, masterCode.trim())
-                .eq(SysVerificationCode::getIsMaster, 1).last("LIMIT 1");
-        SysVerificationCode master = sysVerificationCodeMapper.selectOne(masterWrapper);
+        LambdaQueryWrapper<VerificationCode> masterWrapper = new LambdaQueryWrapper<>();
+        masterWrapper.eq(VerificationCode::getCode, masterCode.trim())
+                .eq(VerificationCode::getIsMaster, 1).last("LIMIT 1");
+        VerificationCode master = verificationCodeMapper.selectOne(masterWrapper);
         if (master == null) {
             throw BusinessException.notFound("CODE_NOT_FOUND");
         }
 
-        List<SysVerificationCode> subs = loadSubCodes(master.getId());
+        List<VerificationCode> subs = loadSubCodes(master.getId());
         Map<String, String> creatorNameMap = new HashMap<>();
-        Set<String> uids = subs.stream().map(SysVerificationCode::getCreatedBy)
+        Set<String> uids = subs.stream().map(VerificationCode::getCreatedBy)
                 .filter(StringUtils::hasText).collect(Collectors.toSet());
         if (!uids.isEmpty()) {
             List<String> uidList = new ArrayList<>(uids);
@@ -906,10 +920,10 @@ public class VerificationService {
             for (UserIdentity id : identities) {
                 identityMap.put(id.getUserUid(), id);
             }
-            LambdaQueryWrapper<ClientUserProfile> pw = new LambdaQueryWrapper<>();
-            pw.in(ClientUserProfile::getUserUid, uidList);
-            Map<String, ClientUserProfile> profileMap = new HashMap<>();
-            clientUserProfileMapper.selectList(pw).forEach(p ->
+            LambdaQueryWrapper<UserProfile> pw = new LambdaQueryWrapper<>();
+            pw.in(UserProfile::getUserUid, uidList);
+            Map<String, UserProfile> profileMap = new HashMap<>();
+            userProfileMapper.selectList(pw).forEach(p ->
                 profileMap.put(p.getUserUid(), p));
             for (String uid : uidList) {
                 UserIdentity id = identityMap.get(uid);
@@ -920,7 +934,7 @@ public class VerificationService {
                 if (StringUtils.hasText(maskedName)) {
                     creatorNameMap.put(uid, maskedName);
                 } else {
-                    ClientUserProfile p = profileMap.get(uid);
+                    UserProfile p = profileMap.get(uid);
                     creatorNameMap.put(uid,
                             p != null && StringUtils.hasText(p.getNickName()) ? p.getNickName() : "用户");
                 }
@@ -956,7 +970,7 @@ public class VerificationService {
      * 当前日期超过创建时间+28天不可延期；
      * 7天内自动过期的可延期。
      */
-    private boolean computeCanRenew(SysVerificationCode code) {
+    private boolean computeCanRenew(VerificationCode code) {
         if (code.getIsActive() == null || code.getIsActive() == 0) return false;
         if (code.getExpireTime() == null) return false;
         LocalDate today = LocalDate.now();
@@ -966,10 +980,10 @@ public class VerificationService {
         return !code.getExpireTime().toLocalDate().plusDays(7).isBefore(today);
     }
 
-    private List<SysVerificationCode> loadSubCodes(Long parentId) {
-        LambdaQueryWrapper<SysVerificationCode> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysVerificationCode::getParentId, parentId);
-        return sysVerificationCodeMapper.selectList(wrapper);
+    private List<VerificationCode> loadSubCodes(Long parentId) {
+        LambdaQueryWrapper<VerificationCode> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(VerificationCode::getParentId, parentId);
+        return verificationCodeMapper.selectList(wrapper);
     }
 
     /**
@@ -992,9 +1006,9 @@ public class VerificationService {
             }
 
             // 管理员账号：通过 adminUid 反查 entityCode
-            LambdaQueryWrapper<SysEntityTotpCredentials> w = new LambdaQueryWrapper<>();
-            w.eq(SysEntityTotpCredentials::getAdminUid, subject).last("LIMIT 1");
-            SysEntityTotpCredentials admin = sysEntityTotpCredentialsMapper.selectOne(w);
+            LambdaQueryWrapper<EntityTotpCredentials> w = new LambdaQueryWrapper<>();
+            w.eq(EntityTotpCredentials::getAdminUid, subject).last("LIMIT 1");
+            EntityTotpCredentials admin = entityTotpCredentialsMapper.selectOne(w);
             if (admin != null && StringUtils.hasText(admin.getEntityCode())) {
                 return admin.getEntityCode();
             }
@@ -1011,9 +1025,9 @@ public class VerificationService {
     }
 
     private String lookupEntityCodeByAdminUid(String adminUid) {
-        LambdaQueryWrapper<SysEntityTotpCredentials> w = new LambdaQueryWrapper<>();
-        w.eq(SysEntityTotpCredentials::getAdminUid, adminUid).last("LIMIT 1");
-        SysEntityTotpCredentials admin = sysEntityTotpCredentialsMapper.selectOne(w);
+        LambdaQueryWrapper<EntityTotpCredentials> w = new LambdaQueryWrapper<>();
+        w.eq(EntityTotpCredentials::getAdminUid, adminUid).last("LIMIT 1");
+        EntityTotpCredentials admin = entityTotpCredentialsMapper.selectOne(w);
         return admin != null ? admin.getEntityCode() : null;
     }
 
@@ -1036,46 +1050,46 @@ public class VerificationService {
      * 校验用户是否具有指定角色之一（COUNSELOR / MENTOR）。
      */
     private void assertUserHasRole(String userUid, String... allowedRoles) {
-        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserUid, userUid)
-                .eq(UserAuthLink::getAuditStatus, "APPROVED")
-                .eq(UserAuthLink::getIsActive, 1)
-                .in(UserAuthLink::getRole, (Object[]) allowedRoles)
+        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
+                .eq(UserOrganizationBinding::getAuditStatus, "APPROVED")
+                .eq(UserOrganizationBinding::getIsActive, 1)
+                .in(UserOrganizationBinding::getRole, (Object[]) allowedRoles)
                 .last("LIMIT 1");
-        if (userAuthLinkMapper.selectOne(wrapper) == null) {
+        if (userOrganizationBindingMapper.selectOne(wrapper) == null) {
             throw BusinessException.forbidden("ROLE_NOT_ALLOWED");
         }
     }
 
     /** 返回用户是否具有指定角色之一（非抛出版本）。 */
     private boolean userHasRole(String userUid, String... allowedRoles) {
-        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserUid, userUid)
-                .eq(UserAuthLink::getAuditStatus, "APPROVED")
-                .eq(UserAuthLink::getIsActive, 1)
-                .in(UserAuthLink::getRole, (Object[]) allowedRoles)
+        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
+                .eq(UserOrganizationBinding::getAuditStatus, "APPROVED")
+                .eq(UserOrganizationBinding::getIsActive, 1)
+                .in(UserOrganizationBinding::getRole, (Object[]) allowedRoles)
                 .last("LIMIT 1");
-        return userAuthLinkMapper.selectOne(wrapper) != null;
+        return userOrganizationBindingMapper.selectOne(wrapper) != null;
     }
 
     // ===================== 私有辅助方法 =====================
 
-    private ClientEntity loadEntityByCode(String entityCode) {
-        LambdaQueryWrapper<ClientEntity> w = new LambdaQueryWrapper<>();
-        w.eq(ClientEntity::getEntityCode, entityCode).last("LIMIT 1");
-        return clientEntityMapper.selectOne(w);
+    private TenantOrganization loadEntityByCode(String entityCode) {
+        LambdaQueryWrapper<TenantOrganization> w = new LambdaQueryWrapper<>();
+        w.eq(TenantOrganization::getEntityCode, entityCode).last("LIMIT 1");
+        return tenantOrganizationMapper.selectOne(w);
     }
 
-    private ClientEntityProfile loadEntityProfileByCode(String entityCode) {
-        LambdaQueryWrapper<ClientEntityProfile> w = new LambdaQueryWrapper<>();
-        w.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
-        return clientEntityProfileMapper.selectOne(w);
+    private TenantOrgProfile loadEntityProfileByCode(String entityCode) {
+        LambdaQueryWrapper<TenantOrgProfile> w = new LambdaQueryWrapper<>();
+        w.eq(TenantOrgProfile::getEntityCode, entityCode).last("LIMIT 1");
+        return tenantOrgProfileMapper.selectOne(w);
     }
 
-    private ClientUserProfile loadProfileByUid(String userUid) {
-        LambdaQueryWrapper<ClientUserProfile> w = new LambdaQueryWrapper<>();
-        w.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
-        return clientUserProfileMapper.selectOne(w);
+    private UserProfile loadProfileByUid(String userUid) {
+        LambdaQueryWrapper<UserProfile> w = new LambdaQueryWrapper<>();
+        w.eq(UserProfile::getUserUid, userUid).last("LIMIT 1");
+        return userProfileMapper.selectOne(w);
     }
 
     private UserIdentity loadIdentityByUid(String userUid) {
@@ -1114,14 +1128,14 @@ public class VerificationService {
     }
 
     private String loadEntityType(String entityCode) {
-        ClientEntityProfile p = loadEntityProfileByCode(entityCode);
+        TenantOrgProfile p = loadEntityProfileByCode(entityCode);
         return p != null ? p.getType() : null;
     }
 
     private boolean isApplicationIdUnique(String appUid) {
-        LambdaQueryWrapper<UserAuthLink> w = new LambdaQueryWrapper<>();
-        w.eq(UserAuthLink::getAuthSerialNo, appUid);
-        return userAuthLinkMapper.selectCount(w) == 0;
+        LambdaQueryWrapper<UserOrganizationBinding> w = new LambdaQueryWrapper<>();
+        w.eq(UserOrganizationBinding::getAuthSerialNo, appUid);
+        return userOrganizationBindingMapper.selectCount(w) == 0;
     }
 
     private String maskIdCard(String idCard) {

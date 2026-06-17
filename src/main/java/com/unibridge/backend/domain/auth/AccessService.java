@@ -1,8 +1,8 @@
 package com.unibridge.backend.domain.auth;
 
 import com.unibridge.backend.infrastructure.common.BusinessException;
-import com.unibridge.backend.infrastructure.entities.ClientUser;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
+import com.unibridge.backend.infrastructure.entities.auth.User;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.UserMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.stereotype.Service;
@@ -24,11 +24,11 @@ public class AccessService {
     }
 
     private final JwtUtil jwtUtil;
-    private final ClientUserMapper clientUserMapper;
+    private final UserMapper userMapper;
 
-    public AccessService(JwtUtil jwtUtil, ClientUserMapper clientUserMapper) {
+    public AccessService(JwtUtil jwtUtil, UserMapper userMapper) {
         this.jwtUtil = jwtUtil;
-        this.clientUserMapper = clientUserMapper;
+        this.userMapper = userMapper;
     }
 
     /** 从 Authorization 头解析当前登录用户 UID。 */
@@ -148,7 +148,7 @@ public class AccessService {
         if (!isLegacyNumericUserId(trimmed)) {
             return trimmed;
         }
-        ClientUser user = clientUserMapper.selectById(Long.parseLong(trimmed));
+        User user = userMapper.selectById(Long.parseLong(trimmed));
         if (user == null || user.getUserUid() == null || user.getUserUid().isBlank()) {
             throw BusinessException.notFound("USER_NOT_FOUND");
         }

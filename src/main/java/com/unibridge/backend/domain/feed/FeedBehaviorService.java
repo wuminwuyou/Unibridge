@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.unibridge.backend.domain.auth.AccessService;
 import com.unibridge.backend.domain.feed.dto.FeedBehaviorEventRequest;
-import com.unibridge.backend.infrastructure.entities.UserTagInterest;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserTagInterestMapper;
+import com.unibridge.backend.infrastructure.entities.interaction.UserInterestTag;
+import com.unibridge.backend.infrastructure.persistence.mapper.interaction.UserInterestTagMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,12 +30,12 @@ public class FeedBehaviorService {
     private static final Set<String> VALID_TARGET_TYPES = Set.of("NOTE", "PROJECT");
 
     private final AccessService clientAccessService;
-    private final UserTagInterestMapper userTagInterestMapper;
+    private final UserInterestTagMapper userInterestTagMapper;
 
     public FeedBehaviorService(AccessService clientAccessService,
-                               UserTagInterestMapper userTagInterestMapper) {
+                               UserInterestTagMapper userInterestTagMapper) {
         this.clientAccessService = clientAccessService;
-        this.userTagInterestMapper = userTagInterestMapper;
+        this.userInterestTagMapper = userInterestTagMapper;
     }
 
     @Transactional
@@ -66,24 +66,24 @@ public class FeedBehaviorService {
      */
     private void upsertTagWeight(String userUid, String tag, double delta) {
         // 先尝试原子加法更新
-        LambdaUpdateWrapper<UserTagInterest> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(UserTagInterest::getUserUid, userUid)
-                .eq(UserTagInterest::getTag, tag)
+        LambdaUpdateWrapper<UserInterestTag> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(UserInterestTag::getUserUid, userUid)
+                .eq(UserInterestTag::getTag, tag)
                 .setSql("weight = weight + " + new BigDecimal(String.valueOf(delta)).toPlainString());
-        int rows = userTagInterestMapper.update(null, updateWrapper);
+        int rows = userInterestTagMapper.update(null, updateWrapper);
         if (rows > 0) {
             return;
         }
         // 记录不存在，创建新记录（数据库唯一索引 uk_user_tag 兜底并发）
-        UserTagInterest created = new UserTagInterest();
+        UserInterestTag created = new UserInterestTag();
         created.setUserUid(userUid);
         created.setTag(tag);
         created.setWeight(BigDecimal.valueOf(delta));
         try {
-            userTagInterestMapper.insert(created);
+            userInterestTagMapper.insert(created);
         } catch (org.springframework.dao.DuplicateKeyException e) {
             // 并发创建，重试原子加法
-            userTagInterestMapper.update(null, updateWrapper);
+            userInterestTagMapper.update(null, updateWrapper);
         }
     }
 

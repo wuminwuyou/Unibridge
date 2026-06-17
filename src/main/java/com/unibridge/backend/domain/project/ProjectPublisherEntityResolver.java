@@ -1,12 +1,12 @@
 package com.unibridge.backend.domain.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.unibridge.backend.infrastructure.entities.ClientEntityProfile;
-import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
-import com.unibridge.backend.infrastructure.entities.UserAuthLink;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
+import com.unibridge.backend.infrastructure.entities.profile.TenantOrgProfile;
+import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
+import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.TenantOrgProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -16,16 +16,16 @@ import org.springframework.util.StringUtils;
 @Component
 public class ProjectPublisherEntityResolver {
 
-    private final UserAuthLinkMapper userAuthLinkMapper;
-    private final ClientEntityProfileMapper clientEntityProfileMapper;
-    private final ClientUserProfileMapper clientUserProfileMapper;
+    private final UserOrganizationBindingMapper userOrganizationBindingMapper;
+    private final TenantOrgProfileMapper tenantOrgProfileMapper;
+    private final UserProfileMapper userProfileMapper;
 
-    public ProjectPublisherEntityResolver(UserAuthLinkMapper userAuthLinkMapper,
-                                          ClientEntityProfileMapper clientEntityProfileMapper,
-                                          ClientUserProfileMapper clientUserProfileMapper) {
-        this.userAuthLinkMapper = userAuthLinkMapper;
-        this.clientEntityProfileMapper = clientEntityProfileMapper;
-        this.clientUserProfileMapper = clientUserProfileMapper;
+    public ProjectPublisherEntityResolver(UserOrganizationBindingMapper userOrganizationBindingMapper,
+                                          TenantOrgProfileMapper tenantOrgProfileMapper,
+                                          UserProfileMapper userProfileMapper) {
+        this.userOrganizationBindingMapper = userOrganizationBindingMapper;
+        this.tenantOrgProfileMapper = tenantOrgProfileMapper;
+        this.userProfileMapper = userProfileMapper;
     }
 
     public PublisherEntityContext resolve(String ownerUid) {
@@ -33,9 +33,9 @@ public class ProjectPublisherEntityResolver {
             return PublisherEntityContext.empty();
         }
 
-        UserAuthLink authLink = loadActiveAuthLink(ownerUid);
+        UserOrganizationBinding authLink = loadActiveAuthLink(ownerUid);
         if (authLink != null && authLink.getEntityCode() != null) {
-            ClientEntityProfile entityProfile = loadEntityProfile(authLink.getEntityCode());
+            TenantOrgProfile entityProfile = loadEntityProfile(authLink.getEntityCode());
             if (entityProfile != null) {
                 String logoUrl = trimToNull(entityProfile.getLogoUrl());
                 String orgName = StringUtils.hasText(entityProfile.getName())
@@ -48,29 +48,29 @@ public class ProjectPublisherEntityResolver {
         return new PublisherEntityContext(fallbackOrganizationName(ownerUid), null, null);
     }
 
-    private UserAuthLink loadActiveAuthLink(String userUid) {
-        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserUid, userUid)
-                .eq(UserAuthLink::getIsActive, 1)
-                .orderByDesc(UserAuthLink::getUpdatedAt)
+    private UserOrganizationBinding loadActiveAuthLink(String userUid) {
+        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
+                .eq(UserOrganizationBinding::getIsActive, 1)
+                .orderByDesc(UserOrganizationBinding::getUpdatedAt)
                 .last("LIMIT 1");
-        return userAuthLinkMapper.selectOne(wrapper);
+        return userOrganizationBindingMapper.selectOne(wrapper);
     }
 
-    private ClientEntityProfile loadEntityProfile(String entityCode) {
-        LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
-        return clientEntityProfileMapper.selectOne(wrapper);
+    private TenantOrgProfile loadEntityProfile(String entityCode) {
+        LambdaQueryWrapper<TenantOrgProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TenantOrgProfile::getEntityCode, entityCode).last("LIMIT 1");
+        return tenantOrgProfileMapper.selectOne(wrapper);
     }
 
     private String fallbackOrganizationName(String ownerUid) {
         return "";
     }
 
-    private ClientUserProfile loadUserProfile(String userUid) {
-        LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
-        return clientUserProfileMapper.selectOne(wrapper);
+    private UserProfile loadUserProfile(String userUid) {
+        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserProfile::getUserUid, userUid).last("LIMIT 1");
+        return userProfileMapper.selectOne(wrapper);
     }
 
     private String trimToNull(String value) {

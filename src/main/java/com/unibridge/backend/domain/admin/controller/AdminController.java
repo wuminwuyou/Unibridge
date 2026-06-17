@@ -7,10 +7,10 @@ import com.unibridge.backend.domain.admin.dto.EntityCreateRequest;
 import com.unibridge.backend.domain.admin.dto.UserRegisterRequest;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.unibridge.backend.infrastructure.common.Result;
-import com.unibridge.backend.infrastructure.entities.Entity;
-import com.unibridge.backend.infrastructure.entities.UserProfile;
-import com.unibridge.backend.infrastructure.persistence.mapper.EntityMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserProfileMapper;
+import com.unibridge.backend.infrastructure.entities.auth.User;
+import com.unibridge.backend.infrastructure.entities.auth.TenantOrganization;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.UserMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.TenantOrganizationMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -39,10 +39,10 @@ public class AdminController {
     private JwtUtil jwtUtil;
 
     @Autowired
-    private UserProfileMapper userProfileMapper;
+    private UserMapper userMapper;
 
     @Autowired
-    private EntityMapper entityMapper;
+    private TenantOrganizationMapper tenantOrganizationMapper;
 
     private String validateToken(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
@@ -80,20 +80,20 @@ public class AdminController {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
-        Page<Entity> pageParam = new Page<>(page, pageSize);
-        LambdaQueryWrapper<Entity> wrapper = new LambdaQueryWrapper<>();
+        Page<TenantOrganization> pageParam = new Page<>(page, pageSize);
+        LambdaQueryWrapper<TenantOrganization> wrapper = new LambdaQueryWrapper<>();
 
         if (type != null && !type.isEmpty()) {
-            wrapper.eq(Entity::getType, type);
+            wrapper.eq(TenantOrganization::getType, type);
         }
         if (auditStatus != null && !auditStatus.isEmpty()) {
-            wrapper.eq(Entity::getAuditStatus, auditStatus);
+            wrapper.eq(TenantOrganization::getAuditStatus, auditStatus);
         }
         if (q != null && !q.isEmpty()) {
-            wrapper.like(Entity::getName, q);
+            wrapper.like(TenantOrganization::getName, q);
         }
 
-        IPage<Entity> result = entityMapper.selectPage(pageParam, wrapper);
+        IPage<TenantOrganization> result = tenantOrganizationMapper.selectPage(pageParam, wrapper);
         return Result.success(result);
     }
 
@@ -105,7 +105,7 @@ public class AdminController {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
-        Entity entity = entityMapper.selectById(id);
+        TenantOrganization entity = tenantOrganizationMapper.selectById(id);
         if (entity == null) {
             throw BusinessException.notFound("主体不存在");
         }
@@ -120,14 +120,14 @@ public class AdminController {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
-        Entity entity = new Entity();
+        TenantOrganization entity = new TenantOrganization();
         entity.setName(request.getName());
         entity.setType(request.getType());
         entity.setIntro(request.getIntro());
         entity.setAuditStatus("APPROVED");
         entity.setAuditAdminId(jwtUtil.getUserId(token));
 
-        entityMapper.insert(entity);
+        tenantOrganizationMapper.insert(entity);
         return Result.success("创建成功", entity);
     }
 
@@ -140,7 +140,7 @@ public class AdminController {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
-        Entity entity = entityMapper.selectById(id);
+        TenantOrganization entity = tenantOrganizationMapper.selectById(id);
         if (entity == null) {
             throw BusinessException.notFound("主体不存在");
         }
@@ -148,7 +148,7 @@ public class AdminController {
         entity.setName(request.getName());
         entity.setType(request.getType());
         entity.setIntro(request.getIntro());
-        entityMapper.updateById(entity);
+        tenantOrganizationMapper.updateById(entity);
         return Result.success("更新成功", entity);
     }
 
@@ -160,12 +160,12 @@ public class AdminController {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
-        Entity entity = entityMapper.selectById(id);
-        if (entity == null) {
+        TenantOrganization TenantOrganization = tenantOrganizationMapper.selectById(id);
+        if (TenantOrganization == null) {
             throw BusinessException.notFound("主体不存在");
         }
 
-        entityMapper.deleteById(id);
+        tenantOrganizationMapper.deleteById(id);
         return Result.success("删除成功", null);
     }
 
@@ -181,24 +181,24 @@ public class AdminController {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
-        Page<UserProfile> pageParam = new Page<>(page, pageSize);
-        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
+        Page<User> pageParam = new Page<>(page, pageSize);
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
 
         if (q != null && !q.isEmpty()) {
-            wrapper.like(UserProfile::getPhone, q);
+            wrapper.like(User::getPhone, q);
         }
 
         if (sort != null && !sort.isEmpty()) {
             if ("last_login_at".equals(sort)) {
-                wrapper.orderBy(true, "desc".equals(order), UserProfile::getLastLoginAt);
+                wrapper.orderBy(true, "desc".equals(order), User::getLastLoginAt);
             } else {
-                wrapper.orderBy(true, "desc".equals(order), UserProfile::getId);
+                wrapper.orderBy(true, "desc".equals(order), User::getId);
             }
         } else {
-            wrapper.orderBy(true, false, UserProfile::getId);
+            wrapper.orderBy(true, false, User::getId);
         }
 
-        IPage<UserProfile> result = userProfileMapper.selectPage(pageParam, wrapper);
+        IPage<User> result = userMapper.selectPage(pageParam, wrapper);
         return Result.success(result);
     }
 
@@ -210,11 +210,11 @@ public class AdminController {
         String token = validateToken(authorization);
         checkAuth(token, 1);
 
-        UserProfile userProfile = userProfileMapper.selectById(id);
-        if (userProfile == null) {
+        User user = userMapper.selectById(id);
+        if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
-        return Result.success(userProfile);
+        return Result.success(user);
     }
 
     @Operation(summary = "创建用户", security = @SecurityRequirement(name = BEARER_AUTH))
@@ -225,20 +225,20 @@ public class AdminController {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
-        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserProfile::getPhone, request.getPhone());
-        UserProfile existingUser = userProfileMapper.selectOne(wrapper);
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getPhone, request.getPhone());
+        User existingUser = userMapper.selectOne(wrapper);
 
         if (existingUser != null) {
             throw BusinessException.badRequest("手机号已注册");
         }
 
-        UserProfile userProfile = new UserProfile();
-        userProfile.setPhone(request.getPhone());
-        userProfile.setPasswordHash(request.getPasswordHash());
+        User User = new User();
+        User.setPhone(request.getPhone());
+        User.setPasswordHash(request.getPasswordHash());
 
-        userProfileMapper.insert(userProfile);
-        return Result.success("创建成功", userProfile);
+        userMapper.insert(User);
+        return Result.success("创建成功", User);
     }
 
     @Operation(summary = "更新用户", security = @SecurityRequirement(name = BEARER_AUTH))
@@ -250,17 +250,17 @@ public class AdminController {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
-        UserProfile userProfile = userProfileMapper.selectById(id);
-        if (userProfile == null) {
+        User User = userMapper.selectById(id);
+        if (User == null) {
             throw BusinessException.notFound("用户不存在");
         }
 
         if (request.getPasswordHash() != null) {
-            userProfile.setPasswordHash(request.getPasswordHash());
+            User.setPasswordHash(request.getPasswordHash());
         }
 
-        userProfileMapper.updateById(userProfile);
-        return Result.success("更新成功", userProfile);
+        userMapper.updateById(User);
+        return Result.success("更新成功", User);
     }
 
     @Operation(summary = "删除用户", security = @SecurityRequirement(name = BEARER_AUTH))
@@ -271,12 +271,12 @@ public class AdminController {
         String token = validateToken(authorization);
         checkAuth(token, 2);
 
-        UserProfile userProfile = userProfileMapper.selectById(id);
-        if (userProfile == null) {
+        User User = userMapper.selectById(id);
+        if (User == null) {
             throw BusinessException.notFound("用户不存在");
         }
 
-        userProfileMapper.deleteById(id);
+        userMapper.deleteById(id);
         return Result.success("删除成功", null);
     }
 }

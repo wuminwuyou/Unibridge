@@ -22,24 +22,24 @@ import com.unibridge.backend.domain.auth.dto.RefreshTokenResponse;
 import com.unibridge.backend.domain.auth.dto.RegisterResponse;
 import com.unibridge.backend.domain.auth.dto.SendCodeRequest;
 import com.unibridge.backend.domain.auth.dto.SendCodeResponse;
-import com.unibridge.backend.infrastructure.entities.ClientEntity;
-import com.unibridge.backend.infrastructure.entities.ClientUser;
-import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
-import com.unibridge.backend.infrastructure.entities.SysCreditLog;
-import com.unibridge.backend.infrastructure.entities.SysCreditProfile;
-import com.unibridge.backend.infrastructure.entities.UserAuthLink;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.SysCreditLogMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.SysCreditProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
+import com.unibridge.backend.infrastructure.entities.auth.TenantOrganization;
+import com.unibridge.backend.infrastructure.entities.auth.User;
+import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
+import com.unibridge.backend.infrastructure.entities.infra.CreditLog;
+import com.unibridge.backend.infrastructure.entities.infra.CreditProfile;
+import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.TenantOrganizationMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.UserMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.infra.CreditLogMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.infra.CreditProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
 import com.unibridge.backend.domain.auth.dto.OrganizationOtpLoginRequest;
-import com.unibridge.backend.infrastructure.entities.ClientEntityProfile;
-import com.unibridge.backend.infrastructure.entities.SysEntityTotpCredentials;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.SysEntityTotpCredentialsMapper;
+import com.unibridge.backend.infrastructure.entities.profile.TenantOrgProfile;
+import com.unibridge.backend.infrastructure.entities.auth.EntityTotpCredentials;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.TenantOrgProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.EntityTotpCredentialsMapper;
 import com.unibridge.backend.infrastructure.util.TotpUtils;
 import com.unibridge.backend.infrastructure.util.UserUidGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -121,31 +121,31 @@ public class AuthService {
     private RedissonClient redissonClient;
 
     @Autowired
-    private ClientUserMapper clientUserMapper;
+    private UserMapper userMapper;
 
     @Autowired
-    private ClientUserProfileMapper clientUserProfileMapper;
+    private UserProfileMapper userProfileMapper;
 
     @Autowired
-    private ClientEntityMapper clientEntityMapper;
+    private TenantOrganizationMapper tenantOrganizationMapper;
 
     @Autowired
-    private ClientEntityProfileMapper clientEntityProfileMapper;
+    private TenantOrgProfileMapper tenantOrgProfileMapper;
 
     @Autowired
-    private SysEntityTotpCredentialsMapper sysEntityTotpCredentialsMapper;
+    private EntityTotpCredentialsMapper entityTotpCredentialsMapper;
 
     @Autowired
     private EntityAdminCredentialService entityAdminCredentialService;
 
     @Autowired
-    private UserAuthLinkMapper userAuthLinkMapper;
+    private UserOrganizationBindingMapper userOrganizationBindingMapper;
 
     @Autowired
-    private SysCreditProfileMapper sysCreditProfileMapper;
+    private CreditProfileMapper creditProfileMapper;
 
     @Autowired
-    private SysCreditLogMapper sysCreditLogMapper;
+    private CreditLogMapper creditLogMapper;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -178,19 +178,19 @@ public class AuthService {
             throw new RuntimeException("INVALID_VERIFY_CODE");
         }
 
-        LambdaQueryWrapper<ClientUser> existsWrapper = new LambdaQueryWrapper<>();
-        existsWrapper.eq(ClientUser::getPhone, account);
-        if (clientUserMapper.selectOne(existsWrapper) != null) {
+        LambdaQueryWrapper<User> existsWrapper = new LambdaQueryWrapper<>();
+        existsWrapper.eq(User::getPhone, account);
+        if (userMapper.selectOne(existsWrapper) != null) {
             throw new RuntimeException("ACCOUNT_ALREADY_EXISTS");
         }
 
         try {
-            ClientUser user = new ClientUser();
+            User user = new User();
             user.setUserUid(UserUidGenerator.generate(this::isUserUidUnique));
             user.setPhone(account);
             user.setPasswordHash(request.getPassword());
             user.setAccountStatus("ACTIVE");
-            clientUserMapper.insert(user);
+            userMapper.insert(user);
             createDefaultUserProfile(user.getUserUid(), account);
             createDefaultCreditProfile(user.getUserUid());
 
@@ -203,7 +203,7 @@ public class AuthService {
     }
 
     public LoginResponse loginPersonalByPassword(PersonalPasswordLoginRequest request) {
-        ClientUser user = loadPersonalUserByAccount(request.getAccount());
+        User user = loadPersonalUserByAccount(request.getAccount());
         if (!Objects.equals(user.getPasswordHash(), request.getPassword())) {
             throw new RuntimeException("ACCOUNT_OR_PASSWORD_INVALID");
         }
@@ -215,7 +215,7 @@ public class AuthService {
         if (!verifyCode(account, "sms", request.getSmsCode(), "login")) {
             throw new RuntimeException("SMS_CODE_INVALID");
         }
-        ClientUser user = loadPersonalUserByAccount(account);
+        User user = loadPersonalUserByAccount(account);
         return buildPersonalLoginResponse(user);
     }
 
@@ -224,7 +224,7 @@ public class AuthService {
         if (!verifyCode(account, "email", request.getEmailCode(), "login")) {
             throw new RuntimeException("SMS_CODE_INVALID");
         }
-        ClientUser user = loadPersonalUserByAccount(account);
+        User user = loadPersonalUserByAccount(account);
         return buildPersonalLoginResponse(user);
     }
 
@@ -275,7 +275,7 @@ public class AuthService {
 
         String entityCode = normalize(request.getInstitutionCode());
         String passwordHash = request.getPassword();
-        ClientEntity entity = loadEntityByCode(entityCode);
+        TenantOrganization entity = loadEntityByCode(entityCode);
         if (entity == null) {
             throw new RuntimeException("ORGANIZATION_CREDENTIAL_INVALID");
         }
@@ -285,7 +285,7 @@ public class AuthService {
         assertEntityAccountActive(entity);
 
         boolean entityPasswordMatch = Objects.equals(entity.getPasswordHash(), passwordHash);
-        SysEntityTotpCredentials adminByPassword =
+        EntityTotpCredentials adminByPassword =
                 entityAdminCredentialService.matchActiveAdminByPassword(entityCode, passwordHash);
         boolean adminPasswordMatch = adminByPassword != null;
 
@@ -349,7 +349,7 @@ public class AuthService {
             throw new RuntimeException("ORGANIZATION_LOGIN_MODE_INVALID");
         }
 
-        ClientEntity entity = loadEntityByCode(challenge.entityCode());
+        TenantOrganization entity = loadEntityByCode(challenge.entityCode());
         if (entity == null) {
             throw new RuntimeException("CHALLENGE_NOT_FOUND");
         }
@@ -366,7 +366,7 @@ public class AuthService {
         String adminUid = entityAdminCredentialService.generateAdminUid();
         entityAdminCredentialService.deactivateStalePendingAdmins(challenge.entityCode(), null);
 
-        SysEntityTotpCredentials admin = new SysEntityTotpCredentials();
+        EntityTotpCredentials admin = new EntityTotpCredentials();
         admin.setAdminUid(adminUid);
         admin.setEntityCode(challenge.entityCode());
         admin.setPasswordHash(passwordHash);
@@ -403,7 +403,7 @@ public class AuthService {
             throw new RuntimeException("ORGANIZATION_LOGIN_MODE_INVALID");
         }
 
-        SysEntityTotpCredentials admin = entityAdminCredentialService.loadAdminForEntityRootSelect(
+        EntityTotpCredentials admin = entityAdminCredentialService.loadAdminForEntityRootSelect(
                 challenge.entityCode(), request.getAdminUid().trim());
         if (admin == null) {
             throw new RuntimeException("ORGANIZATION_ADMIN_NOT_FOUND");
@@ -437,7 +437,7 @@ public class AuthService {
             throw new RuntimeException("ORGANIZATION_LOGIN_MODE_INVALID");
         }
 
-        ClientEntity entity = loadEntityByCode(challenge.entityCode());
+        TenantOrganization entity = loadEntityByCode(challenge.entityCode());
         if (entity == null) {
             throw new RuntimeException("CHALLENGE_NOT_FOUND");
         }
@@ -452,7 +452,7 @@ public class AuthService {
             return completeEntityRootLogin(entity);
         }
 
-        SysEntityTotpCredentials admin = entityAdminCredentialService.loadActiveAdmin(
+        EntityTotpCredentials admin = entityAdminCredentialService.loadActiveAdmin(
                 challenge.entityCode(), challenge.adminUid());
         if (admin == null) {
             throw new RuntimeException("CHALLENGE_NOT_FOUND");
@@ -476,7 +476,7 @@ public class AuthService {
             throw new RuntimeException("ORGANIZATION_LOGIN_MODE_INVALID");
         }
 
-        ClientEntity entity = loadEntityByCode(challenge.entityCode());
+        TenantOrganization entity = loadEntityByCode(challenge.entityCode());
         if (entity == null) {
             throw new RuntimeException("CHALLENGE_NOT_FOUND");
         }
@@ -489,7 +489,7 @@ public class AuthService {
             }
             accountLabel = resolveEntityName(challenge.entityCode()) + ":root";
         } else {
-            SysEntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
+            EntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
                     challenge.entityCode(), challenge.adminUid());
             if (admin == null) {
                 throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
@@ -505,7 +505,7 @@ public class AuthService {
 
         Integer currentAdminOrder = null;
         if (StringUtils.hasText(challenge.adminUid())) {
-            SysEntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
+            EntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
                     challenge.entityCode(), challenge.adminUid());
             currentAdminOrder = admin == null ? 1
                     : entityAdminCredentialService.countBoundEntityAdmins(challenge.entityCode()) + 1;
@@ -538,7 +538,7 @@ public class AuthService {
             throw new RuntimeException("OTP_INVALID");
         }
 
-        ClientEntity entity = loadEntityByCode(challenge.entityCode());
+        TenantOrganization entity = loadEntityByCode(challenge.entityCode());
         if (entity == null) {
             throw new RuntimeException("CHALLENGE_NOT_FOUND");
         }
@@ -560,7 +560,7 @@ public class AuthService {
             boundAdminCount = entityAdminCredentialService.countBoundEntityAdmins(entity.getEntityCode());
             tokenPair = issueTokenPair(entity.getEntityCode(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
         } else {
-            SysEntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
+            EntityTotpCredentials admin = entityAdminCredentialService.loadAdminForTotpSetup(
                     challenge.entityCode(), challenge.adminUid());
             if (admin == null) {
                 throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
@@ -639,27 +639,27 @@ public class AuthService {
             }
 
             if ("CLIENT_USER".equals(accessTokenType)) {
-                LambdaQueryWrapper<ClientUser> userWrapper = new LambdaQueryWrapper<>();
-                userWrapper.eq(ClientUser::getUserUid, subject.trim()).last("LIMIT 1");
-                ClientUser user = clientUserMapper.selectOne(userWrapper);
+                LambdaQueryWrapper<User> userWrapper = new LambdaQueryWrapper<>();
+                userWrapper.eq(User::getUserUid, subject.trim()).last("LIMIT 1");
+                User user = userMapper.selectOne(userWrapper);
                 if (user == null) {
                     throw new RuntimeException("ACCOUNT_NOT_FOUND");
                 }
                 assertUserAccountActive(user);
             } else {
                 if (isEntityAdminUid(subject.trim())) {
-                    SysEntityTotpCredentials admin = loadEntityAdminByUid(subject.trim());
+                    EntityTotpCredentials admin = loadEntityAdminByUid(subject.trim());
                     if (admin == null) {
                         throw new RuntimeException("CHALLENGE_NOT_FOUND");
                     }
                     assertEntityAdminActive(admin);
-                    ClientEntity entity = loadEntityByCode(admin.getEntityCode());
+                    TenantOrganization entity = loadEntityByCode(admin.getEntityCode());
                     if (entity == null) {
                         throw new RuntimeException("CHALLENGE_NOT_FOUND");
                     }
                     assertEntityAccountActive(entity);
                 } else {
-                    ClientEntity entity = loadEntityByCode(subject.trim());
+                    TenantOrganization entity = loadEntityByCode(subject.trim());
                     if (entity == null) {
                         throw new RuntimeException("CHALLENGE_NOT_FOUND");
                     }
@@ -727,7 +727,7 @@ public class AuthService {
 
     // ===================== 私有方法 =====================
 
-    private LoginResponse buildPersonalLoginResponse(ClientUser user) {
+    private LoginResponse buildPersonalLoginResponse(User user) {
         assertUserAccountActive(user);
         entityAdminCredentialService.updateClientUserLastLoginAt(user.getUserUid(), LocalDateTime.now());
 
@@ -737,15 +737,15 @@ public class AuthService {
                 tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC);
     }
 
-    private ClientUser loadPersonalUserByAccount(String accountRaw) {
+    private User loadPersonalUserByAccount(String accountRaw) {
         String account = normalize(accountRaw);
-        LambdaQueryWrapper<ClientUser> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         if (isEmail(account)) {
-            wrapper.eq(ClientUser::getEmail, account.toLowerCase(Locale.ROOT));
+            wrapper.eq(User::getEmail, account.toLowerCase(Locale.ROOT));
         } else {
-            wrapper.eq(ClientUser::getPhone, account);
+            wrapper.eq(User::getPhone, account);
         }
-        ClientUser user = clientUserMapper.selectOne(wrapper);
+        User user = userMapper.selectOne(wrapper);
         if (user == null) {
             throw new RuntimeException("ACCOUNT_NOT_FOUND");
         }
@@ -753,10 +753,10 @@ public class AuthService {
     }
 
     private AuthMeta resolveUserAuthMeta(String userUid) {
-        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserUid, userUid)
-                .orderByDesc(UserAuthLink::getUpdatedAt).last("LIMIT 1");
-        UserAuthLink link = userAuthLinkMapper.selectOne(wrapper);
+        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
+                .orderByDesc(UserOrganizationBinding::getUpdatedAt).last("LIMIT 1");
+        UserOrganizationBinding link = userOrganizationBindingMapper.selectOne(wrapper);
         if (link == null) {
             return new AuthMeta("student", "unverified");
         }
@@ -778,23 +778,23 @@ public class AuthService {
 
     private void createDefaultUserProfile(String userUid, String phone) {
         String suffix = phone.substring(phone.length() - 4);
-        ClientUserProfile profile = new ClientUserProfile();
+        UserProfile profile = new UserProfile();
         profile.setUserUid(userUid);
         profile.setAvatarUrl(DEFAULT_AVATAR_URL);
         profile.setNickName("用户#" + suffix);
-        clientUserProfileMapper.insert(profile);
+        userProfileMapper.insert(profile);
     }
 
     private void createDefaultCreditProfile(String userUid) {
         LocalDateTime now = LocalDateTime.now();
-        SysCreditProfile profile = new SysCreditProfile();
+        CreditProfile profile = new CreditProfile();
         profile.setUserUid(userUid);
         profile.setCreditScore(DEFAULT_CREDIT_SCORE);
         profile.setAccountStatus("ACTIVE");
         profile.setLastChangedAt(now);
-        sysCreditProfileMapper.insert(profile);
+        creditProfileMapper.insert(profile);
 
-        SysCreditLog creditLog = new SysCreditLog();
+        CreditLog creditLog = new CreditLog();
         creditLog.setUserUid(userUid);
         creditLog.setChangeAmount(DEFAULT_CREDIT_SCORE);
         creditLog.setScoreBefore(0);
@@ -802,23 +802,23 @@ public class AuthService {
         creditLog.setBizType(CREDIT_BIZ_REGISTER);
         creditLog.setOperatorKey(CREDIT_OPERATOR_SYSTEM);
         creditLog.setRemark("注册初始化信用分");
-        sysCreditLogMapper.insert(creditLog);
+        creditLogMapper.insert(creditLog);
     }
 
     private boolean isUserUidUnique(String userUid) {
-        LambdaQueryWrapper<ClientUser> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUser::getUserUid, userUid);
-        return clientUserMapper.selectCount(wrapper) == 0;
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getUserUid, userUid);
+        return userMapper.selectCount(wrapper) == 0;
     }
 
-    private void assertUserAccountActive(ClientUser user) {
+    private void assertUserAccountActive(User user) {
         String status = user.getAccountStatus() == null ? "ACTIVE" : user.getAccountStatus().trim().toUpperCase(Locale.ROOT);
         if ("FROZEN".equals(status)) throw new RuntimeException("ACCOUNT_FROZEN");
         if ("DEACTIVATED".equals(status)) throw new RuntimeException("ACCOUNT_DEACTIVATED");
         if (!"ACTIVE".equals(status)) throw new RuntimeException("ACCOUNT_DISABLED");
     }
 
-    private void assertEntityAccountActive(ClientEntity entity) {
+    private void assertEntityAccountActive(TenantOrganization entity) {
         String status = entity.getAccountStatus() == null ? "ACTIVE" : entity.getAccountStatus().trim().toUpperCase(Locale.ROOT);
         if ("FROZEN".equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
         if ("DEACTIVATED".equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
@@ -951,14 +951,14 @@ public class AuthService {
         return value == null || value.trim().isEmpty();
     }
 
-    private LoginResponse completeOrganizationLogin(SysEntityTotpCredentials admin) {
+    private LoginResponse completeOrganizationLogin(EntityTotpCredentials admin) {
         entityAdminCredentialService.updateAdminLastLoginAt(admin.getAdminUid(), LocalDateTime.now());
         TokenPair tokenPair = issueTokenPair(admin.getAdminUid(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
         return new LoginResponse(admin.getAdminUid(), "organization-admin", "verified",
                 tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC);
     }
 
-    private LoginResponse completeEntityRootLogin(ClientEntity entity) {
+    private LoginResponse completeEntityRootLogin(TenantOrganization entity) {
         entityAdminCredentialService.updateEntityLastLoginAt(entity.getEntityCode(), LocalDateTime.now());
         TokenPair tokenPair = issueTokenPair(entity.getEntityCode(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
         return new LoginResponse(entity.getEntityCode(), "organization-admin", "verified",
@@ -986,7 +986,7 @@ public class AuthService {
                 .build();
     }
 
-    private List<OrganizationAdminOption> toAdminOptions(List<SysEntityTotpCredentials> admins) {
+    private List<OrganizationAdminOption> toAdminOptions(List<EntityTotpCredentials> admins) {
         if (admins.isEmpty()) return List.of();
         return admins.stream().map(admin -> OrganizationAdminOption.builder()
                 .adminUid(admin.getAdminUid())
@@ -995,7 +995,7 @@ public class AuthService {
                 .build()).toList();
     }
 
-    private String resolveAdminDisplayName(SysEntityTotpCredentials admin) {
+    private String resolveAdminDisplayName(EntityTotpCredentials admin) {
         if (admin == null) return "";
         if (StringUtils.hasText(admin.getDisplayName())) return admin.getDisplayName().trim();
         return admin.getAdminUid();
@@ -1043,24 +1043,24 @@ public class AuthService {
         return StringUtils.hasText(subject) && subject.trim().matches("^EA[A-Za-z0-9]{11}$");
     }
 
-    private ClientEntity loadEntityByCode(String entityCode) {
-        LambdaQueryWrapper<ClientEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientEntity::getEntityCode, entityCode).last("LIMIT 1");
-        return clientEntityMapper.selectOne(wrapper);
+    private TenantOrganization loadEntityByCode(String entityCode) {
+        LambdaQueryWrapper<TenantOrganization> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TenantOrganization::getEntityCode, entityCode).last("LIMIT 1");
+        return tenantOrganizationMapper.selectOne(wrapper);
     }
 
-    private SysEntityTotpCredentials loadEntityAdminByUid(String adminUid) {
-        LambdaQueryWrapper<SysEntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getAdminUid, adminUid).last("LIMIT 1");
-        return sysEntityTotpCredentialsMapper.selectOne(wrapper);
+    private EntityTotpCredentials loadEntityAdminByUid(String adminUid) {
+        LambdaQueryWrapper<EntityTotpCredentials> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getAdminUid, adminUid).last("LIMIT 1");
+        return entityTotpCredentialsMapper.selectOne(wrapper);
     }
 
     private int countBoundEntityAdmins(String entityCode) {
         return entityAdminCredentialService.countBoundEntityAdmins(entityCode);
     }
 
-    private void activateEntityAdminAfterTotpBind(SysEntityTotpCredentials admin, String totpSecret, LocalDateTime now) {
-        SysEntityTotpCredentials patch = new SysEntityTotpCredentials();
+    private void activateEntityAdminAfterTotpBind(EntityTotpCredentials admin, String totpSecret, LocalDateTime now) {
+        EntityTotpCredentials patch = new EntityTotpCredentials();
         patch.setTotpSecret(totpSecret);
         patch.setAccountStatus(EntityAdminAccountStatus.ACTIVE);
         patch.setAccountStatusChangedAt(now);
@@ -1068,17 +1068,17 @@ public class AuthService {
         if (!entityAdminCredentialService.hasActivePrimaryAdmin(admin.getEntityCode())) {
             patch.setIsPrimary(1);
         }
-        LambdaUpdateWrapper<SysEntityTotpCredentials> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(SysEntityTotpCredentials::getAdminUid, admin.getAdminUid());
-        sysEntityTotpCredentialsMapper.update(patch, wrapper);
+        LambdaUpdateWrapper<EntityTotpCredentials> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(EntityTotpCredentials::getAdminUid, admin.getAdminUid());
+        entityTotpCredentialsMapper.update(patch, wrapper);
     }
 
-    private int resolveAdminOrder(SysEntityTotpCredentials admin, List<SysEntityTotpCredentials> admins) {
-        List<SysEntityTotpCredentials> sorted = admins.stream()
+    private int resolveAdminOrder(EntityTotpCredentials admin, List<EntityTotpCredentials> admins) {
+        List<EntityTotpCredentials> sorted = admins.stream()
                 .sorted(Comparator
-                        .comparing((SysEntityTotpCredentials item) -> item.getIsPrimary() != null && item.getIsPrimary() == 1)
+                        .comparing((EntityTotpCredentials item) -> item.getIsPrimary() != null && item.getIsPrimary() == 1)
                         .reversed()
-                        .thenComparing(SysEntityTotpCredentials::getId))
+                        .thenComparing(EntityTotpCredentials::getId))
                 .toList();
         for (int i = 0; i < sorted.size(); i++) {
             if (Objects.equals(sorted.get(i).getAdminUid(), admin.getAdminUid())) return i + 1;
@@ -1087,21 +1087,21 @@ public class AuthService {
     }
 
     private String resolveEntityName(String entityCode) {
-        LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
-        ClientEntityProfile profile = clientEntityProfileMapper.selectOne(wrapper);
+        LambdaQueryWrapper<TenantOrgProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TenantOrgProfile::getEntityCode, entityCode).last("LIMIT 1");
+        TenantOrgProfile profile = tenantOrgProfileMapper.selectOne(wrapper);
         if (profile == null || !StringUtils.hasText(profile.getName())) return entityCode;
         return profile.getName().trim();
     }
 
-    private void assertEntityAdminCanBindTotp(SysEntityTotpCredentials admin) {
+    private void assertEntityAdminCanBindTotp(EntityTotpCredentials admin) {
         String status = admin.getAccountStatus() == null ? "" : admin.getAccountStatus().trim().toUpperCase(Locale.ROOT);
         if (EntityAdminAccountStatus.DEACTIVATED.equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");
         if (EntityAdminAccountStatus.FROZEN.equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
         if (StringUtils.hasText(admin.getTotpSecret())) throw new RuntimeException("ORGANIZATION_TOTP_ALREADY_BOUND");
     }
 
-    private void assertEntityAdminActive(SysEntityTotpCredentials admin) {
+    private void assertEntityAdminActive(EntityTotpCredentials admin) {
         String status = admin.getAccountStatus() == null ? "ACTIVE" : admin.getAccountStatus().trim().toUpperCase(Locale.ROOT);
         if ("FROZEN".equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_FROZEN");
         if ("DEACTIVATED".equals(status)) throw new RuntimeException("ORGANIZATION_ACCOUNT_DEACTIVATED");

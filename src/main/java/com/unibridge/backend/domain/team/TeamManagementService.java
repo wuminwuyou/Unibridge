@@ -10,18 +10,18 @@ import com.unibridge.backend.domain.team.dto.SyncTeamMembersResponse;
 import com.unibridge.backend.domain.team.dto.TeamMemberItem;
 import com.unibridge.backend.domain.user.dto.UserPublicPreviewResponse;
 import com.unibridge.backend.infrastructure.common.BusinessException;
-import com.unibridge.backend.infrastructure.entities.ClientTeam;
-import com.unibridge.backend.infrastructure.entities.ClientTeamMember;
-import com.unibridge.backend.infrastructure.entities.ClientUser;
-import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
-import com.unibridge.backend.infrastructure.entities.UserAuthLink;
-import com.unibridge.backend.infrastructure.entities.UserIdentity;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientTeamMemberMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserIdentityMapper;
+import com.unibridge.backend.infrastructure.entities.team.Team;
+import com.unibridge.backend.infrastructure.entities.team.TeamMember;
+import com.unibridge.backend.infrastructure.entities.auth.User;
+import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
+import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
+import com.unibridge.backend.infrastructure.entities.profile.UserIdentity;
+import com.unibridge.backend.infrastructure.persistence.mapper.team.TeamMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.team.TeamMemberMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.auth.UserMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.util.TeamUidGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
@@ -59,19 +59,19 @@ public class TeamManagementService {
     private AccessService accessService;
 
     @Autowired
-    private ClientTeamMapper clientTeamMapper;
+    private TeamMapper teamMapper;
 
     @Autowired
-    private ClientTeamMemberMapper clientTeamMemberMapper;
+    private TeamMemberMapper teamMemberMapper;
 
     @Autowired
-    private ClientUserMapper clientUserMapper;
+    private UserMapper userMapper;
 
     @Autowired
-    private ClientUserProfileMapper clientUserProfileMapper;
+    private UserProfileMapper userProfileMapper;
 
     @Autowired
-    private UserAuthLinkMapper userAuthLinkMapper;
+    private UserOrganizationBindingMapper userOrganizationBindingMapper;
 
     @Autowired
     private UserIdentityMapper userIdentityMapper;
@@ -84,12 +84,12 @@ public class TeamManagementService {
         if (!StringUtils.hasText(userUid)) {
             throw BusinessException.unauthorized("UNAUTHORIZED");
         }
-        ClientUser user = loadUserByUid(userUid);
+        User user = loadUserByUid(userUid);
         if (user == null) {
             throw BusinessException.notFound("USER_NOT_FOUND");
         }
 
-        UserAuthLink authLink = requireVerifiedAuthLink(userUid);
+        UserOrganizationBinding authLink = requireVerifiedAuthLink(userUid);
         String creatorRole = StringUtils.hasText(authLink.getRole())
                 ? authLink.getRole().toUpperCase(Locale.ROOT) : "STUDENT";
         String teamType = "STUDENT_TEAM";  // 数据库约束仅 LAB / STUDENT_TEAM
@@ -103,7 +103,7 @@ public class TeamManagementService {
             throw BusinessException.badRequest("TEAM_NAME_TOO_LONG");
         }
 
-        ClientTeam team = new ClientTeam();
+        Team team = new Team();
         team.setTeamUid(TeamUidGenerator.generateForType(teamType, this::isTeamUidUnique));
         team.setType(teamType);
         team.setTeamName(name);
@@ -113,18 +113,18 @@ public class TeamManagementService {
                 : null);
         team.setAccountStatus("ACTIVE");
         try {
-            clientTeamMapper.insert(team);
+            teamMapper.insert(team);
         } catch (DuplicateKeyException e) {
             throw BusinessException.conflict("TEAM_ALREADY_EXISTS");
         }
 
-        ClientTeamMember creatorMember = new ClientTeamMember();
+        TeamMember creatorMember = new TeamMember();
         creatorMember.setTeamUid(team.getTeamUid());
         creatorMember.setUserUid(userUid);
         creatorMember.setRole(memberRole);
         creatorMember.setIsAdmin(1);
         try {
-            clientTeamMemberMapper.insert(creatorMember);
+            teamMemberMapper.insert(creatorMember);
         } catch (DuplicateKeyException ignored) {}
 
         if (request.getInitialMemberUids() != null && !request.getInitialMemberUids().isEmpty()) {
@@ -132,17 +132,17 @@ public class TeamManagementService {
                 String trimmedUid = memberUid.trim();
                 if (!StringUtils.hasText(trimmedUid) || trimmedUid.equals(userUid)) continue;
                 if (loadUserByUid(trimmedUid) == null) continue;
-                LambdaQueryWrapper<UserAuthLink> mAuthWrapper = new LambdaQueryWrapper<>();
-                mAuthWrapper.eq(UserAuthLink::getUserUid, trimmedUid)
-                        .eq(UserAuthLink::getAuditStatus, "APPROVED")
-                        .eq(UserAuthLink::getIsActive, 1).last("LIMIT 1");
-                if (userAuthLinkMapper.selectOne(mAuthWrapper) == null) continue;
-                ClientTeamMember member = new ClientTeamMember();
+                LambdaQueryWrapper<UserOrganizationBinding> mAuthWrapper = new LambdaQueryWrapper<>();
+                mAuthWrapper.eq(UserOrganizationBinding::getUserUid, trimmedUid)
+                        .eq(UserOrganizationBinding::getAuditStatus, "APPROVED")
+                        .eq(UserOrganizationBinding::getIsActive, 1).last("LIMIT 1");
+                if (userOrganizationBindingMapper.selectOne(mAuthWrapper) == null) continue;
+                TeamMember member = new TeamMember();
                 member.setTeamUid(team.getTeamUid());
                 member.setUserUid(trimmedUid);
                 member.setRole("MEMBER");
                 member.setIsAdmin(0);
-                try { clientTeamMemberMapper.insert(member); } catch (DuplicateKeyException ignored) {}
+                try { teamMemberMapper.insert(member); } catch (DuplicateKeyException ignored) {}
             }
         }
         return CreateStudentTeamResponse.builder().teamUid(team.getTeamUid()).name(team.getTeamName()).build();
@@ -153,7 +153,7 @@ public class TeamManagementService {
     @Transactional(rollbackFor = Exception.class)
     public SyncTeamMembersResponse syncTeamMembers(String authorization, String teamUid, SyncTeamMembersRequest request) {
         String currentUserUid = accessService.requireCurrentUserUid(authorization);
-        ClientTeam team = requireAccessibleTeam(teamUid);
+        Team team = requireAccessibleTeam(teamUid);
         requireTeamAdmin(team, currentUserUid);
 
         List<SyncTeamMembersRequest.MemberUpdate> updates = request == null || request.getUpdates() == null
@@ -166,7 +166,7 @@ public class TeamManagementService {
             throw BusinessException.badRequest("TEAM_MEMBER_NO_CHANGES");
         }
 
-        Map<String, ClientTeamMember> memberByUid = loadMemberMap(teamUid);
+        Map<String, TeamMember> memberByUid = loadMemberMap(teamUid);
         validateRemovals(team, removals, memberByUid);
         validateUpdates(team, updates, memberByUid);
         validateAdditions(team, additions, memberByUid);
@@ -174,7 +174,7 @@ public class TeamManagementService {
         applyUpdates(team, updates, memberByUid);
         applyAdditions(team, additions, memberByUid, currentUserUid);
 
-        List<ClientTeamMember> refreshed = sortMembersForDisplay(team, loadTeamMemberships(teamUid));
+        List<TeamMember> refreshed = sortMembersForDisplay(team, loadTeamMemberships(teamUid));
         List<TeamMemberItem> members = buildMemberItems(team, refreshed, true);
         return SyncTeamMembersResponse.builder().teamUid(team.getTeamUid()).members(members).total((long) members.size()).build();
     }
@@ -183,22 +183,22 @@ public class TeamManagementService {
 
     @Transactional(rollbackFor = Exception.class)
     public void dissolveTeam(String teamUid) {
-        ClientTeam team = requireAccessibleTeam(teamUid);
-        LambdaQueryWrapper<ClientTeamMember> mw = new LambdaQueryWrapper<>();
-        mw.eq(ClientTeamMember::getTeamUid, teamUid);
-        clientTeamMemberMapper.delete(mw);
-        LambdaQueryWrapper<ClientTeam> tw = new LambdaQueryWrapper<>();
-        tw.eq(ClientTeam::getTeamUid, teamUid);
-        clientTeamMapper.delete(tw);
+        Team team = requireAccessibleTeam(teamUid);
+        LambdaQueryWrapper<TeamMember> mw = new LambdaQueryWrapper<>();
+        mw.eq(TeamMember::getTeamUid, teamUid);
+        teamMemberMapper.delete(mw);
+        LambdaQueryWrapper<Team> tw = new LambdaQueryWrapper<>();
+        tw.eq(Team::getTeamUid, teamUid);
+        teamMapper.delete(tw);
     }
 
     // ===================== 用户预览 =====================
 
     public UserPublicPreviewResponse getUserPublicPreview(String uid) {
         validateUserUidFormat(uid);
-        ClientUser user = loadUserByUid(uid.trim());
+        User user = loadUserByUid(uid.trim());
         if (user == null) throw BusinessException.notFound("USER_NOT_FOUND");
-        ClientUserProfile profile = loadProfile(uid.trim());
+        UserProfile profile = loadProfile(uid.trim());
         UserIdentity identity = loadIdentity(uid.trim());
         return UserPublicPreviewResponse.builder()
                 .uid(user.getUserUid())
@@ -209,29 +209,29 @@ public class TeamManagementService {
 
     // ===================== 私有 — 鉴权 =====================
 
-    private UserAuthLink requireVerifiedAuthLink(String userUid) {
-        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserUid, userUid)
-                .eq(UserAuthLink::getAuditStatus, "APPROVED")
-                .eq(UserAuthLink::getIsActive, 1).last("LIMIT 1");
-        UserAuthLink link = userAuthLinkMapper.selectOne(wrapper);
+    private UserOrganizationBinding requireVerifiedAuthLink(String userUid) {
+        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
+                .eq(UserOrganizationBinding::getAuditStatus, "APPROVED")
+                .eq(UserOrganizationBinding::getIsActive, 1).last("LIMIT 1");
+        UserOrganizationBinding link = userOrganizationBindingMapper.selectOne(wrapper);
         if (link == null) throw BusinessException.forbidden("USER_NOT_VERIFIED");
         return link;
     }
 
-    private void requireTeamAdmin(ClientTeam team, String currentUserUid) {
+    private void requireTeamAdmin(Team team, String currentUserUid) {
         if (StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(currentUserUid)) return;
-        ClientTeamMember m = findMembership(team.getTeamUid(), currentUserUid);
+        TeamMember m = findMembership(team.getTeamUid(), currentUserUid);
         if (m == null || !resolveIsAdmin(team, m)) throw BusinessException.forbidden("TEAM_MEMBER_FORBIDDEN");
     }
 
     // ===================== 私有 — 团队加载 =====================
 
-    private ClientTeam requireAccessibleTeam(String teamUid) {
+    private Team requireAccessibleTeam(String teamUid) {
         validateTeamUidFormat(teamUid);
-        LambdaQueryWrapper<ClientTeam> w = new LambdaQueryWrapper<>();
-        w.eq(ClientTeam::getTeamUid, teamUid.trim()).last("LIMIT 1");
-        ClientTeam team = clientTeamMapper.selectOne(w);
+        LambdaQueryWrapper<Team> w = new LambdaQueryWrapper<>();
+        w.eq(Team::getTeamUid, teamUid.trim()).last("LIMIT 1");
+        Team team = teamMapper.selectOne(w);
         if (team == null) throw BusinessException.notFound("TEAM_NOT_FOUND");
         if (team.getAccountStatus() == null || !"ACTIVE".equalsIgnoreCase(team.getAccountStatus()))
             throw BusinessException.forbidden("TEAM_NOT_ACCESSIBLE");
@@ -240,44 +240,44 @@ public class TeamManagementService {
         return team;
     }
 
-    private List<ClientTeamMember> loadTeamMemberships(String teamUid) {
-        LambdaQueryWrapper<ClientTeamMember> w = new LambdaQueryWrapper<>();
-        w.eq(ClientTeamMember::getTeamUid, teamUid);
-        return clientTeamMemberMapper.selectList(w);
+    private List<TeamMember> loadTeamMemberships(String teamUid) {
+        LambdaQueryWrapper<TeamMember> w = new LambdaQueryWrapper<>();
+        w.eq(TeamMember::getTeamUid, teamUid);
+        return teamMemberMapper.selectList(w);
     }
 
-    private ClientTeamMember findMembership(String teamUid, String userUid) {
-        LambdaQueryWrapper<ClientTeamMember> w = new LambdaQueryWrapper<>();
-        w.eq(ClientTeamMember::getTeamUid, teamUid).eq(ClientTeamMember::getUserUid, userUid).last("LIMIT 1");
-        return clientTeamMemberMapper.selectOne(w);
+    private TeamMember findMembership(String teamUid, String userUid) {
+        LambdaQueryWrapper<TeamMember> w = new LambdaQueryWrapper<>();
+        w.eq(TeamMember::getTeamUid, teamUid).eq(TeamMember::getUserUid, userUid).last("LIMIT 1");
+        return teamMemberMapper.selectOne(w);
     }
 
     private boolean isTeamUidUnique(String teamUid) {
-        LambdaQueryWrapper<ClientTeam> w = new LambdaQueryWrapper<>();
-        w.eq(ClientTeam::getTeamUid, teamUid);
-        return clientTeamMapper.selectCount(w) == 0;
+        LambdaQueryWrapper<Team> w = new LambdaQueryWrapper<>();
+        w.eq(Team::getTeamUid, teamUid);
+        return teamMapper.selectCount(w) == 0;
     }
 
     // ===================== 私有 — 用户 =====================
 
-    private ClientUser loadUserByUid(String userUid) {
-        LambdaQueryWrapper<ClientUser> w = new LambdaQueryWrapper<>();
-        w.eq(ClientUser::getUserUid, userUid).last("LIMIT 1");
-        return clientUserMapper.selectOne(w);
+    private User loadUserByUid(String userUid) {
+        LambdaQueryWrapper<User> w = new LambdaQueryWrapper<>();
+        w.eq(User::getUserUid, userUid).last("LIMIT 1");
+        return userMapper.selectOne(w);
     }
 
-    private ClientUserProfile loadProfile(String userUid) {
-        LambdaQueryWrapper<ClientUserProfile> w = new LambdaQueryWrapper<>();
-        w.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
-        return clientUserProfileMapper.selectOne(w);
+    private UserProfile loadProfile(String userUid) {
+        LambdaQueryWrapper<UserProfile> w = new LambdaQueryWrapper<>();
+        w.eq(UserProfile::getUserUid, userUid).last("LIMIT 1");
+        return userProfileMapper.selectOne(w);
     }
 
-    private Map<String, ClientUserProfile> loadProfileMap(List<String> userUids) {
+    private Map<String, UserProfile> loadProfileMap(List<String> userUids) {
         if (userUids.isEmpty()) return Collections.emptyMap();
-        LambdaQueryWrapper<ClientUserProfile> w = new LambdaQueryWrapper<>();
-        w.in(ClientUserProfile::getUserUid, userUids);
-        Map<String, ClientUserProfile> m = new HashMap<>();
-        for (ClientUserProfile p : clientUserProfileMapper.selectList(w)) m.put(p.getUserUid(), p);
+        LambdaQueryWrapper<UserProfile> w = new LambdaQueryWrapper<>();
+        w.in(UserProfile::getUserUid, userUids);
+        Map<String, UserProfile> m = new HashMap<>();
+        for (UserProfile p : userProfileMapper.selectList(w)) m.put(p.getUserUid(), p);
         return m;
     }
 
@@ -287,34 +287,34 @@ public class TeamManagementService {
 
     // ===================== 私有 — 成员排序与显示 =====================
 
-    private List<ClientTeamMember> sortMembersForDisplay(ClientTeam team, List<ClientTeamMember> memberships) {
+    private List<TeamMember> sortMembersForDisplay(Team team, List<TeamMember> memberships) {
         if (memberships.isEmpty()) return Collections.emptyList();
-        Map<String, ClientUserProfile> pm = loadProfileMap(memberships.stream().map(ClientTeamMember::getUserUid).collect(Collectors.toList()));
+        Map<String, UserProfile> pm = loadProfileMap(memberships.stream().map(TeamMember::getUserUid).collect(Collectors.toList()));
         return memberships.stream()
-                .sorted(Comparator.comparingInt((ClientTeamMember m) -> previewTier(team, m))
-                        .thenComparing((ClientTeamMember m) -> levelOrder(pm.get(m.getUserUid())), Comparator.reverseOrder())
+                .sorted(Comparator.comparingInt((TeamMember m) -> previewTier(team, m))
+                        .thenComparing((TeamMember m) -> levelOrder(pm.get(m.getUserUid())), Comparator.reverseOrder())
                         .thenComparing(m -> m.getJoinedAt() == null ? java.time.LocalDateTime.MAX : m.getJoinedAt()))
                 .collect(Collectors.toList());
     }
 
-    private int previewTier(ClientTeam team, ClientTeamMember member) {
+    private int previewTier(Team team, TeamMember member) {
         if (StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(member.getUserUid())) return 0;
         return "MENTOR".equalsIgnoreCase(member.getRole()) ? 1 : 2;
     }
 
-    private int levelOrder(ClientUserProfile profile) {
+    private int levelOrder(UserProfile profile) {
         String l = resolveLevel(profile);
         return l == null ? 0 : java.util.Map.of("UR", 5, "SSR", 4, "SR", 3, "R", 2, "N", 1).getOrDefault(l, 0);
     }
 
-    private List<TeamMemberItem> buildMemberItems(ClientTeam team, List<ClientTeamMember> orderedSlice, boolean showRealName) {
+    private List<TeamMemberItem> buildMemberItems(Team team, List<TeamMember> orderedSlice, boolean showRealName) {
         if (orderedSlice.isEmpty()) return Collections.emptyList();
-        List<String> uids = orderedSlice.stream().map(ClientTeamMember::getUserUid).collect(Collectors.toList());
-        Map<String, ClientUserProfile> pm = loadProfileMap(uids);
+        List<String> uids = orderedSlice.stream().map(TeamMember::getUserUid).collect(Collectors.toList());
+        Map<String, UserProfile> pm = loadProfileMap(uids);
         Map<String, UserIdentity> im = loadIdentityMap(uids);
         List<TeamMemberItem> items = new ArrayList<>();
-        for (ClientTeamMember m : orderedSlice) {
-            ClientUserProfile p = pm.get(m.getUserUid());
+        for (TeamMember m : orderedSlice) {
+            UserProfile p = pm.get(m.getUserUid());
             UserIdentity identity = im.get(m.getUserUid());
             items.add(TeamMemberItem.builder()
                     .uid(m.getUserUid())
@@ -330,11 +330,11 @@ public class TeamManagementService {
         return items;
     }
 
-    private String resolveMemberRole(ClientTeamMember m) { return StringUtils.hasText(m.getRole()) ? m.getRole().trim().toUpperCase(Locale.ROOT) : "MEMBER"; }
-    private boolean resolveIsOwner(ClientTeam team, ClientTeamMember m) { return StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(m.getUserUid()); }
-    private boolean resolveIsAdmin(ClientTeam team, ClientTeamMember m) { return (m.getIsAdmin() != null && m.getIsAdmin() == 1) || (StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(m.getUserUid())); }
-    private String resolveInvitedByUid(ClientTeam team, ClientTeamMember m) { return (StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(m.getUserUid())) ? null : trimToNull(m.getInvitedByUid()); }
-    private String resolveLevel(ClientUserProfile p) { if (p == null || !StringUtils.hasText(p.getLevel())) return null; String l = p.getLevel().trim().toUpperCase(Locale.ROOT); return VALID_LEVELS.contains(l) ? l : null; }
+    private String resolveMemberRole(TeamMember m) { return StringUtils.hasText(m.getRole()) ? m.getRole().trim().toUpperCase(Locale.ROOT) : "MEMBER"; }
+    private boolean resolveIsOwner(Team team, TeamMember m) { return StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(m.getUserUid()); }
+    private boolean resolveIsAdmin(Team team, TeamMember m) { return (m.getIsAdmin() != null && m.getIsAdmin() == 1) || (StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(m.getUserUid())); }
+    private String resolveInvitedByUid(Team team, TeamMember m) { return (StringUtils.hasText(team.getOwnerUid()) && team.getOwnerUid().equals(m.getUserUid())) ? null : trimToNull(m.getInvitedByUid()); }
+    private String resolveLevel(UserProfile p) { if (p == null || !StringUtils.hasText(p.getLevel())) return null; String l = p.getLevel().trim().toUpperCase(Locale.ROOT); return VALID_LEVELS.contains(l) ? l : null; }
 
     // ===================== 校验 =====================
 
@@ -346,7 +346,7 @@ public class TeamManagementService {
 
     // ===================== 校验成员操作 =====================
 
-    private void validateRemovals(ClientTeam team, List<SyncTeamMembersRequest.MemberRemoval> removals, Map<String, ClientTeamMember> mb) {
+    private void validateRemovals(Team team, List<SyncTeamMembersRequest.MemberRemoval> removals, Map<String, TeamMember> mb) {
         if (removals.isEmpty()) return;
         Set<String> ruids = new HashSet<>();
         for (var r : removals) ruids.add(normalizeRequiredUserUid(r.getUid()));
@@ -356,7 +356,7 @@ public class TeamManagementService {
             if (!mb.containsKey(uid)) throw BusinessException.notFound("TEAM_MEMBER_NOT_FOUND");
         }
     }
-    private void validateUpdates(ClientTeam team, List<SyncTeamMembersRequest.MemberUpdate> updates, Map<String, ClientTeamMember> mb) {
+    private void validateUpdates(Team team, List<SyncTeamMembersRequest.MemberUpdate> updates, Map<String, TeamMember> mb) {
         for (var u : updates) {
             String uid = normalizeRequiredUserUid(u.getUid());
             if (!mb.containsKey(uid)) throw BusinessException.notFound("TEAM_MEMBER_NOT_FOUND");
@@ -364,7 +364,7 @@ public class TeamManagementService {
             assertUserExists(uid);
         }
     }
-    private void validateAdditions(ClientTeam team, List<SyncTeamMembersRequest.MemberAddition> additions, Map<String, ClientTeamMember> mb) {
+    private void validateAdditions(Team team, List<SyncTeamMembersRequest.MemberAddition> additions, Map<String, TeamMember> mb) {
         for (var a : additions) {
             String uid = normalizeRequiredUserUid(a.getUid());
             if (mb.containsKey(uid)) throw BusinessException.conflict("TEAM_MEMBER_ALREADY_EXISTS");
@@ -372,48 +372,48 @@ public class TeamManagementService {
             String role = normalizeAdditionRole(a.getRole());
             requireNonEmptyCareer(a.getCareer());
             if ("LAB".equalsIgnoreCase(team.getType()) && "MEMBER".equals(role)) {
-                LambdaQueryWrapper<ClientTeamMember> w = new LambdaQueryWrapper<>();
-                w.eq(ClientTeamMember::getLabUserUid, uid);
-                if (clientTeamMemberMapper.selectCount(w) > 0) throw BusinessException.conflict("TEAM_MEMBER_LAB_CONFLICT");
+                LambdaQueryWrapper<TeamMember> w = new LambdaQueryWrapper<>();
+                w.eq(TeamMember::getLabUserUid, uid);
+                if (teamMemberMapper.selectCount(w) > 0) throw BusinessException.conflict("TEAM_MEMBER_LAB_CONFLICT");
             }
         }
     }
 
     // ===================== 应用成员操作 =====================
 
-    private void applyRemovals(List<SyncTeamMembersRequest.MemberRemoval> removals, Map<String, ClientTeamMember> mb) {
-        for (var r : removals) { ClientTeamMember m = mb.get(r.getUid().trim()); if (m != null) { clientTeamMemberMapper.deleteById(m.getId()); mb.remove(r.getUid().trim()); } }
+    private void applyRemovals(List<SyncTeamMembersRequest.MemberRemoval> removals, Map<String, TeamMember> mb) {
+        for (var r : removals) { TeamMember m = mb.get(r.getUid().trim()); if (m != null) { teamMemberMapper.deleteById(m.getId()); mb.remove(r.getUid().trim()); } }
     }
-    private void applyUpdates(ClientTeam team, List<SyncTeamMembersRequest.MemberUpdate> updates, Map<String, ClientTeamMember> mb) {
+    private void applyUpdates(Team team, List<SyncTeamMembersRequest.MemberUpdate> updates, Map<String, TeamMember> mb) {
         for (var u : updates) {
-            String uid = u.getUid().trim(); ClientTeamMember m = mb.get(uid); if (m == null) continue;
-            LambdaUpdateWrapper<ClientTeamMember> w = new LambdaUpdateWrapper<>();
-            w.eq(ClientTeamMember::getId, m.getId());
-            w.set(ClientTeamMember::getCareer, u.getCareer().trim());
-            if (isOwnerUid(team, uid)) w.set(ClientTeamMember::getIsAdmin, 1);
-            else if (u.getIsAdmin() != null) w.set(ClientTeamMember::getIsAdmin, Boolean.TRUE.equals(u.getIsAdmin()) ? 1 : 0);
-            clientTeamMemberMapper.update(null, w);
+            String uid = u.getUid().trim(); TeamMember m = mb.get(uid); if (m == null) continue;
+            LambdaUpdateWrapper<TeamMember> w = new LambdaUpdateWrapper<>();
+            w.eq(TeamMember::getId, m.getId());
+            w.set(TeamMember::getCareer, u.getCareer().trim());
+            if (isOwnerUid(team, uid)) w.set(TeamMember::getIsAdmin, 1);
+            else if (u.getIsAdmin() != null) w.set(TeamMember::getIsAdmin, Boolean.TRUE.equals(u.getIsAdmin()) ? 1 : 0);
+            teamMemberMapper.update(null, w);
         }
     }
-    private void applyAdditions(ClientTeam team, List<SyncTeamMembersRequest.MemberAddition> additions, Map<String, ClientTeamMember> mb, String invitedByUid) {
+    private void applyAdditions(Team team, List<SyncTeamMembersRequest.MemberAddition> additions, Map<String, TeamMember> mb, String invitedByUid) {
         for (var a : additions) {
             String uid = a.getUid().trim(); String role = normalizeAdditionRole(a.getRole());
-            ClientTeamMember m = new ClientTeamMember();
+            TeamMember m = new TeamMember();
             m.setTeamUid(team.getTeamUid()); m.setUserUid(uid); m.setRole(role); m.setCareer(a.getCareer().trim());
             m.setIsAdmin(0); m.setInvitedByUid(invitedByUid);
             if ("LAB".equalsIgnoreCase(team.getType()) && "MEMBER".equals(role)) m.setLabUserUid(uid);
-            try { clientTeamMemberMapper.insert(m); } catch (DuplicateKeyException e) { throw BusinessException.conflict("TEAM_MEMBER_LAB_CONFLICT"); }
+            try { teamMemberMapper.insert(m); } catch (DuplicateKeyException e) { throw BusinessException.conflict("TEAM_MEMBER_LAB_CONFLICT"); }
             mb.put(uid, m);
         }
     }
 
     // ===================== 工具方法 =====================
 
-    private Map<String, ClientTeamMember> loadMemberMap(String teamUid) { Map<String, ClientTeamMember> m = new HashMap<>(); for (var member : loadTeamMemberships(teamUid)) m.put(member.getUserUid(), member); return m; }
-    private String resolveNickname(ClientUserProfile p) { return p == null || !StringUtils.hasText(p.getNickName()) ? "用户" : p.getNickName().trim(); }
-    private String resolveRealNameOrNickname(ClientUserProfile p, UserIdentity identity) { if (identity != null && StringUtils.hasText(identity.getRealNameMask())) return identity.getRealNameMask().trim(); return resolveNickname(p); }
-    private String resolveMemberDisplayName(ClientUserProfile p, boolean showRealName, UserIdentity identity) { return showRealName ? resolveRealNameOrNickname(p, identity) : resolveNickname(p); }
-    private boolean isOwnerUid(ClientTeam t, String uid) { return StringUtils.hasText(t.getOwnerUid()) && t.getOwnerUid().equals(uid); }
+    private Map<String, TeamMember> loadMemberMap(String teamUid) { Map<String, TeamMember> m = new HashMap<>(); for (var member : loadTeamMemberships(teamUid)) m.put(member.getUserUid(), member); return m; }
+    private String resolveNickname(UserProfile p) { return p == null || !StringUtils.hasText(p.getNickName()) ? "用户" : p.getNickName().trim(); }
+    private String resolveRealNameOrNickname(UserProfile p, UserIdentity identity) { if (identity != null && StringUtils.hasText(identity.getRealNameMask())) return identity.getRealNameMask().trim(); return resolveNickname(p); }
+    private String resolveMemberDisplayName(UserProfile p, boolean showRealName, UserIdentity identity) { return showRealName ? resolveRealNameOrNickname(p, identity) : resolveNickname(p); }
+    private boolean isOwnerUid(Team t, String uid) { return StringUtils.hasText(t.getOwnerUid()) && t.getOwnerUid().equals(uid); }
     private String trimToNull(String v) { return StringUtils.hasText(v) ? v.trim() : null; }
 
     private UserIdentity loadIdentity(String userUid) {

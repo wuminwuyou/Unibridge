@@ -1,10 +1,10 @@
 package com.unibridge.backend.application.shared;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.unibridge.backend.infrastructure.entities.ClientNote;
-import com.unibridge.backend.infrastructure.entities.ClientProject;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientNoteMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientProjectMapper;
+import com.unibridge.backend.infrastructure.entities.note.Note;
+import com.unibridge.backend.infrastructure.entities.project.Project;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -25,41 +25,41 @@ public class ContentUidResolver {
 
     private static final Set<String> VALID_TARGET_TYPES = Set.of("NOTE", "PROJECT");
 
-    private final ClientNoteMapper clientNoteMapper;
-    private final ClientProjectMapper clientProjectMapper;
+    private final NoteMapper noteMapper;
+    private final ProjectMapper projectMapper;
 
-    public ContentUidResolver(ClientNoteMapper clientNoteMapper,
-                              ClientProjectMapper clientProjectMapper) {
-        this.clientNoteMapper = clientNoteMapper;
-        this.clientProjectMapper = clientProjectMapper;
+    public ContentUidResolver(NoteMapper noteMapper,
+                              ProjectMapper projectMapper) {
+        this.noteMapper = noteMapper;
+        this.projectMapper = projectMapper;
     }
 
     /** 笔记对外 UID（即 content_type_code）。 */
-    public static String notePublicUid(ClientNote note) {
+    public static String notePublicUid(Note note) {
         return note == null ? null : note.getContentTypeCode();
     }
 
     /** 项目对外 UID。 */
-    public static String projectPublicUid(ClientProject project) {
+    public static String projectPublicUid(Project project) {
         return project == null ? null : project.getProjectUid();
     }
 
-    public ClientNote requireNoteByUid(String noteUid) {
+    public Note requireNoteByUid(String noteUid) {
         String normalized = normalizeUid(noteUid, "NOTE_UID_REQUIRED");
-        LambdaQueryWrapper<ClientNote> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientNote::getContentTypeCode, normalized).last("LIMIT 1");
-        ClientNote note = clientNoteMapper.selectOne(wrapper);
+        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Note::getContentTypeCode, normalized).last("LIMIT 1");
+        Note note = noteMapper.selectOne(wrapper);
         if (note == null) {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
         return note;
     }
 
-    public ClientProject requireProjectByUid(String projectUid) {
+    public Project requireProjectByUid(String projectUid) {
         String normalized = normalizeUid(projectUid, "PROJECT_UID_REQUIRED");
-        LambdaQueryWrapper<ClientProject> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientProject::getProjectUid, normalized).last("LIMIT 1");
-        ClientProject project = clientProjectMapper.selectOne(wrapper);
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Project::getProjectUid, normalized).last("LIMIT 1");
+        Project project = projectMapper.selectOne(wrapper);
         if (project == null) {
             throw BusinessException.notFound("PROJECT_NOT_FOUND");
         }

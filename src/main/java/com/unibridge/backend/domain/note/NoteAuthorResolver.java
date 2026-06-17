@@ -1,12 +1,12 @@
 package com.unibridge.backend.domain.note;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.unibridge.backend.infrastructure.entities.ClientEntityProfile;
-import com.unibridge.backend.infrastructure.entities.ClientUserProfile;
-import com.unibridge.backend.infrastructure.entities.UserAuthLink;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientEntityProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.ClientUserProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.UserAuthLinkMapper;
+import com.unibridge.backend.infrastructure.entities.profile.TenantOrgProfile;
+import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
+import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.TenantOrgProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -16,16 +16,16 @@ import org.springframework.util.StringUtils;
 @Component
 public class NoteAuthorResolver {
 
-    private final UserAuthLinkMapper userAuthLinkMapper;
-    private final ClientEntityProfileMapper clientEntityProfileMapper;
-    private final ClientUserProfileMapper clientUserProfileMapper;
+    private final UserOrganizationBindingMapper userOrganizationBindingMapper;
+    private final TenantOrgProfileMapper tenantOrgProfileMapper;
+    private final UserProfileMapper userProfileMapper;
 
-    public NoteAuthorResolver(UserAuthLinkMapper userAuthLinkMapper,
-                              ClientEntityProfileMapper clientEntityProfileMapper,
-                              ClientUserProfileMapper clientUserProfileMapper) {
-        this.userAuthLinkMapper = userAuthLinkMapper;
-        this.clientEntityProfileMapper = clientEntityProfileMapper;
-        this.clientUserProfileMapper = clientUserProfileMapper;
+    public NoteAuthorResolver(UserOrganizationBindingMapper userOrganizationBindingMapper,
+                              TenantOrgProfileMapper tenantOrgProfileMapper,
+                              UserProfileMapper userProfileMapper) {
+        this.userOrganizationBindingMapper = userOrganizationBindingMapper;
+        this.tenantOrgProfileMapper = tenantOrgProfileMapper;
+        this.userProfileMapper = userProfileMapper;
     }
 
     public NoteAuthorContext resolve(String userUid) {
@@ -33,24 +33,24 @@ public class NoteAuthorResolver {
             return NoteAuthorContext.empty();
         }
 
-        ClientUserProfile profile = loadUserProfile(userUid);
+        UserProfile profile = loadUserProfile(userUid);
         String authorNickName = resolveAuthorNickName(profile);
         String authorAvatar = profile != null ? trimToNull(profile.getAvatarUrl()) : null;
         String authorOrganization = resolveOrganization(userUid, profile);
         return new NoteAuthorContext(authorNickName, authorOrganization, authorAvatar);
     }
 
-    private String resolveAuthorNickName(ClientUserProfile profile) {
+    private String resolveAuthorNickName(UserProfile profile) {
         if (profile != null && StringUtils.hasText(profile.getNickName())) {
             return profile.getNickName().trim();
         }
         return "用户";
     }
 
-    private String resolveOrganization(String userUid, ClientUserProfile profile) {
-        UserAuthLink authLink = loadActiveAuthLink(userUid);
+    private String resolveOrganization(String userUid, UserProfile profile) {
+        UserOrganizationBinding authLink = loadActiveAuthLink(userUid);
         if (authLink != null && authLink.getEntityCode() != null) {
-            ClientEntityProfile entityProfile = loadEntityProfile(authLink.getEntityCode());
+            TenantOrgProfile entityProfile = loadEntityProfile(authLink.getEntityCode());
             if (entityProfile != null && StringUtils.hasText(entityProfile.getName())) {
                 return entityProfile.getName().trim();
             }
@@ -58,25 +58,25 @@ public class NoteAuthorResolver {
         return "";
     }
 
-    private UserAuthLink loadActiveAuthLink(String userUid) {
-        LambdaQueryWrapper<UserAuthLink> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserAuthLink::getUserUid, userUid)
-                .eq(UserAuthLink::getIsActive, 1)
-                .orderByDesc(UserAuthLink::getUpdatedAt)
+    private UserOrganizationBinding loadActiveAuthLink(String userUid) {
+        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
+                .eq(UserOrganizationBinding::getIsActive, 1)
+                .orderByDesc(UserOrganizationBinding::getUpdatedAt)
                 .last("LIMIT 1");
-        return userAuthLinkMapper.selectOne(wrapper);
+        return userOrganizationBindingMapper.selectOne(wrapper);
     }
 
-    private ClientEntityProfile loadEntityProfile(String entityCode) {
-        LambdaQueryWrapper<ClientEntityProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientEntityProfile::getEntityCode, entityCode).last("LIMIT 1");
-        return clientEntityProfileMapper.selectOne(wrapper);
+    private TenantOrgProfile loadEntityProfile(String entityCode) {
+        LambdaQueryWrapper<TenantOrgProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TenantOrgProfile::getEntityCode, entityCode).last("LIMIT 1");
+        return tenantOrgProfileMapper.selectOne(wrapper);
     }
 
-    private ClientUserProfile loadUserProfile(String userUid) {
-        LambdaQueryWrapper<ClientUserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ClientUserProfile::getUserUid, userUid).last("LIMIT 1");
-        return clientUserProfileMapper.selectOne(wrapper);
+    private UserProfile loadUserProfile(String userUid) {
+        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserProfile::getUserUid, userUid).last("LIMIT 1");
+        return userProfileMapper.selectOne(wrapper);
     }
 
     private String trimToNull(String value) {

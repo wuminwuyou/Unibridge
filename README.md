@@ -308,15 +308,23 @@ src/main/java/com/unibridge/backend/
 │
 └── infrastructure/                               # 【基础设施层】全局共享
     │
-    ├── entities/                                 # ORM 实体
-    │   ├── ClientUser.java / ClientNote.java / ClientProject.java
-    │   ├── UserIdentity.java                     # t_user_identity（实名信息独立加密存储）
-    │   ├── UserTagInterest.java / UserContentInteraction.java
-    │   └── Entity.java / ClientEntityProfile.java
+    ├── entities/                                 # ORM 实体（按业务分类子文件夹）
+    │   ├── auth/                                 # User, TenantOrganization, EntityTotpCredentials, SysAdmin
+    │   ├── profile/                              # UserProfile, TenantOrgProfile, UserIdentity, UserOrganizationBinding
+    │   ├── verification/                         # VerificationCode, ApprovalFlow
+    │   ├── compliance/                           # PolicyConfig, PersonalInfoConsent
+    │   ├── team/                                 # Team, TeamMember
+    │   ├── project/                              # Project, ProjectSecret
+    │   ├── im/                                   # ProjectMilestone, ProjectTaskCard（依附于 IM 即时通讯系统）
+    │   ├── note/                                 # Note
+    │   ├── interaction/                          # UserInterestTag, UserInteraction, Achievement
+    │   └── infra/                                # DataEncryptionKey, CreditProfile, CreditLog, FileRecord
     │
-    ├── persistence/mapper/                       # MyBatis Plus Mapper
-    │   ├── UserIdentityMapper.java               # t_user_identity 数据访问层
-    │   └── ClientNoteMapper / UserAuthLinkMapper 等
+    ├── persistence/mapper/                       # MyBatis Plus Mapper（与 entities 子文件夹一一对应）
+    │   ├── auth/     # UserMapper, TenantOrganizationMapper 等
+    │   ├── profile/  # UserProfileMapper, TenantOrgProfileMapper 等
+    │   ├── verification/, compliance/, team/, project/, im/, note/, interaction/, infra/
+    │   └── ...
     │
     ├── media/                                    # 本地文件上传
     ├── config/                                   # CORS、OpenAPI、Cache、Upload、IP 配置
