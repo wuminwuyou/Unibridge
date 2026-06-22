@@ -1,0 +1,46 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Maven build output
+target/
+
+# Node / frontend build output if added later
+node_modules/
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# Scripts (not needed in Docker)
+*.ps1
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# README / docs
+*.md
+!README.md
+
+# Temp
+tmp/
+temp/
+
+# Env (skip .env so it's not baked into the image)
+.env
+.env.local
+*.env
+
+# Local database dumps / generated docs
+db-*.sql
+*-admin.md
+projectDescription.md

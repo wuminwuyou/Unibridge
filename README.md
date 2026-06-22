@@ -90,12 +90,86 @@ src/main/java/com/unibridge/backend/
 
 ---
 
-## 快速开始
+## 快速开始（Docker Compose）
+
+### 前置条件
+
+- **Docker Desktop**（Windows / macOS）或 **Docker Engine**（Linux）
+- 端口 **3306**、**6379**、**8081** 未被其他进程占用
+
+### 一键启动全部服务（MySQL + Redis + 应用）
+
+```bash
+# 复制环境变量模板
+cp .env.example .env          # Linux / macOS
+copy .env.example .env         # Windows PowerShell
+
+# 启动基础设施 + 构建并启动后端应用
+docker compose --profile full up -d
+```
+
+首次启动会自动：
+1. 拉取 `mysql:8.0`、`redis:7-alpine`、`eclipse-temurin:21-jre-alpine` 镜像
+2. 初始化数据库（自动执行 `db.sql`）
+3. 构建后端 jar 并启动应用（`application-docker.properties`，连接容器内 `mysql` / `redis` 服务名）
+4. 等待 MySQL 和 Redis 健康检查通过后启动应用
+
+启动成功后：**http://localhost:8081**
+
+### 仅启动基础设施（开发时手动运行应用）
+
+如果需要在 IDE 中 Debug / 热重载，可以只启动 MySQL 和 Redis：
+
+```bash
+docker compose up -d
+```
+
+然后手动用 Maven 启动应用（使用 `dev` profile 自动连接 `localhost:3306 / 6379`）：
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+导入测试数据（可选）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\insert-test-data.ps1
+```
+
+或手动导入：
+
+```powershell
+mysql -uroot -p111111 project_cooperation_platform < insert-test-data.sql
+```
+
+> **说明：** Docker 中的 MySQL 和 Redis 端口已映射到宿主机 `localhost`，因此本地 dev 启动无需修改任何配置。
+
+### 停止 & 清理
+
+```bash
+docker compose --profile full down            # 停止全部
+docker compose --profile full down -v          # 停止并删除数据卷（重置数据库）
+```
+
+测试账号（密码均为 SHA256(`123456`)）：
+
+| 用户 | 手机号 | 说明 |
+| --- | --- | --- |
+| US00000000001 | 13800001001 | 学生 |
+| US00000000002 | 13800001002 | 导师 |
+| US00000000003 | 13800001003 | 企业 PM |
+
+团队 UID 示例：`LB00000000001`（深大 AI 实验室）、`ST00000000001`（极客创新队）。
+
+---
+
+## 手动启动（无 Docker）
 
 ### 前置条件
 
 - **JDK 21+**
 - **MySQL 8.x**（库名默认 `project_cooperation_platform`）
+- **Redis 7.x**（端口 6379，密码 `f31ae273df314d`）
 - 端口 **8081** 未被占用
 
 ### 初始化数据库（Windows PowerShell）
@@ -109,28 +183,6 @@ powershell -ExecutionPolicy Bypass -File .\init-db.ps1
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\init-db.ps1 -MySqlPassword "<你的密码>"
 ```
-
-导入测试数据（可选，推荐脚本）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\insert-test-data.ps1
-```
-
-或手动导入：
-
-```powershell
-mysql -uroot -p111111 project_cooperation_platform < insert-test-data.sql
-```
-
-测试账号（密码均为 SHA256(`123456`)）：
-
-| 用户 | 手机号 | 说明 |
-| --- | --- | --- |
-| US00000000001 | 13800001001 | 学生 |
-| US00000000002 | 13800001002 | 导师 |
-| US00000000003 | 13800001003 | 企业 PM |
-
-团队 UID 示例：`LB00000000001`（深大 AI 实验室）、`ST00000000001`（极客创新队）。
 
 ### 启动后端
 

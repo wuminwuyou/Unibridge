@@ -1,0 +1,85 @@
+services:
+  # ==============================================================
+  # MySQL 8.0 — 持久化数据卷，端口 3306
+  # ==============================================================
+  mysql:
+    image: mysql:8.0
+    container_name: unibridge-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-111111}
+      MYSQL_DATABASE: project_cooperation_platform
+      TZ: Asia/Shanghai
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-111111}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+
+  # ==============================================================
+  # Redis 7 — 持久化 AOF，端口 6379
+  # ==============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: unibridge-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass ${REDIS_PASSWORD:-f31ae273df314d}
+      - --appendonly yes
+      - --bind 0.0.0.0
+      - --protected-mode no
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-f31ae273df314d}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==============================================================
+  # 后端应用（仅在 full profile 下启动，端口 8081）
+  # ==============================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: unibridge-backend:${APP_IMAGE_TAG:-latest}
+    container_name: unibridge-app
+    restart: unless-stopped
+    profiles:
+      - full
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8081
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-111111}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-f31ae273df314d}
+      FILE_UPLOAD_FOLDER: /app/uploads
+      FILE_PUBLIC_BASE_URL: ${FILE_PUBLIC_BASE_URL:-http://localhost:8081}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75.0 -XX:+UseG1GC}
+    ports:
+      - "${APP_PORT:-8081}:8081"
+    volumes:
+      - upload_data:/app/uploads
+
+volumes:
+  mysql_data:
+  redis_data:
+  upload_data:
