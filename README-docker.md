@@ -101,6 +101,59 @@ Linux / macOS：
 - `localhost:3306`
 - `localhost:6379`
 
+## 导入测试数据
+
+容器环境中的数据库已通过 `db.sql` 完成建表，但默认**不包含测试业务数据**。
+
+### 方式一：通过 docker compose cp + exec 导入（推荐，跨平台通用）
+
+```bash
+# 1. 将 SQL 文件复制到容器内
+docker compose cp insert-test-data.sql mysql:/tmp/insert-test-data.sql
+
+# 2. 在容器内执行导入（避免宿主编码差异导致的中文乱码）
+docker compose exec mysql bash -c "mysql -uroot -p111111 --default-character-set=utf8mb4 project_cooperation_platform < /tmp/insert-test-data.sql"
+
+# 3. 清理容器内的临时文件
+docker compose exec mysql rm /tmp/insert-test-data.sql
+```
+
+> **说明：** PowerShell 的 `Get-Content | docker compose exec` 管道在中文字符场景下会导致编码错误（如 `'????' for key 'uk_xxx_name'`）。上述方式将文件直接复制到容器内执行，完全绕过宿主编码问题，Windows / Linux / macOS 通用。
+
+导入完成后会写入以下测试数据：
+
+| 表 | 行数 | 说明 |
+|---|---|---|
+| `t_tenant_organization` | 3 | 机构 |
+| `t_user` | 3 | 用户 |
+| `t_team` | 3 | 团队 |
+| `t_project` | 3 | 项目 |
+| `t_user_note` | 10 | 笔记（支撑 Feed 换一换联调） |
+
+测试账号（密码均为 `123456` 的 SHA256）：
+
+| 用户 | 手机号 | 邮箱 | 角色 |
+|---|---|---|---|
+| US00000000001 | 13800001001 | zhangming@test.com | 学生 |
+| US00000000002 | 13800001002 | limentor@test.com | 导师 |
+| US00000000003 | 13800001003 | wangpm@tencent.com | 企业 PM |
+
+### 方式二：宿主机有 mysql 客户端
+
+容器 MySQL 的 3306 端口已映射到宿主机，可直接用本地 mysql 客户端连接：
+
+```bash
+mysql -h127.0.0.1 -P3306 -uroot -p111111 project_cooperation_platform < insert-test-data.sql
+```
+
+### 验证导入
+
+```bash
+docker compose exec mysql mysql -uroot -p111111 -e "SELECT COUNT(*) AS note_count FROM project_cooperation_platform.t_user_note;"
+```
+
+预期输出 `note_count: 10`。
+
 ## 常用命令
 
 查看服务状态：
