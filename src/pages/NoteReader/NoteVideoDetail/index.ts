@@ -1,6 +1,4 @@
 export { NoteVideoDetailView } from './NoteVideoDetailView'
-export { buildNoteDetailFromPublishNoteVideo } from './buildNoteDetailFromPublishNoteVideo'
-export { buildNoteVideoDetailFallback } from './buildNoteVideoDetailFallback'
 export { resolveNoteVideoDetail } from './resolveNoteVideoDetail'
 export { formatVideoDurationLabel } from './videoDetailShared'
 export type { NoteVideoDetailPayload } from './types'

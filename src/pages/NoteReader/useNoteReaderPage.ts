@@ -9,8 +9,15 @@ import { parseNoteDetailUidFromQuery } from './shared/noteDetailRouting'
 import { useNoteReaderFromApi } from './useNoteReaderFromApi'
 
 // 01）判断是否来自发布页（resolveNoteEditorialFlow）
-function resolveNoteEditorialFlow(hasRoutePayload: boolean, hasNoteUidQuery: boolean, hasTitleQuery: boolean): boolean {
-  if (hasRoutePayload) {
+function resolveNoteEditorialFlow(
+  routeState: NoteDetailLocationState | null,
+  hasNoteUidQuery: boolean,
+  hasTitleQuery: boolean,
+): boolean {
+  if (routeState?.fromPublishEditor) {
+    return true
+  }
+  if (routeState?.payload) {
     return true
   }
   if (hasNoteUidQuery || hasTitleQuery) {
@@ -34,9 +41,7 @@ export interface UseNoteReaderPageResult {
  * 函数名：useNoteReaderPage
  * 功能：解析路由参数、预览 session 与 API，产出图文/视频阅读载荷。
  * 实现方法：
- * - 优先 location.state / sessionStorage 预览数据
- * - 其次 GET /notes/{uid}
- * - 回退 URL query 演示数据
+ * - 优先 GET /notes/{uid}；无 uid 时回退 session / route state 预览数据
  * 输入：无
  * 输出：
  * - 返回值：UseNoteReaderPageResult
@@ -77,7 +82,7 @@ export function useNoteReaderPage(): UseNoteReaderPageResult {
   }, [contentTypeFromQuery, loadState, resolvedPayload, shouldFetchFromApi, titleFromQuery])
 
   const isEditorialFlow = resolveNoteEditorialFlow(
-    Boolean(routeState?.payload),
+    routeState,
     noteUidFromQuery != null,
     Boolean(titleFromQuery),
   )

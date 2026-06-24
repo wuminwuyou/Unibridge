@@ -5,7 +5,8 @@
   --grid-text-note-summary-lines: 3;
   --grid-note-card-body-min-height: 0;
   --grid-note-card-body-padding: 8px 16px 12px;
-  --grid-note-card-min-height: 240px;
+  --grid-note-card-min-height: auto;
+  aspect-ratio: auto;
 
   padding: 0;
 }
@@ -137,6 +138,7 @@
   flex: 1 1 auto;
   min-height: 0;
   grid-template-rows: 1fr;
+  height: 100%;
 }
 
 .grid-note-card-grid--equal-rows .grid-text-note-card__main {
@@ -160,6 +162,10 @@
 }
 
 @media (max-width: 640px) {
+  .grid-text-note-card {
+    aspect-ratio: auto;
+  }
+
   .grid-text-note-card__main {
     padding: 10px 10px 10px 12px;
   }

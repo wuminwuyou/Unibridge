@@ -24,8 +24,8 @@ import {
 } from './publishNoteFormSession'
 import type { NoteResourceUid } from '../../api/resourceUid'
 import { hasPublishNoteUserInput } from './publishNoteFormUtils'
-import { navigateToNoteArticleDetail } from './navigateToNoteDetail'
 import { clearNoteDetailPreview } from '../NoteReader/shared/noteDetailPreviewSession'
+import type { NoteDetailLocationState } from '../NoteReader/types'
 import type { PublishNoteMediaPersist } from './publishNoteSubmit'
 import { NotesApiError, submitPublishNote, type PublishNoteSubmitPhase } from './submitPublishNote'
 import { resolvePublishNoteSummary } from '../../utils/publishSummary'
@@ -429,27 +429,17 @@ export function usePublishNoteForm() {
       markSaved()
 
       if (successMode === 'preview') {
+        clearNoteDetailPreview()
         skipClearSessionRef.current = true
         persistSessionSnapshot({
           noteUid: result.noteUid,
           mediaPersist: result.mediaPersist,
         })
 
-        const previewCoverUrl = result.mediaPersist.coverUrl ?? cover.activePreviewUrl
-        const previewVideoUrl = result.mediaPersist.videoUrl ?? videoPreviewUrl
-        const previewDuration = result.mediaPersist.videoDuration ?? 0
-
         leaveGuard.allowNextNavigation()
-        navigateToNoteArticleDetail(
-          navigate,
-          syncDraftBody(draft, bodyContent),
-          bodyContent,
-          previewCoverUrl,
-          'PREVIEW',
-          previewVideoUrl,
-          previewDuration,
-          videoDescription,
-        )
+        navigate(`/note-detail?uid=${encodeURIComponent(result.noteUid)}`, {
+          state: { fromPublishEditor: true } satisfies NoteDetailLocationState,
+        })
         return true
       }
 

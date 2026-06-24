@@ -24,8 +24,6 @@ export {
 
 export {
   NoteVideoDetailView,
-  buildNoteDetailFromPublishNoteVideo,
-  buildNoteVideoDetailFallback,
   resolveNoteVideoDetail,
   formatVideoDurationLabel,
 } from './NoteVideoDetail'

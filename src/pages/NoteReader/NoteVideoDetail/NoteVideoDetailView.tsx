@@ -2,6 +2,8 @@ import { useState } from 'react'
 import {
   ArrowLeft,
   Bookmark,
+  ChevronDown,
+  ChevronUp,
   Eye,
   MoreHorizontal,
   Share2,
@@ -10,6 +12,7 @@ import {
 import { Link } from 'react-router-dom'
 import { NoteCommentsSection } from '../../../components/NoteCommentsSection'
 import { NoteVideoPlayer } from '../../../components/NoteVideoPlayer'
+import { NoteQuickMdEditor } from './components/NoteQuickMdEditor'
 import {
   formatNoteStatCount,
   noteDetailPublishStatusLabelMap,
@@ -42,6 +45,7 @@ interface NoteVideoDetailViewProps {
 export function NoteVideoDetailView({ note, isEditorialFlow = false }: NoteVideoDetailViewProps) {
   const statusLabel = noteDetailPublishStatusLabelMap[note.publishStatus]
   const [summaryExpanded, setSummaryExpanded] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const hasSummary = Boolean(note.summary.trim())
 
   return (
@@ -61,100 +65,124 @@ export function NoteVideoDetailView({ note, isEditorialFlow = false }: NoteVideo
         <section className="note-video-page__hero" aria-label="视频播放区">
           <div className="note-video-page__main">
             <NoteVideoPlayer videoUrl={note.videoUrl} posterUrl={note.coverUrl} className="note-video-page__player" />
-
-            <h1 className="note-video-page__title" title={note.title}>
-              {note.title}
-            </h1>
-
-            <div className="note-video-page__channel-row">
-              <div className="note-video-page__author">
-                {note.author.avatarUrl ? (
-                  <img className="note-video-page__avatar" src={note.author.avatarUrl} alt="" />
-                ) : (
-                  <span className="note-video-page__avatar note-video-page__avatar--fallback">
-                    {resolveNoteAuthorInitial(note.author.name)}
-                  </span>
-                )}
-                <div className="note-video-page__author-meta">
-                  <div className="note-video-page__author-line">
-                    <strong>{note.author.name}</strong>
-                    <span>@{note.author.handle}</span>
-                    {note.publishStatus !== 'PUBLISHED' ? (
-                      <span
-                        className={`note-video-page__status note-video-page__status--${note.publishStatus.toLowerCase()}`}
-                      >
-                        {statusLabel}
-                      </span>
-                    ) : null}
-                  </div>
-                  <time className="note-video-page__time" dateTime={note.publishTime}>
-                    发布于 {note.publishTime}
-                  </time>
-                </div>
-              </div>
-
-              <div className="note-video-page__actions">
-                <span className="note-video-page__views">
-                  <Eye className="h-3.5 w-3.5" />
-                  {formatNoteStatCount(note.views)} 浏览
-                </span>
-                <button type="button" className="note-video-page__action-btn">
-                  <ThumbsUp className="h-4 w-4" />
-                  点赞
-                </button>
-                <button type="button" className="note-video-page__action-btn">
-                  <Share2 className="h-4 w-4" />
-                  分享
-                </button>
-                <button type="button" className="note-video-page__action-btn" aria-label="收藏">
-                  <Bookmark className="h-4 w-4" />
-                </button>
-                <button type="button" className="note-video-page__action-btn" aria-label="更多操作">
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="note-video-page__desc-box">
-              {hasSummary ? (
-                <div className="note-video-page__summary-block">
-                  <p
-                    className={`note-video-page__summary ${summaryExpanded ? '' : 'note-video-page__summary--collapsed'}`.trim()}
-                  >
-                    {note.summary}
-                  </p>
-                  <button
-                    type="button"
-                    className="note-video-page__summary-toggle"
-                    onClick={() => setSummaryExpanded((expanded) => !expanded)}
-                    aria-expanded={summaryExpanded}
-                  >
-                    {summaryExpanded ? '收起' : '...更多'}
-                  </button>
-                </div>
-              ) : null}
-
-              {note.tags.length > 0 ? (
-                <div className="note-video-page__tags">
-                  {note.tags.map((tag) => (
-                    <span key={tag} className="note-video-page__tag">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </div>
           </div>
 
-          <aside className="note-video-page__sidebar" aria-label="视频侧栏">
+          <aside
+            className={`note-video-page__sidebar ${sidebarCollapsed ? 'note-video-page__sidebar--collapsed' : ''}`.trim()}
+            aria-label="便捷笔记"
+          >
             <div className="note-video-page__sidebar-card">
-              <p className="note-video-page__sidebar-label">侧栏</p>
-              <p className="note-video-page__sidebar-placeholder">推荐视频、作者卡片等组件将在此展示。</p>
+              <div className="note-video-page__sidebar-card-head">
+                <button
+                  type="button"
+                  className="note-video-page__sidebar-card-head-inner"
+                  onClick={() => setSidebarCollapsed((c) => !c)}
+                  aria-expanded={!sidebarCollapsed}
+                  aria-label={sidebarCollapsed ? '展开笔记编辑器' : '收起笔记编辑器'}
+                >
+                  <span className="note-video-page__sidebar-card-title">便捷笔记</span>
+                  {sidebarCollapsed ? (
+                    <ChevronUp className="note-video-page__sidebar-card-arrow h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <ChevronDown className="note-video-page__sidebar-card-arrow h-4 w-4" aria-hidden="true" />
+                  )}
+                </button>
+              </div>
+              <div className="note-video-page__sidebar-card-body">
+                <NoteQuickMdEditor note={note} />
+              </div>
             </div>
           </aside>
-        </section>
 
-        <NoteCommentsSection commentCount={note.comments} />
+          <div className="note-video-page__left-column">
+            <div className="note-video-page__content">
+              <h1 className="note-video-page__title" title={note.title}>
+                {note.title}
+              </h1>
+
+              <div className="note-video-page__channel-row">
+                <div className="note-video-page__author">
+                  {note.author.avatarUrl ? (
+                    <img className="note-video-page__avatar" src={note.author.avatarUrl} alt="" />
+                  ) : (
+                    <span className="note-video-page__avatar note-video-page__avatar--fallback">
+                      {resolveNoteAuthorInitial(note.author.name)}
+                    </span>
+                  )}
+                  <div className="note-video-page__author-meta">
+                    <div className="note-video-page__author-line">
+                      <strong>{note.author.name}</strong>
+                      <span>@{note.author.handle}</span>
+                      {note.publishStatus !== 'PUBLISHED' ? (
+                        <span
+                          className={`note-video-page__status note-video-page__status--${note.publishStatus.toLowerCase()}`}
+                        >
+                          {statusLabel}
+                        </span>
+                      ) : null}
+                    </div>
+                    <time className="note-video-page__time" dateTime={note.publishTime}>
+                      发布于 {note.publishTime}
+                    </time>
+                  </div>
+                </div>
+
+                <div className="note-video-page__actions">
+                  <span className="note-video-page__views">
+                    <Eye className="h-3.5 w-3.5" />
+                    {formatNoteStatCount(note.views)} 浏览
+                  </span>
+                  <button type="button" className="note-video-page__action-btn">
+                    <ThumbsUp className="h-4 w-4" />
+                    点赞
+                  </button>
+                  <button type="button" className="note-video-page__action-btn">
+                    <Share2 className="h-4 w-4" />
+                    分享
+                  </button>
+                  <button type="button" className="note-video-page__action-btn" aria-label="收藏">
+                    <Bookmark className="h-4 w-4" />
+                  </button>
+                  <button type="button" className="note-video-page__action-btn" aria-label="更多操作">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="note-video-page__desc-box">
+                {hasSummary ? (
+                  <div className="note-video-page__summary-block">
+                    <p
+                      className={`note-video-page__summary ${summaryExpanded ? '' : 'note-video-page__summary--collapsed'}`.trim()}
+                    >
+                      {note.summary}
+                    </p>
+                    <button
+                      type="button"
+                      className="note-video-page__summary-toggle"
+                      onClick={() => setSummaryExpanded((expanded) => !expanded)}
+                      aria-expanded={summaryExpanded}
+                    >
+                      {summaryExpanded ? '收起' : '...更多'}
+                    </button>
+                  </div>
+                ) : null}
+
+                {note.tags.length > 0 ? (
+                  <div className="note-video-page__tags">
+                    {note.tags.map((tag) => (
+                      <span key={tag} className="note-video-page__tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <NoteCommentsSection commentCount={note.comments} />
+          </div>
+        </section>
       </div>
     </div>
   )

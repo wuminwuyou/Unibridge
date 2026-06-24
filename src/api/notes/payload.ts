@@ -195,5 +195,8 @@ export function normalizeUpsertNoteRequestPayload(payload: UpsertNoteRequest): U
 
   normalized.videoUrl = videoUrl
   normalized.videoDuration = videoDuration
+  if (payload.content != null) {
+    normalized.content = payload.content
+  }
   return normalized
 }

@@ -1,9 +1,13 @@
+import type { NoteResourceUid } from '../../../api/resourceUid'
 import type { NoteDetailAuthor, NoteDetailPublishStatus } from '../shared/noteDetailCommon'
 
 // 01）视频笔记详情载荷（NoteVideoDetailPayload）
 export interface NoteVideoDetailPayload {
+  uid?: NoteResourceUid
   contentType: '视频'
   title: string
+  /** 便捷笔记 Markdown 正文（对应 API body / content） */
+  body: string
   summary: string
   tags: string[]
   coverUrl: string | null

@@ -28,9 +28,11 @@ export function mapNoteDetailToPayload(dto: NoteDetailDto): NoteDetailPayload {
 
   if (dto.contentType === '视频') {
     const payload: NoteVideoDetailPayload = {
+      uid: dto.uid,
       contentType: '视频',
       title: dto.title,
       summary: dto.summary ?? '',
+      body: dto.body ?? '',
       tags: dto.tags ?? [],
       coverUrl: dto.coverUrl ?? null,
       videoUrl: dto.videoUrl ?? '',

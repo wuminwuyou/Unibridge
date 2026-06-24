@@ -4,7 +4,7 @@
   min-height: calc(100vh - 4rem);
   background: var(--page-bg);
   color: var(--text-main);
-  padding: 1.25rem 10% 3rem;
+  padding: 1.25rem 0 3rem;
 }
 
 .note-video-page--editorial {
@@ -13,7 +13,11 @@
 }
 
 .note-video-page__shell {
-  max-width: 1200px;
+  box-sizing: border-box;
+  /* 核心响应式：保证大屏 90vw，中屏保护 1080px，小屏留白 24px */
+  width: clamp(90vw, 1080px, calc(100vw - 48px));
+  /* 2K屏极限保护：1920px 宽度 */
+  max-width: 1920px;
   margin: 0 auto;
   min-width: 0;
 }
@@ -46,21 +50,38 @@
   color: var(--text-soft);
 }
 
-/* 03）双栏 hero：播放器 + 侧栏 */
+/* 03）双栏 hero：播放器 + 侧栏等高，下方为笔记信息 */
+
 .note-video-page__hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 17.5rem;
+  /* 右侧栏宽度：最少 20rem，占容器 30%，最大 35rem */
+  grid-template-columns: minmax(0, 1fr) clamp(20rem, 30%, 35rem);
   gap: 1.25rem;
-  align-items: start;
+  align-items: stretch;
   margin-bottom: 0.5rem;
 }
+
+/* 03-a）播放器（位于第 1 列第 1 行），侧栏自动对齐该行高度 */
 
 .note-video-page__main {
   min-width: 0;
 }
 
 .note-video-page__player {
-  margin-bottom: 0.625rem;
+  margin-bottom: 0;
+}
+
+/* 03-b）左侧栏（笔记信息 + 评论区），位于第 1 列第 2 行 */
+
+.note-video-page__left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.note-video-page__content {
+  min-width: 0;
 }
 
 .note-video-page__title {
@@ -75,37 +96,96 @@
 }
 
 .note-video-page__sidebar {
-  position: sticky;
-  top: var(--detail-sticky-top, 6rem);
-  align-self: start;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  max-height: 4000px;
+  transition: max-height 0.4s ease;
+}
+
+/* 折叠态：侧栏收缩至仅头部高度（约 3rem） */
+
+.note-video-page__sidebar--collapsed {
+  max-height: 3rem;
+  overflow: visible;
 }
 
 .note-video-page__sidebar-card {
-  border: 1px dashed var(--card-border);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--card-border);
   border-radius: 0.75rem;
   background: var(--card-bg);
-  padding: 1.25rem 1rem;
-  min-height: 12rem;
+  overflow: hidden;
   box-shadow: var(--panel-shadow);
 }
 
-.note-video-page__sidebar-label {
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-soft);
+/* 03-c）侧栏卡片头 — 整个 inner 按钮可点击折叠 */
+
+.note-video-page__sidebar-card-head {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--card-border);
+  background: var(--chip-bg);
 }
 
-.note-video-page__sidebar-placeholder {
-  margin: 0;
+.note-video-page__sidebar-card-head-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.625rem 0.875rem;
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+}
+
+.note-video-page__sidebar-card-head-inner:hover {
+  background: color-mix(in srgb, var(--primary-soft) 25%, transparent);
+}
+
+.note-video-page__sidebar-card-title {
   font-size: 0.8125rem;
-  line-height: 1.6;
-  color: var(--text-soft);
+  font-weight: 600;
 }
 
-/* 04）作者行 + 操作按钮（YouTube 频道栏） */
+.note-video-page__sidebar-card-arrow {
+  flex-shrink: 0;
+  color: var(--text-soft);
+  transition: transform 0.3s ease;
+}
+
+/* 折叠态箭头翻转指示 */
+
+.note-video-page__sidebar--collapsed .note-video-page__sidebar-card-arrow {
+  transform: rotate(180deg);
+}
+
+/* 03-d）侧栏卡片 body — 折叠/展开过渡动画 */
+
+.note-video-page__sidebar-card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 100%;
+  opacity: 1;
+  transition: max-height 0.35s ease, opacity 0.3s ease 0.1s;
+}
+
+.note-video-page__sidebar--collapsed .note-video-page__sidebar-card-body {
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.2s ease 0s;
+}
 .note-video-page__channel-row {
   display: flex;
   align-items: center;
@@ -277,30 +357,4 @@
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--primary-text);
-}
-
-@media (max-width: 1024px) {
-  .note-video-page__hero {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .note-video-page__sidebar {
-    position: static;
-  }
-}
-
-@media (max-width: 768px) {
-  .note-video-page {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
-  .note-video-page__channel-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .note-video-page__actions {
-    justify-content: flex-start;
-  }
 }

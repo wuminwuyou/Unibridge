@@ -10,7 +10,8 @@
 /* 02）双栏主容器：70% 项目大厅 + 30% 侧栏 */
 .home-page__main {
   box-sizing: border-box;
-  width: min(1280px, calc(100vw - 48px));
+  /* 核心响应式：保证大屏 75vw，中屏保护 1200px，小屏留白 24px */
+  width: clamp(75vw, 1200px, calc(100vw - 48px));
   margin: 24px auto 0;
   padding-bottom: 40px;
   display: grid;
@@ -219,6 +220,9 @@
   gap: 16px;
 }
 
+@media (max-width: 768px) {
+}
+
 /* 04）右侧信息卡片区 */
 .project-channel-layout__sidebar {
   min-width: 0;
@@ -389,16 +393,11 @@
 }
 
 /* 05）响应式布局 */
-@media (max-width: 1280px) {
-  .home-page__main {
-    width: min(1280px, calc(100vw - 32px));
-  }
-}
-
 @media (max-width: 980px) {
   .home-page__main {
     grid-template-columns: 1fr;
     gap: 28px;
+    /* width 已由 clamp 自动接管，此处只需变为单栏布局 */
   }
 
   .project-channel-layout__sidebar {
@@ -408,7 +407,8 @@
 
 @media (max-width: 640px) {
   .home-page__main {
-    width: min(1280px, calc(100vw - 20px));
+    /* 移动端更紧凑的安全边距（左右各 12px） */
+    width: calc(100vw - 24px);
     margin-top: 16px;
   }
 

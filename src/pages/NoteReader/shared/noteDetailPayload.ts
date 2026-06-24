@@ -7,6 +7,8 @@ export type NoteDetailPayload = NoteArticleDetailPayload | NoteVideoDetailPayloa
 // 02）笔记详情路由状态（NoteDetailLocationState）
 export interface NoteDetailLocationState {
   payload?: NoteDetailPayload
+  /** 从发布页预览/保存后跳转，展示「返回编辑」横幅 */
+  fromPublishEditor?: boolean
 }
 
 // 03）类型守卫：图文笔记（isNoteArticleDetailPayload）

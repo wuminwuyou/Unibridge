@@ -5,6 +5,7 @@
   --grid-note-card-body-min-height: 0;
 
   padding: 0;
+  aspect-ratio: auto;
 }
 
 :root[data-theme='dark'] .grid-video-note-card {
@@ -94,6 +95,10 @@
 }
 
 @media (max-width: 640px) {
+  .grid-video-note-card {
+    aspect-ratio: auto;
+  }
+  
   .grid-video-note-card__body {
     padding: var(--grid-note-card-body-padding);
   }
