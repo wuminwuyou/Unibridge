@@ -50,18 +50,38 @@
   color: var(--text-soft);
 }
 
-/* 03）双栏 hero：播放器 + 侧栏等高，下方为笔记信息 */
+/* 03）左右双栏 hero：左（播放器 + 信息 + 评论）｜ 右（编辑器卡片 + 推荐） */
 
 .note-video-page__hero {
-  display: grid;
-  /* 右侧栏宽度：最少 20rem，占容器 30%，最大 35rem */
-  grid-template-columns: minmax(0, 1fr) clamp(20rem, 30%, 35rem);
+  display: flex;
+  align-items: flex-start;
   gap: 1.25rem;
-  align-items: stretch;
   margin-bottom: 0.5rem;
 }
 
-/* 03-a）播放器（位于第 1 列第 1 行），侧栏自动对齐该行高度 */
+/* 03-a）左栏：垂直流（播放器在上，信息+评论在下），独立宽度由 flex:1 占满剩余 */
+
+.note-video-page__left-column {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* 03-b）右栏：固定宽度，垂直堆叠（编辑器卡片 + 推荐列表），sticky 悬停跟随 */
+
+.note-video-page__right-column {
+  flex: 0 0 clamp(20rem, 30%, 35rem);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: sticky;
+  top: 1.25rem;
+}
+
+/* 03-c）播放器容器（左栏内部第1行，作为编辑器高度参考） */
 
 .note-video-page__main {
   min-width: 0;
@@ -71,52 +91,21 @@
   margin-bottom: 0;
 }
 
-/* 03-b）左侧栏（笔记信息 + 评论区），位于第 1 列第 2 行 */
-
-.note-video-page__left-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 0;
-}
-
-.note-video-page__content {
-  min-width: 0;
-}
-
-.note-video-page__title {
-  margin: 0 0 0.75rem;
-  font-size: clamp(1.275rem, 3.3vw, 1.575rem);
-  font-weight: 600;
-  line-height: 1.4;
-  letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* 03-d）编辑器卡片容器 — 高度由 JS 注入（=播放器高度 / 头部高度），驱动外+内同步动画 */
 
 .note-video-page__sidebar {
-  position: relative;
-  min-height: 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  max-height: 4000px;
-  transition: max-height 0.4s ease;
-}
-
-/* 折叠态：侧栏收缩至仅头部高度（约 3rem） */
-
-.note-video-page__sidebar--collapsed {
-  max-height: 3rem;
-  overflow: visible;
+  transition: height 0.35s ease;
 }
 
 .note-video-page__sidebar-card {
-  position: absolute;
-  inset: 0;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-height: 0;
   border: 1px solid var(--card-border);
   border-radius: 0.75rem;
   background: var(--card-bg);
@@ -124,7 +113,7 @@
   box-shadow: var(--panel-shadow);
 }
 
-/* 03-c）侧栏卡片头 — 整个 inner 按钮可点击折叠 */
+/* 03-e）侧栏卡片头 — 整个 inner 按钮可点击折叠 */
 
 .note-video-page__sidebar-card-head {
   flex-shrink: 0;
@@ -168,7 +157,7 @@
   transform: rotate(180deg);
 }
 
-/* 03-d）侧栏卡片 body — 折叠/展开过渡动画 */
+/* 03-e）侧栏卡片 body — 由父高度驱动同步收缩，无需独立动画 */
 
 .note-video-page__sidebar-card-body {
   flex: 1;
@@ -176,16 +165,43 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  max-height: 100%;
-  opacity: 1;
-  transition: max-height 0.35s ease, opacity 0.3s ease 0.1s;
 }
 
-.note-video-page__sidebar--collapsed .note-video-page__sidebar-card-body {
-  max-height: 0;
-  opacity: 0;
-  transition: max-height 0.35s ease, opacity 0.2s ease 0s;
+/* 03-f）推荐列表 — 与编辑器卡片同属右栏 flex 列，折叠后自动上移 */
+
+.note-video-page__recommendations {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
 }
+
+.note-video-page__recommendations-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* 04）笔记信息区（左栏第2行 content + 第3行评论由 NoteCommentsSection 渲染） */
+
+.note-video-page__content {
+  min-width: 0;
+}
+
+.note-video-page__title {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.275rem, 3.3vw, 1.575rem);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 05）作者行 + 操作按钮（YouTube 频道栏） */
 .note-video-page__channel-row {
   display: flex;
   align-items: center;
@@ -301,7 +317,7 @@
   color: var(--primary-text);
 }
 
-/* 05）简介区（YouTube 描述框） */
+/* 06）简介区（YouTube 描述框） */
 .note-video-page__desc-box {
   border-radius: 0.75rem;
   background: color-mix(in srgb, var(--chip-bg) 85%, var(--card-bg));
