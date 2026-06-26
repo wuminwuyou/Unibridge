@@ -8,10 +8,14 @@ import com.unibridge.backend.domain.note.dto.NoteDetailResponse;
 import com.unibridge.backend.domain.note.dto.PublishNoteDraftResponse;
 import com.unibridge.backend.domain.note.dto.PublishNoteRequest;
 import com.unibridge.backend.domain.note.dto.PublishNoteResponse;
+import com.unibridge.backend.infrastructure.entities.note.NoteDetail;
+import com.unibridge.backend.infrastructure.entities.note.NoteCounter;
 import com.unibridge.backend.infrastructure.entities.note.Note;
 import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
 import com.unibridge.backend.infrastructure.entities.profile.UserIdentity;
 import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteDetailMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteCounterMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserIdentityMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
@@ -32,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 public class NoteService {
@@ -45,9 +50,11 @@ public class NoteService {
     private static final String CONTENT_TYPE_IMAGE_TEXT = "图文";
     private static final String CONTENT_TYPE_VIDEO = "视频";
     private static final String STATUS_DRAFT = "DRAFT";
+    private static final String STATUS_REVIEWING = "REVIEWING";
     private static final String STATUS_PUBLISHED = "PUBLISHED";
     private static final String STATUS_BANNED = "BANNED";
-    private static final String EDITOR_TYPE_MARKDOWN = "MARKDOWN";
+    private static final String VISIBILITY_PUBLIC = "PUBLIC";
+    private static final String VISIBILITY_PRIVATE = "PRIVATE";
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
@@ -55,6 +62,8 @@ public class NoteService {
 
     private final AccessService clientAccessService;
     private final NoteMapper noteMapper;
+    private final NoteDetailMapper noteDetailMapper;
+    private final NoteCounterMapper noteCounterMapper;
     private final UserProfileMapper userProfileMapper;
     private final UserIdentityMapper userIdentityMapper;
     private final NoteViewTracker noteViewTracker;
@@ -62,12 +71,16 @@ public class NoteService {
 
     public NoteService(AccessService clientAccessService,
                              NoteMapper noteMapper,
+                             NoteDetailMapper noteDetailMapper,
+                             NoteCounterMapper noteCounterMapper,
                              UserProfileMapper userProfileMapper,
                              UserIdentityMapper userIdentityMapper,
                              NoteViewTracker noteViewTracker,
                              ContentUidResolver contentUidResolver) {
         this.clientAccessService = clientAccessService;
         this.noteMapper = noteMapper;
+        this.noteDetailMapper = noteDetailMapper;
+        this.noteCounterMapper = noteCounterMapper;
         this.userProfileMapper = userProfileMapper;
         this.userIdentityMapper = userIdentityMapper;
         this.noteViewTracker = noteViewTracker;
@@ -87,6 +100,10 @@ public class NoteService {
         applyRequestToNote(note, request, null);
         noteMapper.insert(note);
 
+        // 拆分写入：正文到 t_user_note_detail，计数器到 t_user_note_counter
+        saveNoteDetail(note.getContentTypeCode(), request);
+        saveNoteCounter(note.getContentTypeCode());
+
         Note persisted = noteMapper.selectById(note.getId());
         return buildResponse(persisted, request.getPublishAction());
     }
@@ -104,6 +121,9 @@ public class NoteService {
         applyRequestToNote(note, request, note.getContentTypeCode());
         noteMapper.updateById(note);
 
+        // 同步更新 body 大文本到垂直拆分表
+        upsertNoteDetail(note.getContentTypeCode(), request);
+
         Note persisted = noteMapper.selectById(note.getId());
         return buildResponse(persisted, request.getPublishAction());
     }
@@ -112,18 +132,20 @@ public class NoteService {
         String userUid = clientAccessService.requireCurrentUserUid(authorization);
         Note note = requireOwnedNote(noteUid, userUid);
 
+        NoteDetail detail = loadNoteDetail(note.getContentTypeCode());
         return PublishNoteDraftResponse.builder()
                 .uid(note.getContentTypeCode())
                 .publishAction(STATUS_DRAFT.equals(note.getStatus()) ? PUBLISH_ACTION_DRAFT : PUBLISH_ACTION_PUBLISH)
                 .title(note.getTitle())
                 .summary(note.getSummary())
                 .contentType(mapContentTypeCodeToDisplay(note.getContentTypeCode()))
-                .content(note.getContent())
+                .content(detail != null ? detail.getContent() : null)
                 .tags(parseJsonStringList(note.getTags()))
                 .coverUrl(note.getCoverUrl())
                 .videoUrl(note.getVideoUrl())
                 .videoDuration(note.getVideoDuration())
-                .editorType(defaultEditorType(note.getEditorType()))
+                .parentContentTypeCode(detail != null ? detail.getParentContentTypeCode() : null)
+                .visibility(note.getVisibility())
                 .build();
     }
 
@@ -145,8 +167,8 @@ public class NoteService {
         String currentUserUid = clientAccessService.resolveOptionalCurrentUserUid(authorization);
         assertNoteReadable(note, currentUserUid);
 
-        if (tryIncrementViewCount(note, currentUserUid, request)) {
-            note = noteMapper.selectById(note.getId());
+        if (tryIncrementViewCount(note.getContentTypeCode(), currentUserUid, request)) {
+            // counter updated in separate table, no need to reload note
         }
 
         return buildNoteDetailResponse(note);
@@ -155,24 +177,27 @@ public class NoteService {
     private NoteDetailResponse buildNoteDetailResponse(Note note) {
         UserProfile profile = loadUserProfile(note.getUserUid());
         LocalDateTime displayPublishTime = resolveDisplayTime(note.getPublishedAt(), note.getCreatedAt());
+        NoteCounter counter = loadNoteCounter(note.getContentTypeCode());
+        NoteDetail detail = loadNoteDetail(note.getContentTypeCode());
 
         return NoteDetailResponse.builder()
                 .uid(note.getContentTypeCode())
                 .contentType(mapContentTypeCodeToDisplay(note.getContentTypeCode()))
                 .title(note.getTitle())
                 .summary(note.getSummary())
-                .body(note.getContent())
-                .editorType(defaultEditorType(note.getEditorType()))
+                .body(detail != null ? detail.getContent() : null)
                 .tags(parseJsonStringList(note.getTags()))
                 .coverUrl(note.getCoverUrl())
                 .videoUrl(note.getVideoUrl())
                 .videoDuration(note.getVideoDuration())
+                .parentContentTypeCode(detail != null ? detail.getParentContentTypeCode() : null)
+                .visibility(note.getVisibility())
                 .author(buildAuthor(profile, note.getUserUid()))
                 .publishTime(formatOffsetDateTime(displayPublishTime))
                 .updateTime(formatOffsetDateTime(note.getUpdatedAt()))
-                .views(note.getViewCount() == null ? 0 : note.getViewCount())
-                .comments(note.getCommentCount() == null ? 0 : note.getCommentCount())
-                .favorites(note.getCollectCount() == null ? 0 : note.getCollectCount())
+                .views(counter != null && counter.getViewCount() != null ? counter.getViewCount() : 0)
+                .comments(counter != null && counter.getCommentCount() != null ? counter.getCommentCount() : 0)
+                .favorites(counter != null && counter.getCollectCount() != null ? counter.getCollectCount() : 0)
                 .status(note.getStatus())
                 .build();
     }
@@ -181,15 +206,23 @@ public class NoteService {
         if (STATUS_PUBLISHED.equals(note.getStatus())) {
             return;
         }
-        if (!STATUS_DRAFT.equals(note.getStatus())) {
-            throw BusinessException.notFound("NOTE_NOT_FOUND");
+        if (STATUS_REVIEWING.equals(note.getStatus())) {
+            // 审核中的笔记仅 owner 可见
+            if (currentUserUid == null || !currentUserUid.equals(note.getUserUid())) {
+                throw BusinessException.notFound("NOTE_NOT_FOUND");
+            }
+            return;
         }
-        if (currentUserUid == null) {
-            throw BusinessException.notFound("NOTE_NOT_FOUND");
+        if (STATUS_DRAFT.equals(note.getStatus())) {
+            if (currentUserUid == null) {
+                throw BusinessException.notFound("NOTE_NOT_FOUND");
+            }
+            if (!currentUserUid.equals(note.getUserUid())) {
+                throw new BusinessException(403, "NOTE_NOT_OWNER");
+            }
+            return;
         }
-        if (!currentUserUid.equals(note.getUserUid())) {
-            throw new BusinessException(403, "NOTE_NOT_OWNER");
-        }
+        throw BusinessException.notFound("NOTE_NOT_FOUND");
     }
 
     /**
@@ -197,18 +230,16 @@ public class NoteService {
      *
      * @return 是否已执行 +1（便于调用方决定是否重新加载 note）
      */
-    private boolean tryIncrementViewCount(Note note, String currentUserUid, HttpServletRequest request) {
-        if (!STATUS_PUBLISHED.equals(note.getStatus())) {
+    private boolean tryIncrementViewCount(String contentTypeCode, String currentUserUid, HttpServletRequest request) {
+        if (contentTypeCode == null) {
             return false;
         }
-        if (currentUserUid != null && currentUserUid.equals(note.getUserUid())) {
-            return false;
-        }
+        // Use a simple viewer key based on contentTypeCode
         String viewerKey = resolveViewerKey(currentUserUid, request);
-        if (!noteViewTracker.shouldCountView(viewerKey, note.getId())) {
+        if (!noteViewTracker.shouldCountView(viewerKey, (long) (contentTypeCode.hashCode() & 0x7FFFFFFF))) {
             return false;
         }
-        incrementViewCount(note.getId());
+        incrementViewCount(contentTypeCode);
         return true;
     }
 
@@ -228,12 +259,11 @@ public class NoteService {
      * 由数据库的行级锁和原子运算保证计数器正确性。
      * </p>
      */
-    private void incrementViewCount(Long noteId) {
-        // 使用 MyBatis-Plus LambdaUpdateWrapper 执行原子自增
-        LambdaUpdateWrapper<Note> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(Note::getId, noteId)
+    private void incrementViewCount(String contentTypeCode) {
+        LambdaUpdateWrapper<NoteCounter> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(NoteCounter::getContentTypeCode, contentTypeCode)
                 .setSql("view_count = COALESCE(view_count, 0) + 1");
-        noteMapper.update(null, wrapper);
+        noteCounterMapper.update(null, wrapper);
     }
 
     private UserProfile loadUserProfile(String userUid) {
@@ -277,16 +307,63 @@ public class NoteService {
         return publishedAt != null ? publishedAt : createdAt;
     }
 
-    private String defaultEditorType(String editorType) {
-        return StringUtils.hasText(editorType) ? editorType : EDITOR_TYPE_MARKDOWN;
-    }
-
     private Note requireOwnedNote(String noteUid, String userUid) {
         Note note = contentUidResolver.requireNoteByUid(noteUid);
         if (!userUid.equals(note.getUserUid())) {
             throw new BusinessException(403, "NOTE_NOT_OWNER");
         }
         return note;
+    }
+
+    /**
+     * 查询视频笔记下所有便捷图文子笔记。
+     * <p>
+     * 通过 t_user_note_detail.parent_content_type_code 查找关联的图文笔记。
+     * </p>
+     */
+    public List<PublishNoteDraftResponse> getNoteChildren(String authorization, String parentNoteUid) {
+        clientAccessService.resolveOptionalCurrentUserUid(authorization);
+        Note parentNote = contentUidResolver.requireNoteByUid(parentNoteUid);
+        if (STATUS_BANNED.equals(parentNote.getStatus())) {
+            throw BusinessException.notFound("NOTE_NOT_FOUND");
+        }
+
+        LambdaQueryWrapper<NoteDetail> detailWrapper = new LambdaQueryWrapper<>();
+        detailWrapper.eq(NoteDetail::getParentContentTypeCode, parentNote.getContentTypeCode());
+        List<NoteDetail> childDetails = noteDetailMapper.selectList(detailWrapper);
+        if (childDetails.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> childCodes = childDetails.stream()
+                .map(NoteDetail::getContentTypeCode)
+                .collect(Collectors.toList());
+
+        LambdaQueryWrapper<Note> noteWrapper = new LambdaQueryWrapper<>();
+        noteWrapper.in(Note::getContentTypeCode, childCodes)
+                .eq(Note::getStatus, STATUS_PUBLISHED)
+                .eq(Note::getVisibility, "PUBLIC");
+        List<Note> childNotes = noteMapper.selectList(noteWrapper);
+
+        return childNotes.stream().map(child -> {
+            NoteDetail detail = childDetails.stream()
+                    .filter(d -> d.getContentTypeCode().equals(child.getContentTypeCode()))
+                    .findFirst().orElse(null);
+            return PublishNoteDraftResponse.builder()
+                    .uid(child.getContentTypeCode())
+                    .publishAction(PUBLISH_ACTION_PUBLISH)
+                    .title(child.getTitle())
+                    .summary(child.getSummary())
+                    .contentType(mapContentTypeCodeToDisplay(child.getContentTypeCode()))
+                    .content(detail != null ? detail.getContent() : null)
+                    .tags(parseJsonStringList(child.getTags()))
+                    .coverUrl(child.getCoverUrl())
+                    .videoUrl(child.getVideoUrl())
+                    .videoDuration(child.getVideoDuration())
+                    .parentContentTypeCode(detail != null ? detail.getParentContentTypeCode() : null)
+                    .visibility(child.getVisibility())
+                    .build();
+        }).collect(Collectors.toList());
     }
 
     private void validateRequest(PublishNoteRequest request, Note existingNote) {
@@ -343,16 +420,14 @@ public class NoteService {
     private void applyRequestToNote(Note note, PublishNoteRequest request, String existingContentTypeCode) {
         note.setTitle(request.getTitle().trim());
         note.setSummary(StringUtils.hasText(request.getSummary()) ? request.getSummary().trim() : "");
-        note.setEditorType(EDITOR_TYPE_MARKDOWN);
         note.setTags(toJsonStringList(request.getTags()));
         note.setCoverUrl(request.getCoverUrl().trim());
+        note.setVisibility(normalizeVisibility(request.getVisibility()));
 
         if (CONTENT_TYPE_IMAGE_TEXT.equals(request.getContentType())) {
-            note.setContent(StringUtils.hasText(request.getContent()) ? request.getContent() : null);
             note.setVideoUrl(null);
             note.setVideoDuration(0);
         } else {
-            note.setContent(null);
             note.setVideoUrl(trimToNull(request.getVideoUrl()));
             note.setVideoDuration(request.getVideoDuration() == null ? 0 : request.getVideoDuration());
         }
@@ -365,22 +440,38 @@ public class NoteService {
             note.setStatus(STATUS_DRAFT);
             note.setPublishedAt(null);
         } else {
-            note.setStatus(STATUS_PUBLISHED);
-            note.setPublishedAt(LocalDateTime.now());
+            // 发布时统一变更为审核中（PUBLIC / PRIVATE 均需审核）
+            note.setStatus(STATUS_REVIEWING);
+            note.setPublishedAt(null);
         }
+    }
 
-        if (note.getViewCount() == null) {
-            note.setViewCount(0);
+    /**
+     * 将笔记正文保存到 t_user_note_detail 垂直拆分表。
+     */
+    private void saveNoteDetail(String contentTypeCode, PublishNoteRequest request) {
+        NoteDetail detail = new NoteDetail();
+        detail.setContentTypeCode(contentTypeCode);
+        detail.setParentContentTypeCode(trimToNull(request.getParentContentTypeCode()));
+        if (CONTENT_TYPE_IMAGE_TEXT.equals(request.getContentType())) {
+            detail.setContent(StringUtils.hasText(request.getContent()) ? request.getContent() : null);
+        } else {
+            detail.setContent(null);
         }
-        if (note.getLikeCount() == null) {
-            note.setLikeCount(0);
-        }
-        if (note.getCollectCount() == null) {
-            note.setCollectCount(0);
-        }
-        if (note.getCommentCount() == null) {
-            note.setCommentCount(0);
-        }
+        noteDetailMapper.insert(detail);
+    }
+
+    /**
+     * 保存初始计数器到 t_user_note_counter 垂直拆分表。
+     */
+    private void saveNoteCounter(String contentTypeCode) {
+        NoteCounter counter = new NoteCounter();
+        counter.setContentTypeCode(contentTypeCode);
+        counter.setViewCount(0);
+        counter.setLikeCount(0);
+        counter.setCollectCount(0);
+        counter.setCommentCount(0);
+        noteCounterMapper.insert(counter);
     }
 
     private String generateContentTypeCode(String contentType) {
@@ -430,6 +521,18 @@ public class NoteService {
         return value.trim();
     }
 
+    /** 可见性归一化：默认 PUBLIC，非法值 → BAD_REQUEST */
+    private String normalizeVisibility(String value) {
+        if (!StringUtils.hasText(value)) {
+            return VISIBILITY_PUBLIC;
+        }
+        String normalized = value.trim().toUpperCase();
+        if (!VISIBILITY_PUBLIC.equals(normalized) && !VISIBILITY_PRIVATE.equals(normalized)) {
+            throw BusinessException.badRequest("VALIDATION_FAILED");
+        }
+        return normalized;
+    }
+
     private String trimToNull(String value) {
         if (!StringUtils.hasText(value)) {
             return null;
@@ -467,5 +570,71 @@ public class NoteService {
         LambdaQueryWrapper<UserIdentity> w = new LambdaQueryWrapper<>();
         w.eq(UserIdentity::getUserUid, userUid).last("LIMIT 1");
         return userIdentityMapper.selectOne(w);
+    }
+
+    private NoteDetail loadNoteDetail(String contentTypeCode) {
+        LambdaQueryWrapper<NoteDetail> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDetail::getContentTypeCode, contentTypeCode).last("LIMIT 1");
+        return noteDetailMapper.selectOne(wrapper);
+    }
+
+    private NoteCounter loadNoteCounter(String contentTypeCode) {
+        LambdaQueryWrapper<NoteCounter> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteCounter::getContentTypeCode, contentTypeCode).last("LIMIT 1");
+        return noteCounterMapper.selectOne(wrapper);
+    }
+
+    // ===================== 应用层外键级联 =====================
+
+    /**
+     * 物理删除笔记及其关联的 detail / counter（替代已移除的 DB 外键 CASCADE）。
+     * <p>
+     * 软删除场景（status=DELETED）不调用此方法；仅管理员物理清除时使用。
+     * </p>
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteNoteCascade(String contentTypeCode) {
+        // 子表先删（避免主表删后残留）
+        LambdaQueryWrapper<NoteDetail> detailWrapper = new LambdaQueryWrapper<>();
+        detailWrapper.eq(NoteDetail::getContentTypeCode, contentTypeCode);
+        noteDetailMapper.delete(detailWrapper);
+
+        LambdaQueryWrapper<NoteCounter> counterWrapper = new LambdaQueryWrapper<>();
+        counterWrapper.eq(NoteCounter::getContentTypeCode, contentTypeCode);
+        noteCounterMapper.delete(counterWrapper);
+
+        // 最后删主表
+        LambdaQueryWrapper<Note> noteWrapper = new LambdaQueryWrapper<>();
+        noteWrapper.eq(Note::getContentTypeCode, contentTypeCode);
+        noteMapper.delete(noteWrapper);
+    }
+
+    /**
+     * 更新笔记时同步更新 detail 大文本内容（upsert 模式）。
+     * <p>
+     * 使用 saveOrUpdate 保证：detail 行不存在时自动插入，存在时原地更新，
+     * 避免 ON DELETE CASCADE 缺失情况下 detail/counter 不同步的问题。
+     * </p>
+     */
+    private void upsertNoteDetail(String contentTypeCode, PublishNoteRequest request) {
+        LambdaQueryWrapper<NoteDetail> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDetail::getContentTypeCode, contentTypeCode).last("LIMIT 1");
+        NoteDetail existing = noteDetailMapper.selectOne(wrapper);
+
+        NoteDetail detail = new NoteDetail();
+        detail.setContentTypeCode(contentTypeCode);
+        detail.setParentContentTypeCode(trimToNull(request.getParentContentTypeCode()));
+        if (CONTENT_TYPE_IMAGE_TEXT.equals(request.getContentType())) {
+            detail.setContent(StringUtils.hasText(request.getContent()) ? request.getContent() : null);
+        } else {
+            detail.setContent(null);
+        }
+
+        if (existing != null) {
+            detail.setId(existing.getId());
+            noteDetailMapper.updateById(detail);
+        } else {
+            noteDetailMapper.insert(detail);
+        }
     }
 }

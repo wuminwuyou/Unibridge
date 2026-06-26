@@ -128,7 +128,9 @@ docker compose exec mysql rm /tmp/insert-test-data.sql
 | `t_user` | 3 | 用户 |
 | `t_team` | 3 | 团队 |
 | `t_project` | 3 | 项目 |
-| `t_user_note` | 10 | 笔记（支撑 Feed 换一换联调） |
+| `t_user_note` | 12 | 笔记（10 条公开 + 2 条便捷笔记，支撑 Feed 换一换与便捷笔记联调） |
+| `t_user_note_detail` | 12 | 笔记正文（垂直拆分大文本 + parentContentTypeCode） |
+| `t_user_note_counter` | 12 | 笔记计数（热写分离） |
 
 测试账号（密码均为 `123456` 的 SHA256）：
 
@@ -152,7 +154,7 @@ mysql -h127.0.0.1 -P3306 -uroot -p111111 project_cooperation_platform < insert-t
 docker compose exec mysql mysql -uroot -p111111 -e "SELECT COUNT(*) AS note_count FROM project_cooperation_platform.t_user_note;"
 ```
 
-预期输出 `note_count: 10`。
+预期输出 `note_count: 12`。
 
 ## 常用命令
 

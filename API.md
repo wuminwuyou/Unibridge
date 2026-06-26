@@ -1844,7 +1844,6 @@ Authorization: Bearer <access_token>
 | 无发布权限限制 | 任意登录用户可发布笔记 |
 | `contentType` 不可变 | 创建后禁止图文↔视频互转；修改类型需新建笔记 → `NOTE_TYPE_IMMUTABLE` |
 | `content` 与类型对应 | `图文`：可写 `content`；`视频`：不写入 `content`（保持 `NULL`） |
-| 无 `editorType` 请求字段 | 前端统一 Milkdown；库表保留 `editor_type`，后端默认写 `MARKDOWN` |
 | 无 `images` | 正文 Markdown 内嵌图片，不使用独立 URL 数组 |
 
 #### Response Data
@@ -1921,7 +1920,7 @@ Authorization: Bearer <access_token>
 
 #### Response Data
 
-与 **03.2）Request Body** 结构一致，并附带 `noteId`、`contentTypeCode`、`editorType`（← `note.editor_type`）。
+与 **03.2）Request Body** 结构一致，并附带 `noteId`、`contentTypeCode`。
 
 ---
 
@@ -1934,8 +1933,6 @@ Authorization: Bearer <access_token>
 | `title` | `note.title` | |
 | `summary` | `note.summary` | 简介（视频笔记亦用此字段，无 `videoDescription`） |
 | `content` | `note.content` | 仅图文笔记写入 Markdown；视频为 `NULL` |
-| （读响应） | `note.editor_type` | → `editorType` |
-| （后端默认） | `note.editor_type` | 写接口不传时后端写 `MARKDOWN` |
 | `tags` | `note.tags` | JSON |
 | `coverUrl` | `note.cover_url` | 草稿/发布均必填 |
 | `videoUrl` | `note.video_url` | 仅视频 |
@@ -2186,7 +2183,6 @@ sequenceDiagram
   "title": "大三暑期实习投递复盘",
   "summary": "从简历、笔试到面试的完整时间线与踩坑总结。",
   "body": "# 背景\n\n## 时间线\n...",
-  "editorType": "MARKDOWN",
   "tags": ["求职经验", "实习"],
   "coverUrl": "https://cdn.example.com/notes/cover/abc123.jpg",
   "author": {
@@ -2199,7 +2195,8 @@ sequenceDiagram
   "views": 128,
   "comments": 6,
   "favorites": 24,
-  "status": "PUBLISHED"
+  "status": "PUBLISHED",
+  "parentContentTypeCode": "VDx9Y8z7W6v5U"
 }
 ```
 
@@ -2213,7 +2210,6 @@ sequenceDiagram
   "title": "如何设计一个高质量用户系统",
   "summary": "结合权限模型与可观测方案的经验分享。",
   "body": null,
-  "editorType": "MARKDOWN",
   "tags": ["系统设计"],
   "coverUrl": "https://cdn.example.com/notes/cover/frame.jpg",
   "videoUrl": "https://cdn.example.com/notes/video/xyz789.mp4",
@@ -2224,7 +2220,8 @@ sequenceDiagram
   "views": 520,
   "comments": 18,
   "favorites": 73,
-  "status": "PUBLISHED"
+  "status": "PUBLISHED",
+  "parentContentTypeCode": null
 }
 ```
 
@@ -2236,7 +2233,6 @@ sequenceDiagram
 | `title` | string | 标题 | `note.title` |
 | `summary` | string | 摘要 | `note.summary` |
 | `body` | string \| null | Markdown 正文 | `note.content`；视频笔记为 `null` |
-| `editorType` | string | `MARKDOWN` \| `RICHTEXT` | `note.editor_type` |
 | `tags` | string[] | 话题标签 | `note.tags` JSON |
 | `coverUrl` | string | 封面 | `note.cover_url` |
 | `videoUrl` | string | 视频地址 | `note.video_url`；仅 `contentType=视频` |
@@ -2250,6 +2246,7 @@ sequenceDiagram
 | `comments` | number | 评论数 | `note.comment_count` |
 | `favorites` | number | 收藏数 | `note.collect_count` |
 | `status` | string | `DRAFT` \| `PUBLISHED` | `note.status` |
+| `parentContentTypeCode` | string \| null | 父笔记 contentTypeCode；便捷笔记返回父视频编码，顶级笔记为 null | `t_user_note_detail.parent_content_type_code` |
 
 **前端映射（`NoteArticleDetailPayload`）**
 
@@ -2315,8 +2312,8 @@ sequenceDiagram
 - [x] 项目：发布权限按 `user_auth_link.role` 校验（PM / MENTOR / STUDENT）
 - [x] 项目：仅保密商业项目写入 `project_commercial_secret`；招募项目不需要
 - [x] 项目：`description` 为 Markdown（Milkdown）；`editor_type` 暂保留，后端默认 `MARKDOWN`
-- [x] 笔记：无 `contentSource` / `contentFileName` / 请求体 `editorType` / `images`（`videoDescription` 为前端展示字段）
-- [x] 笔记：`editor_type` 暂保留于库表，后端默认 `MARKDOWN`
+- [x] 笔记：无 `contentSource` / `contentFileName` / `images`（`videoDescription` 为前端展示字段）
+- [x] 笔记：`editor_type` 字段已从库表移除，不再使用
 - [x] 笔记：`contentType=图文` 才写 `content`；视频不写 `content`
 - [x] 笔记：草稿亦必填 `coverUrl`；`contentType` 创建后不可变
 - [x] 笔记：`content_type_code` 使用 NanoID 生成 11 位后缀，碰撞重试

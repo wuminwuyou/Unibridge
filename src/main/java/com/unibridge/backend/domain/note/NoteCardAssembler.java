@@ -4,6 +4,9 @@ import com.unibridge.backend.application.shared.ContentUidResolver;
 import com.unibridge.backend.domain.feed.dto.ContentVO;
 import com.unibridge.backend.application.shared.dto.ProfileNoteItem;
 import com.unibridge.backend.infrastructure.entities.note.Note;
+import com.unibridge.backend.infrastructure.entities.note.NoteCounter;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteCounterMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
@@ -37,14 +40,18 @@ public class NoteCardAssembler {
     };
 
     private final NoteAuthorResolver noteAuthorResolver;
+    private final NoteCounterMapper noteCounterMapper;
 
-    public NoteCardAssembler(NoteAuthorResolver noteAuthorResolver) {
+    public NoteCardAssembler(NoteAuthorResolver noteAuthorResolver,
+                             NoteCounterMapper noteCounterMapper) {
         this.noteAuthorResolver = noteAuthorResolver;
+        this.noteCounterMapper = noteCounterMapper;
     }
 
     public ContentVO toFeedNoteVo(Note note, double score) {
         NoteAuthorResolver.NoteAuthorContext author = noteAuthorResolver.resolve(note.getUserUid());
         LocalDateTime publishTime = resolvePublishTime(note.getPublishedAt(), note.getCreatedAt());
+        NoteCounter counter = loadCounter(note.getContentTypeCode());
 
         return ContentVO.builder()
                 .contentType(CONTENT_TYPE_NOTE)
@@ -58,10 +65,10 @@ public class NoteCardAssembler {
                 .authorOrganization(author.authorOrganization())
                 .authorAvatar(author.authorAvatar())
                 .videoDuration(formatVideoDuration(note.getVideoDuration(), note.getContentTypeCode()))
-                .views(nullSafe(note.getViewCount()))
-                .likes(nullSafe(note.getLikeCount()))
-                .favorites(nullSafe(note.getCollectCount()))
-                .comments(nullSafe(note.getCommentCount()))
+                .views(nullSafe(counter.getViewCount()))
+                .likes(nullSafe(counter.getLikeCount()))
+                .favorites(nullSafe(counter.getCollectCount()))
+                .comments(nullSafe(counter.getCommentCount()))
                 .publishTime(formatFeedPublishTime(publishTime))
                 .score(roundScore(score))
                 .build();
@@ -70,6 +77,7 @@ public class NoteCardAssembler {
     public ProfileNoteItem toProfileNoteItem(Note note) {
         NoteAuthorResolver.NoteAuthorContext author = noteAuthorResolver.resolve(note.getUserUid());
         LocalDateTime publishTime = resolvePublishTime(note.getPublishedAt(), note.getCreatedAt());
+        NoteCounter counter = loadCounter(note.getContentTypeCode());
 
         return ProfileNoteItem.builder()
                 .uid(note.getContentTypeCode())
@@ -82,13 +90,29 @@ public class NoteCardAssembler {
                 .authorOrganization(author.authorOrganization())
                 .authorAvatar(author.authorAvatar())
                 .videoDuration(formatVideoDuration(note.getVideoDuration(), note.getContentTypeCode()))
-                .views(nullSafe(note.getViewCount()))
-                .likes(nullSafe(note.getLikeCount()))
-                .comments(nullSafe(note.getCommentCount()))
-                .favorites(nullSafe(note.getCollectCount()))
+                .views(nullSafe(counter.getViewCount()))
+                .likes(nullSafe(counter.getLikeCount()))
+                .comments(nullSafe(counter.getCommentCount()))
+                .favorites(nullSafe(counter.getCollectCount()))
                 .publishTime(formatProfilePublishTime(publishTime))
                 .updateTime(formatProfileUpdateTime(note.getUpdatedAt()))
+                .status(note.getStatus())
+                .visibility(note.getVisibility())
                 .build();
+    }
+
+    private NoteCounter loadCounter(String contentTypeCode) {
+        LambdaQueryWrapper<NoteCounter> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteCounter::getContentTypeCode, contentTypeCode).last("LIMIT 1");
+        NoteCounter counter = noteCounterMapper.selectOne(wrapper);
+        if (counter == null) {
+            counter = new NoteCounter();
+            counter.setViewCount(0);
+            counter.setLikeCount(0);
+            counter.setCollectCount(0);
+            counter.setCommentCount(0);
+        }
+        return counter;
     }
 
     private String resolveNoteType(String contentTypeCode) {

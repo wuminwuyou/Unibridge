@@ -19,7 +19,6 @@ public class NoteDetailResponse {
     private String title;
     private String summary;
     private String body;
-    private String editorType;
     private List<String> tags;
     private String coverUrl;
     private String videoUrl;
@@ -31,6 +30,10 @@ public class NoteDetailResponse {
     private Integer comments;
     private Integer favorites;
     private String status;
+    /** 父视频笔记 contentTypeCode（便捷子笔记时非空） */
+    private String parentContentTypeCode;
+    /** 可见性：PUBLIC | PRIVATE */
+    private String visibility;
 
     @Data
     @Builder

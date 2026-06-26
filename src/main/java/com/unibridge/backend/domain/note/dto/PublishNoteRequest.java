@@ -24,4 +24,8 @@ public class PublishNoteRequest {
     private String coverUrl;
     private String videoUrl;
     private Integer videoDuration;
+    /** 父视频笔记 contentTypeCode（便捷笔记场景，图文子笔记关联父视频笔记） */
+    private String parentContentTypeCode;
+    @Schema(description = "可见性：PUBLIC | PRIVATE", defaultValue = "PUBLIC")
+    private String visibility;
 }

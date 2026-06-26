@@ -21,9 +21,6 @@ public class Note {
     private String extendedUid;
     private String title;
     private String summary;
-    @TableField("editor_type")
-    private String editorType;
-    private String content;
     @TableField("cover_url")
     private String coverUrl;
     @TableField("video_url")
@@ -31,15 +28,8 @@ public class Note {
     @TableField("video_duration")
     private Integer videoDuration;
     private String tags;
-    @TableField("view_count")
-    private Integer viewCount;
-    @TableField("like_count")
-    private Integer likeCount;
-    @TableField("collect_count")
-    private Integer collectCount;
-    @TableField("comment_count")
-    private Integer commentCount;
     private String status;
+    private String visibility;
     @TableField("published_at")
     private LocalDateTime publishedAt;
     @TableField("created_at")

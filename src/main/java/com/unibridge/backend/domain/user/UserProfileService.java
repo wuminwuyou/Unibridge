@@ -70,6 +70,8 @@ public class UserProfileService {
     private static final DateTimeFormatter NOTE_PUBLISH_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final DateTimeFormatter NOTE_UPDATE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final String NOTE_STATUS_PUBLISHED = "PUBLISHED";
+    private static final String NOTE_STATUS_DELETED = "DELETED";
+    private static final String NOTE_VISIBILITY_PUBLIC = "PUBLIC";
     private static final int DEFAULT_PROJECT_LIMIT = 4;
     private static final int DEFAULT_NOTE_LIMIT = 3;
     private static final int DEFAULT_PAGE = 1;
@@ -201,27 +203,29 @@ public class UserProfileService {
                                               Long legacyUserId,
                                               Integer projectLimit,
                                               Integer noteLimit) {
-        String currentUserUid = accessService.resolveOptionalCurrentUserUid(authorization);
+        String currentUserUid = accessService.requireCurrentUserUid(authorization);
         String targetUserUid = resolveQueryTargetUid(queryUid, legacyUserUid, legacyUserId, currentUserUid);
         if (targetUserUid == null) {
             throw BusinessException.unauthorized("UNAUTHORIZED");
         }
         assertUserExists(targetUserUid);
 
+        boolean viewingOwnSpace = isSameUid(currentUserUid, targetUserUid);
+
         int resolvedProjectLimit = normalizeLimit(projectLimit, DEFAULT_PROJECT_LIMIT);
         int resolvedNoteLimit = normalizeLimit(noteLimit, DEFAULT_NOTE_LIMIT);
 
         UserProfile profile = loadProfile(targetUserUid);
         List<Project> projects = loadProjects(targetUserUid, resolvedProjectLimit, 0);
-        List<Note> notes = loadNotes(targetUserUid, null, resolvedNoteLimit, 0);
+        List<Note> notes = loadNotes(targetUserUid, null, resolvedNoteLimit, 0, viewingOwnSpace);
 
         return ProfileHomeResponse.builder()
                 .uid(targetUserUid)
-                .viewingOwnSpace(isSameUid(currentUserUid, targetUserUid))
+                .viewingOwnSpace(viewingOwnSpace)
                 .projects(buildProjectItems(projects, profile, targetUserUid))
                 .notes(buildNoteItems(notes))
                 .projectTotal(countProjects(targetUserUid))
-                .noteTotal(countNotes(targetUserUid, null))
+                .noteTotal(countNotes(targetUserUid, null, viewingOwnSpace))
                 .build();
     }
 
@@ -262,20 +266,22 @@ public class UserProfileService {
                                                 Integer page,
                                                 Integer pageSize,
                                                 String contentType) {
-        String targetUserUid = resolveQueryTargetUid(queryUid, legacyUserUid, legacyUserId,
-                accessService.resolveOptionalCurrentUserUid(authorization));
+        String currentUserUid = accessService.requireCurrentUserUid(authorization);
+        String targetUserUid = resolveQueryTargetUid(queryUid, legacyUserUid, legacyUserId, currentUserUid);
         if (targetUserUid == null) {
             throw BusinessException.badRequest("USER_UID_REQUIRED");
         }
         assertUserExists(targetUserUid);
+
+        boolean viewingOwnSpace = isSameUid(currentUserUid, targetUserUid);
 
         int resolvedPage = normalizePage(page);
         int resolvedPageSize = normalizePageSize(pageSize);
         int offset = (resolvedPage - 1) * resolvedPageSize;
         String dbContentType = mapNoteContentTypeFilter(contentType);
 
-        List<Note> notes = loadNotes(targetUserUid, dbContentType, resolvedPageSize, offset);
-        long total = countNotes(targetUserUid, dbContentType);
+        List<Note> notes = loadNotes(targetUserUid, dbContentType, resolvedPageSize, offset, viewingOwnSpace);
+        long total = countNotes(targetUserUid, dbContentType, viewingOwnSpace);
 
         return ProfileNotesResponse.builder()
                 .userUid(targetUserUid)
@@ -639,25 +645,36 @@ public class UserProfileService {
         return wrapper;
     }
 
-    private List<Note> loadNotes(String userUid, String dbContentType, int pageSize, int offset) {
+    private List<Note> loadNotes(String userUid, String dbContentType, int pageSize, int offset, boolean viewingOwnSpace) {
         int pageNum = pageSize <= 0 ? DEFAULT_PAGE : (offset / pageSize) + 1;
         Page<Note> page = new Page<>(pageNum, pageSize);
         page.setSearchCount(false);
-        return noteMapper.selectPage(page, baseNoteWrapper(userUid, dbContentType)).getRecords();
+        return noteMapper.selectPage(page, baseNoteWrapper(userUid, dbContentType, viewingOwnSpace)).getRecords();
     }
 
-    private long countNotes(String userUid, String dbContentType) {
-        return noteMapper.selectCount(baseNoteWrapper(userUid, dbContentType));
+    private long countNotes(String userUid, String dbContentType, boolean viewingOwnSpace) {
+        return noteMapper.selectCount(baseNoteWrapper(userUid, dbContentType, viewingOwnSpace));
     }
 
-    private LambdaQueryWrapper<Note> baseNoteWrapper(String userUid, String dbContentType) {
+    private LambdaQueryWrapper<Note> baseNoteWrapper(String userUid, String dbContentType, boolean viewingOwnSpace) {
         LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getUserUid, userUid)
-                .eq(Note::getStatus, NOTE_STATUS_PUBLISHED);
+        wrapper.eq(Note::getUserUid, userUid);
+        if (viewingOwnSpace) {
+            // 本人视角：排除已删除，其余全部返回（DRAFT / REVIEWING / PUBLISHED / BANNED / PRIVATE / PUBLIC 均可见）
+            wrapper.ne(Note::getStatus, NOTE_STATUS_DELETED);
+        } else {
+            // 他人视角：仅已发布且公开
+            wrapper.eq(Note::getStatus, NOTE_STATUS_PUBLISHED)
+                    .eq(Note::getVisibility, NOTE_VISIBILITY_PUBLIC);
+        }
         if (dbContentType != null) {
             wrapper.likeRight(Note::getContentTypeCode, dbContentType);
         }
-        wrapper.last("ORDER BY COALESCE(published_at, created_at) DESC, id DESC");
+        if (viewingOwnSpace) {
+            wrapper.last("ORDER BY COALESCE(published_at, created_at) DESC, id DESC");
+        } else {
+            wrapper.last("ORDER BY COALESCE(published_at, created_at) DESC, id DESC");
+        }
         return wrapper;
     }
 

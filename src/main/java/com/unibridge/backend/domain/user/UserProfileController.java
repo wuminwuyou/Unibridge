@@ -48,7 +48,7 @@ public class UserProfileController {
     @Operation(summary = "个人空间主页 Tab", description = "项目 + 笔记预览列表")
     @GetMapping("/home")
     public Result getProfileHome(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestHeader(value = "Authorization") String authorization,
             @RequestParam(value = "uid", required = false) String uid,
             @RequestParam(value = "userUid", required = false) String userUid,
             @RequestParam(value = "userId", required = false) Long userId,
@@ -71,10 +71,10 @@ public class UserProfileController {
         return Result.success(UserProfileService.getProfileProjects(authorization, uid, userUid, userId, page, pageSize));
     }
 
-    @Operation(summary = "个人空间笔记 Tab", description = "分页笔记列表，支持 contentType=图文/视频 预筛")
+    @Operation(summary = "个人空间笔记 Tab", description = "分页笔记列表，需鉴权；本人视角返回除已删除外全部笔记，他人视角仅返回已发布且公开的笔记")
     @GetMapping("/notes")
     public Result getProfileNotes(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestHeader(value = "Authorization") String authorization,
             @RequestParam(value = "uid", required = false) String uid,
             @RequestParam(value = "userUid", required = false) String userUid,
             @RequestParam(value = "userId", required = false) Long userId,

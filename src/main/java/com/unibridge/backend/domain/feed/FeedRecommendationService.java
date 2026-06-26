@@ -8,9 +8,13 @@ import com.unibridge.backend.domain.feed.dto.HomeFeedResponse;
 import com.unibridge.backend.domain.note.NoteCardAssembler;
 import com.unibridge.backend.domain.project.ProjectCardAssembler;
 import com.unibridge.backend.infrastructure.entities.note.Note;
+import com.unibridge.backend.infrastructure.entities.note.NoteCounter;
+import com.unibridge.backend.infrastructure.entities.note.NoteDetail;
 import com.unibridge.backend.infrastructure.entities.project.Project;
 import com.unibridge.backend.infrastructure.entities.interaction.UserInterestTag;
 import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteCounterMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteDetailMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.interaction.UserInterestTagMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
@@ -92,6 +96,8 @@ public class FeedRecommendationService {
 
     private final UserInterestTagMapper userInterestTagMapper;
     private final NoteMapper noteMapper;
+    private final NoteCounterMapper noteCounterMapper;
+    private final NoteDetailMapper noteDetailMapper;
     private final ProjectMapper projectMapper;
     private final FeedShuffleCacheService feedShuffleCacheService;
     private final ContentUidResolver contentUidResolver;
@@ -100,6 +106,8 @@ public class FeedRecommendationService {
 
     public FeedRecommendationService(UserInterestTagMapper userInterestTagMapper,
                                      NoteMapper noteMapper,
+                                     NoteCounterMapper noteCounterMapper,
+                                     NoteDetailMapper noteDetailMapper,
                                      ProjectMapper projectMapper,
                                      @Lazy FeedShuffleCacheService feedShuffleCacheService,
                                      ContentUidResolver contentUidResolver,
@@ -107,6 +115,8 @@ public class FeedRecommendationService {
                                      NoteCardAssembler noteCardAssembler) {
         this.userInterestTagMapper = userInterestTagMapper;
         this.noteMapper = noteMapper;
+        this.noteCounterMapper = noteCounterMapper;
+        this.noteDetailMapper = noteDetailMapper;
         this.projectMapper = projectMapper;
         this.feedShuffleCacheService = feedShuffleCacheService;
         this.contentUidResolver = contentUidResolver;
@@ -278,7 +288,15 @@ public class FeedRecommendationService {
     }
 
     /**
-     * 相似笔记推荐：同源标签 Jaccard 相似度 + 点赞数 tie-break。
+     * 相似笔记推荐：标签 Jaccard 相似度 + 关联关系加权 + 热度 tie-break。
+     * <p>
+     * <b>关联关系加权</b>：基于 t_user_note_detail.parent_content_type_code
+     * <ul>
+     *   <li>兄弟笔记（同父 parentContentTypeCode）：+30%</li>
+     *   <li>子笔记（candidate.parentContentTypeCode == source.contentTypeCode）：+50%</li>
+     *   <li>父笔记（source.parentContentTypeCode == candidate.contentTypeCode）：+50%</li>
+     * </ul>
+     * </p>
      * <p>
      * <b>场景一（保持静止）</b>：{@code @Cacheable(similar_notes, key=noteUid)} 锁死缓存；
      * 同一 {@code noteUid} 无论前端如何刷新，均返回完全一致的结果，不重新计算。
@@ -293,9 +311,16 @@ public class FeedRecommendationService {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
         Long sourceInternalId = source.getId();
+        String sourceCode = source.getContentTypeCode();
+
+        // 加载源笔记的关联关系
+        NoteDetail sourceDetail = loadNoteDetail(sourceCode);
+        String sourceParentCode = sourceDetail != null ? sourceDetail.getParentContentTypeCode() : null;
 
         Set<String> sourceTags = new HashSet<>(parseTags(source.getTags()));
-        if (sourceTags.isEmpty()) {
+
+        // 无标签 + 无关联关系的退化路径
+        if (sourceTags.isEmpty() && sourceParentCode == null) {
             return loadTopLikedNotes(sourceInternalId, safeLimit).stream()
                     .map(note -> toNoteVo(note, 0.0))
                     .collect(Collectors.toList());
@@ -305,15 +330,33 @@ public class FeedRecommendationService {
                 .filter(note -> !note.getId().equals(sourceInternalId))
                 .collect(Collectors.toList());
 
+        // 批量加载候选池计数器和关联关系
+        List<String> candidateCodes = candidates.stream()
+                .map(Note::getContentTypeCode).collect(Collectors.toList());
+        Map<String, NoteCounter> counterMap = loadNoteCounters(candidateCodes);
+        Map<String, NoteDetail> detailMap = loadNoteDetails(candidateCodes);
+
+        NoteCounter emptyCounter = new NoteCounter();
+        emptyCounter.setViewCount(0); emptyCounter.setLikeCount(0); emptyCounter.setCollectCount(0); emptyCounter.setCommentCount(0);
+
         List<ScoredContent> scored = new ArrayList<>();
         for (Note note : candidates) {
+            String candidateCode = note.getContentTypeCode();
             Set<String> tags = new HashSet<>(parseTags(note.getTags()));
-            double similarity = jaccardSimilarity(sourceTags, tags);
-            if (similarity <= 0) {
-                continue;
-            }
-            double popularity = Math.log1p(nullSafe(note.getLikeCount()));
-            double score = similarity * 10 + popularity;
+
+            // 1) 标签 Jaccard 相似度
+            double similarity = sourceTags.isEmpty() ? 0.0 : jaccardSimilarity(sourceTags, tags);
+
+            // 2) 关联关系加权
+            double relationBoost = computeRelationBoost(sourceCode, sourceParentCode,
+                    candidateCode, detailMap.get(candidateCode));
+
+            // 3) 热度分
+            double popularity = Math.log1p(nullSafe(
+                    counterMap.getOrDefault(candidateCode, emptyCounter).getLikeCount()));
+
+            // 综合分 = (标签分 + 关联加权) * 10 + 热度，确保关联无关时回到纯标签模式
+            double score = (similarity + relationBoost) * 10 + popularity;
             scored.add(new ScoredContent(toNoteVo(note, score), score));
         }
 
@@ -369,7 +412,7 @@ public class FeedRecommendationService {
         LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Note::getStatus, NOTE_STATUS_PUBLISHED)
                 .ne(Note::getId, excludeId)
-                .orderByDesc(Note::getLikeCount)
+                .orderByDesc(Note::getPublishedAt)
                 .last("LIMIT " + limit);
         return noteMapper.selectList(wrapper);
     }
@@ -391,14 +434,88 @@ public class FeedRecommendationService {
     }
 
     private List<ScoredContent> scoreNotes(List<Note> notes, Map<String, Double> tagWeights) {
+        List<String> codes = notes.stream().map(Note::getContentTypeCode).collect(Collectors.toList());
+        Map<String, NoteCounter> counterMap = loadNoteCounters(codes);
+        NoteCounter empty = new NoteCounter();
+        empty.setViewCount(0); empty.setLikeCount(0); empty.setCollectCount(0); empty.setCommentCount(0);
+
         List<ScoredContent> result = new ArrayList<>();
         for (Note note : notes) {
+            NoteCounter cnt = counterMap.getOrDefault(note.getContentTypeCode(), empty);
             double score = computeScore(parseTags(note.getTags()), tagWeights,
                     resolvePublishTime(note.getPublishedAt(), note.getCreatedAt()),
-                    nullSafe(note.getLikeCount()), nullSafe(note.getCollectCount()));
+                    nullSafe(cnt.getLikeCount()), nullSafe(cnt.getCollectCount()));
             result.add(new ScoredContent(toNoteVo(note, score), score));
         }
         return result;
+    }
+
+    private Map<String, NoteCounter> loadNoteCounters(List<String> contentTypeCodes) {
+        if (contentTypeCodes.isEmpty()) return Map.of();
+        LambdaQueryWrapper<NoteCounter> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(NoteCounter::getContentTypeCode, contentTypeCodes);
+        List<NoteCounter> list = noteCounterMapper.selectList(wrapper);
+        Map<String, NoteCounter> map = new HashMap<>();
+        for (NoteCounter c : list) {
+            map.put(c.getContentTypeCode(), c);
+        }
+        return map;
+    }
+
+    private NoteDetail loadNoteDetail(String contentTypeCode) {
+        LambdaQueryWrapper<NoteDetail> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NoteDetail::getContentTypeCode, contentTypeCode).last("LIMIT 1");
+        return noteDetailMapper.selectOne(wrapper);
+    }
+
+    private Map<String, NoteDetail> loadNoteDetails(List<String> contentTypeCodes) {
+        if (contentTypeCodes.isEmpty()) return Map.of();
+        LambdaQueryWrapper<NoteDetail> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(NoteDetail::getContentTypeCode, contentTypeCodes);
+        List<NoteDetail> list = noteDetailMapper.selectList(wrapper);
+        Map<String, NoteDetail> map = new HashMap<>();
+        for (NoteDetail d : list) {
+            map.put(d.getContentTypeCode(), d);
+        }
+        return map;
+    }
+
+    /**
+     * 基于 parentContentTypeCode 关联关系计算加权。
+     * <ul>
+     *   <li>兄弟：candidate.parent == source.parent → +0.3</li>
+     *   <li>亲子（正向）：candidate.parent == source.code → +0.5（candidate 是 source 的子笔记）</li>
+     *   <li>亲子（反向）：source.parent == candidate.code → +0.5（candidate 是 source 的父笔记）</li>
+     *   <li>无关联 → 0.0</li>
+     * </ul>
+     */
+    private double computeRelationBoost(String sourceCode,
+                                        String sourceParentCode,
+                                        String candidateCode,
+                                        NoteDetail candidateDetail) {
+        if (candidateDetail == null) {
+            return 0.0;
+        }
+        String candidateParentCode = candidateDetail.getParentContentTypeCode();
+
+        // 兄弟：候选笔记与源笔记有相同的父笔记
+        if (sourceParentCode != null
+                && candidateParentCode != null
+                && sourceParentCode.equals(candidateParentCode)) {
+            return 0.3;
+        }
+
+        // 亲子（正向）：候选笔记的 parent 等于源笔记 code → 候选是源的子笔记
+        if (candidateParentCode != null && candidateParentCode.equals(sourceCode)) {
+            return 0.5;
+        }
+
+        // 亲子（反向）：源笔记的 parent 等于候选笔记 code → 候选是源的父笔记
+        if (sourceParentCode != null && sourceParentCode.equals(candidateCode)) {
+            return 0.5;
+        }
+
+        return 0.0;
     }
 
     private List<ScoredContent> scoreProjects(List<Project> projects, Map<String, Double> tagWeights) {

@@ -689,7 +689,7 @@ CREATE TABLE t_project_task_card (
 -- 第 9 章：笔记与内容 (Note)
 -- =========================================================================
 
--- 9.1 笔记表（t_user_note：user 1:N notes）
+-- 9.1 笔记核心表（t_user_note：极热数据，Feed 流展示所需小字段；垂直拆分大文本与计数器）
 -- 详情读接口见 apps/web-client/API-request.md §06.2
 CREATE TABLE IF NOT EXISTS t_user_note (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -701,23 +701,17 @@ CREATE TABLE IF NOT EXISTS t_user_note (
   extended_uid VARCHAR(32) NULL COMMENT '代发归属：entity_code 或 team_uid（联合投稿）',
   title VARCHAR(255) NOT NULL COMMENT '笔记标题',
   summary TEXT NOT NULL COMMENT '笔记外部预览摘要（列表页展示）',
-  editor_type VARCHAR(32) NOT NULL DEFAULT 'MARKDOWN' COMMENT '编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前前端统一 Milkdown）',
-  content LONGTEXT NULL COMMENT '图文笔记 Markdown 正文；视频笔记不写入',
-  
-  -- 媒体资源
+  -- 媒体资源（Feed 流展示必需）
   cover_url VARCHAR(255) NOT NULL COMMENT '统一封面图片URL（草稿/发布均必填）',
   video_url VARCHAR(255) NULL COMMENT '视频源文件URL（仅视频编码类型有效）',
   video_duration INT UNSIGNED NULL DEFAULT 0 COMMENT '视频时长（秒，仅视频编码类型有效）',
   -- 算法与推荐
   tags JSON NULL COMMENT '推荐与算法标签列表，JSON格式：["人工智能", "开源项目"]',
-  -- 核心计数器
-  view_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '浏览量',
-  like_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '点赞数',
-  collect_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '收藏数',
-  comment_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '评论总数',
   -- 内容状态机
-  status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT(草稿) | PUBLISHED(已发布) | BANNED(违规封禁)',
+  status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT(草稿) | REVIEWING(审核中) | PUBLISHED(已发布) | BANNED(违规封禁) | DELETED(已删除)',
   published_at DATETIME NULL COMMENT '正式发布时间；草稿为 NULL',
+  -- 可见性控制
+  visibility VARCHAR(16) NOT NULL DEFAULT 'PUBLIC' COMMENT '可见性：PUBLIC(公开) | PRIVATE(仅自己可见)',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
   PRIMARY KEY (id),
@@ -728,17 +722,39 @@ CREATE TABLE IF NOT EXISTS t_user_note (
   KEY idx_note_created_at (created_at),
   KEY idx_note_published_at (published_at),
   KEY idx_note_type_status (content_type_code, status),
-  CONSTRAINT fk_note_user FOREIGN KEY (user_uid) REFERENCES t_user(user_uid)
-    ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT chk_unote_content_type CHECK (
     (content_type_code REGEXP '^TX[A-Za-z0-9]{11}$') OR
     (content_type_code REGEXP '^VD[A-Za-z0-9]{11}$')
   ),
-  CONSTRAINT chk_unote_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'BANNED')),
-  CONSTRAINT chk_unote_editor_type CHECK (editor_type IN ('MARKDOWN', 'RICHTEXT'))
+  CONSTRAINT chk_unote_status CHECK (status IN ('DRAFT', 'REVIEWING', 'PUBLISHED', 'BANNED', 'DELETED')),
+  CONSTRAINT chk_unote_visibility CHECK (visibility IN ('PUBLIC', 'PRIVATE'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- t_user_note.extended_uid：联合投稿代发 Key（不设 FK；entity_code 或 team_uid）
+-- t_user_note.extended_uid：联合投稿代发 Key（应用层关联，不设 FK；entity_code 或 team_uid）
+
+-- 9.2 笔记正文大文本表（t_user_note_detail：垂直隔离冷数据 LONGTEXT，避免扫描主表时加载大字段）
+-- parent_content_type_code：便捷笔记关联父视频笔记（仅图文笔记详情页展示；应用层自引用管理，不设 FK）
+CREATE TABLE IF NOT EXISTS t_user_note_detail (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  content_type_code VARCHAR(64) NOT NULL COMMENT '对应 t_user_note.content_type_code（应用层关联）',
+  parent_content_type_code VARCHAR(64) NULL COMMENT '父笔记 content_type_code（便捷笔记关联其视频笔记；顶级笔记为 NULL，应用层自引用管理）',
+  content LONGTEXT NULL COMMENT '图文笔记 Markdown 正文；视频笔记不写入',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_note_detail_code (content_type_code),
+  KEY idx_note_detail_parent (parent_content_type_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 9.3 笔记高频计数表（t_user_note_counter：热写分离，避免频繁更新主表行锁竞争）
+CREATE TABLE IF NOT EXISTS t_user_note_counter (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  content_type_code VARCHAR(64) NOT NULL COMMENT '对应 t_user_note.content_type_code（应用层关联）',
+  view_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '浏览量',
+  like_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '点赞数',
+  collect_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '收藏数',
+  comment_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '评论总数',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_note_counter_code (content_type_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 -- =========================================================================

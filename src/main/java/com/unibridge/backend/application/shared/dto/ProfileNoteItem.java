@@ -36,4 +36,8 @@ public class ProfileNoteItem {
     private String authorAvatar;
     /** 视频时长（仅视频笔记，格式 MM:SS） */
     private String videoDuration;
+    /** 笔记状态：DRAFT | REVIEWING | PUBLISHED | BANNED（本人视角才返回） */
+    private String status;
+    /** 可见性：PUBLIC | PRIVATE（本人视角才返回） */
+    private String visibility;
 }

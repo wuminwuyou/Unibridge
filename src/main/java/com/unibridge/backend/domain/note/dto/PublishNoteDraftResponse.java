@@ -23,5 +23,8 @@ public class PublishNoteDraftResponse {
     private String coverUrl;
     private String videoUrl;
     private Integer videoDuration;
-    private String editorType;
+    /** 父视频笔记 contentTypeCode（便捷子笔记时非空） */
+    private String parentContentTypeCode;
+    /** 可见性：PUBLIC | PRIVATE */
+    private String visibility;
 }

@@ -63,4 +63,13 @@ public class NoteController {
             @PathVariable String uid) {
         return Result.success(noteService.getNoteDraft(authorization, uid));
     }
+
+    @Operation(summary = "便捷笔记列表", description = "查询视频笔记关联的所有便捷图文笔记")
+    @GetMapping("/{uid}/children")
+    public Result getNoteChildren(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Parameter(description = "父视频笔记 UID（VD+11）")
+            @PathVariable String uid) {
+        return Result.success(noteService.getNoteChildren(authorization, uid));
+    }
 }
