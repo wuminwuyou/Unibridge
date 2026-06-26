@@ -44,8 +44,8 @@ public class ContentVO {
     private String teamSize;
     /** 项目：预计周期 */
     private String duration;
-    /** NOTE：string[] 标签 */
-    @JsonIgnore
+    /** NOTE：string[] 标签，序列化为 "tags"。PROJECT 时此字段为空。 */
+    @JsonProperty("tags")
     private List<String> noteTags;
     /** PROJECT：{ label }[] 标签 */
     @JsonIgnore
@@ -68,13 +68,4 @@ public class ContentVO {
     private String publishTime;
     /** 推荐分（调试/排序透明，前端可忽略） */
     private Double score;
-
-    /** NOTE 返回 string[]；PROJECT 返回 {@code { label }[]}。 */
-    @JsonProperty("tags")
-    public Object getTagsForResponse() {
-        if ("NOTE".equals(contentType)) {
-            return noteTags != null ? noteTags : List.of();
-        }
-        return projectTags != null ? projectTags : List.of();
-    }
 }

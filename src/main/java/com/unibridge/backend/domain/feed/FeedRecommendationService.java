@@ -24,9 +24,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -39,14 +41,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * Feed 推荐服务（Spring Cache 渐进式架构）。
- * <p>
- * 当前 {@code @Cacheable} 由 {@link com.unibridge.backend.infrastructure.config.CacheConfig} 托管至本地内存；
- * 未来引入 Redis 后仅需替换 CacheManager，本类<strong>零改动</strong>。
- * </p>
+ * Feed 推荐服务（HN 时间衰减 + 兴趣标签裂变召回 + Redis ZSET）。
+ *
+ * <h3>核心算法</h3>
+ * <ol>
+ *   <li><b>兴趣标签召回</b>：加载用户兴趣标签（Redis 缓存 → DB），
+ *       遍历笔记 tags 进行加权匹配命中</li>
+ *   <li><b>高亲和度裂变召回</b>：标签匹配分高于均值的笔记，提取
+ *       parent_content_type_code 将同父兄弟笔记纳入候选池（裂变系数 0.8）</li>
+ *   <li><b>Hacker News 热度分</b>：
+ *       score = (likes×5 + collects×10 + comments×8) / (hours + 1)^1.5 × tagFactor</li>
+ *   <li><b>Redis ZSET 倒序分页</b>：笔记得分写入 per-user ZSET，ZREVRANGE 高效输出</li>
+ * </ol>
  */
 @Service
 public class FeedRecommendationService {
@@ -88,7 +98,24 @@ public class FeedRecommendationService {
     private static final int HOME_CANDIDATE_LIMIT = 400;
     /** 相似笔记候选池 */
     private static final int SIMILAR_CANDIDATE_LIMIT = 200;
+    /** 笔记 Feed 候选池上限（用于 ZSET 重建） */
+    private static final int NOTE_FEED_CANDIDATE_LIMIT = 2000;
     private static final String ANONYMOUS_USER = "anonymous";
+
+    // ── Hacker News 公式参数 ──
+    private static final double LIKE_WEIGHT = 5.0;
+    private static final double COLLECT_WEIGHT = 10.0;
+    private static final double COMMENT_WEIGHT = 8.0;
+    private static final double TIME_DECAY_EXPONENT = 1.5;
+    private static final double TIME_SMOOTH = 1.0;
+
+    // ── 裂变召回 ──
+    private static final double FISSION_DECAY = 0.8;
+    private static final double FISSION_TAG_INHERIT = 0.7;
+
+    // ── Redis ZSET ──
+    private static final String FEED_ZSET_PREFIX = "feed:note:";
+    private static final Duration ZSET_TTL = Duration.ofMinutes(30);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
@@ -99,6 +126,7 @@ public class FeedRecommendationService {
     private final NoteCounterMapper noteCounterMapper;
     private final NoteDetailMapper noteDetailMapper;
     private final ProjectMapper projectMapper;
+    private final StringRedisTemplate stringRedisTemplate;
     private final FeedShuffleCacheService feedShuffleCacheService;
     private final ContentUidResolver contentUidResolver;
     private final ProjectCardAssembler projectCardAssembler;
@@ -109,6 +137,7 @@ public class FeedRecommendationService {
                                      NoteCounterMapper noteCounterMapper,
                                      NoteDetailMapper noteDetailMapper,
                                      ProjectMapper projectMapper,
+                                     StringRedisTemplate stringRedisTemplate,
                                      @Lazy FeedShuffleCacheService feedShuffleCacheService,
                                      ContentUidResolver contentUidResolver,
                                      ProjectCardAssembler projectCardAssembler,
@@ -118,17 +147,19 @@ public class FeedRecommendationService {
         this.noteCounterMapper = noteCounterMapper;
         this.noteDetailMapper = noteDetailMapper;
         this.projectMapper = projectMapper;
+        this.stringRedisTemplate = stringRedisTemplate;
         this.feedShuffleCacheService = feedShuffleCacheService;
         this.contentUidResolver = contentUidResolver;
         this.projectCardAssembler = projectCardAssembler;
         this.noteCardAssembler = noteCardAssembler;
     }
 
+    // ============================================================================
+    //  对外 API（保持兼容）
+    // ============================================================================
+
     /**
-     * 首页个性化推送：笔记 5 条 + 项目 10 条，分别按推荐分排序。
-     * <p>
-     * 缓存键：{@code userUid}。匿名用户使用 {@code anonymous} 走冷启动。
-     * </p>
+     * 首页个性化推送：笔记 5 条 + 项目 10 条，分别按 HN 推荐分排序。
      */
     @Cacheable(value = "home_feed", key = "#userUid != null ? #userUid : 'anonymous'")
     public HomeFeedResponse getHomeFeed(String userUid) {
@@ -155,9 +186,6 @@ public class FeedRecommendationService {
                 .build();
     }
 
-    /**
-     * 首页「换一换」混排推送（笔记 + 项目打碎）。
-     */
     public List<ContentVO> getHomeFeedWithShuffle(String userUid, Long seed, int page, int size) {
         return getHomeFeedShuffleResponse(userUid, seed, page, size).getItems();
     }
@@ -268,6 +296,9 @@ public class FeedRecommendationService {
         return projects;
     }
 
+    /**
+     * 笔记专区推送：HN 热度分 + 裂变召回 + Redis ZSET 分页。
+     */
     @Cacheable(value = "note_feed", key = "#userUid + ':' + #noteType + ':' + #limit")
     public List<ContentVO> getNoteFeed(String userUid, String noteType, int limit) {
         String normalizedNoteType = normalizeNoteType(noteType);
@@ -275,8 +306,23 @@ public class FeedRecommendationService {
         String effectiveUserUid = normalizeUserUid(userUid);
         Map<String, Double> tagWeights = loadUserTagWeights(effectiveUserUid);
 
+        // 若 ZSET 不存在，先重建
+        String zsetKey = noteFeedZSetKey(effectiveUserUid, normalizedNoteType);
+        if (Boolean.FALSE.equals(stringRedisTemplate.hasKey(zsetKey))) {
+            rebuildNoteFeedZSet(effectiveUserUid, normalizedNoteType, tagWeights);
+        }
+
+        // 从 ZSET 读取分页
+        List<ContentVO> fromZSet = getNoteFeedFromZSet(effectiveUserUid, normalizedNoteType, 1, safeLimit);
+        if (fromZSet != null && !fromZSet.isEmpty()) {
+            log.debug("Note feed served from ZSET: userUid={}, noteType={}, size={}",
+                    effectiveUserUid, normalizedNoteType, fromZSet.size());
+            return fromZSet;
+        }
+
+        // 退化路径：DB 直接打分
         List<ContentVO> notes = scoreNotes(
-                loadPublishedNotes(HOME_CANDIDATE_LIMIT, normalizedNoteType), tagWeights).stream()
+                loadPublishedNotes(NOTE_FEED_CANDIDATE_LIMIT, normalizedNoteType), tagWeights).stream()
                 .sorted(Comparator.comparingDouble(ScoredContent::score).reversed())
                 .limit(safeLimit)
                 .map(ScoredContent::vo)
@@ -288,19 +334,7 @@ public class FeedRecommendationService {
     }
 
     /**
-     * 相似笔记推荐：标签 Jaccard 相似度 + 关联关系加权 + 热度 tie-break。
-     * <p>
-     * <b>关联关系加权</b>：基于 t_user_note_detail.parent_content_type_code
-     * <ul>
-     *   <li>兄弟笔记（同父 parentContentTypeCode）：+30%</li>
-     *   <li>子笔记（candidate.parentContentTypeCode == source.contentTypeCode）：+50%</li>
-     *   <li>父笔记（source.parentContentTypeCode == candidate.contentTypeCode）：+50%</li>
-     * </ul>
-     * </p>
-     * <p>
-     * <b>场景一（保持静止）</b>：{@code @Cacheable(similar_notes, key=noteUid)} 锁死缓存；
-     * 同一 {@code noteUid} 无论前端如何刷新，均返回完全一致的结果，不重新计算。
-     * </p>
+     * 相似笔记推荐：标签 Jaccard 相似度 + 关联关系加权 + HN 热度 tie-break。
      */
     @Cacheable(value = "similar_notes", key = "#noteUid")
     public List<ContentVO> getSimilarNotes(String noteUid, int limit) {
@@ -313,13 +347,11 @@ public class FeedRecommendationService {
         Long sourceInternalId = source.getId();
         String sourceCode = source.getContentTypeCode();
 
-        // 加载源笔记的关联关系
         NoteDetail sourceDetail = loadNoteDetail(sourceCode);
         String sourceParentCode = sourceDetail != null ? sourceDetail.getParentContentTypeCode() : null;
 
         Set<String> sourceTags = new HashSet<>(parseTags(source.getTags()));
 
-        // 无标签 + 无关联关系的退化路径
         if (sourceTags.isEmpty() && sourceParentCode == null) {
             return loadTopLikedNotes(sourceInternalId, safeLimit).stream()
                     .map(note -> toNoteVo(note, 0.0))
@@ -330,7 +362,6 @@ public class FeedRecommendationService {
                 .filter(note -> !note.getId().equals(sourceInternalId))
                 .collect(Collectors.toList());
 
-        // 批量加载候选池计数器和关联关系
         List<String> candidateCodes = candidates.stream()
                 .map(Note::getContentTypeCode).collect(Collectors.toList());
         Map<String, NoteCounter> counterMap = loadNoteCounters(candidateCodes);
@@ -344,19 +375,20 @@ public class FeedRecommendationService {
             String candidateCode = note.getContentTypeCode();
             Set<String> tags = new HashSet<>(parseTags(note.getTags()));
 
-            // 1) 标签 Jaccard 相似度
             double similarity = sourceTags.isEmpty() ? 0.0 : jaccardSimilarity(sourceTags, tags);
 
-            // 2) 关联关系加权
             double relationBoost = computeRelationBoost(sourceCode, sourceParentCode,
                     candidateCode, detailMap.get(candidateCode));
 
-            // 3) 热度分
-            double popularity = Math.log1p(nullSafe(
-                    counterMap.getOrDefault(candidateCode, emptyCounter).getLikeCount()));
+            // HN 热度替代原 log1p 热度
+            NoteCounter cnt = counterMap.getOrDefault(candidateCode, emptyCounter);
+            double hnScore = computeHackerNewsScore(
+                    resolvePublishTime(note.getPublishedAt(), note.getCreatedAt()),
+                    nullSafe(cnt.getLikeCount()),
+                    nullSafe(cnt.getCollectCount()),
+                    nullSafe(cnt.getCommentCount()));
 
-            // 综合分 = (标签分 + 关联加权) * 10 + 热度，确保关联无关时回到纯标签模式
-            double score = (similarity + relationBoost) * 10 + popularity;
+            double score = (similarity + relationBoost) * 10 + hnScore;
             scored.add(new ScoredContent(toNoteVo(note, score), score));
         }
 
@@ -367,23 +399,310 @@ public class FeedRecommendationService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 互动变更后失效笔记 Feed ZSET，下次请求自动重建。
+     */
+    public void invalidateFeed(String userUid) {
+        String effectiveUserUid = normalizeUserUid(userUid);
+        // 删除所有 noteType 的 ZSET
+        for (String noteType : VALID_NOTE_TYPES) {
+            stringRedisTemplate.delete(FEED_ZSET_PREFIX + effectiveUserUid + ":" + noteType);
+            stringRedisTemplate.delete(FEED_ZSET_PREFIX + effectiveUserUid + ":ALL");
+        }
+        log.debug("Invalidated note feed ZSETs for user: {}", effectiveUserUid);
+    }
+
+    // ============================================================================
+    //  Redis ZSET Feed（笔记专区）
+    // ============================================================================
+
+    private String noteFeedZSetKey(String userUid, String noteType) {
+        return FEED_ZSET_PREFIX + userUid + ":" + noteType;
+    }
+
+    /**
+     * 重建用户笔记 Feed ZSET（按 noteType）。
+     */
+    private void rebuildNoteFeedZSet(String userUid, String noteType, Map<String, Double> tagWeights) {
+        String zsetKey = noteFeedZSetKey(userUid, noteType);
+        List<Note> candidates = loadPublishedNotes(NOTE_FEED_CANDIDATE_LIMIT, noteType);
+
+        List<String> codes = candidates.stream().map(Note::getContentTypeCode).collect(Collectors.toList());
+        Map<String, NoteCounter> counterMap = loadNoteCounters(codes);
+        Map<String, NoteDetail> detailMap = loadNoteDetails(codes);
+
+        // 打分（含裂变召回）
+        Map<String, Double> scores = scoreNotesWithFission(candidates, tagWeights, counterMap, detailMap);
+
+        // 写入 ZSET
+        for (Map.Entry<String, Double> entry : scores.entrySet()) {
+            stringRedisTemplate.opsForZSet().add(zsetKey, entry.getKey(), entry.getValue());
+        }
+        stringRedisTemplate.expire(zsetKey, ZSET_TTL.getSeconds(), TimeUnit.SECONDS);
+
+        log.info("Note feed ZSET rebuilt: userUid={}, noteType={}, size={}",
+                userUid, noteType, scores.size());
+    }
+
+    /**
+     * 从 ZSET 读取笔记 Feed 分页。
+     *
+     * @return 分页结果，ZSET 不存在返回 null
+     */
+    private List<ContentVO> getNoteFeedFromZSet(String userUid, String noteType, int page, int size) {
+        String zsetKey = noteFeedZSetKey(userUid, noteType);
+        if (Boolean.FALSE.equals(stringRedisTemplate.hasKey(zsetKey))) {
+            return null;
+        }
+
+        Long total = stringRedisTemplate.opsForZSet().size(zsetKey);
+        if (total == null || total == 0) return Collections.emptyList();
+
+        int offset = (page - 1) * size;
+        int end = (int) Math.min(offset + size - 1, total - 1);
+        Set<String> codes = stringRedisTemplate.opsForZSet()
+                .reverseRange(zsetKey, offset, end);
+        if (codes == null || codes.isEmpty()) return Collections.emptyList();
+
+        return resolveNotesByCodes(userUid, noteType, codes);
+    }
+
+    /**
+     * 将 contentTypeCode 集合解析为 ContentVO 列表，保持 ZSET 排序顺序。
+     */
+    private List<ContentVO> resolveNotesByCodes(String userUid, String noteType, Set<String> contentTypeCodes) {
+        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(Note::getContentTypeCode, contentTypeCodes);
+        List<Note> notes = noteMapper.selectList(wrapper);
+
+        Map<String, Note> noteMap = notes.stream()
+                .collect(Collectors.toMap(Note::getContentTypeCode, n -> n, (a, b) -> a));
+
+        String zsetKey = noteFeedZSetKey(userUid, noteType);
+        List<ContentVO> result = new ArrayList<>();
+        for (String code : contentTypeCodes) {
+            Note note = noteMap.get(code);
+            if (note != null) {
+                Double score = stringRedisTemplate.opsForZSet().score(zsetKey, code);
+                result.add(noteCardAssembler.toFeedNoteVo(note, score != null ? score : 0.0));
+            }
+        }
+        return result;
+    }
+
+    // ============================================================================
+    //  打分通道（HN 热度 + 裂变召回）
+    // ============================================================================
+
+    /**
+     * 笔记打分 + 裂变召回核心逻辑。
+     *
+     * @return contentTypeCode → 综合分
+     */
+    private Map<String, Double> scoreNotesWithFission(List<Note> notes,
+                                                      Map<String, Double> tagWeights,
+                                                      Map<String, NoteCounter> counterMap,
+                                                      Map<String, NoteDetail> detailMap) {
+        NoteCounter emptyCounter = new NoteCounter();
+        emptyCounter.setViewCount(0); emptyCounter.setLikeCount(0); emptyCounter.setCollectCount(0); emptyCounter.setCommentCount(0);
+
+        Map<String, Double> tagScores = new HashMap<>();
+        Map<String, Double> hnScores = new HashMap<>();
+        Set<String> recalled = new HashSet<>();
+        double maxTagScore = 0.0;
+
+        for (Note note : notes) {
+            String code = note.getContentTypeCode();
+            NoteCounter cnt = counterMap.getOrDefault(code, emptyCounter);
+
+            double tagScore = computeTagMatchScore(parseTags(note.getTags()), tagWeights);
+            tagScores.put(code, tagScore);
+            if (tagScore > maxTagScore) maxTagScore = tagScore;
+
+            double hnScore = computeHackerNewsScore(
+                    resolvePublishTime(note.getPublishedAt(), note.getCreatedAt()),
+                    nullSafe(cnt.getLikeCount()),
+                    nullSafe(cnt.getCollectCount()),
+                    nullSafe(cnt.getCommentCount()));
+            hnScores.put(code, hnScore);
+
+            if (tagWeights.isEmpty() || tagScore > 0) {
+                recalled.add(code);
+            }
+        }
+
+        if (tagWeights.isEmpty()) {
+            recalled.addAll(notes.stream().map(Note::getContentTypeCode).collect(Collectors.toSet()));
+        }
+
+        // 裂变召回
+        double avgTagScore = recalled.stream()
+                .mapToDouble(code -> tagScores.getOrDefault(code, 0.0))
+                .filter(v -> v > 0).average().orElse(0.0);
+        Set<String> fissionRecalled = new HashSet<>();
+
+        if (avgTagScore > 0) {
+            for (String code : new ArrayList<>(recalled)) {
+                double tagScore = tagScores.getOrDefault(code, 0.0);
+                if (tagScore >= avgTagScore) {
+                    NoteDetail detail = detailMap.get(code);
+                    if (detail != null && StringUtils.hasText(detail.getParentContentTypeCode())) {
+                        String parentCode = detail.getParentContentTypeCode();
+                        for (Map.Entry<String, NoteDetail> entry : detailMap.entrySet()) {
+                            String siblingCode = entry.getKey();
+                            NoteDetail siblingDetail = entry.getValue();
+                            if (!recalled.contains(siblingCode)
+                                    && !fissionRecalled.contains(siblingCode)
+                                    && siblingDetail != null
+                                    && parentCode.equals(siblingDetail.getParentContentTypeCode())) {
+                                fissionRecalled.add(siblingCode);
+                                tagScores.put(siblingCode, tagScore * FISSION_TAG_INHERIT);
+                            }
+                        }
+                    }
+                }
+            }
+            recalled.addAll(fissionRecalled);
+        }
+
+        // 综合分
+        Map<String, Double> finalScores = new HashMap<>();
+        for (String code : recalled) {
+            double baseHN = hnScores.getOrDefault(code, 0.0);
+            double tagFactor = 1.0;
+            if (maxTagScore > 0) {
+                double t = tagScores.getOrDefault(code, 0.0);
+                tagFactor += t / maxTagScore;
+            }
+            double fissionFactor = fissionRecalled.contains(code) ? FISSION_DECAY : 1.0;
+            finalScores.put(code, baseHN * tagFactor * fissionFactor);
+        }
+
+        return finalScores;
+    }
+
+    /**
+     * scoreNotes() — 供 Java 内存排序路径使用（首页、专区小候选池）。
+     */
+    private List<ScoredContent> scoreNotes(List<Note> notes, Map<String, Double> tagWeights) {
+        List<String> codes = notes.stream().map(Note::getContentTypeCode).collect(Collectors.toList());
+        Map<String, NoteCounter> counterMap = loadNoteCounters(codes);
+        Map<String, NoteDetail> detailMap = loadNoteDetails(codes);
+
+        Map<String, Double> scores = scoreNotesWithFission(notes, tagWeights, counterMap, detailMap);
+
+        List<ScoredContent> result = new ArrayList<>();
+        for (Note note : notes) {
+            double score = scores.getOrDefault(note.getContentTypeCode(), 0.0);
+            result.add(new ScoredContent(toNoteVo(note, score), score));
+        }
+        return result;
+    }
+
+    // ============================================================================
+    //  Hacker News 时间衰减热度公式
+    // ============================================================================
+
+    /**
+     * score = (likes×5 + collects×10 + comments×8) / (hoursSincePublish + 1) ^ 1.5
+     */
+    static double computeHackerNewsScore(LocalDateTime publishTime,
+                                         int likes, int collects, int comments) {
+        long hours = Math.max(0, ChronoUnit.HOURS.between(publishTime, LocalDateTime.now()));
+        double numerator = likes * LIKE_WEIGHT + collects * COLLECT_WEIGHT + comments * COMMENT_WEIGHT;
+        double denominator = Math.pow(hours + TIME_SMOOTH, TIME_DECAY_EXPONENT);
+        return numerator / denominator;
+    }
+
+    // ============================================================================
+    //  标签匹配
+    // ============================================================================
+
+    private double computeTagMatchScore(List<String> contentTags, Map<String, Double> userTagWeights) {
+        if (contentTags.isEmpty() || userTagWeights.isEmpty()) {
+            return 0.0;
+        }
+        double score = 0.0;
+        for (String tag : contentTags) {
+            score += userTagWeights.getOrDefault(tag, 0.0);
+        }
+        return score;
+    }
+
     private Map<String, Double> loadUserTagWeights(String userUid) {
         if (userUid == null || userUid.isBlank() || ANONYMOUS_USER.equals(userUid)) {
             return Map.of();
         }
+        // 优先从 Redis Hash 读取
+        String cacheKey = "user:tags:" + userUid;
+        Map<Object, Object> cached = stringRedisTemplate.opsForHash().entries(cacheKey);
+        if (cached != null && !cached.isEmpty()) {
+            Map<String, Double> result = new HashMap<>();
+            for (Map.Entry<Object, Object> entry : cached.entrySet()) {
+                try {
+                    result.put(entry.getKey().toString(), Double.parseDouble(entry.getValue().toString()));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            return result;
+        }
+
+        // DB 兜底
         LambdaQueryWrapper<UserInterestTag> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserInterestTag::getUserUid, userUid)
                 .orderByDesc(UserInterestTag::getWeight)
                 .last("LIMIT 50");
         List<UserInterestTag> interests = userInterestTagMapper.selectList(wrapper);
+
+        if (interests.isEmpty()) {
+            stringRedisTemplate.opsForHash().put(cacheKey, "__empty__", "0");
+            stringRedisTemplate.expire(cacheKey, Duration.ofMinutes(60).getSeconds(), TimeUnit.SECONDS);
+            return Map.of();
+        }
+
         Map<String, Double> weights = new HashMap<>();
+        Map<String, String> hashEntries = new HashMap<>();
         for (UserInterestTag interest : interests) {
             if (interest.getWeight() != null && StringUtils.hasText(interest.getTag())) {
-                weights.put(interest.getTag().trim(), interest.getWeight().doubleValue());
+                String tag = interest.getTag().trim();
+                double w = interest.getWeight().doubleValue();
+                weights.put(tag, w);
+                hashEntries.put(tag, String.valueOf(w));
             }
         }
+
+        stringRedisTemplate.opsForHash().putAll(cacheKey, hashEntries);
+        stringRedisTemplate.expire(cacheKey, Duration.ofMinutes(60).getSeconds(), TimeUnit.SECONDS);
         return weights;
     }
+
+    // ============================================================================
+    //  项目打分（保持标签加权 + HN 风格时间衰减）
+    // ============================================================================
+
+    /**
+     * 项目打分：标签匹配分 × HN 风格时间衰减（项目无互动计数器，分子=1）。
+     */
+    private List<ScoredContent> scoreProjects(List<Project> projects, Map<String, Double> tagWeights) {
+        boolean tagsEmpty = tagWeights == null || tagWeights.isEmpty();
+        List<ScoredContent> result = new ArrayList<>();
+        for (Project project : projects) {
+            double tagScore = computeTagMatchScore(parseTags(project.getTags()), tagWeights);
+            if (tagScore <= 0) {
+                tagScore = tagsEmpty ? 1.0 : 0.2;
+            }
+            LocalDateTime publishTime = resolvePublishTime(project.getPublishedAt(), project.getCreatedAt());
+            long hours = Math.max(0, ChronoUnit.HOURS.between(publishTime, LocalDateTime.now()));
+            double timeDecay = 1.0 / Math.pow(hours + TIME_SMOOTH, 1.0);
+            double score = tagScore * timeDecay;
+            result.add(new ScoredContent(projectCardAssembler.toFeedProjectVo(project, score), score));
+        }
+        return result;
+    }
+
+    // ============================================================================
+    //  数据加载辅助
+    // ============================================================================
 
     private String normalizeUserUid(String userUid) {
         if (userUid == null || userUid.isBlank()) {
@@ -433,23 +752,6 @@ public class FeedRecommendationService {
         return projectMapper.selectList(wrapper);
     }
 
-    private List<ScoredContent> scoreNotes(List<Note> notes, Map<String, Double> tagWeights) {
-        List<String> codes = notes.stream().map(Note::getContentTypeCode).collect(Collectors.toList());
-        Map<String, NoteCounter> counterMap = loadNoteCounters(codes);
-        NoteCounter empty = new NoteCounter();
-        empty.setViewCount(0); empty.setLikeCount(0); empty.setCollectCount(0); empty.setCommentCount(0);
-
-        List<ScoredContent> result = new ArrayList<>();
-        for (Note note : notes) {
-            NoteCounter cnt = counterMap.getOrDefault(note.getContentTypeCode(), empty);
-            double score = computeScore(parseTags(note.getTags()), tagWeights,
-                    resolvePublishTime(note.getPublishedAt(), note.getCreatedAt()),
-                    nullSafe(cnt.getLikeCount()), nullSafe(cnt.getCollectCount()));
-            result.add(new ScoredContent(toNoteVo(note, score), score));
-        }
-        return result;
-    }
-
     private Map<String, NoteCounter> loadNoteCounters(List<String> contentTypeCodes) {
         if (contentTypeCodes.isEmpty()) return Map.of();
         LambdaQueryWrapper<NoteCounter> wrapper = new LambdaQueryWrapper<>();
@@ -480,15 +782,6 @@ public class FeedRecommendationService {
         return map;
     }
 
-    /**
-     * 基于 parentContentTypeCode 关联关系计算加权。
-     * <ul>
-     *   <li>兄弟：candidate.parent == source.parent → +0.3</li>
-     *   <li>亲子（正向）：candidate.parent == source.code → +0.5（candidate 是 source 的子笔记）</li>
-     *   <li>亲子（反向）：source.parent == candidate.code → +0.5（candidate 是 source 的父笔记）</li>
-     *   <li>无关联 → 0.0</li>
-     * </ul>
-     */
     private double computeRelationBoost(String sourceCode,
                                         String sourceParentCode,
                                         String candidateCode,
@@ -498,19 +791,16 @@ public class FeedRecommendationService {
         }
         String candidateParentCode = candidateDetail.getParentContentTypeCode();
 
-        // 兄弟：候选笔记与源笔记有相同的父笔记
         if (sourceParentCode != null
                 && candidateParentCode != null
                 && sourceParentCode.equals(candidateParentCode)) {
             return 0.3;
         }
 
-        // 亲子（正向）：候选笔记的 parent 等于源笔记 code → 候选是源的子笔记
         if (candidateParentCode != null && candidateParentCode.equals(sourceCode)) {
             return 0.5;
         }
 
-        // 亲子（反向）：源笔记的 parent 等于候选笔记 code → 候选是源的父笔记
         if (sourceParentCode != null && sourceParentCode.equals(candidateCode)) {
             return 0.5;
         }
@@ -518,39 +808,9 @@ public class FeedRecommendationService {
         return 0.0;
     }
 
-    private List<ScoredContent> scoreProjects(List<Project> projects, Map<String, Double> tagWeights) {
-        List<ScoredContent> result = new ArrayList<>();
-        for (Project project : projects) {
-            double score = computeScore(parseTags(project.getTags()), tagWeights,
-                    resolvePublishTime(project.getPublishedAt(), project.getCreatedAt()),
-                    0, 0);
-            result.add(new ScoredContent(projectCardAssembler.toFeedProjectVo(project, score), score));
-        }
-        return result;
-    }
-
-    /**
-     * 综合分 = (标签匹配分 + 冷启动底分) × 时间衰减 × 0.7 + 热度分 × 0.3
-     */
-    private double computeScore(List<String> contentTags,
-                                Map<String, Double> userTagWeights,
-                                LocalDateTime publishTime,
-                                int likes,
-                                int collects) {
-        double tagScore = 0;
-        for (String tag : contentTags) {
-            tagScore += userTagWeights.getOrDefault(tag, 0.0);
-        }
-        if (tagScore <= 0) {
-            tagScore = userTagWeights.isEmpty() ? 1.0 : 0.2;
-        }
-
-        long days = Math.max(0, ChronoUnit.DAYS.between(publishTime.toLocalDate(), LocalDateTime.now().toLocalDate()));
-        double timeDecay = 1.0 / (1.0 + days * 0.05);
-        double popularity = Math.log1p(likes + collects * 1.5);
-
-        return tagScore * timeDecay * 0.7 + popularity * 0.3;
-    }
+    // ============================================================================
+    //  工具方法
+    // ============================================================================
 
     private double jaccardSimilarity(Set<String> a, Set<String> b) {
         if (a.isEmpty() || b.isEmpty()) {
@@ -575,10 +835,6 @@ public class FeedRecommendationService {
         return publishedAt != null ? publishedAt : (createdAt != null ? createdAt : LocalDateTime.now());
     }
 
-    private String formatPublishTime(LocalDateTime time) {
-        return time == null ? "" : time.format(PUBLISH_TIME_FORMATTER);
-    }
-
     private List<String> parseTags(String json) {
         if (!StringUtils.hasText(json)) {
             return List.of();
@@ -592,10 +848,6 @@ public class FeedRecommendationService {
 
     private int nullSafe(Integer value) {
         return value == null ? 0 : value;
-    }
-
-    private double roundScore(double score) {
-        return Math.round(score * 1000.0) / 1000.0;
     }
 
     private String normalizeProjectCategory(String category) {
@@ -631,14 +883,6 @@ public class FeedRecommendationService {
         return NOTE_TYPE_VIDEO.equals(noteType) ? NOTE_CODE_PREFIX_VIDEO : NOTE_CODE_PREFIX_IMAGE_TEXT;
     }
 
-    private String resolveNoteType(String contentTypeCode) {
-        if (StringUtils.hasText(contentTypeCode)
-                && contentTypeCode.trim().toUpperCase().startsWith(NOTE_CODE_PREFIX_VIDEO)) {
-            return NOTE_TYPE_VIDEO;
-        }
-        return NOTE_TYPE_IMAGE_TEXT;
-    }
-
     // -------------------------------------------------------------------------
     // 「换一换」机制 A / B 内部实现
     // -------------------------------------------------------------------------
@@ -661,15 +905,12 @@ public class FeedRecommendationService {
     }
 
     private List<ContentVO> buildNoteFeedRankedPool(String noteType, Map<String, Double> tagWeights) {
-        return scoreNotes(loadPublishedNotes(HOME_CANDIDATE_LIMIT, noteType), tagWeights).stream()
+        return scoreNotes(loadPublishedNotes(NOTE_FEED_CANDIDATE_LIMIT, noteType), tagWeights).stream()
                 .sorted(Comparator.comparingDouble(ScoredContent::score).reversed())
                 .map(ScoredContent::vo)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 机制 B：拉取候选后在 Java 层跨类型混排（与首页 shuffle 一致，避免 MySQL {@code RAND(seed)} 排序失效）。
-     */
     private List<ContentVO> buildHomeFeedRandomPage(String userUid, long seed, int page, int size) {
         List<Note> notes = loadPublishedNotes(HOME_CANDIDATE_LIMIT, null);
         List<Project> projects = loadPublicProjects(HOME_CANDIDATE_LIMIT, null);
@@ -708,9 +949,6 @@ public class FeedRecommendationService {
         return slicePage(pool, page, size);
     }
 
-    /**
-     * 分页保护防空窗：{@code page * size > total} 时自动重置为第 1 页，实现缓存池内循环滚动。
-     */
     private PageWindow resolvePageWindow(int page, int size, long total) {
         int safePage = page <= 0 ? 1 : page;
         boolean wrapped = false;
@@ -779,7 +1017,7 @@ public class FeedRecommendationService {
         return Math.min(size, FEED_MAX_LIMIT);
     }
 
-    /** 将 seed 归一化为非负 long，供 {@link Random} 使用。 */
+    /** 将 seed 归一化为非负 long */
     private long sanitizeRandSeed(Long seed) {
         return Math.abs(seed);
     }
@@ -787,6 +1025,6 @@ public class FeedRecommendationService {
     private record PageWindow(int page, boolean wrapped) {
     }
 
-    private record ScoredContent(ContentVO vo, double score) {
+    record ScoredContent(ContentVO vo, double score) {
     }
 }

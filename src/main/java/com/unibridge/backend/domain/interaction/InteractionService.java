@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.unibridge.backend.application.shared.ContentUidResolver;
 import com.unibridge.backend.domain.auth.AccessService;
+import com.unibridge.backend.domain.feed.FeedRecommendationService;
 import com.unibridge.backend.domain.interaction.dto.ContentInteractionRequest;
 import com.unibridge.backend.domain.interaction.dto.ContentViewSyncRequest;
 import com.unibridge.backend.domain.note.NoteViewTracker;
@@ -41,17 +42,20 @@ public class InteractionService {
     private final UserInteractionMapper interactionMapper;
     private final NoteViewTracker noteViewTracker;
     private final ContentUidResolver contentUidResolver;
+    private final FeedRecommendationService feedRecommendationService;
 
     public InteractionService(AccessService clientAccessService,
                                      NoteMapper noteMapper,
                                      UserInteractionMapper interactionMapper,
                                      NoteViewTracker noteViewTracker,
-                                     ContentUidResolver contentUidResolver) {
+                                     ContentUidResolver contentUidResolver,
+                                     FeedRecommendationService feedRecommendationService) {
         this.clientAccessService = clientAccessService;
         this.noteMapper = noteMapper;
         this.interactionMapper = interactionMapper;
         this.noteViewTracker = noteViewTracker;
         this.contentUidResolver = contentUidResolver;
+        this.feedRecommendationService = feedRecommendationService;
     }
 
     @Transactional
@@ -140,6 +144,9 @@ public class InteractionService {
             Long noteId = contentUidResolver.requireNoteByUid(targetUid).getId();
             applyNoteCounterDelta(noteId, field, after - before);
         }
+
+        // 互动变更后失效笔记 Feed ZSET，下次请求自动重建
+        feedRecommendationService.invalidateFeed(userUid);
     }
 
     private String normalizeTargetUid(String targetType, String targetUid) {
