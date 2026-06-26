@@ -9,9 +9,11 @@ import com.unibridge.backend.domain.project.dto.PublishProjectDraftResponse;
 import com.unibridge.backend.domain.project.dto.PublishProjectRequest;
 import com.unibridge.backend.domain.project.dto.PublishProjectResponse;
 import com.unibridge.backend.infrastructure.entities.project.Project;
+import com.unibridge.backend.infrastructure.entities.project.ProjectBody;
 import com.unibridge.backend.infrastructure.entities.project.ProjectSecret;
 import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
 import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectSecretMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectBodyMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
@@ -65,17 +67,20 @@ public class ProjectService {
     private final AccessService clientAccessService;
     private final ProjectMapper projectMapper;
     private final ProjectSecretMapper projectSecretMapper;
+    private final ProjectBodyMapper projectBodyMapper;
     private final UserOrganizationBindingMapper userOrganizationBindingMapper;
     private final ContentUidResolver contentUidResolver;
 
     public ProjectService(AccessService clientAccessService,
                                 ProjectMapper projectMapper,
                                 ProjectSecretMapper projectSecretMapper,
+                                ProjectBodyMapper projectBodyMapper,
                                 UserOrganizationBindingMapper userOrganizationBindingMapper,
                                 ContentUidResolver contentUidResolver) {
         this.clientAccessService = clientAccessService;
         this.projectMapper = projectMapper;
         this.projectSecretMapper = projectSecretMapper;
+        this.projectBodyMapper = projectBodyMapper;
         this.userOrganizationBindingMapper = userOrganizationBindingMapper;
         this.contentUidResolver = contentUidResolver;
     }
@@ -93,6 +98,8 @@ public class ProjectService {
         project.setProjectUid(ProjectUidGenerator.generate(this::isProjectUidUnique));
         applyRequestToProject(project, request);
         projectMapper.insert(project);
+
+        saveProjectBody(project.getProjectUid(), request.getDescription());
 
         syncCommercialSecret(project.getProjectUid(), request);
         Project persisted = projectMapper.selectById(project.getId());
@@ -114,6 +121,8 @@ public class ProjectService {
         applyRequestToProject(project, request);
         projectMapper.updateById(project);
 
+        saveProjectBody(project.getProjectUid(), request.getDescription());
+
         syncCommercialSecret(project.getProjectUid(), request);
         Project persisted = projectMapper.selectById(project.getId());
         return buildResponse(persisted, request.getPublishAction());
@@ -131,7 +140,7 @@ public class ProjectService {
                 .summary(project.getPreview())
                 .channel(mapCategoryToChannel(project.getCategory()))
                 .campusRecruitType(project.getRecruitmentType())
-                .description(project.getDescription())
+                .description(loadProjectBody(project.getProjectUid()))
                 .amount(formatAmount(secret == null ? null : secret.getTotalBudget()))
                 .level(project.getLevel())
                 .duration(project.getDuration())
@@ -175,7 +184,7 @@ public class ProjectService {
                 .summary(project.getPreview())
                 .channel(channel)
                 .campusRecruitType(project.getRecruitmentType())
-                .description(project.getDescription())
+                .description(loadProjectBody(project.getProjectUid()))
                 .descriptionEditorType(defaultEditorType(project.getEditorType()))
                 .amount(amount)
                 .level(project.getLevel())
@@ -315,9 +324,9 @@ public class ProjectService {
         project.setRecruitmentType(CHANNEL_CAMPUS.equals(channel) ? request.getCampusRecruitType().trim() : null);
         project.setTitle(request.getTitle().trim());
         project.setPreview(StringUtils.hasText(request.getSummary()) ? request.getSummary().trim() : "");
-        project.setDescription(StringUtils.hasText(request.getDescription()) ? request.getDescription() : null);
         project.setEditorType(EDITOR_TYPE_MARKDOWN);
         project.setTags(toJsonStringList(request.getSkillTags()));
+        project.setBudget(parseAmount(request.getAmount()));
         project.setLevel(request.getLevel().trim());
         project.setDuration(trimToNull(request.getDuration()));
         project.setTeamSize(trimToNull(request.getTeamSize()));
@@ -451,5 +460,23 @@ public class ProjectService {
             return null;
         }
         return dateTime.atZone(ZONE_SHANGHAI).format(ISO_OFFSET_FORMATTER);
+    }
+
+    private String loadProjectBody(String projectUid) {
+        ProjectBody body = projectBodyMapper.selectById(projectUid);
+        return body != null ? body.getDescription() : null;
+    }
+
+    private void saveProjectBody(String projectUid, String description) {
+        ProjectBody existing = projectBodyMapper.selectById(projectUid);
+        if (existing == null) {
+            ProjectBody body = new ProjectBody();
+            body.setProjectUid(projectUid);
+            body.setDescription(StringUtils.hasText(description) ? description : null);
+            projectBodyMapper.insert(body);
+            return;
+        }
+        existing.setDescription(StringUtils.hasText(description) ? description : null);
+        projectBodyMapper.updateById(existing);
     }
 }

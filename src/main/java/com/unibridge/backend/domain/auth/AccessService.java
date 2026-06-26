@@ -5,6 +5,7 @@ import com.unibridge.backend.infrastructure.entities.auth.User;
 import com.unibridge.backend.infrastructure.persistence.mapper.auth.UserMapper;
 import com.unibridge.backend.infrastructure.util.JwtUtil;
 import io.jsonwebtoken.ExpiredJwtException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
 /**
@@ -112,7 +113,39 @@ public class AccessService {
         return defaultUid;
     }
 
-    /** 从 Authorization 头解析当前登录用户 UID；无有效 token 时返回 {@code null}。 */
+    /**
+     * 两次机会机制：首次 token 过期抛 ACCESS_TOKEN_EXPIRED 提醒前端刷新；
+     * 前端刷新后重试带 X-Token-Refresh-Failed=1 头，此时仍过期则返回 null（走匿名 404）。
+     */
+    public String resolveOptionalCurrentUserUid(String authorization, HttpServletRequest request) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return null;
+        }
+        String token = authorization.substring("Bearer ".length()).trim();
+        if (token.isEmpty()) {
+            return null;
+        }
+        try {
+            String userType = jwtUtil.getUserType(token);
+            String subject = jwtUtil.getUserId(token);
+            if (!CLIENT_USER_TOKEN_TYPE.equals(userType)) {
+                return null;
+            }
+            if (subject == null || subject.isBlank()) {
+                return null;
+            }
+            return resolveClientUserUid(subject);
+        } catch (ExpiredJwtException ex) {
+            if ("1".equals(request.getHeader("X-Token-Refresh-Failed"))) {
+                return null;
+            }
+            throw new BusinessException(401, "ACCESS_TOKEN_EXPIRED");
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    /** 从 Authorization 头解析当前登录用户 UID；无有效 token 时返回 {@code null}（无请求上下文时不区分过期）。 */
     public String resolveOptionalCurrentUserUid(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             return null;
@@ -131,6 +164,8 @@ public class AccessService {
                 return null;
             }
             return resolveClientUserUid(subject);
+        } catch (ExpiredJwtException ex) {
+            return null;
         } catch (Exception ex) {
             return null;
         }

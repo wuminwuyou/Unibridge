@@ -11,11 +11,13 @@ import com.unibridge.backend.infrastructure.entities.note.Note;
 import com.unibridge.backend.infrastructure.entities.note.NoteCounter;
 import com.unibridge.backend.infrastructure.entities.note.NoteDetail;
 import com.unibridge.backend.infrastructure.entities.project.Project;
+import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
 import com.unibridge.backend.infrastructure.entities.interaction.UserInterestTag;
 import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteCounterMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.note.NoteDetailMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.interaction.UserInterestTagMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -45,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * Feed 推荐服务（HN 时间衰减 + 兴趣标签裂变召回 + Redis ZSET）。
+ * Feed 推荐服务（HN 时间衰减 + 兴趣标签裂变召回 + Redis ZSET + 能力等级匹配）。
  *
  * <h3>核心算法</h3>
  * <ol>
@@ -56,6 +58,8 @@ import java.util.stream.Collectors;
  *   <li><b>Hacker News 热度分</b>：
  *       score = (likes×5 + collects×10 + comments×8) / (hours + 1)^1.5 × tagFactor</li>
  *   <li><b>Redis ZSET 倒序分页</b>：笔记得分写入 per-user ZSET，ZREVRANGE 高效输出</li>
+ *   <li><b>能力等级匹配（项目）</b>：用户 p_user_profile.level 匹配 project.level，
+ *       同等级 ×1.0，差 1 级 ×0.8，差 ≥2 级不推荐</li>
  * </ol>
  */
 @Service
@@ -113,6 +117,15 @@ public class FeedRecommendationService {
     private static final double FISSION_DECAY = 0.8;
     private static final double FISSION_TAG_INHERIT = 0.7;
 
+    // ── 能力等级排序 ──
+    /** 等级序值：UR(5) > SSR(4) > SR(3) > R(2) > N(1) */
+    private static final Map<String, Integer> LEVEL_ORDER = Map.of(
+            "UR", 5, "SSR", 4, "SR", 3, "R", 2, "N", 1
+    );
+    /** 项目等级匹配系数：同等级=1.0，差1级=0.8，差≥2级=0.0（不推荐） */
+    private static final double LEVEL_MATCH_SAME = 1.0;
+    private static final double LEVEL_MATCH_ADJACENT = 0.8;
+
     // ── Redis ZSET ──
     private static final String FEED_ZSET_PREFIX = "feed:note:";
     private static final Duration ZSET_TTL = Duration.ofMinutes(30);
@@ -126,8 +139,11 @@ public class FeedRecommendationService {
     private final NoteCounterMapper noteCounterMapper;
     private final NoteDetailMapper noteDetailMapper;
     private final ProjectMapper projectMapper;
+    private final UserProfileMapper userProfileMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final FeedShuffleCacheService feedShuffleCacheService;
+    private final FeedCounterService feedCounterService;
+    private final ProjectFeedRecommendationService projectFeedRecService;
     private final ContentUidResolver contentUidResolver;
     private final ProjectCardAssembler projectCardAssembler;
     private final NoteCardAssembler noteCardAssembler;
@@ -137,8 +153,11 @@ public class FeedRecommendationService {
                                      NoteCounterMapper noteCounterMapper,
                                      NoteDetailMapper noteDetailMapper,
                                      ProjectMapper projectMapper,
+                                     UserProfileMapper userProfileMapper,
                                      StringRedisTemplate stringRedisTemplate,
                                      @Lazy FeedShuffleCacheService feedShuffleCacheService,
+                                     FeedCounterService feedCounterService,
+                                     ProjectFeedRecommendationService projectFeedRecService,
                                      ContentUidResolver contentUidResolver,
                                      ProjectCardAssembler projectCardAssembler,
                                      NoteCardAssembler noteCardAssembler) {
@@ -147,8 +166,11 @@ public class FeedRecommendationService {
         this.noteCounterMapper = noteCounterMapper;
         this.noteDetailMapper = noteDetailMapper;
         this.projectMapper = projectMapper;
+        this.userProfileMapper = userProfileMapper;
         this.stringRedisTemplate = stringRedisTemplate;
         this.feedShuffleCacheService = feedShuffleCacheService;
+        this.feedCounterService = feedCounterService;
+        this.projectFeedRecService = projectFeedRecService;
         this.contentUidResolver = contentUidResolver;
         this.projectCardAssembler = projectCardAssembler;
         this.noteCardAssembler = noteCardAssembler;
@@ -172,7 +194,7 @@ public class FeedRecommendationService {
                 .map(ScoredContent::vo)
                 .collect(Collectors.toList());
 
-        List<ContentVO> projects = scoreProjects(loadPublicProjects(HOME_CANDIDATE_LIMIT), tagWeights).stream()
+        List<ContentVO> projects = scoreProjects(loadPublicProjects(HOME_CANDIDATE_LIMIT), tagWeights, loadUserLevel(effectiveUserUid)).stream()
                 .sorted(Comparator.comparingDouble(ScoredContent::score).reversed())
                 .limit(HOME_PROJECT_LIMIT)
                 .map(ScoredContent::vo)
@@ -261,14 +283,13 @@ public class FeedRecommendationService {
 
     public List<ContentVO> buildHomeFeedCachedPage(String userUid, int page, int size) {
         Map<String, Double> tagWeights = loadUserTagWeights(userUid);
-        List<ContentVO> pool = buildHomeFeedRankedPool(tagWeights);
+        String userLevel = loadUserLevel(userUid);
+        List<ContentVO> pool = buildHomeFeedRankedPool(tagWeights, userLevel);
         return slicePage(pool, page, size);
     }
 
     public List<ContentVO> buildProjectFeedCachedPage(String userUid, String category, int page, int size) {
-        Map<String, Double> tagWeights = loadUserTagWeights(userUid);
-        List<ContentVO> pool = buildProjectFeedRankedPool(category, tagWeights);
-        return slicePage(pool, page, size);
+        return projectFeedRecService.getProjectFeed(userUid, category, size);
     }
 
     public List<ContentVO> buildNoteFeedCachedPage(String userUid, String noteType, int page, int size) {
@@ -282,18 +303,7 @@ public class FeedRecommendationService {
         String normalizedCategory = normalizeProjectCategory(category);
         int safeLimit = normalizeFeedLimit(limit, ZONE_FEED_DEFAULT_LIMIT);
         String effectiveUserUid = normalizeUserUid(userUid);
-        Map<String, Double> tagWeights = loadUserTagWeights(effectiveUserUid);
-
-        List<ContentVO> projects = scoreProjects(
-                loadPublicProjects(HOME_CANDIDATE_LIMIT, normalizedCategory), tagWeights).stream()
-                .sorted(Comparator.comparingDouble(ScoredContent::score).reversed())
-                .limit(safeLimit)
-                .map(ScoredContent::vo)
-                .collect(Collectors.toList());
-
-        log.debug("Project feed computed: userUid={}, category={}, size={}",
-                effectiveUserUid, normalizedCategory, projects.size());
-        return projects;
+        return projectFeedRecService.getProjectFeed(effectiveUserUid, normalizedCategory, safeLimit);
     }
 
     /**
@@ -681,12 +691,22 @@ public class FeedRecommendationService {
     // ============================================================================
 
     /**
-     * 项目打分：标签匹配分 × HN 风格时间衰减（项目无互动计数器，分子=1）。
+     * 项目打分：标签匹配分 × 等级匹配 × 时间衰减。
+     * <p>
+     * 等级匹配规则：同等级 → ×1.0，差1级 → ×0.8，差≥2级 → 0（不推荐）。
+     * 匿名用户不传等级，所有项目均可推荐。
      */
-    private List<ScoredContent> scoreProjects(List<Project> projects, Map<String, Double> tagWeights) {
+    private List<ScoredContent> scoreProjects(List<Project> projects, Map<String, Double> tagWeights, String userLevel) {
         boolean tagsEmpty = tagWeights == null || tagWeights.isEmpty();
+        int userLevelOrder = resolveLevelOrder(userLevel);
         List<ScoredContent> result = new ArrayList<>();
         for (Project project : projects) {
+            // 等级匹配
+            double levelFactor = computeLevelFactor(userLevelOrder, resolveLevelOrder(project.getLevel()));
+            if (levelFactor <= 0) {
+                continue; // 等级差距过大，不推荐
+            }
+
             double tagScore = computeTagMatchScore(parseTags(project.getTags()), tagWeights);
             if (tagScore <= 0) {
                 tagScore = tagsEmpty ? 1.0 : 0.2;
@@ -694,10 +714,38 @@ public class FeedRecommendationService {
             LocalDateTime publishTime = resolvePublishTime(project.getPublishedAt(), project.getCreatedAt());
             long hours = Math.max(0, ChronoUnit.HOURS.between(publishTime, LocalDateTime.now()));
             double timeDecay = 1.0 / Math.pow(hours + TIME_SMOOTH, 1.0);
-            double score = tagScore * timeDecay;
+            double score = tagScore * levelFactor * timeDecay;
             result.add(new ScoredContent(projectCardAssembler.toFeedProjectVo(project, score), score));
         }
         return result;
+    }
+
+    /** 解析等级到序值：UR=5, SSR=4, SR=3, R=2, N=1。未知等级=0（匿名/冷启动）。 */
+    static int resolveLevelOrder(String level) {
+        if (level == null || level.isBlank()) return 0;
+        return LEVEL_ORDER.getOrDefault(level.trim().toUpperCase(), 0);
+    }
+
+    /** 计算等级匹配系数：同等级=1.0，差1级=0.8，差≥2级=0，匿名=1.0。 */
+    static double computeLevelFactor(int userLevelOrder, int projectLevelOrder) {
+        if (userLevelOrder == 0 || projectLevelOrder == 0) return 1.0;
+        int diff = Math.abs(userLevelOrder - projectLevelOrder);
+        if (diff == 0) return LEVEL_MATCH_SAME;
+        if (diff == 1) return LEVEL_MATCH_ADJACENT;
+        return 0.0;
+    }
+
+    /** 加载用户能力等级（从 p_user_profile.level）。 */
+    private String loadUserLevel(String userUid) {
+        if (userUid == null || userUid.isBlank() || ANONYMOUS_USER.equals(userUid)) {
+            return null;
+        }
+        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserProfile::getUserUid, userUid)
+                .select(UserProfile::getLevel)
+                .last("LIMIT 1");
+        UserProfile profile = userProfileMapper.selectOne(wrapper);
+        return profile != null ? profile.getLevel() : null;
     }
 
     // ============================================================================
@@ -753,15 +801,7 @@ public class FeedRecommendationService {
     }
 
     private Map<String, NoteCounter> loadNoteCounters(List<String> contentTypeCodes) {
-        if (contentTypeCodes.isEmpty()) return Map.of();
-        LambdaQueryWrapper<NoteCounter> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(NoteCounter::getContentTypeCode, contentTypeCodes);
-        List<NoteCounter> list = noteCounterMapper.selectList(wrapper);
-        Map<String, NoteCounter> map = new HashMap<>();
-        for (NoteCounter c : list) {
-            map.put(c.getContentTypeCode(), c);
-        }
-        return map;
+        return feedCounterService.loadNoteCounters(contentTypeCodes);
     }
 
     private NoteDetail loadNoteDetail(String contentTypeCode) {
@@ -887,9 +927,9 @@ public class FeedRecommendationService {
     // 「换一换」机制 A / B 内部实现
     // -------------------------------------------------------------------------
 
-    private List<ContentVO> buildHomeFeedRankedPool(Map<String, Double> tagWeights) {
+    private List<ContentVO> buildHomeFeedRankedPool(Map<String, Double> tagWeights, String userLevel) {
         List<ScoredContent> notes = scoreNotes(loadPublishedNotes(HOME_CANDIDATE_LIMIT), tagWeights);
-        List<ScoredContent> projects = scoreProjects(loadPublicProjects(HOME_CANDIDATE_LIMIT), tagWeights);
+        List<ScoredContent> projects = scoreProjects(loadPublicProjects(HOME_CANDIDATE_LIMIT), tagWeights, userLevel);
         List<ScoredContent> merged = new ArrayList<>(notes.size() + projects.size());
         merged.addAll(notes);
         merged.addAll(projects);
@@ -897,8 +937,8 @@ public class FeedRecommendationService {
         return merged.stream().map(ScoredContent::vo).collect(Collectors.toList());
     }
 
-    private List<ContentVO> buildProjectFeedRankedPool(String category, Map<String, Double> tagWeights) {
-        return scoreProjects(loadPublicProjects(HOME_CANDIDATE_LIMIT, category), tagWeights).stream()
+    private List<ContentVO> buildProjectFeedRankedPool(String category, Map<String, Double> tagWeights, String userLevel) {
+        return scoreProjects(loadPublicProjects(HOME_CANDIDATE_LIMIT, category), tagWeights, userLevel).stream()
                 .sorted(Comparator.comparingDouble(ScoredContent::score).reversed())
                 .map(ScoredContent::vo)
                 .collect(Collectors.toList());

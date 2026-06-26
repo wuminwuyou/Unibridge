@@ -164,7 +164,7 @@ public class NoteService {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
         }
 
-        String currentUserUid = clientAccessService.resolveOptionalCurrentUserUid(authorization);
+        String currentUserUid = clientAccessService.resolveOptionalCurrentUserUid(authorization, request);
         assertNoteReadable(note, currentUserUid);
 
         if (tryIncrementViewCount(note.getContentTypeCode(), currentUserUid, request)) {

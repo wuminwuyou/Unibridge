@@ -583,11 +583,11 @@ CREATE TABLE t_project (
   title VARCHAR(255) NOT NULL COMMENT '项目名称',
   preview TEXT NOT NULL COMMENT '项目简略描述',
   editor_type VARCHAR(32) NOT NULL DEFAULT 'MARKDOWN' COMMENT '编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前前端统一 Milkdown）',
-  description LONGTEXT NULL COMMENT '项目详情正文（Markdown，前端 Milkdown 渲染）',
+  budget DECIMAL(18,2) NULL COMMENT '项目预算/赏金（公开字段，非敏感）',
   tags JSON NULL COMMENT '推荐与算法标签列表',
   duration VARCHAR(64) NULL COMMENT '预计周期',
   team_size VARCHAR(64) NULL COMMENT '团队人数',
-  deadline DATE NULL COMMENT '报名截止日期',
+  deadline DATE NULL COMMENT '最大接受截止日期（项目招募最大容忍度，逼近或超过该日期则加急处理）',
   level VARCHAR(16) NOT NULL DEFAULT 'N' COMMENT '难度评级：N | R | SR | SSR | UR',
   -- 基础状态：DRAFT(草稿) | OPEN(开放中/招募中) | ONGOING(进行中) | CLOSED(已关闭/已结项)
   status VARCHAR(16) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT | OPEN | ONGOING | CLOSED',
@@ -643,6 +643,33 @@ CREATE TABLE t_project_secret (
       'ARBITRATED'
     )
   )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 8.2.1 项目正文大文本拆分表（t_project_body：垂直拆分，热冷分离）
+-- 仅存 description 大文本，避免频繁拉取主表长字段
+CREATE TABLE t_project_body (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  project_uid CHAR(13) NOT NULL COMMENT '关联的主项目 UID（1:1 关联）',
+  description LONGTEXT NULL COMMENT '项目详情正文（Markdown，前端 Milkdown 渲染）',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_proj_body_uid (project_uid),
+  CONSTRAINT fk_proj_body_uid FOREIGN KEY (project_uid) REFERENCES t_project(project_uid)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 8.2.2 项目计数统计表（t_project_counter：热写分离，避免频繁更新主表行锁竞争）
+-- TODO: 前端 IM 即时通讯私聊功能尚未实现，chat_count 当前仅作快照预留；collect_count 对应前端「感兴趣」按钮
+-- 计数写入走 Redis 缓存（feed:proj:cnt:{projectUid}:{field}），MySQL 表为定期快照落库
+CREATE TABLE t_project_counter (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  project_uid CHAR(13) NOT NULL COMMENT '对应 t_project.project_uid（应用层关联）',
+  view_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '浏览量',
+  collect_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '收藏数（前端「感兴趣」按钮）',
+  chat_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '私聊人数（快照，精确值见 Redis HyperLogLog；TODO: IM 私聊后端待接入）',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_proj_counter_uid (project_uid),
+  CONSTRAINT fk_proj_counter_uid FOREIGN KEY (project_uid) REFERENCES t_project(project_uid)
+    ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- 8.3 里程碑（t_project_milestone：project 1:N t_project_milestones）

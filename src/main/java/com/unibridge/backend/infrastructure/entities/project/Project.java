@@ -29,7 +29,8 @@ public class Project {
     private String preview;
     @TableField("editor_type")
     private String editorType;
-    private String description;
+    /** 项目预算/赏金（公开字段） */
+    private BigDecimal budget;
     private String tags;
     private String duration;
     @TableField("team_size")

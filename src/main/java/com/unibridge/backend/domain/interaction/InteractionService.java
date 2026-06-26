@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.unibridge.backend.application.shared.ContentUidResolver;
 import com.unibridge.backend.domain.auth.AccessService;
+import com.unibridge.backend.domain.feed.FeedCounterService;
 import com.unibridge.backend.domain.feed.FeedRecommendationService;
 import com.unibridge.backend.domain.interaction.dto.ContentInteractionRequest;
 import com.unibridge.backend.domain.interaction.dto.ContentViewSyncRequest;
@@ -25,8 +26,11 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * 互动数据同步：点赞/收藏/播放计数 → 数据库计数器 + 缓存失效（双写一致性）。
+ * 互动数据同步：点赞/收藏/播放计数 → Redis 内存计数器 + 缓存失效。
+ * <p>
+ * 【Redis 优先】计数写入 Redis 瞬时生效，MySQL 为定期快照落库。
  * API 层使用 {@code targetUid}，库内直接存 {@code target_uid}。
+ * </p>
  */
 @Service
 public class InteractionService {
@@ -43,19 +47,22 @@ public class InteractionService {
     private final NoteViewTracker noteViewTracker;
     private final ContentUidResolver contentUidResolver;
     private final FeedRecommendationService feedRecommendationService;
+    private final FeedCounterService feedCounterService;
 
     public InteractionService(AccessService clientAccessService,
                                      NoteMapper noteMapper,
                                      UserInteractionMapper interactionMapper,
                                      NoteViewTracker noteViewTracker,
                                      ContentUidResolver contentUidResolver,
-                                     FeedRecommendationService feedRecommendationService) {
+                                     FeedRecommendationService feedRecommendationService,
+                                     FeedCounterService feedCounterService) {
         this.clientAccessService = clientAccessService;
         this.noteMapper = noteMapper;
         this.interactionMapper = interactionMapper;
         this.noteViewTracker = noteViewTracker;
         this.contentUidResolver = contentUidResolver;
         this.feedRecommendationService = feedRecommendationService;
+        this.feedCounterService = feedCounterService;
     }
 
     @Transactional
@@ -80,10 +87,17 @@ public class InteractionService {
     @Transactional
     public void syncView(String authorization, ContentViewSyncRequest request, HttpServletRequest httpRequest) {
         validateViewRequest(request);
-        if (!TARGET_NOTE.equalsIgnoreCase(request.getTargetType())) {
-            return;
-        }
 
+        String targetType = request.getTargetType().toUpperCase(Locale.ROOT);
+
+        if (TARGET_NOTE.equals(targetType)) {
+            syncNoteView(authorization, request, httpRequest);
+        } else if (TARGET_PROJECT.equals(targetType)) {
+            syncProjectView(authorization, request, httpRequest);
+        }
+    }
+
+    private void syncNoteView(String authorization, ContentViewSyncRequest request, HttpServletRequest httpRequest) {
         Note note = contentUidResolver.requireNoteByUid(request.getTargetUid());
         if (!NOTE_STATUS_PUBLISHED.equals(note.getStatus())) {
             throw BusinessException.notFound("NOTE_NOT_FOUND");
@@ -98,11 +112,13 @@ public class InteractionService {
             return;
         }
 
-        // 数据库原子自增，避免 read-modify-write 竞态
-        LambdaUpdateWrapper<Note> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(Note::getId, note.getId())
-                .setSql("view_count = COALESCE(view_count, 0) + 1");
-        noteMapper.update(null, wrapper);
+        // Redis 优先：瞬时生效
+        feedCounterService.incrNoteView(note.getContentTypeCode());
+    }
+
+    private void syncProjectView(String authorization, ContentViewSyncRequest request, HttpServletRequest httpRequest) {
+        String projectUid = contentUidResolver.requireProjectByUid(request.getTargetUid()).getProjectUid();
+        feedCounterService.incrProjectView(projectUid);
     }
 
     /**
@@ -140,9 +156,20 @@ public class InteractionService {
         }
         interactionMapper.update(null, updateWrapper);
 
+        int delta = after - before;
         if (TARGET_NOTE.equals(targetType)) {
-            Long noteId = contentUidResolver.requireNoteByUid(targetUid).getId();
-            applyNoteCounterDelta(noteId, field, after - before);
+            // 笔记计数器走 Redis
+            String contentTypeCode = contentUidResolver.requireNoteByUid(targetUid).getContentTypeCode();
+            if (field == InteractionField.LIKE) {
+                feedCounterService.incrNoteLike(contentTypeCode, delta);
+            } else {
+                feedCounterService.incrNoteCollect(contentTypeCode, delta);
+            }
+        } else if (TARGET_PROJECT.equals(targetType)) {
+            // 项目计数器走 Redis（当前仅收藏「感兴趣」，点赞暂无前端按钮）
+            if (field == InteractionField.COLLECT) {
+                feedCounterService.incrProjectCollect(targetUid, delta);
+            }
         }
 
         // 互动变更后失效笔记 Feed ZSET，下次请求自动重建
@@ -154,24 +181,6 @@ public class InteractionService {
             return contentUidResolver.requireNoteByUid(targetUid).getContentTypeCode();
         }
         return contentUidResolver.requireProjectByUid(targetUid).getProjectUid();
-    }
-
-    /**
-     * 笔记计数器增量更新（点赞/收藏）。
-     * <p>
-     * 【并发安全】使用数据库原子自增替代 read-modify-write，
-     * 由行级锁保证并发安全，避免丢失更新。
-     * </p>
-     */
-    private void applyNoteCounterDelta(Long noteId, InteractionField field, int delta) {
-        if (delta == 0) {
-            return;
-        }
-        String column = field == InteractionField.LIKE ? "like_count" : "collect_count";
-        LambdaUpdateWrapper<Note> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(Note::getId, noteId)
-                .setSql(column + " = GREATEST(0, COALESCE(" + column + ", 0) + " + delta + ")");
-        noteMapper.update(null, wrapper);
     }
 
     /**
