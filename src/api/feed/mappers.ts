@@ -185,6 +185,8 @@ export function mapFeedNoteToProfileNoteItem(item: FeedContentVo): ProfileNoteIt
     authorOrganization: item.authorOrganization?.trim() || undefined,
     authorAvatar: item.authorAvatar?.trim() || undefined,
     videoDuration: formatFeedVideoDuration(item.videoDuration),
+    status: item.status,
+    visibility: item.visibility,
   }
 }
 

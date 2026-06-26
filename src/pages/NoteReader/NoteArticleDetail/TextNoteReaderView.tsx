@@ -34,7 +34,7 @@ interface TextNoteReaderViewProps {
  * - 返回值：React 节点
  */
 export function TextNoteReaderView({ note, isEditorialFlow = false }: TextNoteReaderViewProps) {
-  const showMarkdownCatalog = note.body.trim().length > 0 && note.editorType === 'MARKDOWN'
+  const showMarkdownCatalog = note.body.trim().length > 0
   const markdownReaderId = useMarkdownReaderId()
   const statusLabel = noteDetailPublishStatusLabelMap[note.publishStatus]
 
@@ -92,7 +92,7 @@ export function TextNoteReaderView({ note, isEditorialFlow = false }: TextNoteRe
 
           <div className="text-note-reader__body markdown-content-shell">
             <NoteContentReader
-              contentLongtext={{ editorType: note.editorType, longtext: note.body }}
+              contentLongtext={{ editorType: 'MARKDOWN', longtext: note.body }}
               className="text-note-reader__reader markdown-md-reader"
               markdownPreviewId={markdownReaderId}
             />

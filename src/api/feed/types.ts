@@ -44,6 +44,10 @@ export interface FeedContentVo {
   /** 评论数 → 行卡片元信息（可选） */
   comments?: number
   score?: number
+  /** 笔记状态：DRAFT | REVIEWING | PUBLISHED | BANNED（个人空间本人视角返回） */
+  status?: string
+  /** 笔记可见性：PUBLIC | PRIVATE（个人空间本人视角返回） */
+  visibility?: string
 }
 
 // 05）Feed 行为捕获请求（FeedEventRequest）

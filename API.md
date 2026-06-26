@@ -1,4 +1,4 @@
-﻿# UniBridge Web-Client API 文档
+# UniBridge Web-Client API 文档
 
 > **本机联调地址**：`http://localhost:8081/api/v1/client`  
 > **前端 baseURL**：`/api/v1/client`（`apps/web-client/src/api/http.ts`）  
@@ -906,84 +906,155 @@ Authorization: Bearer <access_token>
 
 - **Method**：`GET`
 - **Path**：`/user-profile/notes`
-- **Auth**：是
-- **说明**：供 `ProfileNotesTabContent` 使用，返回当前用户全部笔记列表；前端按 `contentType` 在本地筛选「全部 / 图文 / 视频」。
+- **Auth**：**是**（不允许匿名访问）
+- **说明**：供 `ProfileNotesTabContent` 使用；区分本人视角与他人视角，本人返回除 `DELETED` 外全部笔记，他人仅返回 `PUBLISHED + PUBLIC`。
 
 #### Query Parameters
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `userId` | number | 否 | 目标用户 ID |
-| `page` | number | 否 | 页码，从 `1` 开始，默认 `1` |
-| `pageSize` | number | 否 | 每页条数，默认 `20` |
-| `contentType` | string | 否 | 服务端预筛：`图文` / `视频`；缺省返回全部 |
+| `uid` | string | 否 | 目标用户 UID；为空时默认 `access_token` 当前用户 |
+| `userUid` | string | 否 | 兼容旧参数名，同 `uid` |
+| `page` | int | 否 | 默认 1 |
+| `pageSize` | int | 否 | 默认 20，最大 100 |
+| `contentType` | string | 否 | 预筛：`图文` \| `视频` |
 
-#### Request Data（联调示意）
-
-```json
-{
-  "userId": 10001,
-  "accessToken": "<access_token>",
-  "page": 1,
-  "pageSize": 20,
-  "contentType": "图文"
-}
-```
-
-#### Response Data
+#### Response（本人视角示例）
 
 ```json
 {
-  "userId": 10001,
-  "notes": [
-    {
-      "title": "大模型 RAG 系统：从原理到项目落地",
-      "summary": "本文梳理检索增强生成系统的关键链路，覆盖 embedding、召回与重排实践。",
-      "contentType": "图文",
-      "tags": ["人工智能", "RAG", "大模型"],
-      "publishTime": "2024-05-18 19:36",
-      "updateTime": "2024-05-19",
-      "views": 532,
-      "comments": 36,
-      "favorites": 28,
-      "cover": "https://images.unsplash.com/photo-1639322537504-6427a16b0a28?auto=format&fit=crop&w=200&q=80"
-    },
-    {
-      "title": "Vue3 最佳实践总结",
-      "summary": "从组合式 API 到工程化规范，沉淀一套适用于团队协作的 Vue3 开发方案。",
-      "contentType": "图文",
-      "tags": ["Vue3", "前端工程"],
-      "publishTime": "2024-05-12 13:42",
-      "updateTime": "2024-05-13",
-      "views": 412,
-      "comments": 24,
-      "favorites": 18,
-      "cover": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=200&q=80"
-    },
-    {
-      "title": "如何设计一个高质量用户系统",
-      "summary": "结合权限模型、风控策略与可观测方案，分享用户系统从 0 到 1 的实现经验。",
-      "contentType": "视频",
-      "tags": ["产品设计", "系统设计", "用户体系"],
-      "publishTime": "2024-05-06 09:18",
-      "updateTime": "2024-05-09",
-      "views": 299,
-      "comments": 17,
-      "favorites": 14,
-      "cover": "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=200&q=80"
-    }
-  ],
-  "total": 3,
-  "page": 1,
-  "pageSize": 20
+  "code": 200,
+  "message": null,
+  "data": {
+    "userUid": "US00000000001",
+    "notes": [
+      {
+        "uid": "TXa8f2K9w3N7p",
+        "title": "如何设计一个高质量用户系统",
+        "summary": "结合权限模型与可观测方案的经验分享。",
+        "contentType": "图文",
+        "tags": ["系统设计", "用户体系"],
+        "publishTime": "2026-05-20 09:00",
+        "updateTime": "2026-05-20",
+        "views": 520,
+        "likes": 18,
+        "comments": 6,
+        "favorites": 73,
+        "cover": "https://cdn.example.com/notes/cover/auto.jpg",
+        "authorNickName": "李同学",
+        "authorOrganization": "清华大学",
+        "authorAvatar": "https://cdn.example.com/avatar/u10001.jpg",
+        "videoDuration": null,
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC"
+      },
+      {
+        "uid": "TXb1C2d3E4f5G",
+        "title": "笔记草稿",
+        "summary": "",
+        "contentType": "图文",
+        "tags": [],
+        "publishTime": "",
+        "updateTime": "2026-05-19",
+        "views": 0,
+        "likes": 0,
+        "comments": 0,
+        "favorites": 0,
+        "cover": "",
+        "authorNickName": "李同学",
+        "authorOrganization": "清华大学",
+        "authorAvatar": "https://cdn.example.com/avatar/u10001.jpg",
+        "videoDuration": null,
+        "status": "DRAFT",
+        "visibility": "PRIVATE"
+      },
+      {
+        "uid": "TXc2D3e4F5g6H",
+        "title": "审核中的笔记",
+        "summary": "待审核内容",
+        "contentType": "图文",
+        "tags": ["审核"],
+        "publishTime": "",
+        "updateTime": "2026-05-19",
+        "views": 0,
+        "likes": 0,
+        "comments": 0,
+        "favorites": 0,
+        "cover": "https://cdn.example.com/notes/cover/review.jpg",
+        "authorNickName": "李同学",
+        "authorOrganization": "清华大学",
+        "authorAvatar": "https://cdn.example.com/avatar/u10001.jpg",
+        "videoDuration": null,
+        "status": "REVIEWING",
+        "visibility": "PUBLIC"
+      }
+    ],
+    "total": 3,
+    "page": 1,
+    "pageSize": 20
+  }
 }
 ```
 
-字段说明：
+#### Response（他人视角示例 — 仅返回 PUBLISHED + PUBLIC）
 
-- `notes`：笔记列表，元素结构同 **03.1）notes[]**。
-- `total`：符合条件的笔记总数。
-- `page` / `pageSize`：分页回显。
+```json
+{
+  "code": 200,
+  "message": null,
+  "data": {
+    "userUid": "US00000000001",
+    "notes": [
+      {
+        "uid": "TXa8f2K9w3N7p",
+        "title": "如何设计一个高质量用户系统",
+        "summary": "结合权限模型与可观测方案的经验分享。",
+        "contentType": "图文",
+        "tags": ["系统设计", "用户体系"],
+        "publishTime": "2026-05-20 09:00",
+        "updateTime": "2026-05-20",
+        "views": 520,
+        "likes": 18,
+        "comments": 6,
+        "favorites": 73,
+        "cover": "https://cdn.example.com/notes/cover/auto.jpg",
+        "authorNickName": "李同学",
+        "authorOrganization": "清华大学",
+        "authorAvatar": "https://cdn.example.com/avatar/u10001.jpg",
+        "videoDuration": null,
+        "status": "PUBLISHED",
+        "visibility": "PUBLIC"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "pageSize": 20
+  }
+}
+```
+
+#### 新增字段
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `status` | string | 是 | `DRAFT` \| `REVIEWING` \| `PUBLISHED` \| `BANNED`（本人视角可见全部状态；他人视角固定为 `PUBLISHED`） |
+| `visibility` | string | 是 | `PUBLIC` \| `PRIVATE`（本人视角可见全部；他人视角固定为 `PUBLIC`） |
+
+#### 业务规则
+
+| 场景 | 条件 | 返回逻辑 |
+|------|------|----------|
+| 本人访问 | `Authorization.userUid == query.uid` | 返回 `user_uid = targetUid` 的全部笔记，仅排除 `status = DELETED` |
+| 他人访问 | `Authorization.userUid != query.uid` | 仅返回 `status = PUBLISHED` 且 `visibility = PUBLIC` 的笔记 |
+| 排序 | 所有场景 | `COALESCE(published_at, created_at) DESC, id DESC` |
+| 鉴权失败 | 无 token / token 无效 | 返回 `401 UNAUTHORIZED` |
+
+#### 前端映射（`ProfileNoteItem`）
+
+| API 字段 | 前端字段 | 说明 |
+|----------|----------|------|
+| `status` | `status` | 用于渲染草稿标记、审核中 badge、管理标签 |
+| `visibility` | `visibility` | 用于渲染「仅自己」锁图标 / sash 标签 |
 
 #### 常见错误码
 
@@ -1825,6 +1896,22 @@ Authorization: Bearer <access_token>
 }
 ```
 
+**学习笔记示例（关联父视频笔记）**
+
+```json
+{
+  "publishAction": "DRAFT",
+  "title": "如何设计一个高质量用户系统",
+  "summary": "结合权限模型与可观测方案的经验分享。",
+  "contentType": "图文",
+  "content": "# 如何设计一个高质量用户系统\n\n这是一段关于视频内容的快速记录。",
+  "tags": ["系统设计", "用户体系"],
+  "coverUrl": "https://cdn.example.com/notes/cover/auto-generated.jpg",
+  "parentContentTypeCode": "VDx9Y8z7W6v5U",
+  "visibility": "PRIVATE"
+}
+```
+
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `publishAction` | string | 是 | `DRAFT` \| `PUBLISH` |
@@ -1836,6 +1923,8 @@ Authorization: Bearer <access_token>
 | `coverUrl` | string | 是 | → `note.cover_url`；**草稿与发布均必填**（视觉统一） |
 | `videoUrl` | string | 条件 | `contentType=视频` 且 `PUBLISH` 时必填 → `note.video_url` |
 | `videoDuration` | number | 否 | 秒 → `note.video_duration` |
+| `parentContentTypeCode` | string | 否 | 父笔记 contentTypeCode（`VD` + 11 位）；学习笔记关联父视频时传入 |
+| `visibility` | string | 否 | `PUBLIC` \| `PRIVATE`；未传时后端默认 `PUBLIC`；非法值 → 400 |
 
 **后端校验规则**
 
@@ -1844,8 +1933,22 @@ Authorization: Bearer <access_token>
 | 无发布权限限制 | 任意登录用户可发布笔记 |
 | `contentType` 不可变 | 创建后禁止图文↔视频互转；修改类型需新建笔记 → `NOTE_TYPE_IMMUTABLE` |
 | `content` 与类型对应 | `图文`：可写 `content`；`视频`：不写入 `content`（保持 `NULL`） |
-| 无 `editorType` 请求字段 | 前端统一 Milkdown；库表保留 `editor_type`，后端默认写 `MARKDOWN` |
 | 无 `images` | 正文 Markdown 内嵌图片，不使用独立 URL 数组 |
+
+**发布行为（REVIEWING 状态）**
+
+- 无论 `visibility = PUBLIC` 还是 `PRIVATE`，点击「发布」后笔记状态统一变更为 `REVIEWING`（审核中）
+- `REVIEWING` 状态的笔记**不会出现在首页 Feed、相似笔记推荐、项目 Feed、笔记 Feed 中**
+- `REVIEWING` 状态笔记仅 owner 可访问详情页；对外返回 `404（NOTE_NOT_FOUND）`
+- `GET /notes/{uid}/children` 不会返回 `REVIEWING` 状态的子笔记（仅返回 `PUBLISHED`）
+- 审核通过后 status 变为 `PUBLISHED`，此时 `visibility` 决定其在公开列表中的可见范围
+
+**存储实现（学习笔记）**
+
+- `parentContentTypeCode` 存储于 `t_user_note_detail` 表（垂直拆分的大文本表），与 `content` 同层管理
+- 三表结构：`t_user_note`（核心字段）→ `t_user_note_detail`（parentContentTypeCode + content）→ `t_user_note_counter`（计数）
+- 创建时通过 `saveNoteDetail()` 同时写入 `parentContentTypeCode` 和 `content`
+- 更新时通过 `upsertNoteDetail()` 以 saveOrUpdate 模式同步
 
 #### Response Data
 
@@ -1921,7 +2024,7 @@ Authorization: Bearer <access_token>
 
 #### Response Data
 
-与 **03.2）Request Body** 结构一致，并附带 `noteId`、`contentTypeCode`、`editorType`（← `note.editor_type`）。
+与 **03.2）Request Body** 结构一致，并附带 `noteId`、`contentTypeCode`。
 
 ---
 
@@ -1934,12 +2037,11 @@ Authorization: Bearer <access_token>
 | `title` | `note.title` | |
 | `summary` | `note.summary` | 简介（视频笔记亦用此字段，无 `videoDescription`） |
 | `content` | `note.content` | 仅图文笔记写入 Markdown；视频为 `NULL` |
-| （读响应） | `note.editor_type` | → `editorType` |
-| （后端默认） | `note.editor_type` | 写接口不传时后端写 `MARKDOWN` |
 | `tags` | `note.tags` | JSON |
 | `coverUrl` | `note.cover_url` | 草稿/发布均必填 |
 | `videoUrl` | `note.video_url` | 仅视频 |
 | `videoDuration` | `note.video_duration` | 仅视频 |
+| `parentContentTypeCode` | `t_user_note_detail.parent_content_type_code` | 学习笔记关联父视频笔记的 contentTypeCode |
 | `publishAction=DRAFT` | `note.status='DRAFT'`，`published_at=NULL` | |
 | `publishAction=PUBLISH` | `note.status='PUBLISHED'`，`published_at=NOW()`，`updated_at` 同步更新 | `created_at` 为首次入库时间，不变 |
 | （响应）`publishedAt` | `note.published_at` | 草稿为 `null` |
@@ -2186,7 +2288,6 @@ sequenceDiagram
   "title": "大三暑期实习投递复盘",
   "summary": "从简历、笔试到面试的完整时间线与踩坑总结。",
   "body": "# 背景\n\n## 时间线\n...",
-  "editorType": "MARKDOWN",
   "tags": ["求职经验", "实习"],
   "coverUrl": "https://cdn.example.com/notes/cover/abc123.jpg",
   "author": {
@@ -2199,7 +2300,9 @@ sequenceDiagram
   "views": 128,
   "comments": 6,
   "favorites": 24,
-  "status": "PUBLISHED"
+  "status": "PUBLISHED",
+  "parentContentTypeCode": "VDx9Y8z7W6v5U",
+  "visibility": "PUBLIC"
 }
 ```
 
@@ -2213,7 +2316,6 @@ sequenceDiagram
   "title": "如何设计一个高质量用户系统",
   "summary": "结合权限模型与可观测方案的经验分享。",
   "body": null,
-  "editorType": "MARKDOWN",
   "tags": ["系统设计"],
   "coverUrl": "https://cdn.example.com/notes/cover/frame.jpg",
   "videoUrl": "https://cdn.example.com/notes/video/xyz789.mp4",
@@ -2224,7 +2326,9 @@ sequenceDiagram
   "views": 520,
   "comments": 18,
   "favorites": 73,
-  "status": "PUBLISHED"
+  "status": "PUBLISHED",
+  "parentContentTypeCode": null,
+  "visibility": "PUBLIC"
 }
 ```
 
@@ -2236,7 +2340,6 @@ sequenceDiagram
 | `title` | string | 标题 | `note.title` |
 | `summary` | string | 摘要 | `note.summary` |
 | `body` | string \| null | Markdown 正文 | `note.content`；视频笔记为 `null` |
-| `editorType` | string | `MARKDOWN` \| `RICHTEXT` | `note.editor_type` |
 | `tags` | string[] | 话题标签 | `note.tags` JSON |
 | `coverUrl` | string | 封面 | `note.cover_url` |
 | `videoUrl` | string | 视频地址 | `note.video_url`；仅 `contentType=视频` |
@@ -2250,6 +2353,8 @@ sequenceDiagram
 | `comments` | number | 评论数 | `note.comment_count` |
 | `favorites` | number | 收藏数 | `note.collect_count` |
 | `status` | string | `DRAFT` \| `PUBLISHED` | `note.status` |
+| `parentContentTypeCode` | string \| null | 父笔记 contentTypeCode（`VD` + 11 位）；学习笔记关联其父视频，顶级笔记为 `null` | `t_user_note_detail.parent_content_type_code` |
+| `visibility` | string | `PUBLIC` \| `PRIVATE` | 笔记可见范围 | `note.visibility` |
 
 **前端映射（`NoteArticleDetailPayload`）**
 
@@ -2262,11 +2367,13 @@ sequenceDiagram
 
 **可见性**
 
-| `note.status` | 未登录 | 登录非 owner | owner |
-|---------------|--------|--------------|-------|
-| `DRAFT` | 404 | 403 | ✅ |
-| `PUBLISHED` | ✅ | ✅ | ✅ |
-| `BANNED` | 404 | 404 | 404 |
+| `note.status` | `note.visibility` | 未登录 | 登录非 owner | owner |
+|---------------|-------------------|--------|--------------|-------|
+| `DRAFT` | — | 404 | 403 | ✅ |
+| `REVIEWING` | — | 404 | 404 | ✅ |
+| `PUBLISHED` | `PUBLIC` | ✅ | ✅ | ✅ |
+| `PUBLISHED` | `PRIVATE` | 404 | 404 | ✅ |
+| `BANNED` | — | 404 | 404 | 404 |
 
 > 公开读 `PUBLISHED` 笔记时，满足下列条件才 `view_count +1`：**非发布者本人**；**同一访问者 30 分钟内不重复计次**（登录按 `userId`，未登录按 IP）。
 
@@ -2315,11 +2422,12 @@ sequenceDiagram
 - [x] 项目：发布权限按 `user_auth_link.role` 校验（PM / MENTOR / STUDENT）
 - [x] 项目：仅保密商业项目写入 `project_commercial_secret`；招募项目不需要
 - [x] 项目：`description` 为 Markdown（Milkdown）；`editor_type` 暂保留，后端默认 `MARKDOWN`
-- [x] 笔记：无 `contentSource` / `contentFileName` / 请求体 `editorType` / `images`（`videoDescription` 为前端展示字段）
-- [x] 笔记：`editor_type` 暂保留于库表，后端默认 `MARKDOWN`
+- [x] 笔记：无 `contentSource` / `contentFileName` / `images`（`videoDescription` 为前端展示字段）
+- [x] 笔记：库表已移除 `editor_type` 列，API 请求/响应不再包含 `editorType`
 - [x] 笔记：`contentType=图文` 才写 `content`；视频不写 `content`
 - [x] 笔记：草稿亦必填 `coverUrl`；`contentType` 创建后不可变
 - [x] 笔记：`content_type_code` 使用 NanoID 生成 11 位后缀，碰撞重试
+- [x] 笔记详情：新增 `parentContentTypeCode` 字段（`t_user_note_detail.parent_content_type_code`），学习笔记关联父视频
 - [x] 读列表：含 `id` 字段；按 `COALESCE(published_at, created_at)` 降序
 - [x] 个人空间项目列表：返回 `ProjectItem` 对齐字段（`preview`、`category`、`ownerOrganization`、`teamSize`、`duration` 等）
 - [x] 项目详情：`GET /projects/{id}` 可映射 `ProjectDetailPayload`
@@ -2721,7 +2829,7 @@ sequenceDiagram
 }
 ```
 
-`membersPreview` / `members`：仅 `user_auth_link.role` 为 `PM` 或 `MENTOR` 且 `audit_status=APPROVED`、`is_active=1`。
+`membersPreview` / `members`：仅 `user_auth_link.role` 为 `PM` / `MENTOR` / `COUNSELOR` 且 `audit_status=APPROVED`、`is_active=1`。
 
 ### 04）成员项 DTO（`EntityProfileMemberDto`）
 
@@ -3062,9 +3170,12 @@ VerificationCodeManageModal
 
 - **Method**：`GET`
 - **Path**：`/verification/codes`
-- **Auth**：是（需机构管理员）
+- **Auth**：是（需机构管理员 `organization-admin` 或辅导员 `COUNSELOR`）
 
-返回机构下的认证码列表（母码+子码）。
+返回机构下的认证码列表（母码+子码）。角色过滤规则：
+
+- `organization-admin`：返回当前机构下所有认证码（母码 + 子码）
+- `COUNSELOR`：仅返回 `createdBy` 等于当前登录用户 uid 的子码（`isMaster=false`）
 
 #### Response `data`
 

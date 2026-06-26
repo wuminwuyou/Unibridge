@@ -28,7 +28,6 @@ export function buildNoteDetailFromPublishNote(
     summary:
       resolvePublishNoteSummary(draft.summary, '图文', bodyContent.longtext, '') || '暂无摘要',
     body: bodyContent.longtext,
-    editorType: bodyContent.editorType,
     tags: draft.tags,
     coverUrl,
     author: {

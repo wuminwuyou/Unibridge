@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   ArrowLeft,
   Bookmark,
@@ -16,6 +16,9 @@ import RowNoteCard from '../../../components/NoteCard/RowNoteCard'
 import type { RowNoteCardItem } from '../../../components/NoteCard/RowNoteCard'
 import { NoteQuickMdEditor } from './components/NoteQuickMdEditor'
 import { useElementHeight } from './components/useElementHeight'
+import { getSimilarNotes, mapFeedNotes } from '../../../api/feed'
+import type { ProfileNoteItem } from '../../ProfileSpace/components/types'
+import { isNoteResourceUid } from '../../../api/resourceUid'
 import {
   formatNoteStatCount,
   noteDetailPublishStatusLabelMap,
@@ -31,51 +34,11 @@ interface NoteVideoDetailViewProps {
   isEditorialFlow?: boolean
 }
 
-// 02）推荐笔记 mock 数据（后续接入 API 替换）
-const MOCK_RECOMMENDATIONS: RowNoteCardItem[] = [
-  {
-    uid: 'VD0000000001' as RowNoteCardItem['uid'],
-    title: 'React 19 服务端组件深度解析',
-    summary: '深入探讨 React Server Components 的渲染机制、数据流与性能优化策略。',
-    contentType: '图文',
-    tags: ['React', 'SSR', '前端'],
-    publishTime: '2026-06-20 14:30',
-    updateTime: '2026-06-20 14:30',
-    views: 2340,
-    comments: 18,
-    favorites: 56,
-    cover: 'https://picsum.photos/seed/rec1/200/200',
-  },
-  {
-    uid: 'VD0000000002' as RowNoteCardItem['uid'],
-    title: 'TypeScript 5.8 新特性一览',
-    summary: 'TypeScript 5.8 带来的全新类型系统能力与编译优化，值得升级。',
-    contentType: '视频',
-    tags: ['TypeScript', '编译'],
-    publishTime: '2026-06-18 09:15',
-    updateTime: '2026-06-18 09:15',
-    views: 1890,
-    comments: 12,
-    favorites: 34,
-    cover: 'https://picsum.photos/seed/rec2/200/200',
-  },
-  {
-    uid: 'VD0000000003' as RowNoteCardItem['uid'],
-    title: 'Next.js App Router 最佳实践',
-    summary: '从项目结构到数据获取，全面梳理 Next.js App Router 的生产级实践。',
-    contentType: '图文',
-    tags: ['Next.js', 'SSR', '全栈'],
-    publishTime: '2026-06-15 16:00',
-    updateTime: '2026-06-15 16:00',
-    views: 3210,
-    comments: 25,
-    favorites: 78,
-    cover: 'https://picsum.photos/seed/rec3/200/200',
-  },
-]
-
 // 03）侧栏卡片折叠态高度（仅显示头部，与 .note-video-page__sidebar-card-head 内边距 + 字号一致）
 const SIDEBAR_COLLAPSED_HEIGHT_PX = 40
+
+// 03.1）推荐列表默认加载条数（RECOMMENDATION_LIMIT_DEFAULT）
+const RECOMMENDATION_LIMIT_DEFAULT = 3
 
 // 04）视频笔记详情视图（NoteVideoDetailView）
 /**
@@ -104,6 +67,42 @@ export function NoteVideoDetailView({ note, isEditorialFlow = false }: NoteVideo
       : playerHeight != null
         ? `${playerHeight}px`
         : undefined
+
+  // 相似笔记推荐列表（接入 GET /feed/notes/{uid}/similar）
+  const [recommendations, setRecommendations] = useState<ProfileNoteItem[]>([])
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!isNoteResourceUid(note.uid)) {
+      return
+    }
+
+    let cancelled = false
+    setRecommendationsLoading(true)
+
+    const load = async () => {
+      try {
+        const items = await getSimilarNotes(note.uid as RowNoteCardItem['uid'], RECOMMENDATION_LIMIT_DEFAULT)
+        if (!cancelled) {
+          setRecommendations(mapFeedNotes(items))
+        }
+      } catch {
+        if (!cancelled) {
+          setRecommendations([])
+        }
+      } finally {
+        if (!cancelled) {
+          setRecommendationsLoading(false)
+        }
+      }
+    }
+
+    void load()
+
+    return () => {
+      cancelled = true
+    }
+  }, [note.uid])
 
   return (
     <div className={`note-video-page ${isEditorialFlow ? 'note-video-page--editorial' : ''}`.trim()}>
@@ -217,7 +216,7 @@ export function NoteVideoDetailView({ note, isEditorialFlow = false }: NoteVideo
             <aside
               className={`note-video-page__sidebar ${sidebarCollapsed ? 'note-video-page__sidebar--collapsed' : ''}`.trim()}
               style={{ height: sidebarHeightStyle }}
-              aria-label="便捷笔记"
+              aria-label="学习笔记"
             >
               <div className="note-video-page__sidebar-card">
                 <div className="note-video-page__sidebar-card-head">
@@ -228,7 +227,7 @@ export function NoteVideoDetailView({ note, isEditorialFlow = false }: NoteVideo
                     aria-expanded={!sidebarCollapsed}
                     aria-label={sidebarCollapsed ? '展开笔记编辑器' : '收起笔记编辑器'}
                   >
-                    <span className="note-video-page__sidebar-card-title">便捷笔记</span>
+                    <span className="note-video-page__sidebar-card-title">学习笔记</span>
                     {sidebarCollapsed ? (
                       <ChevronUp className="note-video-page__sidebar-card-arrow h-4 w-4" aria-hidden="true" />
                     ) : (
@@ -244,9 +243,15 @@ export function NoteVideoDetailView({ note, isEditorialFlow = false }: NoteVideo
 
             <section className="note-video-page__recommendations" aria-label="推荐笔记">
               <h3 className="note-video-page__recommendations-title">推荐阅读</h3>
-              {MOCK_RECOMMENDATIONS.map((item) => (
-                <RowNoteCard key={item.uid ?? item.title} note={item} />
-              ))}
+              {recommendations.length > 0 ? (
+                recommendations.map((item) => (
+                  <RowNoteCard key={item.uid ?? item.title} note={item} />
+                ))
+              ) : (
+                <p className="note-video-page__recommendations-empty">
+                  {recommendationsLoading ? '加载中...' : '暂无推荐'}
+                </p>
+              )}
             </section>
           </div>
         </section>

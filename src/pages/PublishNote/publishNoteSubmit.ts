@@ -119,6 +119,7 @@ export function buildUpsertNoteRequest(
       tags: draft.tags,
       coverUrl: normalizedCoverUrl,
       content: bodyContent.longtext,
+      visibility: 'PUBLIC',
     }
   }
 
@@ -136,6 +137,7 @@ export function buildUpsertNoteRequest(
     coverUrl: normalizedCoverUrl,
     videoUrl: normalizedVideoUrl,
     videoDuration,
+    visibility: 'PUBLIC',
   }
 }
 

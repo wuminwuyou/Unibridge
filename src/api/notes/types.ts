@@ -1,11 +1,11 @@
+import type { NoteResourceUid } from '../resourceUid'
+
 // 01）笔记详情作者 DTO（NoteDetailAuthorDto）
 export interface NoteDetailAuthorDto {
   name: string
   handle: string
   avatarUrl: string | null
 }
-
-import type { NoteResourceUid } from '../resourceUid'
 
 // 02）笔记详情响应 DTO（NoteDetailDto）
 export interface NoteDetailDto {
@@ -15,7 +15,6 @@ export interface NoteDetailDto {
   title: string
   summary: string
   body: string | null
-  editorType: 'MARKDOWN' | 'RICHTEXT'
   tags: string[]
   coverUrl: string
   videoUrl?: string
@@ -27,6 +26,8 @@ export interface NoteDetailDto {
   comments: number
   favorites: number
   status: 'DRAFT' | 'PUBLISHED'
+  parentContentTypeCode?: string | null
+  visibility?: 'PUBLIC' | 'PRIVATE'
 }
 
 // 03）笔记发布动作（NotePublishAction）
@@ -43,6 +44,8 @@ export interface UpsertNoteRequest {
   coverUrl: string
   videoUrl?: string
   videoDuration?: number
+  parentContentTypeCode?: string
+  visibility?: 'PUBLIC' | 'PRIVATE'
 }
 
 // 05）笔记写操作响应（UpsertNoteResponse）

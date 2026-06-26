@@ -21,9 +21,11 @@ export interface ProfileNoteItem {
   authorOrganization?: string
   authorAvatar?: string
   videoDuration?: string
+  /** 笔记状态：DRAFT | REVIEWING | PUBLISHED | BANNED（个人空间本人视角返回） */
+  status?: string
+  /** 笔记可见性：PUBLIC | PRIVATE（个人空间本人视角返回） */
+  visibility?: string
 }
-
-// 02）团队成员 role（TeamMemberRole）
 export type { TeamMemberRole } from '../../../api/teamProfile/types'
 
 // 01）机构认证 role（OrgAuthRole，含 user_auth_link 全量枚举）

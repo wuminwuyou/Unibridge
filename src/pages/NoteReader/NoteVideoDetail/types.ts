@@ -6,7 +6,7 @@ export interface NoteVideoDetailPayload {
   uid?: NoteResourceUid
   contentType: '视频'
   title: string
-  /** 便捷笔记 Markdown 正文（对应 API body / content） */
+  /** 学习笔记 Markdown 正文（对应 API body / content） */
   body: string
   summary: string
   tags: string[]

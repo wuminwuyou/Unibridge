@@ -184,6 +184,13 @@
   color: var(--text-main);
 }
 
+/* 推荐列表空状态 / 加载态 */
+.note-video-page__recommendations-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+}
+
 /* 04）笔记信息区（左栏第2行 content + 第3行评论由 NoteCommentsSection 渲染） */
 
 .note-video-page__content {
@@ -341,6 +348,7 @@
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
 }
 

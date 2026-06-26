@@ -10,103 +10,64 @@
 
 | 模块 | 后端 | 前端 |
 |------|------|------|
-| 认证码列表 `GET /verification/codes` 新增 `canRenew` | 已实现 | 已接入 |
-| 认证码延期 `POST /verification/codes/renew` | 已实现 | 已接入 |
-| 认证学生列表 `GET /verification/codes/students` | 已实现 | 已接入 |
-| 附属子码列表 `GET /verification/codes/sub-codes` | 已实现 | 已接入 |
-| 机构成员 DTO 新增 `COUNSELOR` 角色 | **待实现** | 已接入 |
-| 添加机构成员 API 新增 `role` 字段 | **待实现** | 已接入 |
-| 认证码列表 counselor 权限与过滤 `GET /verification/codes` | **待实现** | 已接入 |
+| 学习笔记 `POST /notes` + `parentContentTypeCode` + `visibility` 前端接入 | 已实现 | **已接入** |
+| 笔记详情响应新增 `parentContentTypeCode` + `visibility`（`API.md` §06.2） | 已实现 | **已接入** |
+| 删除笔记 `editorType` 字段 | 已实现 | **已接入** |
+| 可见性 `visibility` 字段 | 已实现 | **已接入** |
+| 个人空间笔记 API 鉴权增强 + 双视角 + 新增 `status`/`visibility` | 已实现 | **已接入** |
+| 查询视频笔记的学习笔记列表 `GET /notes/{uid}/children` | **待实现** | 待接入 |
 
 ---
 
-## 字段命名规范
+## 1) `GET /notes/{uid}/children` — 查询视频笔记的学习笔记列表
 
-> **重要**：所有 API 字段命名必须使用 **camelCase**，请严格遵循以下约定：
+> **消费方**：`NoteQuickMdEditor` / 视频详情右侧栏  
+> **变更类型**：新增接口需求，查询某视频笔记下所有已发布的图文学习笔记
 
-| 场景 | 规范 | 正确示例 | 错误示例 |
-|------|------|----------|----------|
-| 请求/响应字段 | camelCase | `studentId`, `maxQuota`, `createdByName` | `student_id`, `max_quota`, `created_by_name` |
-| 布尔字段 | `is` / `has` 前缀 + camelCase | `isActive`, `isMaster`, `hasExpired` | `active`, `is_active` |
-| 时间字段 | 末尾加 `At` 或 `Time` | `createdAt`, `expireTime` | `created_at`, `expire_time` |
-| 计数/额度字段 | camelCase | `usedQuota`, `studentCount` | `used_quota`, `student_count` |
+### 说明
 
----
+视频详情页右侧栏需要展示该视频笔记关联的全部学习笔记列表。通过 `t_user_note_detail.parent_content_type_code` 查询所有子笔记。
 
-## 1) `POST /entity-profile/member` — 添加机构关联人员（更新）
+### 端点
 
-> **消费方**：`OrgMembersManageForm` + `useOrgMembersManageForm`  
-> **变更类型**：API 增强
-
-### 变更说明
-
-新增 `role` 字段，前端管理员在添加人员时可选择角色。
-
-### Request（新）
-
-```json
-{ "entityCode": "10598", "uid": "USa1B2c3D4e5F", "role": "COUNSELOR" }
+```
+GET /api/v1/client/notes/{uid}/children
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
+### 路径参数
+
+| 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `entityCode` | string | 是 | 机构主体代码 |
-| `uid` | string | 是 | 用户对外 uid |
-| `role` | string | 是 | 角色：`PM` / `MENTOR` / `COUNSELOR` |
+| `uid` | string | 是 | 父视频笔记 UID（`VD` + 11 位） |
 
-### Response `data`（不变）
+### Response
 
 ```json
-{ "uid": "USa1B2c3D4e5F", "role": "COUNSELOR" }
+{
+  "code": 200,
+  "message": null,
+  "data": [
+    {
+      "uid": "TXa8f2K9w3N7p",
+      "publishAction": "PUBLISH",
+      "title": "如何设计一个高质量用户系统",
+      "summary": "结合权限模型与可观测方案的经验分享。",
+      "contentType": "图文",
+      "content": "# 如何设计一个高质量用户系统\n\n...",
+      "tags": ["系统设计", "用户体系"],
+      "coverUrl": "https://cdn.example.com/notes/cover/auto-generated.jpg",
+      "videoUrl": null,
+      "videoDuration": null,
+      "parentContentTypeCode": "VDx9Y8z7W6v5U",
+      "visibility": "PUBLIC"
+    }
+  ]
+}
 ```
 
-### 前端角色选择规则
+### 业务规则
 
-- **高校（UNIVERSITY）**：下拉选项为「导师（MENTOR）」「辅导员（COUNSELOR）」
-- **企业（ENTERPRISE）**：下拉选项为「项目经理（PM）」
-
-### 实现说明
-
-- 后端需校验 role 是否在 `PM` / `MENTOR` / `COUNSELOR` 白名单中
-- 如果请求体中未传 `role`（兼容旧前端），后端应回退到根据 `user_auth_link` 自动判断
-
----
-
-## 2) `GET /entity-profile/space` / `GET /entity-profile/members` — 成员 DTO 更新
-
-> **变更类型**：Response 字段说明更新
-
-### EntityProfileMemberDto.role 字段说明更新
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `role` | string | `PM`（项目经理） / `MENTOR`（导师） / `COUNSELOR`（辅导员） |
-
-### `membersPreview` / `members` 过滤规则更新
-
-仅 `user_auth_link.role` 为 `PM` / `MENTOR` / `COUNSELOR` 且 `audit_status=APPROVED`、`is_active=1`。
-
-（原规则仅过滤 `PM` 和 `MENTOR`，现新增 `COUNSELOR`）
-
----
-
-## 3) `GET /verification/codes` — 认证码列表（辅导员权限与过滤）
-
-> **消费方**：`VerificationCodeManageModal`（counselorMode 模式）  
-> **变更类型**：权限放宽 + 自动过滤
-
-### 变更说明
-
-原接口仅允许 `organization-admin` 角色调用。现需要同时允许 `COUNSELOR` 角色调用，但辅导员仅返回其**自己生成的子码**。
-
-### 实现规则
-
-- **角色校验**：允许 `organization-admin` 或 `COUNSELOR` 调用
-- **过滤逻辑**：
-  - `organization-admin`：返回当前机构下所有认证码（母码+子码），行为不变
-  - `COUNSELOR`：仅返回 `createdBy` 等于当前登录用户 uid 的子码（`isMaster=false`）
-- **无需新增请求参数**：后端根据 JWT 中的 userRole 自动判断过滤策略
-
-### Response（不变）
-
-与现有 `GET /verification/codes` 响应结构相同，仅数据范围不同。
+- 仅返回 `status = PUBLISHED` 且 `visibility = PUBLIC` 的子笔记
+- 不返回 `REVIEWING`（审核中）、`DRAFT`（草稿）、`DELETED`（已删除）、`BANNED`（封禁）状态的子笔记
+- 若父笔记被封禁（`BANNED`），统一返回 `404 (NOTE_NOT_FOUND)`
+- 无子笔记时返回空数组 `[]`

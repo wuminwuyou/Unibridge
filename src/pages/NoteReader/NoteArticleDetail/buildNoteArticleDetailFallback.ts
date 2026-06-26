@@ -21,7 +21,6 @@ export function buildNoteArticleDetailFallback(title: string): NoteArticleDetail
     title: normalizedTitle,
     summary: '来自经验分享频道的图文笔记，正文为演示数据，后续可对接 note 表与 API。',
     body: demoArticleMarkdown,
-    editorType: 'MARKDOWN',
     tags: ['经验分享', '图文笔记', 'UniBridge'],
     coverUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80',
     author: {

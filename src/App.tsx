@@ -15,7 +15,8 @@ import PublishProjectPage from './pages/PublishProject/index.tsx'
 import PublishNotePage from './pages/PublishNote/index.tsx'
 import OnlineTextEditorPage from './pages/OnlineTextEditor/index.tsx'
 import ProtectedRoute from './components/routes/ProtectedRoute.tsx'
-import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
+import NotFoundPage from './pages/NotFoundPage.tsx'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 
 // 01）应用路由表（appRouter）
 const appRouter = createBrowserRouter([
@@ -88,7 +89,7 @@ const appRouter = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  { path: '*', element: <Navigate to="/" replace /> },
+  { path: '*', element: <NotFoundPage /> },
 ])
 
 // 02）应用入口组件（App）

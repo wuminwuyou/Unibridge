@@ -1,4 +1,3 @@
-import pauseIconUrl from '../../../../assets/Pause.svg'
 import { buildNoteDetailHref } from '../../../../pages/NoteReader/shared/noteDetailRouting'
 import { Video } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -63,7 +62,6 @@ function GridVideoNoteCard({ note, showAuthor = true }: GridVideoNoteCardProps) 
           <Video size={12} aria-hidden="true" />
           {typeBadgeLabel}
         </span>
-        <img className="grid-video-note-card__media-icon" src={pauseIconUrl} alt="" aria-hidden="true" />
         <span className="grid-video-note-card__media-duration">{videoDuration}</span>
       </div>
 

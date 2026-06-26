@@ -41,19 +41,16 @@ export function resolveGridNoteTypeBadge(contentType: NoteContentType): string {
 // 04）解析作者身份展示文案（resolveGridNoteAuthorText）
 /**
  * 函数名：resolveGridNoteAuthorText
- * 功能：合并作者昵称与学校/组织信息为单行身份栏文案（公共区域不使用实名）。
+ * 功能：返回作者昵称作为单行身份栏文案（仅显示昵称）。
  * 输入：
- * - note：含 authorNickname、authorOrganization 的笔记数据
+ * - note：含 authorNickname 的笔记数据
  * 输出：
- * - 返回值：如「李学长 · 清华大学」
+ * - 返回值：昵称字符串
  */
 export function resolveGridNoteAuthorText(
   note: Pick<GridNoteCardItem, 'authorNickname' | 'authorOrganization'>,
 ): string {
-  const authorNickname = note.authorNickname?.trim() || '匿名用户'
-  const organization = note.authorOrganization?.trim()
-
-  return organization ? `${authorNickname} · ${organization}` : authorNickname
+  return note.authorNickname?.trim() || '匿名用户'
 }
 
 // 05）解析作者头像占位缩写（resolveGridNoteAuthorFallback）

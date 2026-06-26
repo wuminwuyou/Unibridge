@@ -25,9 +25,10 @@ interface RowNoteCardProps {
  * 函数名：RowNoteCard
  * 功能：按 ProjectCard / design.md 思路渲染三段式笔记卡片（封面 / 主信息 / 交互区）。
  * 实现方法：
- * - 左侧正方形封面展位，高度随卡片 inner 拉伸
+ * - 左侧 16:9 封面满高排列，无外边距
  * - 中部展示类型标签 / 标题 / 摘要 / # 标签 / 元信息
  * - 右侧展示浏览等指标徽标与「阅读笔记」主按钮
+ * - 封面叠加 REVIEWING 灰色蒙版 + PERIVATE "仅自己" 标签
  * 输入：
  * - note：笔记卡片数据对象
  * - layout：horizontal 为默认横卡，vertical 为紧凑纵卡
@@ -48,6 +49,9 @@ function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
     ? `${note.views} 浏览 · ${note.comments} 评论 · ${note.favorites} 收藏`
     : resolveNoteCardMetaText(note)
 
+  const isReviewing = note.status === 'REVIEWING'
+  const isPrivate = note.visibility === 'PRIVATE'
+
   return (
     <Link
       className={`row-note-card row-note-card--link ${isVerticalLayout ? 'row-note-card--vertical' : ''}`}
@@ -58,34 +62,46 @@ function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
       <div className="row-note-card__inner">
         <div className="row-note-card__cover" aria-hidden="true">
           <img className="row-note-card__cover-image" src={note.cover} alt="" loading="lazy" decoding="async" />
+          {isReviewing ? (
+            <div className="row-note-card__cover-overlay row-note-card__cover-overlay--reviewing">
+              <span className="row-note-card__cover-status-label">审核中</span>
+            </div>
+          ) : null}
+          {!isReviewing && isPrivate ? (
+            <div className="row-note-card__cover-sash">
+              <span className="row-note-card__cover-sash-label">仅自己</span>
+            </div>
+          ) : null}
         </div>
 
-        <div className="row-note-card__main">
-          <div className="row-note-card__main-top">
-            <span className="row-note-card__type-badge">{typeBadgeLabel}</span>
-            <h3 className="row-note-card__title">{note.title}</h3>
-            {!isVerticalLayout ? <p className="row-note-card__summary">{note.summary}</p> : null}
+        <div className="row-note-card__content">
+          <div className="row-note-card__main">
+            <div className="row-note-card__main-top">
+              <span className="row-note-card__type-badge">{typeBadgeLabel}</span>
+              <h3 className="row-note-card__title">{note.title}</h3>
+              {!isVerticalLayout ? <p className="row-note-card__summary">{note.summary}</p> : null}
+            </div>
+
+            <div className="row-note-card__main-bottom">
+              {note.tags.length > 0 ? (
+                <div className="row-note-card__tags">
+                  {note.tags.map((tag) => (
+                    <span key={`${note.title}-${tag}`} className="row-note-card__tag">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {metaText ? <p className="row-note-card__meta">{metaText}</p> : null}
+            </div>
           </div>
 
-          <div className="row-note-card__main-bottom">
-            {note.tags.length > 0 ? (
-              <div className="row-note-card__tags">
-                {note.tags.map((tag) => (
-                  <span key={`${note.title}-${tag}`} className="row-note-card__tag">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
-            {metaText ? <p className="row-note-card__meta">{metaText}</p> : null}
+          <div className="row-note-card__aside">
+            <span className="row-note-card__cta" aria-hidden="true">
+              阅读笔记
+            </span>
           </div>
-        </div>
-
-        <div className="row-note-card__aside">
-          <span className="row-note-card__cta" aria-hidden="true">
-            阅读笔记
-          </span>
         </div>
       </div>
     </Link>

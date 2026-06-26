@@ -53,7 +53,6 @@ export function mapNoteDetailToPayload(dto: NoteDetailDto): NoteDetailPayload {
     title: dto.title,
     summary: dto.summary ?? '',
     body: dto.body ?? '',
-    editorType: dto.editorType === 'RICHTEXT' ? 'RICHTEXT' : 'MARKDOWN',
     tags: dto.tags ?? [],
     coverUrl: dto.coverUrl ?? null,
     author: dto.author,

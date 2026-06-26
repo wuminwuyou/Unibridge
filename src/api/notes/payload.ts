@@ -178,6 +178,8 @@ export function normalizeUpsertNoteRequestPayload(payload: UpsertNoteRequest): U
     contentType: payload.contentType,
     tags: payload.tags,
     coverUrl,
+    parentContentTypeCode: payload.parentContentTypeCode,
+    visibility: payload.visibility,
   }
 
   if (payload.contentType === '图文') {

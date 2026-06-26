@@ -6,11 +6,11 @@ import { NotesApiError } from '../../../../api/notes'
 import type { NotePublishAction } from '../../../../api/notes/types'
 import { useDocumentTheme } from '../../../../components/OnlineEditor/shared/hooks/useDocumentTheme'
 import type { NoteVideoDetailPayload } from '../types'
-import { submitVideoQuickNote } from './submitVideoQuickNote'
+import { createLearningNote } from './createLearningNote'
 
 import './NoteQuickMdEditor.css'
 
-// 01）便捷笔记编辑器 Props（NoteQuickMdEditorProps）
+// 01）学习笔记编辑器 Props（NoteQuickMdEditorProps）
 export interface NoteQuickMdEditorProps {
   note: NoteVideoDetailPayload
   className?: string
@@ -32,20 +32,20 @@ const EXCLUDED_TOOLBARS = [
   'prettier',
 ] as const
 
-// 04）便捷笔记编辑器（NoteQuickMdEditor）
+// 04）学习笔记编辑器（NoteQuickMdEditor）
 /**
  * 函数名：NoteQuickMdEditor
  * 功能：视频详情页右侧栏 Markdown 编辑器；head 提供编辑/预览切换与草稿/正式发布保存。
  * 实现方法：
  * - 编辑：MdEditor（preview={false}）；预览：MdPreview
- * - 草稿/保存分别调用 submitVideoQuickNote（publishAction: DRAFT / PUBLISH）
+ * - 草稿/保存分别调用 createLearningNote（publishAction: DRAFT / PUBLISH）
  * - TODO：后续接入笔记可见性（仅自己可见 / 公开）
  * 输入：
  * - note：视频详情载荷（含 uid、媒体字段与初始 body）
  * - className：外层附加样式类，可选
  * 输出：
  * - 返回值：React 节点
- * - 副作用：保存时调用 PUT /notes/{uid}
+ * - 副作用：保存时调用 POST /notes
  */
 export function NoteQuickMdEditor({ note, className }: NoteQuickMdEditorProps) {
   const theme = useDocumentTheme()
@@ -64,7 +64,7 @@ export function NoteQuickMdEditor({ note, className }: NoteQuickMdEditorProps) {
       setIsSaving(true)
 
       try {
-        await submitVideoQuickNote({
+        await createLearningNote({
           note,
           noteUid: note.uid,
           markdown: content,
