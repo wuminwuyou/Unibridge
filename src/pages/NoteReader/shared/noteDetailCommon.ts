@@ -6,7 +6,8 @@ export type NoteDetailPublishStatus = 'DRAFT' | 'PREVIEW' | 'PUBLISHED'
 
 // 03）笔记作者信息（NoteDetailAuthor）
 export interface NoteDetailAuthor {
+  uid?: string
   name: string
-  handle: string
+  organization: string
   avatarUrl: string | null
 }

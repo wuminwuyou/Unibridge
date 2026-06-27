@@ -2,9 +2,23 @@ import type { NoteResourceUid } from '../resourceUid'
 
 // 01）笔记详情作者 DTO（NoteDetailAuthorDto）
 export interface NoteDetailAuthorDto {
+  uid?: string
   name: string
-  handle: string
+  organization: string
   avatarUrl: string | null
+}
+
+// 02）父笔记简要 DTO（ParentNoteDto）
+export interface ParentNoteDto {
+  uid: string
+  title: string
+  summary: string
+  contentType: '图文' | '视频'
+  tags: string[]
+  cover: string
+  views: number
+  comments: number
+  favorites: number
 }
 
 // 02）笔记详情响应 DTO（NoteDetailDto）
@@ -26,8 +40,8 @@ export interface NoteDetailDto {
   comments: number
   favorites: number
   status: 'DRAFT' | 'PUBLISHED'
-  parentContentTypeCode?: string | null
   visibility?: 'PUBLIC' | 'PRIVATE'
+  parentNote?: ParentNoteDto | null
 }
 
 // 03）笔记发布动作（NotePublishAction）

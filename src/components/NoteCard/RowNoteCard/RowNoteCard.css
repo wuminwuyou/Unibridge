@@ -214,14 +214,6 @@
   text-overflow: ellipsis;
 }
 
-/* 06）右侧交互区 */
-.row-note-card__aside {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-}
 
 .row-note-card__views-badge {
   border-radius: 999px;
@@ -234,28 +226,13 @@
   white-space: nowrap;
 }
 
-.row-note-card__cta {
-  min-width: 88px;
-  height: 36px;
-  border-radius: 12px;
-  background: var(--row-note-card-cta-bg);
-  color: var(--row-note-card-cta-text);
-  font-size: 13px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.28);
-  transition: filter 0.2s ease;
+
+/* 07）无封面布局（row-note-card--no-cover）：右侧内容区填满整卡 */
+.row-note-card--no-cover .row-note-card__inner {
+  grid-template-columns: 1fr;
 }
 
-.row-note-card:hover .row-note-card__cta {
-  filter: brightness(1.05);
-}
-
-/* 07）纵向紧凑布局 */
+/* 08）纵向紧凑布局 */
 .row-note-card--vertical {
   padding: 14px;
   min-height: auto;
@@ -283,13 +260,6 @@
 
 .row-note-card--vertical .row-note-card__main {
   min-height: 0;
-}
-
-.row-note-card--vertical .row-note-card__aside {
-  width: 100%;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .row-note-card--vertical .row-note-card__title {
@@ -329,13 +299,6 @@
     flex-direction: column;
   }
 
-  .row-note-card__aside {
-    width: 100%;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-end;
-  }
-
   .row-note-card__title {
     font-size: 16px;
   }
@@ -343,4 +306,24 @@
   .row-note-card__summary {
     font-size: 12px;
   }
+}
+
+/* 09）嵌入模式（row-note-card--embedded）：去卡片 chrome，纯内容区 */
+.row-note-card--embedded {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 0;
+  transition: background 0.2s ease;
+}
+
+.row-note-card--embedded:hover {
+  transform: none;
+  box-shadow: none;
+  background: rgb(0 0 0 / 0.05);
+}
+
+.row-note-card--embedded .row-note-card__content {
+  padding: 12px 16px;
 }

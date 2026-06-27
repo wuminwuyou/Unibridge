@@ -4,7 +4,7 @@ import { isNoteResourceUid } from '../../../../api/resourceUid'
 import type { NoteResourceUid } from '../../../../api/resourceUid'
 import { extractAutoSummaryFromMarkdown } from '../../../../utils/publishSummary'
 import { generateAndUploadNoteCover } from '../../../../pages/PublishNote/utils/autoGenerateNoteCover'
-import type { NoteVideoDetailPayload } from '../types'
+import type { LearningNoteParentPayload } from '../../shared/learningNoteParentPayload'
 
 // 01）从 Markdown 正文提取一级标题（extractFirstHeading）
 /**
@@ -47,7 +47,7 @@ function extractFirstHeading(markdown: string): string | null {
  * - 副作用：coverUrl 为空时抛出 NotesApiError
  */
 export function buildCreateLearningNoteRequest(
-  note: NoteVideoDetailPayload,
+  note: LearningNoteParentPayload,
   markdown: string,
   publishAction: NotePublishAction,
   coverUrl: string,
@@ -91,7 +91,7 @@ export function buildCreateLearningNoteRequest(
  * - 返回值：错误文案或 null
  */
 export function validateCreateLearningNote(
-  note: NoteVideoDetailPayload,
+  note: LearningNoteParentPayload,
   markdown: string,
   publishAction: NotePublishAction,
 ): string | null {
@@ -134,7 +134,7 @@ export function validateCreateLearningNote(
  * - 副作用：发起 POST /uploads/note-cover、POST /notes
  */
 export async function createLearningNote(options: {
-  note: NoteVideoDetailPayload
+  note: LearningNoteParentPayload
   noteUid: NoteResourceUid | null | undefined
   markdown: string
   publishAction: NotePublishAction

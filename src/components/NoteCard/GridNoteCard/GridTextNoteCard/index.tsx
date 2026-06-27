@@ -54,8 +54,6 @@ function GridTextNoteCard({ note, showAuthor = true }: GridTextNoteCardProps) {
     <Link
       className="grid-note-card grid-note-card--link grid-text-note-card"
       to={noteDetailPath}
-      target="_blank"
-      rel="noopener noreferrer"
     >
       <GridNoteCardMenuButton />
 

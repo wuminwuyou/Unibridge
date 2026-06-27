@@ -18,6 +18,10 @@ type RowNoteCardLayout = 'horizontal' | 'vertical'
 interface RowNoteCardProps {
   note: RowNoteCardItem
   layout?: RowNoteCardLayout
+  /** 不渲染封面图，让右侧内容区填满整个卡片宽度（用于紧凑嵌入场景） */
+  hideCover?: boolean
+  /** 附加到最外层元素的 CSS 类名 */
+  className?: string
 }
 
 // 04）行卡片笔记组件（RowNoteCard）
@@ -32,11 +36,13 @@ interface RowNoteCardProps {
  * 输入：
  * - note：笔记卡片数据对象
  * - layout：horizontal 为默认横卡，vertical 为紧凑纵卡
+ * - hideCover：不渲染封面，内容占满卡片
+ * - className：附加 CSS 类（如 row-note-card--embedded 去卡片 chrome）
  * 输出：
  * - 返回值：JSX.Element
  * - 副作用：无
  */
-function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
+function RowNoteCard({ note, layout = 'horizontal', hideCover = false, className }: RowNoteCardProps) {
   const isVerticalLayout = layout === 'vertical'
   const contentType = note.contentType ?? '图文'
   const noteDetailPath = buildNoteDetailHref({
@@ -54,25 +60,25 @@ function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
 
   return (
     <Link
-      className={`row-note-card row-note-card--link ${isVerticalLayout ? 'row-note-card--vertical' : ''}`}
+      className={`row-note-card row-note-card--link ${isVerticalLayout ? 'row-note-card--vertical' : ''} ${hideCover ? 'row-note-card--no-cover' : ''} ${className ?? ''}`.trim()}
       to={noteDetailPath}
-      target="_blank"
-      rel="noopener noreferrer"
     >
       <div className="row-note-card__inner">
-        <div className="row-note-card__cover" aria-hidden="true">
-          <img className="row-note-card__cover-image" src={note.cover} alt="" loading="lazy" decoding="async" />
-          {isReviewing ? (
-            <div className="row-note-card__cover-overlay row-note-card__cover-overlay--reviewing">
-              <span className="row-note-card__cover-status-label">审核中</span>
-            </div>
-          ) : null}
-          {!isReviewing && isPrivate ? (
-            <div className="row-note-card__cover-sash">
-              <span className="row-note-card__cover-sash-label">仅自己</span>
-            </div>
-          ) : null}
-        </div>
+        {!hideCover ? (
+          <div className="row-note-card__cover" aria-hidden="true">
+            <img className="row-note-card__cover-image" src={note.cover} alt="" loading="lazy" decoding="async" />
+            {isReviewing ? (
+              <div className="row-note-card__cover-overlay row-note-card__cover-overlay--reviewing">
+                <span className="row-note-card__cover-status-label">审核中</span>
+              </div>
+            ) : null}
+            {!isReviewing && isPrivate ? (
+              <div className="row-note-card__cover-sash">
+                <span className="row-note-card__cover-sash-label">仅自己</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="row-note-card__content">
           <div className="row-note-card__main">
@@ -95,12 +101,6 @@ function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
 
               {metaText ? <p className="row-note-card__meta">{metaText}</p> : null}
             </div>
-          </div>
-
-          <div className="row-note-card__aside">
-            <span className="row-note-card__cta" aria-hidden="true">
-              阅读笔记
-            </span>
           </div>
         </div>
       </div>

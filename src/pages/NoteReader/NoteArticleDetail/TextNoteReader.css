@@ -1,49 +1,7 @@
-/* 01）图文笔记阅读页根容器（text-note-reader） */
-.text-note-reader {
-  --tnr-bg: #f8fafc;
-  --tnr-text: #0f172a;
-  --tnr-text-soft: #475569;
-  --tnr-text-muted: #94a3b8;
-  --tnr-border: #e2e8f0;
-  --tnr-accent: #34d399;
-  --tnr-article-max: 48rem;
-  --tnr-toc-width: 13rem;
-  --tnr-toc-offset: max(1.25rem, calc((100vw - var(--tnr-article-max)) / 2 - var(--tnr-toc-width) - 2.5rem));
-  --tnr-sticky-top: 5.5rem;
-
-  position: relative;
-  min-height: calc(100vh - 4rem);
-  background: var(--tnr-bg);
-  color: var(--tnr-text);
-}
-
-.text-note-reader--editorial {
-  min-height: 100vh;
-}
-
-:root[data-theme='dark'] .text-note-reader {
-  --tnr-bg: #090d16;
-  --tnr-text: #f8fafc;
-  --tnr-text-soft: #cbd5e1;
-  --tnr-text-muted: #64748b;
-  --tnr-border: #1e293b;
-}
-
-/* 02）左侧悬浮目录轨道 */
-.text-note-reader__toc-rail {
-  position: fixed;
-  top: var(--tnr-sticky-top);
-  left: var(--tnr-toc-offset);
-  z-index: 20;
-  width: var(--tnr-toc-width);
-  max-height: calc(100vh - var(--tnr-sticky-top) - 1.5rem);
-  overflow: auto;
-  pointer-events: auto;
-}
-
-.text-note-reader__toc-panel.markdown-md-catalog-panel {
+/* 01）左侧 TOC 面板：Glass 毛玻璃 + 翠绿激活指示 */
+.text-note-reader__toc-aside .markdown-md-catalog-panel {
   border-radius: 0.75rem;
-  border: 1px solid var(--tnr-border);
+  border: 1px solid #e2e8f0;
   background: rgb(255 255 255 / 0.72);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -51,232 +9,286 @@
   padding: 0.875rem 0.75rem;
 }
 
-:root[data-theme='dark'] .text-note-reader__toc-panel.markdown-md-catalog-panel {
+:root[data-theme='dark'] .text-note-reader__toc-aside .markdown-md-catalog-panel {
+  border-color: #334155;
   background: rgb(15 23 42 / 0.72);
   box-shadow: 0 12px 32px rgb(0 0 0 / 28%);
 }
 
-.text-note-reader__toc-panel .markdown-md-catalog-panel__title {
+.text-note-reader__toc-aside .markdown-md-catalog-panel__title {
   margin-bottom: 0.625rem;
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--tnr-text-muted);
+  color: #94a3b8;
 }
 
-.text-note-reader__toc-panel .md-editor-catalog-link span {
+:root[data-theme='dark'] .text-note-reader__toc-aside .markdown-md-catalog-panel__title {
+  color: #64748b;
+}
+
+.text-note-reader__toc-aside .md-editor-catalog-link span {
   font-size: 0.8125rem;
   font-weight: 400;
   line-height: 1.45;
-  color: var(--tnr-text-muted);
+  color: #94a3b8;
 }
 
-.text-note-reader__toc-panel .md-editor-catalog-link span:hover {
-  color: var(--tnr-text-soft);
+:root[data-theme='dark'] .text-note-reader__toc-aside .md-editor-catalog-link span {
+  color: #64748b;
 }
 
-.text-note-reader__toc-panel .md-editor-catalog-active > span {
-  color: var(--tnr-text);
+.text-note-reader__toc-aside .md-editor-catalog-link span:hover {
+  color: #475569;
+}
+
+:root[data-theme='dark'] .text-note-reader__toc-aside .md-editor-catalog-link span:hover {
+  color: #cbd5e1;
+}
+
+.text-note-reader__toc-aside .md-editor-catalog-active > span {
+  color: #0f172a;
   font-weight: 500;
 }
 
-.text-note-reader__toc-panel .md-editor-catalog-indicator {
+:root[data-theme='dark'] .text-note-reader__toc-aside .md-editor-catalog-active > span {
+  color: #f8fafc;
+}
+
+.text-note-reader__toc-aside .md-editor-catalog-indicator {
   width: 3px;
   border-radius: 999px;
-  background-color: var(--tnr-accent);
+  background-color: #34d399;
 }
 
-/* 03）居中阅读画布 */
-.text-note-reader__canvas {
-  box-sizing: border-box;
-  width: min(100%, calc(var(--tnr-article-max) + 3rem));
-  max-width: var(--tnr-article-max);
-  margin: 0 auto;
-  padding: 3.5rem 1.5rem 5rem;
-}
-
-.text-note-reader--editorial .text-note-reader__canvas {
-  padding-top: 2rem;
-}
-
-/* 04）发布预览横幅 */
-.text-note-reader__banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--tnr-accent) 35%, var(--tnr-border));
-  background: color-mix(in srgb, var(--tnr-accent) 8%, transparent);
-}
-
-.text-note-reader__banner-text {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--tnr-text-soft);
-}
-
-.text-note-reader__banner-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  flex-shrink: 0;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--tnr-text);
-  text-decoration: none;
-}
-
-.text-note-reader__banner-action:hover {
-  color: var(--tnr-accent);
-}
-
-/* 05）文章头部 */
-.text-note-reader__header {
-  margin-bottom: 2.5rem;
-}
-
-.text-note-reader__status {
-  display: inline-flex;
-  margin-bottom: 0.875rem;
-  padding: 0.125rem 0.625rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--tnr-text-soft);
-  background: color-mix(in srgb, var(--tnr-border) 55%, transparent);
-}
-
-.text-note-reader__title {
-  margin: 0;
-  font-size: clamp(1.875rem, 4vw, 2.5rem);
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  color: var(--tnr-text);
-}
-
-.text-note-reader__summary {
-  margin: 1rem 0 0;
-  font-size: 1.0625rem;
-  line-height: 1.7;
-  color: var(--tnr-text-soft);
-}
-
-.text-note-reader__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 1.25rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.text-note-reader__tag {
-  padding: 0.25rem 0.625rem;
-  border-radius: 999px;
-  border: 1px solid var(--tnr-border);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--tnr-text-muted);
-  background: transparent;
-}
-
-.text-note-reader__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem;
-  margin-top: 1.25rem;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--tnr-text-muted);
-}
-
-.text-note-reader__meta-sep {
-  color: var(--tnr-border);
-}
-
-/* 06）Markdown 正文排版 */
-.text-note-reader__body {
-  min-width: 0;
-}
-
-.text-note-reader__reader .md-editor-preview {
-  font-size: 1rem;
-  line-height: 1.8;
-  letter-spacing: 0.01em;
-  color: var(--tnr-text-soft);
-}
-
-.text-note-reader__reader .md-editor-preview h1,
-.text-note-reader__reader .md-editor-preview h2,
-.text-note-reader__reader .md-editor-preview h3 {
-  color: var(--tnr-text);
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.35;
-}
-
-.text-note-reader__reader .md-editor-preview h1 {
-  margin-top: 2.25rem;
-  margin-bottom: 1rem;
-  font-size: 1.625rem;
-}
-
-.text-note-reader__reader .md-editor-preview h2 {
-  margin-top: 2rem;
-  margin-bottom: 0.875rem;
-  font-size: 1.375rem;
-}
-
-.text-note-reader__reader .md-editor-preview h3 {
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
-  font-size: 1.125rem;
-}
-
-.text-note-reader__reader .md-editor-preview p,
-.text-note-reader__reader .md-editor-preview ul,
-.text-note-reader__reader .md-editor-preview ol,
-.text-note-reader__reader .md-editor-preview blockquote {
-  margin-top: 0;
-  margin-bottom: 1.125rem;
-}
-
-.text-note-reader__reader .md-editor-preview a {
-  color: #0ea5e9;
-  text-decoration: underline;
-  text-underline-offset: 0.15em;
-}
-
-:root[data-theme='dark'] .text-note-reader__reader .md-editor-preview {
-  color: var(--tnr-text-soft);
-}
-
-:root[data-theme='dark'] .text-note-reader__body.markdown-content-shell .md-editor-preview {
-  color: var(--tnr-text-soft) !important;
-}
-
-/* 07）响应式：窄屏隐藏 fixed 目录 */
-@media (max-width: 1180px) {
-  .text-note-reader__toc-rail {
+/* 02）响应式：窄屏隐藏 TOC */
+@media (max-width: 1279px) {
+  .text-note-reader__toc-aside {
     display: none;
   }
 }
 
-@media (max-width: 640px) {
-  .text-note-reader__canvas {
-    padding: 2rem 1rem 3.5rem;
+/* 03）xl 以上强制显示 */
+@media (min-width: 1280px) {
+  .text-note-reader__toc-aside {
+    display: block;
   }
+}
 
-  .text-note-reader__banner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+/* 04）编辑器卡片容器 — height CSS transition（沿用视频笔记方案） */
+.text-note-reader__editor-card {
+  transition: height 0.35s ease;
+  overflow: hidden;
+}
+
+/* 05）编辑器卡片内容 — flex 填充父高度 */
+.text-note-reader__editor-card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 06）编辑器内 md-editor 可滚动长文本 */
+.text-note-reader__editor-card-body .note-quick-md-editor .md-editor {
+  overflow: auto !important;
+}
+
+/* ===== 07）右侧栏通用卡片 ===== */
+.text-note-reader__sidebar-card {
+  border-radius: 0.75rem;
+  border: 1px solid #e4e4e7;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+:root[data-theme='dark'] .text-note-reader__sidebar-card {
+  border-color: #27272a;
+  background: #18181b;
+}
+
+/* 08）右侧栏卡片标题 */
+.text-note-reader__sidebar-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+}
+
+:root[data-theme='dark'] .text-note-reader__sidebar-card-title {
+  color: #71717a;
+}
+
+/* 09）作者卡片 — 带跳转的 Link 行 */
+.text-note-reader__author-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  margin-left: -0.75rem;
+  border-radius: 0.5rem 0 0 0.5rem;
+  transition: background-color 0.15s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.text-note-reader__author-link:hover {
+  background: #f4f4f5;
+}
+
+:root[data-theme='dark'] .text-note-reader__author-link:hover {
+  background: #27272a;
+}
+
+/* 10）作者卡片 — 无跳转的纯展示行 */
+.text-note-reader__author-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* 作者区块容器（Link + 关注按钮并排） */
+.text-note-reader__author-block {
+  display: flex;
+  align-items: center;
+}
+
+.text-note-reader__author-block .text-note-reader__author-row {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 11）作者头像 */
+.text-note-reader__author-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.text-note-reader__author-avatar--fallback {
+  background: #e4e4e7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #71717a;
+}
+
+:root[data-theme='dark'] .text-note-reader__author-avatar--fallback {
+  background: #3f3f46;
+  color: #d4d4d8;
+}
+
+/* 12）作者名字 */
+.text-note-reader__author-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #27272a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-theme='dark'] .text-note-reader__author-name {
+  color: #e4e4e7;
+}
+
+/* 13）作者机构 */
+.text-note-reader__author-org {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-theme='dark'] .text-note-reader__author-org {
+  color: #71717a;
+}
+
+/* 14）作者信息区文字容器 */
+.text-note-reader__author-text {
+  min-width: 0;
+}
+
+/* 15）卡片底部统计行 */
+.text-note-reader__stats-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f4f4f5;
+  font-size: 0.75rem;
+  color: #a1a1aa;
+}
+
+:root[data-theme='dark'] .text-note-reader__stats-row {
+  border-color: #27272a;
+  color: #71717a;
+}
+
+.text-note-reader__stats-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* 16）关联笔记卡片头部 */
+.text-note-reader__parent-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+  padding: 1rem 1rem 0.75rem;
+}
+
+:root[data-theme='dark'] .text-note-reader__parent-card-header {
+  color: #71717a;
+}
+
+/* 17）关注按钮 */
+.text-note-reader__follow-btn {
+  flex-shrink: 0;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #d4d4d8;
+  border-radius: 9999px;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #52525b;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.text-note-reader__follow-btn:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #27272a;
+}
+
+:root[data-theme='dark'] .text-note-reader__follow-btn {
+  border-color: #3f3f46;
+  color: #a1a1aa;
+}
+
+:root[data-theme='dark'] .text-note-reader__follow-btn:hover {
+  background: #27272a;
+  border-color: #71717a;
+  color: #e4e4e7;
 }

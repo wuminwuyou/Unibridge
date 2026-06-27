@@ -92,11 +92,6 @@ function RowNoteCard({ note, layout = 'horizontal' }: RowNoteCardProps) {
           </div>
         </div>
 
-        <div className="row-note-card__aside">
-          <span className="row-note-card__cta" aria-hidden="true">
-            阅读笔记
-          </span>
-        </div>
       </div>
     </Link>
   )

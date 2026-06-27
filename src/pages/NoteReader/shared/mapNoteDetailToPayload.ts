@@ -1,8 +1,27 @@
 import type { NoteArticleDetailPayload } from '../NoteArticleDetail/types'
-import type { NoteDetailDto } from '../../../api/notes/types'
+import type { NoteDetailDto, ParentNoteDto } from '../../../api/notes/types'
 import type { NoteDetailPayload } from './noteDetailPayload'
 import type { NoteVideoDetailPayload } from '../NoteVideoDetail/types'
+import type { RowNoteCardItem } from '../../../components/NoteCard/RowNoteCard'
 import { formatNoteDetailTime } from './noteDetailShared'
+
+// 01）将父笔记 DTO 映射为行卡片数据（mapParentNoteToRowItem）
+function mapParentNoteToRowItem(parent: ParentNoteDto | null | undefined): RowNoteCardItem | null {
+  if (!parent) return null
+  return {
+    uid: parent.uid,
+    title: parent.title,
+    summary: parent.summary,
+    contentType: parent.contentType,
+    tags: parent.tags ?? [],
+    cover: parent.cover,
+    publishTime: '',
+    updateTime: '',
+    views: parent.views ?? 0,
+    comments: parent.comments ?? 0,
+    favorites: parent.favorites ?? 0,
+  }
+}
 
 // 01）映射笔记发布状态（mapNoteDetailPublishStatus）
 function mapNoteDetailPublishStatus(status: NoteDetailDto['status']): NoteArticleDetailPayload['publishStatus'] {
@@ -48,7 +67,9 @@ export function mapNoteDetailToPayload(dto: NoteDetailDto): NoteDetailPayload {
     return payload
   }
 
+  const parentNote = mapParentNoteToRowItem(dto.parentNote)
   const payload: NoteArticleDetailPayload = {
+    uid: dto.uid,
     contentType: '图文',
     title: dto.title,
     summary: dto.summary ?? '',
@@ -62,6 +83,7 @@ export function mapNoteDetailToPayload(dto: NoteDetailDto): NoteDetailPayload {
     comments: dto.comments ?? 0,
     favorites: dto.favorites ?? 0,
     publishStatus,
+    parentNote,
   }
   return payload
 }

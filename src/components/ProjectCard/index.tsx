@@ -49,7 +49,7 @@ function ProjectCard({ project, showStatus = false }: ProjectCardProps) {
   const statusBadgeModifier = project.status ? resolveProjectStatusBadgeModifier(project.status) : ''
 
   return (
-    <Link className="project-card project-card--link" to={projectDetailPath} target="_blank" rel="noopener noreferrer">
+    <Link className="project-card project-card--link" to={projectDetailPath}>
       <div className="project-card__inner">
         <div className="project-card__logo">
           {shouldShowStatusBadge ? (

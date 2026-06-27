@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   ArrowLeft,
   Bookmark,
@@ -18,13 +18,14 @@ import { NoteQuickMdEditor } from './components/NoteQuickMdEditor'
 import { useElementHeight } from './components/useElementHeight'
 import { getSimilarNotes, mapFeedNotes } from '../../../api/feed'
 import type { ProfileNoteItem } from '../../ProfileSpace/components/types'
-import { isNoteResourceUid } from '../../../api/resourceUid'
+import { isNoteResourceUid, isUserResourceUid } from '../../../api/resourceUid'
 import {
   formatNoteStatCount,
   noteDetailPublishStatusLabelMap,
   resolveNoteAuthorInitial,
   resolveNoteEditorialBannerText,
 } from '../shared/noteDetailShared'
+import { buildPersonalSpacePath } from '../../ProfileSpace/variants/PersonalView/personalTabRouting'
 import type { NoteVideoDetailPayload } from './types'
 import './NoteVideoDetailPage.css'
 
@@ -59,6 +60,13 @@ export function NoteVideoDetailView({ note, isEditorialFlow = false }: NoteVideo
   const [summaryExpanded, setSummaryExpanded] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const hasSummary = Boolean(note.summary.trim())
+
+  const authorProfilePath = useMemo(() => {
+    if (note.author.uid && isUserResourceUid(note.author.uid)) {
+      return buildPersonalSpacePath(note.author.uid)
+    }
+    return null
+  }, [note.author.uid])
 
   const [playerRef, playerHeight] = useElementHeight<HTMLDivElement>('.art-video')
   const sidebarHeightStyle =
@@ -131,29 +139,66 @@ export function NoteVideoDetailView({ note, isEditorialFlow = false }: NoteVideo
 
               <div className="note-video-page__channel-row">
                 <div className="note-video-page__author">
-                  {note.author.avatarUrl ? (
-                    <img className="note-video-page__avatar" src={note.author.avatarUrl} alt="" />
-                  ) : (
-                    <span className="note-video-page__avatar note-video-page__avatar--fallback">
-                      {resolveNoteAuthorInitial(note.author.name)}
-                    </span>
-                  )}
-                  <div className="note-video-page__author-meta">
-                    <div className="note-video-page__author-line">
-                      <strong>{note.author.name}</strong>
-                      <span>@{note.author.handle}</span>
-                      {note.publishStatus !== 'PUBLISHED' ? (
-                        <span
-                          className={`note-video-page__status note-video-page__status--${note.publishStatus.toLowerCase()}`}
-                        >
-                          {statusLabel}
+                  {authorProfilePath ? (
+                    <Link
+                      to={authorProfilePath}
+                      className="note-video-page__author-link"
+                      aria-label={`查看 ${note.author.name} 的个人空间`}
+                    >
+                      {note.author.avatarUrl ? (
+                        <img className="note-video-page__avatar" src={note.author.avatarUrl} alt="" />
+                      ) : (
+                        <span className="note-video-page__avatar note-video-page__avatar--fallback">
+                          {resolveNoteAuthorInitial(note.author.name)}
                         </span>
-                      ) : null}
-                    </div>
-                    <time className="note-video-page__time" dateTime={note.publishTime}>
-                      发布于 {note.publishTime}
-                    </time>
-                  </div>
+                      )}
+                      <div className="note-video-page__author-meta">
+                        <div className="note-video-page__author-line">
+                          <strong>{note.author.name}</strong>
+                          <span>{note.author.organization}</span>
+                          {note.publishStatus !== 'PUBLISHED' ? (
+                            <span
+                              className={`note-video-page__status note-video-page__status--${note.publishStatus.toLowerCase()}`}
+                            >
+                              {statusLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                        <time className="note-video-page__time" dateTime={note.publishTime}>
+                          发布于 {note.publishTime}
+                        </time>
+                      </div>
+                    </Link>
+                  ) : (
+                    <>
+                      {note.author.avatarUrl ? (
+                        <img className="note-video-page__avatar" src={note.author.avatarUrl} alt="" />
+                      ) : (
+                        <span className="note-video-page__avatar note-video-page__avatar--fallback">
+                          {resolveNoteAuthorInitial(note.author.name)}
+                        </span>
+                      )}
+                      <div className="note-video-page__author-meta">
+                        <div className="note-video-page__author-line">
+                          <strong>{note.author.name}</strong>
+                          <span>{note.author.organization}</span>
+                          {note.publishStatus !== 'PUBLISHED' ? (
+                            <span
+                              className={`note-video-page__status note-video-page__status--${note.publishStatus.toLowerCase()}`}
+                            >
+                              {statusLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                        <time className="note-video-page__time" dateTime={note.publishTime}>
+                          发布于 {note.publishTime}
+                        </time>
+                      </div>
+                    </>
+                  )}
+                  <button type="button" className="note-video-page__follow-btn" aria-label="关注作者">
+                    关注
+                  </button>
                 </div>
 
                 <div className="note-video-page__actions">

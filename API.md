@@ -2523,11 +2523,82 @@ sequenceDiagram
 
 **排序公式（服务端）**
 
+> Hacker News 时间衰减热度 + 兴趣标签裂变召回 + Redis ZSET
+
+**一、Hacker News 热度分**
+
+```
+baseScore = (likes × 5 + collects × 10 + comments × 8) / (hours + 1) ^ 1.5
+```
+
 | 因子 | 权重 |
 |------|------|
-| 标签匹配分（`user_tag_interests.weight` 累加） | × 时间衰减 × 0.7 |
-| 热度分 `log(1+like+collect×1.5)` | × 0.3 |
-| 时间衰减 | `1 / (1 + days×0.05)` |
+| 点赞数 | × 5 |
+| 收藏数 | × 10 |
+| 评论数 | × 8 |
+| 时间衰减 | `1 / (hours + 1) ^ 1.5`，hours = 距离发布的小时数 |
+
+**二、兴趣标签匹配召回**
+
+| 步骤 | 说明 |
+|------|------|
+| 标签加载 | Redis `user:tags:{userUid}` (Hash, TTL 60 min) → DB `p_user_interest_tag` 兜底 |
+| 匹配 | 内容 `tags` 中每个标签累加用户兴趣权重，`tagScore > 0` 即召回 |
+| 匿名冷启动 | 全量候选池召回（不依赖标签） |
+
+**三、高亲和度裂变召回**
+
+| 步骤 | 说明 |
+|------|------|
+| 高分支筛选 | 取标签匹配分 `≥ avgTagScore` 的笔记作为高亲和笔记 |
+| 同父裂变 | 提取高亲和笔记的 `parent_content_type_code`，将同父兄弟笔记拉入候选池 |
+| 裂变衰减 | 裂变笔记继承原标签分 × 0.7，最终得分再 × 0.8 |
+
+**四、综合得分与分页**
+
+```
+finalScore = baseScore × tagFactor × fissionFactor
+
+  tagFactor    = 1 + (tagMatchScore / maxTagScore)    （maxTagScore > 0 时）
+  fissionFactor = 0.8（裂变召回笔记） / 1.0（直接召回笔记）
+```
+
+| 机制 | 说明 |
+|------|------|
+| 写入 | 综合分写入 Redis ZSET `feed:note:{userUid}:{noteType}`（TTL 30 min） |
+| 分页 | `ZREVRANGE` 按 score 倒序分页，O(log N + M) |
+| 失效 | 点赞/收藏操作 → 删除对应 ZSET，下次请求自动重建 |
+| 缓存 | Spring Cache `@Cacheable` 兜底（`note_feed`，10 min） |
+
+**五、项目推荐（非笔记）**
+
+```
+projectScore = tagMatchScore × levelFactor / (hours + 1) ^ 1.0
+```
+
+| 因子 | 说明 |
+|------|------|
+| `tagMatchScore` | 用户兴趣标签与项目 tags 的加权匹配分（匿名=1.0，无匹配=0.2） |
+| `levelFactor` | 用户能力等级与项目等级的匹配系数（见下表） |
+| 时间衰减 | `1 / (hours + 1) ^ 1.0`，hours = 距离发布的小时数 |
+| 缓存 | Spring Cache（`project_feed`，10 min） |
+
+**等级匹配规则**（来源：`p_user_profile.level` → `project.level`）
+
+| 等级 | 序值 | |
+|------|------|------|
+| UR | 5 | |
+| SSR | 4 | |
+| SR | 3 | |
+| R | 2 | |
+| N | 1 | |
+
+| 等级差 | `levelFactor` | 说明 |
+|--------|-------------|------|
+| 同级 | 1.0 | 优先推荐 |
+| 差 1 级 | 0.8 | 允许推荐（±1 级，如 UR→SSR 或 SSR→UR） |
+| 差 ≥ 2 级 | 0.0 | 不推荐（如 UR→SR 不展示） |
+| 匿名 / 无等级 | 1.0 | 所有等级项目均可推荐 |
 
 **Feed 卡片字段**
 

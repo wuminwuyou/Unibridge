@@ -50,8 +50,6 @@ function GridVideoNoteCard({ note, showAuthor = true }: GridVideoNoteCardProps) 
     <Link
       className="grid-note-card grid-note-card--link grid-video-note-card"
       to={noteDetailPath}
-      target="_blank"
-      rel="noopener noreferrer"
     >
       <GridNoteCardMenuButton />
 

@@ -31,8 +31,9 @@ export function buildNoteDetailFromPublishNote(
     tags: draft.tags,
     coverUrl,
     author: {
+      uid: undefined,
       name: '我',
-      handle: 'me',
+      organization: '',
       avatarUrl: null,
     },
     publishTime: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
@@ -41,5 +42,6 @@ export function buildNoteDetailFromPublishNote(
     comments: 0,
     favorites: 0,
     publishStatus,
+    parentNote: null,
   }
 }
