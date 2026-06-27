@@ -11,23 +11,23 @@ export type {
   NoteDetailPayload,
   NoteDetailLocationState,
 } from './types'
-export { isNoteArticleDetailPayload, isNoteVideoDetailPayload } from './shared/noteDetailPayload'
-export { saveNoteDetailPreview, loadNoteDetailPreview } from './shared/noteDetailPreviewSession'
-export { buildNoteDetailHref, parseNoteDetailUidFromQuery } from './shared/noteDetailRouting'
+export { isNoteArticleDetailPayload, isNoteVideoDetailPayload } from './shared/types/noteDetailPayload'
+export { saveNoteDetailPreview, loadNoteDetailPreview, clearNoteDetailPreview } from './shared/services/noteDetailPreviewSession'
+export { buildNoteDetailHref, parseNoteDetailUidFromQuery } from './shared/services/noteDetailRouting'
 
 export {
-  TextNoteReaderView,
+  ArticleNoteView,
   buildNoteArticleDetailFallback,
   buildNoteDetailFromPublishNote,
   resolveNoteArticleDetail,
-} from './NoteArticleDetail'
+} from './ArticleNote'
 
 export {
-  NoteVideoDetailView,
+  VideoNoteView,
   resolveNoteVideoDetail,
   formatVideoDurationLabel,
-} from './NoteVideoDetail'
+} from './VideoNote'
 
-export { useNoteReaderPage } from './useNoteReaderPage'
-export { useNoteReaderFromApi } from './useNoteReaderFromApi'
-export type { NoteReaderApiLoadState, UseNoteReaderFromApiResult } from './useNoteReaderFromApi'
+export { useNoteReaderPage } from './hooks/useNoteReaderPage'
+export { useNoteReaderFromApi } from './hooks/useNoteReaderFromApi'
+export type { NoteReaderApiLoadState, UseNoteReaderFromApiResult } from './hooks/useNoteReaderFromApi'

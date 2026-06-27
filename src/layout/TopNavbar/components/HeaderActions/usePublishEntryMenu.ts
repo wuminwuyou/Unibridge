@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo, type RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { clearNoteDetailPreview } from '../../../../pages/NoteReader/shared/noteDetailPreviewSession'
+import { clearNoteDetailPreview } from '../../../../pages/NoteReader'
 import { clearPublishNoteSession } from '../../../../pages/PublishNote/publishNoteFormSession'
 import { clearProjectDetailPreview } from '../../../../pages/ProjectDetailPage/projectDetailPreviewSession'
 import { clearPublishProjectSession } from '../../../../pages/PublishProject/publishFormSession'

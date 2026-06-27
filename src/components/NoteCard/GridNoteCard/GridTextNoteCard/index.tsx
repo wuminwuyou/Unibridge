@@ -1,4 +1,4 @@
-import { buildNoteDetailHref } from '../../../../pages/NoteReader/shared/noteDetailRouting'
+import { buildNoteDetailHref } from '../../../../pages/NoteReader'
 import { Eye, Heart, MessageCircleMore, ThumbsUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'

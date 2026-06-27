@@ -1,4 +1,4 @@
-import { buildNoteDetailHref } from '../../../pages/NoteReader/shared/noteDetailRouting'
+import { buildNoteDetailHref } from '../../../pages/NoteReader'
 import type { ProfileNoteItem } from '../../../pages/ProfileSpace/components/types'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'

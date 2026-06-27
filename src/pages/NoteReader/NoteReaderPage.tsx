@@ -1,14 +1,14 @@
 import './NoteReaderPage.css'
 import TopNavbar from '../../layout/TopNavbar'
-import { TextNoteReaderView } from './NoteArticleDetail'
-import { NoteVideoDetailView } from './NoteVideoDetail'
-import './NoteVideoDetail/NoteVideoDetailPage.css'
-import { useNoteReaderPage } from './useNoteReaderPage'
+import { ArticleNoteView } from './ArticleNote'
+import { VideoNoteView } from './VideoNote'
+import './VideoNote/VideoNoteView.css'
+import { useNoteReaderPage } from './hooks/useNoteReaderPage'
 
 // 01）笔记阅读路由页（NoteReaderPage）
 /**
  * 函数名：NoteReaderPage
- * 功能：笔记阅读入口；图文走 TextNoteReader，视频走 NoteVideoDetail。
+ * 功能：笔记阅读入口；图文走 ArticleNoteView，视频走 VideoNoteView。
  * 实现方法：
  * - useNoteReaderPage 解析预览 / API / query 载荷
  * - 非发布预览流展示 TopNavbar
@@ -43,9 +43,9 @@ function NoteReaderPage() {
           <p className="note-reader-page__status-desc">{errorMessage ?? '无法获取笔记内容，请稍后重试。'}</p>
         </main>
       ) : articleNote ? (
-        <TextNoteReaderView note={articleNote} isEditorialFlow={isEditorialFlow} />
+        <ArticleNoteView note={articleNote} isEditorialFlow={isEditorialFlow} />
       ) : videoNote ? (
-        <NoteVideoDetailView note={videoNote} isEditorialFlow={isEditorialFlow} />
+        <VideoNoteView note={videoNote} isEditorialFlow={isEditorialFlow} />
       ) : (
         <main className="note-reader-page__status" aria-label="笔记未找到">
           <p className="note-reader-page__status-label">笔记阅读</p>
