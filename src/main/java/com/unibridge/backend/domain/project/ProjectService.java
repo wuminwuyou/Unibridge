@@ -45,6 +45,7 @@ public class ProjectService {
 
     private static final String PUBLISH_ACTION_DRAFT = "DRAFT";
     private static final String PUBLISH_ACTION_PUBLISH = "PUBLISH";
+    private static final int MAX_DESCRIPTION_LENGTH = 2000;
     private static final String CHANNEL_ENTERPRISE = "enterprise";
     private static final String CHANNEL_CAMPUS = "campus";
     private static final String CATEGORY_COMMERCIAL = "COMMERCIAL";
@@ -271,6 +272,10 @@ public class ProjectService {
             }
             if (!StringUtils.hasText(request.getDescription())) {
                 throw BusinessException.badRequest("VALIDATION_FAILED");
+            }
+            int descCodePoints = request.getDescription().codePointCount(0, request.getDescription().length());
+            if (descCodePoints > MAX_DESCRIPTION_LENGTH) {
+                throw BusinessException.badRequest("DESCRIPTION_TOO_LONG");
             }
             if (request.getSkillTags().isEmpty()) {
                 throw BusinessException.badRequest("VALIDATION_FAILED");

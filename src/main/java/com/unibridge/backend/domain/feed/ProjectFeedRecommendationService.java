@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.unibridge.backend.domain.feed.dto.ContentVO;
 import com.unibridge.backend.domain.project.ProjectCardAssembler;
 import com.unibridge.backend.infrastructure.entities.project.Project;
+import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
 import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -66,17 +68,27 @@ public class ProjectFeedRecommendationService {
     private static final Set<String> FEED_PROJECT_STATUSES = Set.of("OPEN", "ONGOING");
     private static final String ANONYMOUS_USER = "anonymous";
 
+    /** 等级序值：UR(5) > SSR(4) > SR(3) > R(2) > N(1) */
+    static final Map<String, Integer> LEVEL_ORDER = Map.of(
+            "UR", 5, "SSR", 4, "SR", 3, "R", 2, "N", 1
+    );
+    static final double LEVEL_MATCH_SAME = 1.0;
+    static final double LEVEL_MATCH_ADJACENT = 0.8;
+
     private final StringRedisTemplate stringRedisTemplate;
     private final ProjectMapper projectMapper;
+    private final UserProfileMapper userProfileMapper;
     private final ProjectCardAssembler projectCardAssembler;
     private final FeedCounterService feedCounterService;
 
     public ProjectFeedRecommendationService(StringRedisTemplate stringRedisTemplate,
                                             ProjectMapper projectMapper,
+                                            UserProfileMapper userProfileMapper,
                                             ProjectCardAssembler projectCardAssembler,
                                             FeedCounterService feedCounterService) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.projectMapper = projectMapper;
+        this.userProfileMapper = userProfileMapper;
         this.projectCardAssembler = projectCardAssembler;
         this.feedCounterService = feedCounterService;
     }
@@ -109,10 +121,16 @@ public class ProjectFeedRecommendationService {
     private void rebuildProjectZSet(String userUid, String category) {
         String zsetKey = FEED_ZSET_KEY + userUid + ":" + category;
 
+        String userLevel = loadUserLevel(userUid);
+
         List<Project> candidates = loadFeedProjects(MAX_CANDIDATES, category);
         if (candidates.isEmpty()) return;
 
         for (Project project : candidates) {
+            // 等级过滤：差值 ≥2 级不推荐
+            if (computeLevelFactor(resolveLevelOrder(userLevel), resolveLevelOrder(project.getLevel())) <= 0) {
+                continue;
+            }
             int viewCount = feedCounterService.getProjectViewCount(project.getProjectUid());
             long chatUnique = feedCounterService.getProjectChatUniqueCount(project.getProjectUid());
             double score = computeFinalScore(project, viewCount, chatUnique);
@@ -233,5 +251,34 @@ public class ProjectFeedRecommendationService {
     private String normalizeCategory(String category) {
         if (!StringUtils.hasText(category)) return "COMMERCIAL";
         return category.trim().toUpperCase();
+    }
+
+    // ============================================================================
+    //  等级过滤（与 FeedRecommendationService 保持一致）
+    // ============================================================================
+
+    static int resolveLevelOrder(String level) {
+        if (level == null || level.isBlank()) return 0;
+        return LEVEL_ORDER.getOrDefault(level.trim().toUpperCase(), 0);
+    }
+
+    static double computeLevelFactor(int userLevelOrder, int projectLevelOrder) {
+        if (userLevelOrder == 0 || projectLevelOrder == 0) return 1.0;
+        int diff = Math.abs(userLevelOrder - projectLevelOrder);
+        if (diff == 0) return LEVEL_MATCH_SAME;
+        if (diff == 1) return LEVEL_MATCH_ADJACENT;
+        return 0.0;
+    }
+
+    private String loadUserLevel(String userUid) {
+        if (userUid == null || userUid.isBlank() || ANONYMOUS_USER.equals(userUid)) {
+            return null;
+        }
+        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserProfile::getUserUid, userUid)
+                .select(UserProfile::getLevel)
+                .last("LIMIT 1");
+        UserProfile profile = userProfileMapper.selectOne(wrapper);
+        return profile != null ? profile.getLevel() : null;
     }
 }

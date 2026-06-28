@@ -268,6 +268,8 @@ CREATE TABLE t_user_identity (
   id_card_no VARCHAR(128) NOT NULL COMMENT '经 AES/SM4 加密的身份证号密文（Base64，iv:ciphertext:auth_tag）。统一由 DEK 加密，与 encrypted_real_name 共享 encryption_key_id',
   id_card_hash CHAR(64) NOT NULL COMMENT '身份证号的 SHA-256 哈希值（十六进制小写），用于全库唯一性防作弊碰撞。不可逆设计，仅做等值匹配，不存储明文',
   encryption_key_id CHAR(36) NULL COMMENT '加密所用的 DEK UUID（关联 sys_data_encryption_keys.key_id）',
+  -- 状态
+  status VARCHAR(32) NOT NULL DEFAULT 'UNVERIFIED' COMMENT 'UNVERIFIED(未验证) | VERIFIED(已验证) | REJECTED(审核拒绝)',
   -- 审计
   verified_at DATETIME NULL COMMENT '最近一次人脸核身/实名验证通过时间',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -278,7 +280,8 @@ CREATE TABLE t_user_identity (
   KEY idx_identity_encryption_key (encryption_key_id),
   CONSTRAINT fk_user_identity_user FOREIGN KEY (user_uid) REFERENCES t_user(user_uid)
     ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT chk_uid_id_card_hash CHECK (LENGTH(id_card_hash) = 64)
+  CONSTRAINT chk_uid_id_card_hash CHECK (LENGTH(id_card_hash) = 64),
+  CONSTRAINT chk_uid_status CHECK (status IN ('UNVERIFIED', 'VERIFIED', 'REJECTED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
   COMMENT='用户实名身份独立存储（PIPL §51 加密 + §47 数据删除权，基于 role 的脱敏展示）';
 
@@ -650,7 +653,7 @@ CREATE TABLE t_project_secret (
 CREATE TABLE t_project_body (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   project_uid CHAR(13) NOT NULL COMMENT '关联的主项目 UID（1:1 关联）',
-  description LONGTEXT NULL COMMENT '项目详情正文（Markdown，前端 Milkdown 渲染）',
+  description TEXT NULL COMMENT '项目详情正文（Markdown，前端 Milkdown 渲染，≤2000 字）',
   PRIMARY KEY (id),
   UNIQUE KEY uk_proj_body_uid (project_uid),
   CONSTRAINT fk_proj_body_uid FOREIGN KEY (project_uid) REFERENCES t_project(project_uid)
@@ -759,13 +762,13 @@ CREATE TABLE IF NOT EXISTS t_user_note (
 
 -- t_user_note.extended_uid：联合投稿代发 Key（应用层关联，不设 FK；entity_code 或 team_uid）
 
--- 9.2 笔记正文大文本表（t_user_note_detail：垂直隔离冷数据 LONGTEXT，避免扫描主表时加载大字段）
+-- 9.2 笔记正文大文本表（t_user_note_detail：垂直隔离冷数据 MEDIUMTEXT，避免扫描主表时加载大字段）
 -- parent_content_type_code：便捷笔记关联父视频笔记（仅图文笔记详情页展示；应用层自引用管理，不设 FK）
 CREATE TABLE IF NOT EXISTS t_user_note_detail (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   content_type_code VARCHAR(64) NOT NULL COMMENT '对应 t_user_note.content_type_code（应用层关联）',
   parent_content_type_code VARCHAR(64) NULL COMMENT '父笔记 content_type_code（便捷笔记关联其视频笔记；顶级笔记为 NULL，应用层自引用管理）',
-  content LONGTEXT NULL COMMENT '图文笔记 Markdown 正文；视频笔记不写入',
+  content MEDIUMTEXT NULL COMMENT '图文笔记 Markdown 正文（≤20000 字）；便捷子笔记 ≤10000 字；视频笔记不写入',
   PRIMARY KEY (id),
   UNIQUE KEY uk_note_detail_code (content_type_code),
   KEY idx_note_detail_parent (parent_content_type_code)

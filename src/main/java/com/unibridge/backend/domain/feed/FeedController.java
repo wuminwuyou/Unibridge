@@ -6,6 +6,7 @@ import com.unibridge.backend.infrastructure.common.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,8 +37,9 @@ public class FeedController {
     @GetMapping("/home")
     public Result getHomeFeed(
             @Parameter(description = "Bearer JWT，可选")
-            @RequestHeader(value = "Authorization", required = false) String authorization) {
-        String userUid = accessService.resolveOptionalCurrentUserUid(authorization);
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            HttpServletRequest request) {
+        String userUid = accessService.resolveOptionalCurrentUserUid(authorization, request);
         return Result.success(feedRecommendationService.getHomeFeed(userUid));
     }
 
@@ -48,8 +50,9 @@ public class FeedController {
             @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "size", defaultValue = "15") int size,
             @Parameter(description = "换一换随机种子，传则启用机制 B")
-            @RequestParam(value = "seed", required = false) Long seed) {
-        String userUid = accessService.resolveOptionalCurrentUserUid(authorization);
+            @RequestParam(value = "seed", required = false) Long seed,
+            HttpServletRequest request) {
+        String userUid = accessService.resolveOptionalCurrentUserUid(authorization, request);
         return Result.success(feedRecommendationService.getHomeFeedShuffleResponse(userUid, seed, page, size));
     }
 
@@ -59,8 +62,9 @@ public class FeedController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Parameter(description = "COMMERCIAL | RECRUITMENT", required = true)
             @RequestParam("category") String category,
-            @RequestParam(value = "limit", defaultValue = "10") int limit) {
-        String userUid = accessService.resolveOptionalCurrentUserUid(authorization);
+            @RequestParam(value = "limit", defaultValue = "10") int limit,
+            HttpServletRequest request) {
+        String userUid = accessService.resolveOptionalCurrentUserUid(authorization, request);
         return Result.success(feedRecommendationService.getProjectFeed(userUid, category, limit));
     }
 
@@ -71,8 +75,9 @@ public class FeedController {
             @RequestParam("category") String category,
             @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "size", defaultValue = "10") int size,
-            @RequestParam(value = "seed", required = false) Long seed) {
-        String userUid = accessService.resolveOptionalCurrentUserUid(authorization);
+            @RequestParam(value = "seed", required = false) Long seed,
+            HttpServletRequest request) {
+        String userUid = accessService.resolveOptionalCurrentUserUid(authorization, request);
         return Result.success(feedRecommendationService.getProjectFeedShuffleResponse(userUid, category, seed, page, size));
     }
 
@@ -82,8 +87,9 @@ public class FeedController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Parameter(description = "IMAGE_TEXT | VIDEO", required = true)
             @RequestParam("noteType") String noteType,
-            @RequestParam(value = "limit", defaultValue = "10") int limit) {
-        String userUid = accessService.resolveOptionalCurrentUserUid(authorization);
+            @RequestParam(value = "limit", defaultValue = "10") int limit,
+            HttpServletRequest request) {
+        String userUid = accessService.resolveOptionalCurrentUserUid(authorization, request);
         return Result.success(feedRecommendationService.getNoteFeed(userUid, noteType, limit));
     }
 
@@ -94,8 +100,9 @@ public class FeedController {
             @RequestParam("noteType") String noteType,
             @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "size", defaultValue = "10") int size,
-            @RequestParam(value = "seed", required = false) Long seed) {
-        String userUid = accessService.resolveOptionalCurrentUserUid(authorization);
+            @RequestParam(value = "seed", required = false) Long seed,
+            HttpServletRequest request) {
+        String userUid = accessService.resolveOptionalCurrentUserUid(authorization, request);
         return Result.success(feedRecommendationService.getNoteFeedShuffleResponse(userUid, noteType, seed, page, size));
     }
 

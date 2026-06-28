@@ -2,6 +2,7 @@ package com.unibridge.backend.domain.user;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.unibridge.backend.application.shared.UserVerificationService;
 import com.unibridge.backend.domain.note.NoteCardAssembler;
 import com.unibridge.backend.domain.project.ProjectCardAssembler;
 import com.unibridge.backend.domain.user.dto.ProfileHomeResponse;
@@ -112,6 +113,9 @@ public class UserProfileService {
 
     @Autowired
     private NoteCardAssembler noteCardAssembler;
+
+    @Autowired
+    private UserVerificationService userVerificationService;
 
     @Autowired
     private ProjectMapper projectMapper;
@@ -366,13 +370,12 @@ public class UserProfileService {
         return "";
     }
 
-    /** 已实名：t_user_identity.verified_at 非空。 */
+    /** 已实名：t_user_identity.verified_at 非空（委托 UserVerificationService）。 */
     private boolean isRealNameVerified(UserProfile profile) {
         if (profile == null) {
             return false;
         }
-        UserIdentity identity = loadIdentity(profile.getUserUid());
-        return identity != null && identity.getVerifiedAt() != null;
+        return userVerificationService.isIdentityVerified(profile.getUserUid());
     }
 
     /** 机构认证通过：user_auth_link.audit_status=APPROVED 且 is_active=1。 */
@@ -858,53 +861,16 @@ public class UserProfileService {
     // ===================== 认证状态判定 =====================
 
     /**
-     * 三级认证状态判定。
-     * <ul>
-     *   <li>{@code "unverified"}：未身份验证（t_user_identity.verified_at 为空）</li>
-     *   <li>{@code "identity_only"}：仅身份验证（verified_at 非空但无 APPROVED 机构认证）</li>
-     *   <li>{@code "verified"}：身份验证 + 机构认证均已通过</li>
-     * </ul>
-     * 身份验证来源：{@code t_user_identity.verified_at} 非空。
-     * 机构认证来源：{@code user_auth_link.audit_status = 'APPROVED' AND is_active = 1}。
+     * 三级认证状态判定（委托 {@link UserVerificationService} 统一实现）。
      */
     private String resolveVerifyStatus(String userUid) {
-        UserIdentity identity = loadIdentity(userUid);
-        boolean identityVerified = identity != null && identity.getVerifiedAt() != null;
-
-        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
-                .eq(UserOrganizationBinding::getAuditStatus, "APPROVED")
-                .eq(UserOrganizationBinding::getIsActive, 1)
-                .last("LIMIT 1");
-        boolean orgVerified = userOrganizationBindingMapper.selectOne(wrapper) != null;
-
-        if (identityVerified && orgVerified) return "verified";
-        if (identityVerified) return "identity_only";
-        return "unverified";
+        return userVerificationService.resolveVerifyStatus(userUid);
     }
 
     /**
-     * 获取已认证主体名称。仅全部认证通过时返回机构名，否则返回空。
+     * 获取已认证主体名称（委托 {@link UserVerificationService} 统一实现）。
      */
     private String resolveVerifiedOrganization(String userUid) {
-        if (!"verified".equals(resolveVerifyStatus(userUid))) {
-            return "";
-        }
-        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
-                .eq(UserOrganizationBinding::getAuditStatus, "APPROVED")
-                .eq(UserOrganizationBinding::getIsActive, 1)
-                .last("LIMIT 1");
-        UserOrganizationBinding link = userOrganizationBindingMapper.selectOne(wrapper);
-        if (link == null || !StringUtils.hasText(link.getEntityCode())) {
-            return "";
-        }
-        LambdaQueryWrapper<TenantOrgProfile> profileWrapper = new LambdaQueryWrapper<>();
-        profileWrapper.eq(TenantOrgProfile::getEntityCode, link.getEntityCode()).last("LIMIT 1");
-        TenantOrgProfile entityProfile = tenantOrgProfileMapper.selectOne(profileWrapper);
-        if (entityProfile != null && StringUtils.hasText(entityProfile.getName())) {
-            return entityProfile.getName();
-        }
-        return link.getEntityCode();
+        return userVerificationService.resolveVerifiedOrganization(userUid);
     }
 }

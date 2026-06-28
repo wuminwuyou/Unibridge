@@ -25,6 +25,8 @@ public class UserIdentity {
     private String idCardHash;
     @TableField("encryption_key_id")
     private String encryptionKeyId;
+    /** UNVERIFIED | VERIFIED | REJECTED */
+    private String status;
     @TableField("verified_at")
     private LocalDateTime verifiedAt;
     @TableField("created_at")

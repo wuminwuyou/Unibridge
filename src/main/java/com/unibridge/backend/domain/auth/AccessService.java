@@ -145,7 +145,13 @@ public class AccessService {
         }
     }
 
-    /** 从 Authorization 头解析当前登录用户 UID；无有效 token 时返回 {@code null}（无请求上下文时不区分过期）。 */
+    /**
+     * 从 Authorization 头解析当前登录用户 UID；无有效 token 时返回 {@code null}。
+     * <p>
+     * 与两阶段版本不同，本方法在 token 过期时统一抛 401，防止过期 token 被静默降级为匿名用户
+     * 导致 Feed 流等级穿透。无请求上下文时，前端应自行管理 token 刷新节奏。
+     * </p>
+     */
     public String resolveOptionalCurrentUserUid(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             return null;
@@ -165,7 +171,7 @@ public class AccessService {
             }
             return resolveClientUserUid(subject);
         } catch (ExpiredJwtException ex) {
-            return null;
+            throw BusinessException.unauthorized("ACCESS_TOKEN_EXPIRED");
         } catch (Exception ex) {
             return null;
         }

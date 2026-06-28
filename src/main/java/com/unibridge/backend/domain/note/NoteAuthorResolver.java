@@ -1,31 +1,29 @@
 package com.unibridge.backend.domain.note;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.unibridge.backend.infrastructure.entities.profile.TenantOrgProfile;
+import com.unibridge.backend.application.shared.UserVerificationService;
 import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
-import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
-import com.unibridge.backend.infrastructure.persistence.mapper.profile.TenantOrgProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
  * 解析笔记作者栏：昵称、所属组织、头像。
+ * <p>
+ * 组织字段仅在用户同时满足「实名认证已完成」与「组织绑定已审核通过」时返回；
+ * 未认证或审核中的用户 author.organization 为空字符串，前端不应渲染组织标签。
+ * </p>
  */
 @Component
 public class NoteAuthorResolver {
 
-    private final UserOrganizationBindingMapper userOrganizationBindingMapper;
-    private final TenantOrgProfileMapper tenantOrgProfileMapper;
     private final UserProfileMapper userProfileMapper;
+    private final UserVerificationService userVerificationService;
 
-    public NoteAuthorResolver(UserOrganizationBindingMapper userOrganizationBindingMapper,
-                              TenantOrgProfileMapper tenantOrgProfileMapper,
-                              UserProfileMapper userProfileMapper) {
-        this.userOrganizationBindingMapper = userOrganizationBindingMapper;
-        this.tenantOrgProfileMapper = tenantOrgProfileMapper;
+    public NoteAuthorResolver(UserProfileMapper userProfileMapper,
+                              UserVerificationService userVerificationService) {
         this.userProfileMapper = userProfileMapper;
+        this.userVerificationService = userVerificationService;
     }
 
     public NoteAuthorContext resolve(String userUid) {
@@ -36,7 +34,7 @@ public class NoteAuthorResolver {
         UserProfile profile = loadUserProfile(userUid);
         String authorNickName = resolveAuthorNickName(profile);
         String authorAvatar = profile != null ? trimToNull(profile.getAvatarUrl()) : null;
-        String authorOrganization = resolveOrganization(userUid, profile);
+        String authorOrganization = resolveOrganization(userUid);
         return new NoteAuthorContext(authorNickName, authorOrganization, authorAvatar);
     }
 
@@ -47,30 +45,12 @@ public class NoteAuthorResolver {
         return "用户";
     }
 
-    private String resolveOrganization(String userUid, UserProfile profile) {
-        UserOrganizationBinding authLink = loadActiveAuthLink(userUid);
-        if (authLink != null && authLink.getEntityCode() != null) {
-            TenantOrgProfile entityProfile = loadEntityProfile(authLink.getEntityCode());
-            if (entityProfile != null && StringUtils.hasText(entityProfile.getName())) {
-                return entityProfile.getName().trim();
-            }
-        }
-        return "";
-    }
-
-    private UserOrganizationBinding loadActiveAuthLink(String userUid) {
-        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
-                .eq(UserOrganizationBinding::getIsActive, 1)
-                .orderByDesc(UserOrganizationBinding::getUpdatedAt)
-                .last("LIMIT 1");
-        return userOrganizationBindingMapper.selectOne(wrapper);
-    }
-
-    private TenantOrgProfile loadEntityProfile(String entityCode) {
-        LambdaQueryWrapper<TenantOrgProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(TenantOrgProfile::getEntityCode, entityCode).last("LIMIT 1");
-        return tenantOrgProfileMapper.selectOne(wrapper);
+    /**
+     * 解析作者所属组织名称。
+     * <p>仅当用户认证状态为 {@code "verified"} 时返回组织名，否则返回空字符串。</p>
+     */
+    private String resolveOrganization(String userUid) {
+        return userVerificationService.resolveVerifiedOrganization(userUid);
     }
 
     private UserProfile loadUserProfile(String userUid) {

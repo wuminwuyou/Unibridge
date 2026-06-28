@@ -15,6 +15,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE t_project_achievement;
 TRUNCATE TABLE t_user_identity;
 TRUNCATE TABLE t_project_secret;
+TRUNCATE TABLE t_project_body;
 TRUNCATE TABLE t_project;
 TRUNCATE TABLE t_team_member;
 TRUNCATE TABLE t_team;
@@ -70,10 +71,10 @@ INSERT INTO t_user_organization_binding (id, user_uid, entity_code, role, auth_s
 -- real_name 已从 user_profile 迁移至独立的 t_user_identity 表
 -- encrypted_real_name = NULL（预留加密位置）；real_name_mask 根据 role 生成
 -- id_card_no = ''（空字符串占位，后续人脸核身填补）；id_card_hash 使用 user_uid 生成唯一占位值（防 UK 冲突）
-INSERT INTO t_user_identity (user_uid, encrypted_real_name, real_name_mask, id_card_no, id_card_hash, encryption_key_id, verified_at) VALUES
-('US00000000001', NULL, '张同学', '', SHA2(CONCAT('placeholder-', 'US00000000001'), 256), NULL, NULL),
-('US00000000002', NULL, '李导师', '', SHA2(CONCAT('placeholder-', 'US00000000002'), 256), NULL, NULL),
-('US00000000003', NULL, '王经理', '', SHA2(CONCAT('placeholder-', 'US00000000003'), 256), NULL, NULL);
+INSERT INTO t_user_identity (user_uid, encrypted_real_name, real_name_mask, id_card_no, id_card_hash, encryption_key_id, status, verified_at) VALUES
+('US00000000001', NULL, '张同学', '', SHA2(CONCAT('placeholder-', 'US00000000001'), 256), NULL, 'UNVERIFIED', NULL),
+('US00000000002', NULL, '李导师', '', SHA2(CONCAT('placeholder-', 'US00000000002'), 256), NULL, 'UNVERIFIED', NULL),
+('US00000000003', NULL, '王经理', '', SHA2(CONCAT('placeholder-', 'US00000000003'), 256), NULL, 'UNVERIFIED', NULL);
 
 INSERT INTO sys_credit_profiles (id, user_uid, credit_score, account_status, last_changed_at) VALUES
 (1, 'US00000000001', 720, 'ACTIVE', '2026-05-20 18:00:00'),
@@ -108,20 +109,17 @@ INSERT INTO t_team_member (id, team_uid, user_uid, role, lab_user_uid, career, i
 (3, 'ST00000000001', 'US00000000001', 'LEADER', NULL, '后端开发', 1, NULL),
 (4, 'LB00000000002', 'US00000000002', 'MENTOR', NULL, '软件工程 · 云原生', 1, NULL);
 
-INSERT INTO t_project (id, project_uid, extended_uid, category, recruitment_type, owner_uid, team_uid, title, preview, editor_type, description, tags, duration, team_size, deadline, level, status, published_at) VALUES
+INSERT INTO t_project (id, project_uid, extended_uid, category, recruitment_type, owner_uid, team_uid, title, preview, editor_type, tags, duration, team_size, deadline, level, status, published_at) VALUES
 (1, 'PR20212345678', '91440300708461136T', 'COMMERCIAL', NULL, 'US00000000003', NULL, '智能客服系统研发',
  '面向客服场景的多轮对话与工单联动系统', 'MARKDOWN',
- '# 项目背景\n\n企业希望建设面向客服场景的多轮对话与工单联动系统。',
  JSON_ARRAY('NLP', '客服', 'SaaS'), '8 周', '3-5 人', '2026-08-31', 'SR', 'OPEN',
  '2026-04-01 10:00:00'),
 (2, 'PRnews1234567', 'LB00000000001', 'COMMERCIAL', NULL, 'US00000000003', 'LB00000000001', '实验室数据管理平台',
  '为高校实验室提供项目、成员与成果一体化管理', 'MARKDOWN',
- '# 平台目标\n\n为高校实验室提供一体化管理能力。',
  JSON_ARRAY('数据平台', 'B端', '高校'), '12 周', '5-8 人', '2026-09-15', 'SSR', 'ONGOING',
  '2026-04-15 14:00:00'),
 (3, 'PR1T1w2K4x6O8', 'ST00000000001', 'COMMERCIAL', NULL, 'US00000000003', 'ST00000000001', '校园社交 App 外包',
  '面向校园场景的轻量社交与活动发布应用', 'MARKDOWN',
- '# 产品概述\n\n面向校园场景的轻量社交 App。',
  JSON_ARRAY('移动端', '社交', '外包'), '6 周', '2-4 人', '2026-07-01', 'R', 'OPEN',
  '2026-05-01 09:30:00');
 
@@ -129,6 +127,12 @@ INSERT INTO t_project_secret (project_uid, total_budget, commercial_status) VALU
 ('PR20212345678', 500000.00, 'PENDING_START'),
 ('PRnews1234567', 800000.00, 'PROCESSING'),
 ('PR1T1w2K4x6O8', 300000.00, 'SUBMIT_REVIEW');
+
+-- 项目正文大文本（垂直拆分，独立表 t_project_body）
+INSERT INTO t_project_body (project_uid, description) VALUES
+('PR20212345678', '# 项目背景\n\n企业希望建设面向客服场景的多轮对话与工单联动系统。'),
+('PRnews1234567', '# 平台目标\n\n为高校实验室提供一体化管理能力。'),
+('PR1T1w2K4x6O8', '# 产品概述\n\n面向校园场景的轻量社交 App。');
 
 -- =========================================================================
 -- 笔记核心表：移除 editor_type / content / 计数器字段，新增 visibility

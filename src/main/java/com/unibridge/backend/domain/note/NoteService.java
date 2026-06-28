@@ -49,6 +49,8 @@ public class NoteService {
     private static final String PUBLISH_ACTION_PUBLISH = "PUBLISH";
     private static final String CONTENT_TYPE_IMAGE_TEXT = "图文";
     private static final String CONTENT_TYPE_VIDEO = "视频";
+    private static final int MAX_CONTENT_LENGTH_IMAGE_TEXT = 20000;
+    private static final int MAX_CONTENT_LENGTH_CHILD_NOTE = 10000;
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_REVIEWING = "REVIEWING";
     private static final String STATUS_PUBLISHED = "PUBLISHED";
@@ -68,6 +70,7 @@ public class NoteService {
     private final UserIdentityMapper userIdentityMapper;
     private final NoteViewTracker noteViewTracker;
     private final ContentUidResolver contentUidResolver;
+    private final NoteAuthorResolver noteAuthorResolver;
 
     public NoteService(AccessService clientAccessService,
                              NoteMapper noteMapper,
@@ -76,7 +79,8 @@ public class NoteService {
                              UserProfileMapper userProfileMapper,
                              UserIdentityMapper userIdentityMapper,
                              NoteViewTracker noteViewTracker,
-                             ContentUidResolver contentUidResolver) {
+                             ContentUidResolver contentUidResolver,
+                             NoteAuthorResolver noteAuthorResolver) {
         this.clientAccessService = clientAccessService;
         this.noteMapper = noteMapper;
         this.noteDetailMapper = noteDetailMapper;
@@ -85,6 +89,7 @@ public class NoteService {
         this.userIdentityMapper = userIdentityMapper;
         this.noteViewTracker = noteViewTracker;
         this.contentUidResolver = contentUidResolver;
+        this.noteAuthorResolver = noteAuthorResolver;
     }
 
     @Transactional
@@ -180,6 +185,11 @@ public class NoteService {
         NoteCounter counter = loadNoteCounter(note.getContentTypeCode());
         NoteDetail detail = loadNoteDetail(note.getContentTypeCode());
 
+        NoteDetailResponse.ParentNote parentNote = null;
+        if (detail != null && StringUtils.hasText(detail.getParentContentTypeCode())) {
+            parentNote = loadParentNote(detail.getParentContentTypeCode());
+        }
+
         return NoteDetailResponse.builder()
                 .uid(note.getContentTypeCode())
                 .contentType(mapContentTypeCodeToDisplay(note.getContentTypeCode()))
@@ -190,7 +200,6 @@ public class NoteService {
                 .coverUrl(note.getCoverUrl())
                 .videoUrl(note.getVideoUrl())
                 .videoDuration(note.getVideoDuration())
-                .parentContentTypeCode(detail != null ? detail.getParentContentTypeCode() : null)
                 .visibility(note.getVisibility())
                 .author(buildAuthor(profile, note.getUserUid()))
                 .publishTime(formatOffsetDateTime(displayPublishTime))
@@ -199,11 +208,18 @@ public class NoteService {
                 .comments(counter != null && counter.getCommentCount() != null ? counter.getCommentCount() : 0)
                 .favorites(counter != null && counter.getCollectCount() != null ? counter.getCollectCount() : 0)
                 .status(note.getStatus())
+                .parentNote(parentNote)
                 .build();
     }
 
     private void assertNoteReadable(Note note, String currentUserUid) {
         if (STATUS_PUBLISHED.equals(note.getStatus())) {
+            // PRIVATE 笔记仅 owner 可读（Feed 流已过滤，此处防御直接 URL 访问）
+            if (VISIBILITY_PRIVATE.equals(note.getVisibility())) {
+                if (currentUserUid == null || !currentUserUid.equals(note.getUserUid())) {
+                    throw BusinessException.notFound("NOTE_NOT_FOUND");
+                }
+            }
             return;
         }
         if (STATUS_REVIEWING.equals(note.getStatus())) {
@@ -277,30 +293,24 @@ public class NoteService {
         if (profile != null && StringUtils.hasText(profile.getNickName())) {
             name = profile.getNickName().trim();
         } else if (profile != null) {
-            // real_name 已迁移至 t_user_identity，优先取脱敏展示名
             UserIdentity identity = loadIdentity(profile.getUserUid());
             if (identity != null && StringUtils.hasText(identity.getRealNameMask())) {
                 name = identity.getRealNameMask().trim();
             }
         }
 
+        String organization = resolveAuthorOrganization(userUid, profile);
+
         return NoteDetailResponse.Author.builder()
+                .uid(userUid)
                 .name(name)
-                .handle(buildAuthorHandle(profile, userUid))
+                .organization(organization)
                 .avatarUrl(profile == null ? null : profile.getAvatarUrl())
                 .build();
     }
 
-    private String buildAuthorHandle(UserProfile profile, String userUid) {
-        if (profile != null && StringUtils.hasText(profile.getNickName())) {
-            String slug = profile.getNickName().trim()
-                    .replaceAll("\\s+", "")
-                    .toLowerCase(Locale.ROOT);
-            if (!slug.isEmpty()) {
-                return slug;
-            }
-        }
-        return userUid.toLowerCase(Locale.ROOT);
+    private String resolveAuthorOrganization(String userUid, UserProfile profile) {
+        return noteAuthorResolver.resolve(userUid).authorOrganization();
     }
 
     private LocalDateTime resolveDisplayTime(LocalDateTime publishedAt, LocalDateTime createdAt) {
@@ -403,6 +413,13 @@ public class NoteService {
             if (CONTENT_TYPE_IMAGE_TEXT.equals(contentType)) {
                 if (!StringUtils.hasText(request.getContent())) {
                     throw BusinessException.badRequest("CONTENT_REQUIRED");
+                }
+                // 字数限制：便捷子笔记 10000 字，独立图文笔记 20000 字
+                int maxLen = StringUtils.hasText(request.getParentContentTypeCode())
+                        ? MAX_CONTENT_LENGTH_CHILD_NOTE : MAX_CONTENT_LENGTH_IMAGE_TEXT;
+                int codePoints = request.getContent().codePointCount(0, request.getContent().length());
+                if (codePoints > maxLen) {
+                    throw BusinessException.badRequest("CONTENT_TOO_LONG");
                 }
             } else if (!StringUtils.hasText(request.getVideoUrl())) {
                 throw BusinessException.badRequest("VIDEO_REQUIRED");
@@ -582,6 +599,38 @@ public class NoteService {
         LambdaQueryWrapper<NoteCounter> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(NoteCounter::getContentTypeCode, contentTypeCode).last("LIMIT 1");
         return noteCounterMapper.selectOne(wrapper);
+    }
+
+    /** 加载父笔记简要信息（含计数器），用于 parentNote 嵌套对象。
+     * <p>仅当父笔记存在、已发布且公开时才返回；已删除/封禁/私有不返回，避免泄漏不可见内容。</p>
+     */
+    private NoteDetailResponse.ParentNote loadParentNote(String parentContentTypeCode) {
+        LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Note::getContentTypeCode, parentContentTypeCode).last("LIMIT 1");
+        Note parentNote = noteMapper.selectOne(wrapper);
+        // 父笔记不存在、已删除、已封禁、未发布或私有 → 一律返回 null
+        if (parentNote == null) {
+            return null;
+        }
+        String parentStatus = parentNote.getStatus();
+        if (parentStatus == null || STATUS_BANNED.equals(parentStatus) || "DELETED".equals(parentStatus)) {
+            return null;
+        }
+        if (!STATUS_PUBLISHED.equals(parentStatus) || !VISIBILITY_PUBLIC.equals(parentNote.getVisibility())) {
+            return null;
+        }
+        NoteCounter parentCounter = loadNoteCounter(parentContentTypeCode);
+        return NoteDetailResponse.ParentNote.builder()
+                .uid(parentNote.getContentTypeCode())
+                .title(parentNote.getTitle())
+                .summary(parentNote.getSummary() != null ? parentNote.getSummary() : "")
+                .contentType(mapContentTypeCodeToDisplay(parentNote.getContentTypeCode()))
+                .tags(parseJsonStringList(parentNote.getTags()))
+                .cover(parentNote.getCoverUrl())
+                .views(parentCounter != null && parentCounter.getViewCount() != null ? parentCounter.getViewCount() : 0)
+                .comments(parentCounter != null && parentCounter.getCommentCount() != null ? parentCounter.getCommentCount() : 0)
+                .favorites(parentCounter != null && parentCounter.getCollectCount() != null ? parentCounter.getCollectCount() : 0)
+                .build();
     }
 
     // ===================== 应用层外键级联 =====================

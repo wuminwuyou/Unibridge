@@ -25,6 +25,9 @@ db-*.sql
 projectDescription.md
 InstentMessage.sql
 
+# 重构项目辅助文件
+rebuild-*.md
+
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/

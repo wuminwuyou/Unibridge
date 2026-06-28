@@ -30,18 +30,35 @@ public class NoteDetailResponse {
     private Integer comments;
     private Integer favorites;
     private String status;
-    /** 父视频笔记 contentTypeCode（便捷子笔记时非空） */
-    private String parentContentTypeCode;
     /** 可见性：PUBLIC | PRIVATE */
     private String visibility;
+    /** 父笔记简要信息（便捷子笔记时非空，顶级笔记为 null） */
+    private ParentNote parentNote;
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Author {
+        private String uid;
         private String name;
-        private String handle;
+        private String organization;
         private String avatarUrl;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ParentNote {
+        private String uid;
+        private String title;
+        private String summary;
+        private String contentType;
+        private List<String> tags;
+        private String cover;
+        private Integer views;
+        private Integer comments;
+        private Integer favorites;
     }
 }

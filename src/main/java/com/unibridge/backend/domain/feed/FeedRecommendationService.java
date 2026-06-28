@@ -71,6 +71,7 @@ public class FeedRecommendationService {
     private static final String CONTENT_TYPE_NOTE = "NOTE";
     private static final String CONTENT_TYPE_PROJECT = "PROJECT";
     private static final String NOTE_STATUS_PUBLISHED = "PUBLISHED";
+    private static final String NOTE_VISIBILITY_PUBLIC = "PUBLIC";
     private static final Set<String> PUBLIC_PROJECT_STATUS = Set.of("OPEN", "ONGOING", "CLOSED");
 
     private static final String PROJECT_CATEGORY_COMMERCIAL = "COMMERCIAL";
@@ -765,7 +766,8 @@ public class FeedRecommendationService {
 
     private List<Note> loadPublishedNotes(int limit, String noteType) {
         LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getStatus, NOTE_STATUS_PUBLISHED);
+        wrapper.eq(Note::getStatus, NOTE_STATUS_PUBLISHED)
+                .eq(Note::getVisibility, NOTE_VISIBILITY_PUBLIC);
         if (noteType != null) {
             wrapper.likeRight(Note::getContentTypeCode, noteTypeToCodePrefix(noteType));
         }
@@ -778,6 +780,7 @@ public class FeedRecommendationService {
     private List<Note> loadTopLikedNotes(Long excludeId, int limit) {
         LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Note::getStatus, NOTE_STATUS_PUBLISHED)
+                .eq(Note::getVisibility, NOTE_VISIBILITY_PUBLIC)
                 .ne(Note::getId, excludeId)
                 .orderByDesc(Note::getPublishedAt)
                 .last("LIMIT " + limit);
@@ -953,12 +956,17 @@ public class FeedRecommendationService {
 
     private List<ContentVO> buildHomeFeedRandomPage(String userUid, long seed, int page, int size) {
         List<Note> notes = loadPublishedNotes(HOME_CANDIDATE_LIMIT, null);
+        String userLevel = loadUserLevel(userUid);
         List<Project> projects = loadPublicProjects(HOME_CANDIDATE_LIMIT, null);
         List<ContentVO> pool = new ArrayList<>(notes.size() + projects.size());
         for (Note note : notes) {
             pool.add(toNoteVo(note, 0.0));
         }
         for (Project project : projects) {
+            // 等级过滤：差值 ≥2 级不推荐
+            if (computeLevelFactor(resolveLevelOrder(userLevel), resolveLevelOrder(project.getLevel())) <= 0) {
+                continue;
+            }
             pool.add(toProjectVo(project, 0.0));
         }
         Collections.shuffle(pool, new Random(seed));
@@ -970,7 +978,9 @@ public class FeedRecommendationService {
                                                        long seed,
                                                        int page,
                                                        int size) {
+        String userLevel = loadUserLevel(userUid);
         List<ContentVO> pool = loadPublicProjects(HOME_CANDIDATE_LIMIT, category).stream()
+                .filter(project -> computeLevelFactor(resolveLevelOrder(userLevel), resolveLevelOrder(project.getLevel())) > 0)
                 .map(project -> toProjectVo(project, 0.0))
                 .collect(Collectors.toCollection(ArrayList::new));
         Collections.shuffle(pool, new Random(seed));
@@ -1034,7 +1044,8 @@ public class FeedRecommendationService {
 
     private long countPublishedNotes(String noteType) {
         LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Note::getStatus, NOTE_STATUS_PUBLISHED);
+        wrapper.eq(Note::getStatus, NOTE_STATUS_PUBLISHED)
+                .eq(Note::getVisibility, NOTE_VISIBILITY_PUBLIC);
         if (noteType != null) {
             wrapper.likeRight(Note::getContentTypeCode, noteTypeToCodePrefix(noteType));
         }
