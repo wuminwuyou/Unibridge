@@ -1,0 +1,84 @@
+/* AuthModal 表单组件样式（features 层——所有 form 组件共用） */
+/* 06）欢迎文案区 */
+.auth-auth-intro { margin-bottom: 20px; }
+.auth-auth-intro--compact { margin-bottom: 12px; }
+.auth-auth-intro--compact h3 { font-size: 30px; }
+.auth-auth-intro--compact p { font-size: 14px; }
+.auth-auth-intro h3 { margin: 0; font-size: 36px; line-height: 1.1; font-weight: 700; color: var(--auth-intro-title); }
+.auth-auth-intro p { margin: 10px 0 0; font-size: 15px; color: var(--auth-intro-sub); }
+
+/* 07）表单样式 */
+.auth-form { display: flex; flex-direction: column; gap: 16px; }
+.auth-channel-slide__pane > .auth-form { flex: 1; min-height: 0; }
+.auth-personal-form-stage { position: relative; flex: 1; min-height: 0; }
+.auth-personal-form-card { position: absolute; inset: 0; overflow-y: auto; padding-right: 4px; transition: transform 360ms cubic-bezier(0.2,0,0,1), opacity 300ms ease; will-change: transform, opacity; }
+.auth-personal-form-card--login { transform: translateY(0); opacity: 1; }
+.auth-personal-form-card--register { transform: translateY(110%); opacity: 0; pointer-events: none; }
+.auth-personal-form-stage.is-register-view .auth-personal-form-card--login { transform: translateY(-110%); opacity: 0; pointer-events: none; }
+.auth-personal-form-stage.is-register-view .auth-personal-form-card--register { transform: translateY(0); opacity: 1; pointer-events: auto; }
+.auth-personal-register { gap: 12px; }
+.auth-personal-register__intro { margin-bottom: 0; }
+.auth-personal-register__intro p { margin: 0; font-size: 18px; line-height: 1.6; }
+.auth-personal-register__row-head { margin-bottom: -13px; }
+.auth-personal-register__field { height: 50px; }
+.auth-personal-register__submit { margin-top: 0; }
+.auth-personal-register__hint { margin-top: -6px; }
+.auth-personal-register__footer { margin-top: -4px; margin-bottom: 0; }
+.auth-personal-register .auth-signup-entry { margin-bottom: 0; }
+
+.auth-input-label { display: flex; flex-direction: column; gap: 8px; color: #243862; font-size: 15px; font-weight: 600; }
+:root[data-theme='dark'] .auth-input-label { color: #c7d4ea; }
+
+/* 浮动标签输入框 */
+.auth-floating-field { position: relative; height: 52px; }
+.auth-floating-field__icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #97a6bf; display: inline-flex; align-items: center; justify-content: center; }
+.auth-floating-field input { width: 100%; height: 100%; border-radius: 12px; border: 1px solid var(--auth-input-border); background: var(--auth-input-bg); color: var(--auth-input-text); padding: 20px 44px 8px 42px; outline: none; font-size: 14px; transition: border-color 220ms ease, box-shadow 220ms ease; box-sizing: border-box; }
+.auth-floating-field label { position: absolute; left: 42px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--auth-label); pointer-events: none; transition: all 180ms ease; }
+.auth-floating-field:focus-within label { top: 8px; transform: translateY(0); font-size: 9px; color: var(--auth-label-active); }
+.auth-floating-field.has-value label { top: 8px; transform: translateY(0); font-size: 9px; color: var(--auth-label-active); }
+.auth-floating-field:focus-within input { border-color: #2a67f8; box-shadow: 0 0 0 3px rgba(42,103,248,0.12); }
+.auth-floating-field--password input { padding-right: 84px; }
+
+.auth-code-send-button { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); border: none; background: transparent; color: #2b6af8; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.auth-password-row-head { margin-bottom: -6px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; color: #243862; font-weight: 600; }
+:root[data-theme='dark'] .auth-password-row-head { color: #c7d4ea; }
+.auth-password-visibility-button { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); border: none; background: transparent; color: #8798b6; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.auth-password-visibility-button:hover { color: #2a67f8; }
+
+.auth-input-shell { position: relative; }
+.auth-input-shell__icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 700; color: #97a6bf; }
+.auth-form>label input, .auth-edu-input-wrap input { width: 100%; height: 48px; border-radius: 12px; border: 1px solid var(--auth-input-border); background: var(--auth-input-bg); color: var(--auth-input-text); padding: 0 14px 0 38px; outline: none; font-size: 14px; transition: border-color 220ms ease, box-shadow 220ms ease; box-sizing: border-box; }
+.auth-form>label input:focus, .auth-edu-input-wrap input:focus { border-color: #2a67f8; box-shadow: 0 0 0 3px rgba(42,103,248,0.12); }
+.auth-inline-link-button { border: none; background: transparent; color: #2b6af8; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.auth-input-shell .auth-inline-link-button { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
+
+/* 快捷操作区 */
+.auth-quick-actions { display: flex; align-items: center; justify-content: space-between; margin-top: -6px; }
+.auth-checkbox-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--auth-checkbox); }
+.auth-checkbox-label input[type='checkbox'] { width: 16px; height: 16px; margin: 0; padding: 0; }
+
+/* 提交按钮 */
+.auth-submit-button { height: 48px; border: none; border-radius: 12px; background: linear-gradient(135deg, #103083, #163d98); color: #ffffff; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 220ms ease, box-shadow 220ms ease; }
+:root[data-theme='dark'] .auth-submit-button { background: linear-gradient(135deg, #24489e, #2f5fc1); }
+.auth-submit-button:disabled { opacity: 0.68; cursor: not-allowed; }
+.auth-submit-button:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(16,48,131,0.3); }
+
+/* 注册入口 */
+.auth-signup-entry { margin: 2px 0 0; text-align: center; color: var(--auth-signup); font-size: 14px; }
+.auth-signup-entry button { border: none; background: transparent; color: #2b6af8; font-size: 14px; font-weight: 600; cursor: pointer; }
+:root[data-theme='dark'] .auth-signup-entry button { color: #8cb2ff; }
+
+/* 辅助文本 */
+.auth-helper-tip { margin: 0; font-size: 12px; color: var(--auth-helper); line-height: 1.5; }
+.auth-helper-tip--success { color: #22a06b; }
+.auth-helper-tip--error { color: #d14343; }
+.auth-back-button { border: none; background: transparent; color: #2b6af8; cursor: pointer; font-size: 12px; }
+.auth-edu-input-wrap { position: relative; }
+.auth-edu-input-wrap__ok { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; color: #ffffff; background: #22a06b; }
+
+/* 关闭按钮动画 */
+.close-icon-button { border: none; background: transparent; color: #8f9ab4; cursor: pointer; padding: 0; display: inline-flex; align-items: center; justify-content: center; overflow: visible; }
+.close-icon-button__glyph { display: inline-block; font-size: 28px; line-height: 1; transform: scale(1) rotate(0deg); transition: color 180ms ease, transform 180ms ease; pointer-events: none; }
+.close-icon-button--animating .close-icon-button__glyph { animation: closeIconHoverBounceSpin 460ms cubic-bezier(0.22,1,0.36,1) both; color: #2a67f8; }
+@keyframes closeIconHoverBounceSpin { 0% { transform: translateY(0) scale(1) rotate(0deg); } 35% { transform: translateY(-7px) scale(1.14) rotate(52deg); } 68% { transform: translateY(2px) scale(1.03) rotate(96deg); } 84% { transform: translateY(-1px) scale(1.01) rotate(88deg); } 100% { transform: translateY(0) scale(1.16) rotate(90deg); } }
+.close-icon-button--hovered .close-icon-button__glyph { color: #2a67f8; transform: translateY(0) scale(1.16) rotate(90deg); }

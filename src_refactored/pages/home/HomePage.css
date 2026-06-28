@@ -1,0 +1,243 @@
+/* 01）首页根布局（频道页根容器 —— 完整保留原始 CSS） */
+.home-page {
+    --home-top-header-height: 76px;
+    min-height: 100vh;
+    background: var(--page-bg);
+    color: var(--text-main);
+}
+
+.home-page__main {
+    box-sizing: border-box;
+    width: clamp(75vw, 1200px, calc(100vw - 48px));
+    margin: 24px auto 0;
+    padding-bottom: 40px;
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.home-page__projects {
+    min-width: 0;
+}
+
+.home-page__projects-panel {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    border-radius: 16px;
+    padding: 10px 16px 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    overflow: visible;
+}
+
+:root[data-theme='dark'] .home-page__projects-panel {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.home-page__lab-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.home-page__lab-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.home-page__lab-title {
+    margin: 0;
+    font-size: clamp(22px, 2vw, 26px);
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.home-page__lab-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.home-page__lab-info:hover {
+    color: var(--text-main);
+    background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+}
+
+.home-page__lab-subtitle {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-soft);
+}
+
+.home-page__lab-toolbar {
+    --home-lab-toolbar-sticky-top: var(--home-top-header-height);
+    position: sticky;
+    top: var(--home-lab-toolbar-sticky-top);
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 0 -16px;
+    padding: 12px 16px;
+    background: var(--card-bg);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--card-border) 85%, transparent);
+}
+
+.home-page__lab-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-width: 0;
+}
+
+.home-page__lab-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: var(--text-soft);
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+:root[data-theme='dark'] .home-page__lab-tab {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+.home-page__lab-tab:hover {
+    color: var(--text-main);
+}
+
+.home-page__lab-tab--active {
+    background: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+}
+
+:root[data-theme='dark'] .home-page__lab-tab--active {
+    background: #0284c7;
+    color: #f8fafc;
+    box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
+}
+
+.home-page__lab-tab-count {
+    font-size: 13px;
+    opacity: 0.92;
+}
+
+.home-page__lab-selects {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.home-page__lab-select {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.home-page__lab-select-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.home-page__lab-select-control {
+    appearance: none;
+    box-sizing: border-box;
+    min-width: 132px;
+    height: 38px;
+    padding: 0 36px 0 14px;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--card-bg) 92%, var(--page-bg));
+    color: var(--text-main);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.home-page__lab-select-control:hover {
+    border-color: color-mix(in srgb, var(--accent-sky) 35%, var(--card-border));
+}
+
+.home-page__lab-select-control:focus-visible {
+    outline: none;
+    border-color: var(--accent-sky);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-sky) 22%, transparent);
+}
+
+.home-page__lab-select-icon {
+    position: absolute;
+    right: 12px;
+    pointer-events: none;
+    color: var(--text-muted);
+}
+
+.home-page__projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+@media (max-width: 980px) {
+    .home-page__main {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+}
+
+@media (max-width: 640px) {
+    .home-page__main {
+        width: calc(100vw - 24px);
+        margin-top: 16px;
+    }
+
+    .home-page__lab-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        --home-lab-toolbar-sticky-top: 120px;
+    }
+
+    .home-page__lab-selects {
+        width: 100%;
+    }
+
+    .home-page__lab-select {
+        flex: 1 1 0;
+    }
+
+    .home-page__lab-select-control {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .home-page__projects-panel {
+        padding: 12px;
+    }
+}

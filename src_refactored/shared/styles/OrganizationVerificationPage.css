@@ -1,0 +1,6 @@
+/* 01）主体认证页面容器（organization-verification-page） */
+.organization-verification-page { min-height: 100vh; background: var(--page-bg, #f5f7fb); }
+/* 02）主体认证主内容区（organization-verification-page__main） */
+.organization-verification-page__main { max-width: 560px; margin: 0 auto; padding: 32px 20px 48px; }
+/* 03）认证引导卡片容器（organization-verification-page__card） */
+.organization-verification-page__card { border-radius: 16px; border: 1px solid var(--card-border, #e5e7eb); background: var(--card-bg, #ffffff); box-shadow: var(--panel-shadow, 0 8px 24px rgba(15, 23, 42, 0.08)); overflow: hidden; }

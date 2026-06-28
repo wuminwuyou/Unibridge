@@ -15,14 +15,28 @@ dist-ssr
 # 数据库文件
 db.sql
 
+# 环境变量
+.env
+
 # API 需求文档
 API-request.md
+API.md
+
+# TODO 文件
+TODO
+
+# 修复代码中文乱码脚本
+scripts/
 
 # UI/UX 设计文档
 design.md
 
 # 重构项目副产物
 project.md
+Refactoring.md
+
+# 重构前旧项目源码
+src/
 
 # Editor directories and files
 .vscode/*
