@@ -207,6 +207,7 @@ public class AuthService {
         if (!Objects.equals(user.getPasswordHash(), request.getPassword())) {
             throw new RuntimeException("ACCOUNT_OR_PASSWORD_INVALID");
         }
+        saveAvatarIfPresent(user.getUserUid(), request.getAvatarUrl());
         return buildPersonalLoginResponse(user);
     }
 
@@ -783,6 +784,26 @@ public class AuthService {
         profile.setAvatarUrl(DEFAULT_AVATAR_URL);
         profile.setNickName("用户#" + suffix);
         userProfileMapper.insert(profile);
+    }
+
+    /**
+     * 登录时若前端传入头像 URL，更新 p_user_profile.avatar_url。
+     * 仅当 profile 已存在时才写入，避免在注册路径之外意外创建空 profile。
+     */
+    private void saveAvatarIfPresent(String userUid, String avatarUrl) {
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            return;
+        }
+        LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserProfile::getUserUid, userUid).last("LIMIT 1");
+        UserProfile existing = userProfileMapper.selectOne(wrapper);
+        if (existing == null) {
+            log.warn("saveAvatarIfPresent: no profile found for userUid={}, skip", userUid);
+            return;
+        }
+        existing.setAvatarUrl(avatarUrl.trim());
+        existing.setUpdatedAt(LocalDateTime.now());
+        userProfileMapper.updateById(existing);
     }
 
     private void createDefaultCreditProfile(String userUid) {
