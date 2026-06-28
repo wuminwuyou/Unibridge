@@ -1,1 +1,0 @@
-export { MemberCard } from './MemberCard'
