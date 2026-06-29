@@ -1,41 +1,29 @@
 // 01）机构空间大部件 Hook（useOrganizationSpaceWidget）
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { EntityCode } from '@shared/api/resourceUid'
+import type { ProfileOrgMemberItem } from '@entities/member/model'
+import {
+  EntityProfileApiError, getEntityProfileSpace,
+} from '@entities/organization/api/entityProfileApi'
+import {
+  buildOrganizationLogoFallbackUrl, mapEntityProfileSpaceData,
+  type OrganizationProfileCoreVm, type OrganizationProfileExtendedVm,
+  type OrganizationProfileInfoRowVm, type OrganizationProfileTeamItemVm,
+} from '@entities/organization/lib/mapEntityProfileSpaceData'
 import type { ProfileSpaceShellLoadState } from '../lib/profileSpaceVariant'
 import { PROFILE_SPACE_SIDEBAR_COLLAPSE_DURATION_MS } from '../lib/profileSpaceTabConstants'
 import {
-  buildOrganizationSpacePath, extractEntityCodeFromPathname, extractOrganizationTabRouteSegment,
-  isSupportedOrganizationTabRouteSegment, organizationViewTabs, resolveOrganizationTabFromPathname,
-  type OrganizationProfileTab,
+  buildOrganizationSpacePath, extractEntityCodeFromSearch, extractOrganizationTabRouteSegment,
+  isSupportedOrganizationTabRouteSegment, organizationViewTabs, resolveLegacyOrganizationSpaceRedirect,
+  resolveOrganizationTabFromPathname, type OrganizationProfileTab,
 } from '../lib/organizationTabRouting'
 
-// 02）机构空间核心档案（OrganizationSpaceCoreProfile）
-export interface OrganizationSpaceCoreProfile {
-  entityCode: EntityCode
-  name: string
-  intro: string | null
-  typeLabel: string
-  type: 'UNIVERSITY' | 'ENTERPRISE'
-  logoUrl: string | null
-  bannerUrl: string | null
-  location: string | null
-  memberCount: number
-  teamCount: number
-  supportsLabs: boolean
-}
-
-// 03）机构空间扩展档案（OrganizationSpaceExtendedProfile）
-export interface OrganizationSpaceExtendedProfile {
-  announcement: string
-  contactEmail: string | null
-}
-
-// 04）机构信息行（OrganizationSpaceInfoRow）
-export interface OrganizationSpaceInfoRow {
-  label: string
-  value: string
-}
+// 02）类型别名（保持外部 API 稳定）
+export type OrganizationSpaceCoreProfile = OrganizationProfileCoreVm
+export type OrganizationSpaceExtendedProfile = OrganizationProfileExtendedVm
+export type OrganizationSpaceInfoRow = OrganizationProfileInfoRowVm
+export type OrganizationSpaceTeamItem = OrganizationProfileTeamItemVm
 
 // 05）机构空间大部件 Model（OrganizationSpaceWidgetModel）
 export interface OrganizationSpaceWidgetModel {
@@ -47,6 +35,8 @@ export interface OrganizationSpaceWidgetModel {
   orgCoreProfile: OrganizationSpaceCoreProfile | null
   orgExtendedProfile: OrganizationSpaceExtendedProfile | null
   orgInfoRows: OrganizationSpaceInfoRow[]
+  orgMembersPreview: ProfileOrgMemberItem[]
+  orgTeamsPreview: OrganizationSpaceTeamItem[]
   isHomeTabActive: boolean
   isLabsTabActive: boolean
   isMembersTabActive: boolean
@@ -58,7 +48,6 @@ export interface OrganizationSpaceWidgetModel {
   isShellReady: boolean
   heroLogoUrl: string
   handleTabClick: (tab: OrganizationProfileTab) => void
-  renderMainContent: () => ReactNode
 }
 
 // 06）机构空间大部件 Hook（useOrganizationSpaceWidget）
@@ -66,9 +55,10 @@ export interface OrganizationSpaceWidgetModel {
  * 函数名：useOrganizationSpaceWidget
  * 功能：聚合机构空间页的 Tab 路由、页壳数据、侧栏折叠与主内容分发。
  * 实现方法：
- * - useParams + extractEntityCodeFromPathname 解析 entityCode
- * - supportsLabs 由后端 EntityProfileSpaceData 提供（待接入 entities/organization/api/entityProfileApi）
- * - 主内容由 renderMainContent 分发，管理表单（ManageLabsForm / OrgMembersManageForm）按身份从 features/team-management 注入
+ * - 从 ?uid= 解析 entityCode（兼容旧版 ?entityCode=）
+ * - supportsLabs 由后端 EntityProfileSpaceData 提供
+ * - 主区域内容由 OrganizationSpaceMainContent 在 widget 组件层根据 model 渲染
+ * - 管理表单（ManageLabsForm / OrgMembersManageForm）按身份从 features/team-management 注入
  * 输入：无
  * 输出：
  * - 返回值：OrganizationSpaceWidgetModel
@@ -77,11 +67,10 @@ export interface OrganizationSpaceWidgetModel {
 export function useOrganizationSpaceWidget(): OrganizationSpaceWidgetModel {
   const location = useLocation()
   const navigate = useNavigate()
-  const { entityCode: entityCodeParam } = useParams<{ entityCode: string }>()
 
   const entityCode = useMemo<EntityCode>(
-    () => entityCodeParam?.trim() || extractEntityCodeFromPathname(location.pathname) || '',
-    [location.pathname, entityCodeParam],
+    () => extractEntityCodeFromSearch(location.search) ?? '',
+    [location.search],
   )
 
   const [shellLoadState, setShellLoadState] = useState<ProfileSpaceShellLoadState>('loading')
@@ -89,6 +78,8 @@ export function useOrganizationSpaceWidget(): OrganizationSpaceWidgetModel {
   const [orgCoreProfile, setOrgCoreProfile] = useState<OrganizationSpaceCoreProfile | null>(null)
   const [orgExtendedProfile, setOrgExtendedProfile] = useState<OrganizationSpaceExtendedProfile | null>(null)
   const [orgInfoRows, setOrgInfoRows] = useState<OrganizationSpaceInfoRow[]>([])
+  const [orgMembersPreview, setOrgMembersPreview] = useState<ProfileOrgMemberItem[]>([])
+  const [orgTeamsPreview, setOrgTeamsPreview] = useState<OrganizationSpaceTeamItem[]>([])
 
   const supportsLabs = orgCoreProfile?.supportsLabs ?? true
   const activeTab = useMemo<OrganizationProfileTab>(
@@ -110,8 +101,13 @@ export function useOrganizationSpaceWidget(): OrganizationSpaceWidgetModel {
     return 'profile-content-grid'
   }, [isSidebarCollapsed, shouldRenderSidebar])
 
-  // 07）路由 segment 校验
+  // 07）旧版 /org/:entityCode 路径段重定向 + Tab 路径段校验 + 缺失 entityCode 跳回个人空间
   useEffect(() => {
+    const legacyRedirect = resolveLegacyOrganizationSpaceRedirect(location.pathname, location.search)
+    if (legacyRedirect != null) {
+      navigate(legacyRedirect, { replace: true })
+      return
+    }
     if (!entityCode) {
       navigate('/profile', { replace: true })
       return
@@ -120,7 +116,7 @@ export function useOrganizationSpaceWidget(): OrganizationSpaceWidgetModel {
     if (!isSupportedOrganizationTabRouteSegment(segment, supportsLabs)) {
       navigate(buildOrganizationSpacePath(entityCode), { replace: true })
     }
-  }, [entityCode, location.pathname, navigate, supportsLabs])
+  }, [entityCode, location.pathname, location.search, navigate, supportsLabs])
 
   useEffect(() => {
     if (!isSidebarCollapsed) {
@@ -133,7 +129,7 @@ export function useOrganizationSpaceWidget(): OrganizationSpaceWidgetModel {
 
   useEffect(() => { window.scrollTo(0, 0) }, [location.pathname])
 
-  // 08）拉取机构空间页壳数据 — TODO：接入 entities/organization/api/getEntityProfileSpace + mapEntityProfileSpaceData
+  // 08）拉取机构空间页壳数据（GET /entity-profile/space）
   useEffect(() => {
     if (!entityCode) return
     let isCancelled = false
@@ -141,18 +137,20 @@ export function useOrganizationSpaceWidget(): OrganizationSpaceWidgetModel {
       setShellLoadState('loading')
       setShellErrorMessage(null)
       try {
-        // TODO（机构空间 API 集成）：
-        // - 调用 entities/organization/api/entityProfileApi.getEntityProfileSpace(entityCode)
-        // - 通过 entities/organization/lib/mapEntityProfileSpaceData(data) 投影到 Widget 视图模型
-        await new Promise((resolve) => setTimeout(resolve, 0))
+        const data = await getEntityProfileSpace(entityCode)
         if (isCancelled) return
-        setOrgCoreProfile(null)
-        setOrgExtendedProfile(null)
-        setOrgInfoRows([])
+        const mapped = mapEntityProfileSpaceData(data)
+        setOrgCoreProfile(mapped.orgCoreProfile)
+        setOrgExtendedProfile(mapped.orgExtendedProfile)
+        setOrgInfoRows(mapped.orgInfoRows)
+        setOrgMembersPreview(mapped.orgMembersPreview)
+        setOrgTeamsPreview(mapped.orgTeamsPreview)
         setShellLoadState('ready')
       } catch (error) {
         if (isCancelled) return
-        setShellErrorMessage(error instanceof Error ? error.message : '加载机构空间失败，请稍后重试')
+        const message =
+          error instanceof EntityProfileApiError ? error.message : '加载机构空间失败，请稍后重试'
+        setShellErrorMessage(message)
         setShellLoadState('error')
       }
     }
@@ -163,20 +161,14 @@ export function useOrganizationSpaceWidget(): OrganizationSpaceWidgetModel {
   const isShellReady = shellLoadState === 'ready' && orgCoreProfile != null
 
   const heroLogoUrl = orgCoreProfile
-    ? orgCoreProfile.logoUrl ??
-      `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(orgCoreProfile.name.slice(0, 2))}&backgroundColor=cbd5e1&color=ffffff`
+    ? orgCoreProfile.logoUrl ?? buildOrganizationLogoFallbackUrl(orgCoreProfile.name)
     : ''
 
   const handleTabClick = (tab: OrganizationProfileTab): void => {
     if (!entityCode) return
     const targetPath = buildOrganizationSpacePath(entityCode, tab)
-    if (location.pathname !== targetPath) navigate(targetPath)
-  }
-
-  const renderMainContent = (): ReactNode => {
-    // TODO（机构 Tab 内容）：迁移 OrganizationHomeTab / LabsTab / OrgMembersTab / ProjectsTab / NotesTab
-    // 至 widgets/profile-space/components/ 后按 activeTab 分发渲染；管理表单从 features/team-management 注入
-    return null
+    const currentPath = `${location.pathname}${location.search}`
+    if (currentPath !== targetPath) navigate(targetPath)
   }
 
   return {
@@ -188,6 +180,8 @@ export function useOrganizationSpaceWidget(): OrganizationSpaceWidgetModel {
     orgCoreProfile,
     orgExtendedProfile,
     orgInfoRows,
+    orgMembersPreview,
+    orgTeamsPreview,
     isHomeTabActive,
     isLabsTabActive,
     isMembersTabActive,
@@ -199,6 +193,5 @@ export function useOrganizationSpaceWidget(): OrganizationSpaceWidgetModel {
     isShellReady,
     heroLogoUrl,
     handleTabClick,
-    renderMainContent,
   }
 }

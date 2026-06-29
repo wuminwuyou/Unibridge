@@ -92,5 +92,6 @@ export function buildPersonalDefaultMenuItems(): UserMenuViewItem[] {
 }
 
 export function buildOrganizationDefaultMenuItems(entityCode: string): UserMenuViewItem[] {
-  return [{ key: 'org-space', label: '机构空间', icon: Building2, targetPath: `/org/${entityCode}` }]
+  const targetPath = `/org?uid=${encodeURIComponent(entityCode)}`
+  return [{ key: 'org-space', label: '机构空间', icon: Building2, targetPath }]
 }

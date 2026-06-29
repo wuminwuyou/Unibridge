@@ -1,4 +1,5 @@
 import type { EntityCode } from '../../../shared/api/resourceUid'
+import type { UserProfileNoteDto, UserProfileProjectDto } from '../../user/model/userProfileTypes'
 
 // 01）机构主体类型（EntityProfileType）
 export type EntityProfileType = 'ENTERPRISE' | 'UNIVERSITY'
@@ -8,6 +9,12 @@ export interface EntityProfileCoreProfileDto {
   entityCode: EntityCode; name: string; intro: string; location: string
   type: EntityProfileType | string; logoUrl: string | null; bannerUrl: string | null; teamCount?: number
 }
+
+// 02.1）机构项目 DTO（EntityProfileProjectDto）—— 与个人空间项目结构一致
+export type EntityProfileProjectDto = UserProfileProjectDto
+
+// 02.2）机构笔记 DTO（EntityProfileNoteDto）—— 与个人空间笔记结构一致
+export type EntityProfileNoteDto = UserProfileNoteDto
 
 // 03）机构页壳 extendedProfile DTO（EntityProfileExtendedProfileDto）
 export interface EntityProfileExtendedProfileDto { announcement: string }
@@ -38,7 +45,7 @@ export interface EntityProfileSpaceData {
 // 08）机构主页 Tab 响应（EntityProfileHomeData）
 export interface EntityProfileHomeData {
   entityCode: EntityCode; teams: EntityProfileTeamPreviewDto[]; members: EntityProfileMemberDto[]
-  projects: unknown[]; notes: unknown[]; teamTotal?: number; memberTotal?: number
+  projects: EntityProfileProjectDto[]; notes: EntityProfileNoteDto[]; teamTotal?: number; memberTotal?: number
   projectTotal?: number; noteTotal?: number
 }
 
@@ -46,8 +53,8 @@ export interface EntityProfileHomeData {
 export interface EntityProfileTeamsData { entityCode: EntityCode; teams: EntityProfileTeamPreviewDto[]; total: number; page: number; pageSize: number }
 
 // 10）机构项目/笔记/人员分页数据类型
-export interface EntityProfileProjectsData { entityCode: EntityCode; projects: unknown[]; total: number; page: number; pageSize: number }
-export interface EntityProfileNotesData { entityCode: EntityCode; notes: unknown[]; total: number; page: number; pageSize: number }
+export interface EntityProfileProjectsData { entityCode: EntityCode; projects: EntityProfileProjectDto[]; total: number; page: number; pageSize: number }
+export interface EntityProfileNotesData { entityCode: EntityCode; notes: EntityProfileNoteDto[]; total: number; page: number; pageSize: number }
 export interface EntityProfileMembersData { entityCode: EntityCode; members: EntityProfileMemberDto[]; total: number; page: number; pageSize: number }
 
 // 11）机构顶部菜单数据（EntityProfileMenuData）

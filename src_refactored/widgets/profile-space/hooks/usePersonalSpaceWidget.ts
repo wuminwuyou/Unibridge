@@ -1,8 +1,16 @@
 // 01）个人空间大部件 Hook（usePersonalSpaceWidget）
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import type { LevelCode } from '@shared/types/level'
-import type { UserResourceUid, TeamResourceUid } from '@shared/api/resourceUid'
+import { isUserResourceUid, type UserResourceUid } from '@shared/api/resourceUid'
+import { setUserUid } from '@shared/lib/tokenStorage'
+import {
+  getUserProfileSpace, UserProfileApiError,
+} from '@entities/user/api/userProfileApi'
+import {
+  buildAvatarFallbackUrl, mapUserProfileSpaceData,
+  type UserProfileCoreProfile, type UserProfileExtendedProfile,
+} from '@entities/user/lib/mapUserProfileSpaceData'
+import type { UserProfileSpaceAssociatedTeam } from '@entities/user/model/userProfileTypes'
 import type { ProfileSpaceShellLoadState } from '../lib/profileSpaceVariant'
 import {
   PROFILE_SPACE_SIDEBAR_COLLAPSE_DURATION_MS,
@@ -13,34 +21,10 @@ import {
   resolvePersonalTabFromPathname, type PersonalProfileTab,
 } from '../lib/personalTabRouting'
 
-// 02）个人空间核心档案（PersonalSpaceCoreProfile）
-export interface PersonalSpaceCoreProfile {
-  uid: UserResourceUid
-  nickname: string
-  avatarUrl: string | null
-  isVerified: boolean
-  organizationName: string | null
-  position: string
-  bio: string
-  level: LevelCode | null
-}
-
-// 03）个人空间扩展档案（PersonalSpaceExtendedProfile）
-export interface PersonalSpaceExtendedProfile {
-  notice: string
-  ipLocation: string
-  joinDate: string
-  careerData: string[]
-  skills: string[]
-}
-
-// 04）个人空间关联团队项（PersonalSpaceAssociatedTeam）
-export interface PersonalSpaceAssociatedTeam {
-  teamUid: TeamResourceUid
-  name: string
-  description: string
-  entryPath: string
-}
+// 02）类型别名（保持外部 API 不变）
+export type PersonalSpaceCoreProfile = UserProfileCoreProfile
+export type PersonalSpaceExtendedProfile = UserProfileExtendedProfile
+export type PersonalSpaceAssociatedTeam = UserProfileSpaceAssociatedTeam
 
 // 05）个人空间大部件 Model（PersonalSpaceWidgetModel）
 export interface PersonalSpaceWidgetModel {
@@ -61,13 +45,6 @@ export interface PersonalSpaceWidgetModel {
   heroAvatarUrl: string
   isHomeLikeTabActive: boolean
   handleTabClick: (tab: PersonalProfileTab) => void
-  renderMainContent: () => ReactNode
-}
-
-// 06）头像占位地址（buildAvatarFallbackUrl）— 与原 PersonalView 保持一致
-function buildAvatarFallbackUrl(nickname: string): string {
-  const seed = encodeURIComponent(nickname.trim().slice(0, 1) || 'U')
-  return `https://api.dicebear.com/9.x/initials/svg?seed=${seed}&backgroundColor=cbd5e1&color=ffffff`
 }
 
 // 07）个人空间大部件 Hook（usePersonalSpaceWidget）
@@ -76,9 +53,9 @@ function buildAvatarFallbackUrl(nickname: string): string {
  * 功能：聚合个人空间页的 Tab 路由解析、页壳数据加载、侧栏折叠与主内容分发。
  * 实现方法：
  * - 解析 location.pathname + ?uid= 得到 activeTab 与 profileUidFromQuery
- * - 调用 entities/user/api 中的 getUserProfileSpace（待补：TODO 已下沉至 entities/user）
+ * - 调用 entities/user/api 中的 getUserProfileSpace
  * - 项目/笔记 Tab 时自动折叠并延迟卸载侧栏
- * - renderMainContent 按 activeTab 返回主区域 ReactNode（TabContent 由 widgets 内组合）
+ * - 主区域内容由 PersonalSpaceMainContent 在 widget 组件层根据 model 渲染
  * 输入：无
  * 输出：
  * - 返回值：PersonalSpaceWidgetModel
@@ -143,29 +120,30 @@ export function usePersonalSpaceWidget(): PersonalSpaceWidgetModel {
   // 10）路由切换重置滚动
   useEffect(() => { window.scrollTo(0, 0) }, [location.pathname, location.search])
 
-  // 11）拉取个人空间页壳数据 — TODO：迁移完成后启用 entities/user/api/getUserProfileSpace
+  // 11）拉取个人空间页壳数据（GET /user-profile/space）
   useEffect(() => {
     let isCancelled = false
     async function loadShell(): Promise<void> {
       setShellLoadState('loading')
       setShellErrorMessage(null)
       try {
-        // TODO（个人空间 API 迁移）：
-        // - 在 entities/user/api/userProfileApi.ts 内实现 getUserProfileSpace(profileUid?) 与 mapUserProfileSpaceData
-        // - 此处替换为：const data = await getUserProfileSpace(profileUidFromQuery ?? undefined)
-        //   const mapped = mapUserProfileSpaceData(data)
-        // - 同步在 shared/lib/tokenStorage 调用 setUserUid 持久化
-        await new Promise((resolve) => setTimeout(resolve, 0))
+        const data = await getUserProfileSpace(profileUidFromQuery ?? undefined)
         if (isCancelled) return
-        setUserCoreProfile(null)
-        setUserExtendedProfile(null)
-        setAssociatedTeams([])
-        setActivityHeatmap([])
-        setHonors([])
+        const mapped = mapUserProfileSpaceData(data)
+        if (!profileUidFromQuery && isUserResourceUid(mapped.userCoreProfile.uid)) {
+          setUserUid(mapped.userCoreProfile.uid)
+        }
+        setUserCoreProfile(mapped.userCoreProfile)
+        setUserExtendedProfile(mapped.userExtendedProfile)
+        setAssociatedTeams(mapped.associatedTeams)
+        setActivityHeatmap(mapped.activityHeatmap)
+        setHonors(mapped.honors)
         setShellLoadState('ready')
       } catch (error) {
         if (isCancelled) return
-        setShellErrorMessage(error instanceof Error ? error.message : '加载个人空间失败，请稍后重试')
+        const message =
+          error instanceof UserProfileApiError ? error.message : '加载个人空间失败，请稍后重试'
+        setShellErrorMessage(message)
         setShellLoadState('error')
       }
     }
@@ -187,12 +165,6 @@ export function usePersonalSpaceWidget(): PersonalSpaceWidgetModel {
 
   const isHomeLikeTabActive = activeTab === '主页' || activeTab === '收藏' || activeTab === '设置'
 
-  // 12）主内容渲染分发 — TODO：迁移 PersonalHomeTab / PersonalProjectsTab / PersonalNotesTab 到 widgets/profile-space/components/ 后接入
-  const renderMainContent = (): ReactNode => {
-    // 占位：TabContent 完成迁移后在此 switch (activeTab) 渲染对应组件
-    return null
-  }
-
   return {
     profileTabs: personalViewTabs,
     activeTab,
@@ -211,6 +183,5 @@ export function usePersonalSpaceWidget(): PersonalSpaceWidgetModel {
     heroAvatarUrl,
     isHomeLikeTabActive,
     handleTabClick,
-    renderMainContent,
   }
 }

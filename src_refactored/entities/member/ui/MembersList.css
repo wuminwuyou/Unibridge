@@ -1,0 +1,30 @@
+/* 01）空间成员区块 */
+.profile-space-members-grid {
+  --profile-member-card-height: 72px;
+  --profile-member-card-max-width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-space-members-grid--preview {
+  max-height: calc(var(--profile-member-card-height) * 2 + 12px);
+  overflow: hidden;
+}
+
+.profile-space-members-grid--preview .profile-member-card__role {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+@media (max-width: 1200px) {
+  .profile-space-members-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .profile-space-members-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

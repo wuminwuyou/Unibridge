@@ -87,8 +87,8 @@ export function useOrgMembersManageForm(
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const [newMemberUid, setNewMemberUidState] = useState('')
-  const [newMemberPreviewNickname, setNewMemberPreviewNickname] = useState('')
-  const [newMemberPreviewRealName, setNewMemberPreviewRealName] = useState<string | null>(null)
+  const [, setNewMemberPreviewNickname] = useState('')
+  const [, setNewMemberPreviewRealName] = useState<string | null>(null)
   const [newMemberDisplayName, setNewMemberDisplayName] = useState('')
   const [newMemberRole, setNewMemberRole] = useState<OrgPublicMemberRole>(
     entityType === 'UNIVERSITY' ? 'MENTOR' : 'PM',

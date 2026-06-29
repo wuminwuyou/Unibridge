@@ -258,7 +258,7 @@ function UserProfileMenu({ onLogout }: { onLogout: () => void }) {
   const userId = userProfile?.uid ?? getUserUid()
   const profilePath = userId ? `/profile?uid=${encodeURIComponent(userId)}` : '/profile'
   const avatarHref = isOrgAccount && userProfile?.entityCode
-    ? `/org/${encodeURIComponent(userProfile.entityCode)}`
+    ? `/org?uid=${encodeURIComponent(userProfile.entityCode)}`
     : profilePath
 
   const levelWhitelist = ['N', 'R', 'SR', 'SSR', 'UR']

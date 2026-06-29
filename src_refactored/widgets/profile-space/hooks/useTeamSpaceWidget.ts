@@ -1,42 +1,28 @@
 // 01）团队空间大部件 Hook（useTeamSpaceWidget）
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { TeamResourceUid } from '@shared/api/resourceUid'
 import type { ProfileMemberItem } from '@entities/member/model'
+import {
+  getTeamProfileSpace, TeamProfileApiError,
+} from '@entities/team/api/teamProfileApi'
+import {
+  buildTeamLogoFallbackUrl, mapTeamProfileSpaceData,
+  type TeamProfileCoreVm, type TeamProfileExtendedVm, type TeamProfileInfoRowVm,
+} from '@entities/team/lib/mapTeamProfileSpaceData'
 import type { ProfileSpaceShellLoadState } from '../lib/profileSpaceVariant'
 import { PROFILE_SPACE_SIDEBAR_COLLAPSE_DURATION_MS } from '../lib/profileSpaceTabConstants'
 import {
   buildTeamMembersManagePath, buildTeamSpacePath, extractTeamSubRouteSegment,
-  extractTeamTabRouteSegment, extractTeamUidFromPathname, isSupportedTeamTabRouteSegment,
-  isTeamMembersManagePathname, resolveTeamTabFromPathname, teamViewTabs,
-  type TeamProfileTab,
+  extractTeamTabRouteSegment, extractTeamUidFromSearch, isSupportedTeamTabRouteSegment,
+  isTeamMembersManagePathname, resolveLegacyTeamSpaceRedirect, resolveTeamTabFromPathname,
+  teamViewTabs, type TeamProfileTab,
 } from '../lib/teamTabRouting'
 
-// 02）团队空间核心档案（TeamSpaceCoreProfile）
-export interface TeamSpaceCoreProfile {
-  teamUid: TeamResourceUid
-  name: string
-  description: string
-  organizationName: string | null
-  logoUrl: string | null
-  foundedAt: string
-  memberCount: number
-  type: 'STUDENT_TEAM' | 'LAB'
-}
-
-// 03）团队空间扩展档案（TeamSpaceExtendedProfile）
-export interface TeamSpaceExtendedProfile {
-  notice: string
-  contactEmail: string | null
-  researchDirection: string | null
-  tags: string[]
-}
-
-// 04）团队信息行（TeamSpaceInfoRow）
-export interface TeamSpaceInfoRow {
-  label: string
-  value: string
-}
+// 02）类型别名（保持外部 API 稳定）
+export type TeamSpaceCoreProfile = TeamProfileCoreVm
+export type TeamSpaceExtendedProfile = TeamProfileExtendedVm
+export type TeamSpaceInfoRow = TeamProfileInfoRowVm
 
 // 05）团队空间大部件 Model（TeamSpaceWidgetModel）
 export interface TeamSpaceWidgetModel {
@@ -63,7 +49,6 @@ export interface TeamSpaceWidgetModel {
   handleTabClick: (tab: TeamProfileTab) => void
   handleManageMembersClick: () => void
   handleExitMembersManage: () => void
-  renderMainContent: () => ReactNode
 }
 
 // 06）团队空间大部件 Hook（useTeamSpaceWidget）
@@ -71,9 +56,10 @@ export interface TeamSpaceWidgetModel {
  * 函数名：useTeamSpaceWidget
  * 功能：聚合团队空间页的 Tab 路由、页壳数据加载、侧栏折叠、成员管理模式切换。
  * 实现方法：
- * - useParams + extractTeamUidFromPathname 解析 teamUid
- * - 当前实现以骨架占位，数据加载 TODO 待接入 entities/team/api 中 getTeamProfileSpace
- * - handleManageMembersClick 跳转 /team/:uid/member/manage 进入管理表单（Feature 注入）
+ * - 从 ?uid= 解析 teamUid，从 pathname 解析 activeTab
+ * - 调用 entities/team/api 中的 getTeamProfileSpace
+ * - handleManageMembersClick 跳转 /team/member/manage?uid=<teamUid> 进入管理表单（Feature 注入）
+ * - 主区域内容由 TeamSpaceMainContent 在 widget 组件层根据 model 渲染
  * 输入：无
  * 输出：
  * - 返回值：TeamSpaceWidgetModel
@@ -82,11 +68,10 @@ export interface TeamSpaceWidgetModel {
 export function useTeamSpaceWidget(): TeamSpaceWidgetModel {
   const location = useLocation()
   const navigate = useNavigate()
-  const { teamUid: teamUidParam } = useParams<{ teamUid: string }>()
 
   const teamUid = useMemo<TeamResourceUid>(
-    () => teamUidParam?.trim() || extractTeamUidFromPathname(location.pathname) || '',
-    [location.pathname, teamUidParam],
+    () => extractTeamUidFromSearch(location.search) ?? '',
+    [location.search],
   )
 
   const activeTab = useMemo<TeamProfileTab>(
@@ -117,8 +102,13 @@ export function useTeamSpaceWidget(): TeamSpaceWidgetModel {
     return 'profile-content-grid'
   }, [isSidebarCollapsed, shouldRenderSidebar])
 
-  // 07）路由 segment 校验 / 缺失 teamUid 跳回个人空间
+  // 07）旧版 /team/:teamUid 路径段重定向 + 缺失 teamUid 跳回个人空间 + Tab 路径段校验
   useEffect(() => {
+    const legacyRedirect = resolveLegacyTeamSpaceRedirect(location.pathname, location.search)
+    if (legacyRedirect != null) {
+      navigate(legacyRedirect, { replace: true })
+      return
+    }
     if (!teamUid) {
       navigate('/profile', { replace: true })
       return
@@ -128,7 +118,7 @@ export function useTeamSpaceWidget(): TeamSpaceWidgetModel {
     if (!isSupportedTeamTabRouteSegment(segment, subSegment)) {
       navigate(buildTeamSpacePath(teamUid), { replace: true })
     }
-  }, [location.pathname, navigate, teamUid])
+  }, [location.pathname, location.search, navigate, teamUid])
 
   useEffect(() => {
     if (!isSidebarCollapsed) {
@@ -141,7 +131,7 @@ export function useTeamSpaceWidget(): TeamSpaceWidgetModel {
 
   useEffect(() => { window.scrollTo(0, 0) }, [location.pathname])
 
-  // 08）拉取团队空间页壳数据 — TODO：接入 entities/team/api/getTeamProfileSpace + mapTeamProfileSpaceData
+  // 08）拉取团队空间页壳数据（GET /team-profile/space）
   useEffect(() => {
     if (!teamUid) return
     let isCancelled = false
@@ -149,19 +139,19 @@ export function useTeamSpaceWidget(): TeamSpaceWidgetModel {
       setShellLoadState('loading')
       setShellErrorMessage(null)
       try {
-        // TODO（团队空间 API 集成）：
-        // - 调用 entities/team/api/teamProfileApi.getTeamProfileSpace(teamUid)
-        // - 通过 entities/team/lib/mapTeamProfileSpaceData(data) 投影到 Widget 视图模型
-        await new Promise((resolve) => setTimeout(resolve, 0))
+        const data = await getTeamProfileSpace(teamUid)
         if (isCancelled) return
-        setTeamCoreProfile(null)
-        setTeamExtendedProfile(null)
-        setTeamMembers([])
-        setTeamInfoRows([])
+        const mapped = mapTeamProfileSpaceData(data)
+        setTeamCoreProfile(mapped.teamCoreProfile)
+        setTeamExtendedProfile(mapped.teamExtendedProfile)
+        setTeamMembers(mapped.teamMembers)
+        setTeamInfoRows(mapped.teamInfoRows)
         setShellLoadState('ready')
       } catch (error) {
         if (isCancelled) return
-        setShellErrorMessage(error instanceof Error ? error.message : '加载团队空间失败，请稍后重试')
+        const message =
+          error instanceof TeamProfileApiError ? error.message : '加载团队空间失败，请稍后重试'
+        setShellErrorMessage(message)
         setShellLoadState('error')
       }
     }
@@ -173,30 +163,25 @@ export function useTeamSpaceWidget(): TeamSpaceWidgetModel {
     shellLoadState === 'ready' && teamCoreProfile != null && teamExtendedProfile != null
 
   const heroLogoUrl = teamCoreProfile
-    ? teamCoreProfile.logoUrl ??
-      `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(teamCoreProfile.name.slice(0, 2))}&backgroundColor=cbd5e1&color=ffffff`
+    ? teamCoreProfile.logoUrl ?? buildTeamLogoFallbackUrl(teamCoreProfile.name)
     : ''
 
   const handleTabClick = (tab: TeamProfileTab): void => {
     if (!teamUid) return
     const targetPath = buildTeamSpacePath(teamUid, tab)
-    if (location.pathname !== targetPath) navigate(targetPath)
+    const currentPath = `${location.pathname}${location.search}`
+    if (currentPath !== targetPath) navigate(targetPath)
   }
 
   const handleManageMembersClick = (): void => {
     if (!teamUid) return
     const targetPath = buildTeamMembersManagePath(teamUid)
-    if (location.pathname !== targetPath) navigate(targetPath)
+    const currentPath = `${location.pathname}${location.search}`
+    if (currentPath !== targetPath) navigate(targetPath)
   }
 
   const handleExitMembersManage = (): void => {
     handleTabClick('成员')
-  }
-
-  const renderMainContent = (): ReactNode => {
-    // TODO（团队 Tab 内容）：迁移 TeamHomeTab / MembersTab / AchievementsTab / ProjectsTab / NotesTab
-    // 至 widgets/profile-space/components/ 后按 activeTab 分发渲染
-    return null
   }
 
   return {
@@ -223,6 +208,5 @@ export function useTeamSpaceWidget(): TeamSpaceWidgetModel {
     handleTabClick,
     handleManageMembersClick,
     handleExitMembersManage,
-    renderMainContent,
   }
 }

@@ -15,6 +15,7 @@ import { ProfileSpaceTabs } from './ProfileSpaceTabs'
 import { ProfileSpaceShellStatus } from './ProfileSpaceStatus'
 import { usePersonalSpaceWidget, type PersonalSpaceWidgetModel } from '../hooks/usePersonalSpaceWidget'
 import { buildTeamSpacePath } from '../lib/teamTabRouting'
+import { PersonalSpaceMainContent } from './PersonalSpaceMainContent'
 
 // 02）Hero 内容（PersonalSpaceHero）
 function PersonalSpaceHero({ model }: { model: PersonalSpaceWidgetModel }) {
@@ -226,7 +227,7 @@ function PersonalSpaceSidebar({ model }: { model: PersonalSpaceWidgetModel }) {
  * 实现方法：
  * - 调用 usePersonalSpaceWidget 获取数据/状态
  * - Tabs 切换由 Hook 控制路由跳转
- * - 主内容 Tab 渲染（项目/笔记/主页）由 widgets/profile-space 内部 TabContent 注入
+ * - 主内容 Tab 渲染由 PersonalSpaceMainContent 分发（主页/项目/笔记）
  * 输入：无
  * 输出：
  * - 返回值：React 节点
@@ -235,10 +236,10 @@ export function PersonalSpaceWidget() {
   const model = usePersonalSpaceWidget()
   const {
     profileTabs, activeTab, contentGridClassName, shouldRenderSidebar, isSidebarCollapsed,
-    isShellReady, isHomeLikeTabActive, handleTabClick, renderMainContent,
+    isShellReady, isHomeLikeTabActive, handleTabClick,
   } = model
 
-  const mainContent = isShellReady ? renderMainContent() : null
+  const mainContent = isShellReady ? <PersonalSpaceMainContent model={model} /> : null
 
   return (
     <ProfileSpaceShell

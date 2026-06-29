@@ -3,15 +3,10 @@ import './TeamView.css'
 import { CalendarClock, FilePenLine, Mail, MapPin, Users } from 'lucide-react'
 import LoadingSpinner from '@shared/ui/LoadingSpinner'
 import VerifiedOrgModal from '@shared/ui/VerifiedOrgModal'
-import { useAuth } from '@shared/hooks/useAuth'
-import { ManageMembersForm } from '@features/team-management'
-import {
-  isLabTeamUid, resolveViewerIsTeamMember,
-} from '@entities/member/lib/memberDisplayUtils'
-import { resolveMemberCanManageTeam } from '@entities/member/lib/memberCardUtils'
 import { ProfileSpaceShell } from './ProfileSpaceShell'
 import { ProfileSpaceTabs } from './ProfileSpaceTabs'
 import { ProfileSpaceShellStatus } from './ProfileSpaceStatus'
+import { TeamSpaceMainContent } from './TeamSpaceMainContent'
 import { useTeamSpaceWidget, type TeamSpaceWidgetModel } from '../hooks/useTeamSpaceWidget'
 
 // 02）Hero 内容（TeamSpaceHero）
@@ -130,51 +125,20 @@ function TeamSpaceSidebar({ model }: { model: TeamSpaceWidgetModel }) {
  * 函数名：TeamSpaceWidget
  * 功能：在 ProfileSpaceShell 内组装团队空间页的 Hero、Tabs、主内容与侧栏。
  * 实现方法：
- * - 通过 useAuth + entities/member/lib 判定当前用户是否能管理成员
- * - 当 isMembersManageActive 且具备管理权限时，按 Slot 模式注入 features/team-management/ManageMembersForm
- * - 其它 Tab 主体内容由 model.renderMainContent() 输出
+ * - Hero / Sidebar 由本组件渲染，Tab 主体内容由 TeamSpaceMainContent 分发
+ * - 成员管理表单 ManageMembersForm 由 TeamSpaceMainContent 在权限符合时按 Slot 注入
  * 输入：无
  * 输出：
  * - 返回值：React 节点
  */
 export function TeamSpaceWidget() {
   const model = useTeamSpaceWidget()
-  const { isLoggedIn, userProfile } = useAuth()
   const {
-    teamUid, teamTabs, activeTab, contentGridClassName, shouldRenderSidebar, isSidebarCollapsed,
-    isMembersTabActive, isMembersManageActive, teamMembers, handleTabClick,
-    handleManageMembersClick, handleExitMembersManage, isShellReady, renderMainContent,
+    teamTabs, activeTab, contentGridClassName, shouldRenderSidebar, isSidebarCollapsed,
+    isShellReady, handleTabClick,
   } = model
 
-  const currentUserUid = userProfile?.uid ?? null
-  const isLabSpace = isLabTeamUid(teamUid)
-  const isViewerTeamMember = resolveViewerIsTeamMember(teamMembers, currentUserUid)
-  const canCurrentUserManageTeam = resolveMemberCanManageTeam(teamMembers, currentUserUid)
-
-  // 05）成员管理表单 — Slot 模式注入
-  const handleMembersSaved = (): void => {
-    // TODO：成员列表数据流接入后调用 model.reloadMembers()
-    handleExitMembersManage()
-  }
-
-  let mainContent: React.ReactNode = null
-  if (isMembersTabActive && isMembersManageActive && canCurrentUserManageTeam) {
-    mainContent = (
-      <ManageMembersForm
-        teamUid={teamUid}
-        isLabSpace={isLabSpace}
-        isLoggedIn={isLoggedIn}
-        isViewerTeamMember={isViewerTeamMember}
-        members={teamMembers}
-        onCancel={handleExitMembersManage}
-        onSaved={handleMembersSaved}
-      />
-    )
-  } else if (isShellReady) {
-    mainContent = renderMainContent()
-    // 透传管理入口给主内容（在 TeamMembersTabContent 内消费 onManageMembers）— TODO：迁移 MembersTab 后启用
-    void handleManageMembersClick
-  }
+  const mainContent = isShellReady ? <TeamSpaceMainContent model={model} /> : null
 
   return (
     <ProfileSpaceShell

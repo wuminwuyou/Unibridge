@@ -1,14 +1,11 @@
 // 01）机构空间大部件（OrganizationSpaceWidget）— 负责拼装机构空间页骨架
 import './OrganizationView.css'
-import { useState } from 'react'
 import { Building2, FilePenLine, MapPin, Users } from 'lucide-react'
 import LoadingSpinner from '@shared/ui/LoadingSpinner'
-import { useAuth } from '@shared/hooks/useAuth'
-import { isOrganizationAdminRole } from '@shared/lib/organizationSession'
-import { ManageLabsForm, OrgMembersManageForm } from '@features/team-management'
 import { ProfileSpaceShell } from './ProfileSpaceShell'
 import { ProfileSpaceTabs } from './ProfileSpaceTabs'
 import { ProfileSpaceShellStatus } from './ProfileSpaceStatus'
+import { OrganizationSpaceMainContent } from './OrganizationSpaceMainContent'
 import { useOrganizationSpaceWidget, type OrganizationSpaceWidgetModel } from '../hooks/useOrganizationSpaceWidget'
 
 // 02）Hero 内容（OrganizationSpaceHero）
@@ -139,10 +136,9 @@ function OrganizationSpaceSidebar({ model }: { model: OrganizationSpaceWidgetMod
  */
 export function OrganizationSpaceWidget() {
   const model = useOrganizationSpaceWidget()
-  const { userProfile } = useAuth()
   const {
-    entityCode, organizationTabs, activeTab, contentGridClassName, shouldRenderSidebar, isSidebarCollapsed,
-    orgCoreProfile, isLabsTabActive, isMembersTabActive, handleTabClick, isShellReady, renderMainContent,
+    organizationTabs, activeTab, contentGridClassName, shouldRenderSidebar, isSidebarCollapsed,
+    orgCoreProfile, handleTabClick, isShellReady,
   } = model
 
   const heroVisual = orgCoreProfile?.bannerUrl != null ? (
@@ -154,33 +150,7 @@ export function OrganizationSpaceWidget() {
     />
   ) : undefined
 
-  const isEntityAdmin = isOrganizationAdminRole(userProfile?.userRole)
-  const [isManagingLabs, setIsManagingLabs] = useState(false)
-  const [isManagingMembers, setIsManagingMembers] = useState(false)
-
-  let mainContent: React.ReactNode = null
-  if (isLabsTabActive && isManagingLabs && isEntityAdmin) {
-    mainContent = (
-      <ManageLabsForm
-        entityCode={entityCode}
-        labs={[]}
-        onCancel={() => setIsManagingLabs(false)}
-        onSaved={() => setIsManagingLabs(false)}
-      />
-    )
-  } else if (isMembersTabActive && isManagingMembers && isEntityAdmin) {
-    mainContent = (
-      <OrgMembersManageForm
-        entityCode={entityCode}
-        members={[]}
-        entityType={orgCoreProfile?.type ?? 'ENTERPRISE'}
-        onCancel={() => setIsManagingMembers(false)}
-        onSaved={() => setIsManagingMembers(false)}
-      />
-    )
-  } else if (isShellReady) {
-    mainContent = renderMainContent()
-  }
+  const mainContent = isShellReady ? <OrganizationSpaceMainContent model={model} /> : null
 
   return (
     <ProfileSpaceShell

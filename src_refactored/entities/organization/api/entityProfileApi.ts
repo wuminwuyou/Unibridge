@@ -38,8 +38,33 @@ export async function getEntityProfileSpace(entityCode: EntityCode): Promise<Ent
 }
 
 // 05）获取机构主页 Tab 数据（getEntityProfileHome）
-export async function getEntityProfileHome(entityCode: EntityCode): Promise<EntityProfileHomeData> {
-  return getEntityProfileApi<EntityProfileHomeData>(buildEntityProfileQueryPath(entityCode, '/entity-profile/home'))
+/**
+ * 函数名：getEntityProfileHome
+ * 功能：获取机构主页的项目/笔记/实验室/人员预览列表。
+ * 输入：
+ * - entityCode：机构主体代码
+ * - options：各区块预览条数上限
+ * 输出：
+ * - 返回值：EntityProfileHomeData
+ * - 副作用：发起网络请求
+ */
+export async function getEntityProfileHome(
+  entityCode: EntityCode,
+  options?: {
+    teamLimit?: number
+    memberLimit?: number
+    projectLimit?: number
+    noteLimit?: number
+  },
+): Promise<EntityProfileHomeData> {
+  return getEntityProfileApi<EntityProfileHomeData>(
+    buildEntityProfileQueryPath(entityCode, '/entity-profile/home', {
+      teamLimit: options?.teamLimit,
+      memberLimit: options?.memberLimit,
+      projectLimit: options?.projectLimit,
+      noteLimit: options?.noteLimit,
+    }),
+  )
 }
 
 // 06）获取机构实验室列表（getEntityProfileTeams）

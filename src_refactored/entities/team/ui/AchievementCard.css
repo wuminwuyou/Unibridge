@@ -1,8 +1,52 @@
-/* 01）团队成果卡片 */
-.profile-achievement-card { border: 1px solid var(--profile-card-border); border-radius: 16px; background: var(--profile-card-bg); padding: 16px; }
-.profile-achievement-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.profile-achievement-card__title { margin: 0; font-size: 15px; font-weight: 600; color: var(--profile-text); }
-.profile-achievement-card__date { flex-shrink: 0; font-size: 12px; color: var(--profile-note-meta); }
-.profile-achievement-card__description { margin: 0; font-size: 13px; line-height: 1.7; color: var(--profile-side-muted); }
-.profile-achievement-card__tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
-.profile-achievement-card__tags li { border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--profile-tab-active); background: color-mix(in srgb, var(--profile-tab-active) 10%, var(--profile-card-bg)); }
+/* 01）空间成果卡片 */
+.profile-achievement-card {
+  border: 1px solid var(--profile-card-border);
+  border-radius: 16px;
+  background: var(--profile-card-bg);
+  padding: 16px;
+}
+
+.profile-achievement-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.profile-achievement-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--profile-text);
+}
+
+.profile-achievement-card__date {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--profile-note-meta);
+}
+
+.profile-achievement-card__description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--profile-side-muted);
+}
+
+.profile-achievement-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-achievement-card__tags li {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--profile-tab-active);
+  background: color-mix(in srgb, var(--profile-tab-active) 10%, var(--profile-card-bg));
+}

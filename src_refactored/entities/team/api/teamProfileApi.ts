@@ -41,8 +41,31 @@ export async function getTeamProfileSpace(teamUid: TeamResourceUid): Promise<Tea
 }
 
 // 05）获取团队主页 Tab 数据（getTeamProfileHome）
-export async function getTeamProfileHome(teamUid: TeamResourceUid): Promise<TeamProfileHomeData> {
-  return getTeamProfileApi<TeamProfileHomeData>(buildTeamProfileQueryPath(teamUid, '/team-profile/home'))
+/**
+ * 函数名：getTeamProfileHome
+ * 功能：获取团队主页的项目/笔记/成果预览列表。
+ * 输入：
+ * - teamUid：团队对外 uid
+ * - options：预览条数上限
+ * 输出：
+ * - 返回值：TeamProfileHomeData
+ * - 副作用：发起网络请求
+ */
+export async function getTeamProfileHome(
+  teamUid: TeamResourceUid,
+  options?: {
+    projectLimit?: number
+    noteLimit?: number
+    achievementLimit?: number
+  },
+): Promise<TeamProfileHomeData> {
+  return getTeamProfileApi<TeamProfileHomeData>(
+    buildTeamProfileQueryPath(teamUid, '/team-profile/home', {
+      projectLimit: options?.projectLimit,
+      noteLimit: options?.noteLimit,
+      achievementLimit: options?.achievementLimit,
+    }),
+  )
 }
 
 // 06）获取团队成员列表（getTeamProfileMembers）
