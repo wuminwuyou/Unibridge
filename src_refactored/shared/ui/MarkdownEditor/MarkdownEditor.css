@@ -1,0 +1,177 @@
+/* 01）Markdown 编辑器元件容器 */
+
+.md-editor-core {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 02）head（模式 tabs + 字符计数） */
+
+.md-editor-core__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--card-border);
+  background: var(--chip-bg);
+  flex-shrink: 0;
+}
+
+.md-editor-core__head-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* 02-a）模式 tabs */
+
+.md-editor-core__tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0.125rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem;
+}
+
+.md-editor-core__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.md-editor-core__tab:hover {
+  color: var(--text-main);
+}
+
+.md-editor-core__tab--active {
+  background: color-mix(in srgb, var(--primary-soft) 80%, transparent);
+  color: var(--primary-text);
+  font-weight: 600;
+}
+
+/* 02-c）状态提示（超限警告） */
+
+.md-editor-core__status {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.md-editor-core__status--error {
+  color: var(--danger-text, #dc2626);
+}
+
+.md-editor-core__status--success {
+  color: var(--primary-text);
+}
+
+/* 03）正文区填充父容器 */
+
+.md-editor-core__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 04）md-editor 实例去边框/圆角，填充父容器 */
+
+.md-editor-core .md-editor {
+  flex: 1;
+  min-height: 0;
+  height: 100% !important;
+  max-height: 100%;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  overflow: hidden !important;
+}
+
+/* 05）工具栏横向滚动：按钮不被压缩，溢出由 wrapper 滚动 */
+
+.md-editor-core .md-editor-toolbar-item {
+  flex-shrink: 0 !important;
+}
+
+.md-editor-core .md-editor-toolbar-left,
+.md-editor-core .md-editor-toolbar-right {
+  flex-shrink: 0 !important;
+}
+
+.md-editor-core .md-editor-toolbar-wrapper {
+  border-color: var(--card-border) !important;
+  scrollbar-width: thin !important;
+}
+
+.md-editor-core .md-editor-toolbar-wrapper::-webkit-scrollbar {
+  height: 4px !important;
+}
+
+.md-editor-core .md-editor-toolbar-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.md-editor-core .md-editor-toolbar-wrapper::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 2px;
+}
+
+.md-editor-core .md-editor-toolbar-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--text-soft);
+}
+
+/* 06）库内置自绘滚动条样式微调（保留功能，只调色/收窄） */
+
+.md-editor-core .md-editor-custom-scrollbar__track {
+  background: transparent !important;
+}
+
+.md-editor-core .md-editor-custom-scrollbar__thumb {
+  background: var(--card-border) !important;
+}
+
+.md-editor-core .md-editor-custom-scrollbar__thumb:hover {
+  background: var(--text-soft) !important;
+}
+
+/* 07）预览区外层滚动（previewOnly 默认 height:auto，需要外层容器约束并滚动） */
+
+.md-editor-core__preview-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem 1rem;
+}
+
+.md-editor-core__preview-scroll .md-editor {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* 08）底部栏边框跟随站点变量 */
+
+.md-editor-core .md-editor-footer {
+  border-color: var(--card-border) !important;
+}

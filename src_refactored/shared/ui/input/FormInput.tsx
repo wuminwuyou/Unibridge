@@ -1,5 +1,5 @@
-import './FormInput.css'
 import type { FormInputProps } from './types'
+import styles from './FormInput.module.css'
 
 // 01）表单文本输入原子组件（FormInput）
 /**
@@ -28,10 +28,10 @@ export function FormInput({
   onChangeEvent,
 }: FormInputProps) {
   return (
-    <label className="form-input-label">
-      <span className="form-input-label-text">
+    <label className={styles.label}>
+      <span className={styles.labelText}>
         {label}
-        {required && <span className="form-input-required"> *</span>}
+        {required && <span className={styles.required}> *</span>}
       </span>
       <input
         type={type}
@@ -39,7 +39,7 @@ export function FormInput({
         onChange={onChangeEvent ?? ((event) => onChange(event.target.value))}
         placeholder={placeholder}
         disabled={disabled}
-        className={`form-input ${className ?? ''}`}
+        className={`${styles.input} ${className ?? ''}`.trim()}
       />
     </label>
   )

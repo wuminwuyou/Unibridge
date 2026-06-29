@@ -1,5 +1,5 @@
-import './FormInput.css'
 import type { FormSelectInputProps } from './types'
+import styles from './FormInput.module.css'
 
 // 01）表单下拉选择原子组件（FormSelectInput）
 /**
@@ -27,16 +27,16 @@ export function FormSelectInput({
   className,
 }: FormSelectInputProps) {
   return (
-    <label className="form-input-label">
-      <span className="form-input-label-text">
+    <label className={styles.label}>
+      <span className={styles.labelText}>
         {label}
-        {required && <span className="form-input-required"> *</span>}
+        {required && <span className={styles.required}> *</span>}
       </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className={`form-input ${className ?? ''}`}
+        className={`${styles.input} ${className ?? ''}`.trim()}
       >
         {placeholder && (
           <option value="" disabled>

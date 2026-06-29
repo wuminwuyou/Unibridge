@@ -1,15 +1,10 @@
-/* 01）表单输入原子组件（shared/ui/input）— 对齐 index.css 全局主题变量 */
+/* 01）表单输入原子组件（shared/ui/input） */
 
-/* 标签文本 */
-.form-input-label {
+.label {
   display: block;
 }
 
-.form-input-label .form-input-label {
-  margin-top: 1rem;
-}
-
-.form-input-label-text {
+.labelText {
   display: block;
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
@@ -17,12 +12,11 @@
   color: var(--text-main);
 }
 
-.form-input-required {
-  color: #f43f5e;
+.required {
+  color: var(--publish-danger);
 }
 
-/* 输入框外壳 */
-.form-input {
+.input {
   display: block;
   width: 100%;
   border-radius: 0.75rem;
@@ -36,43 +30,37 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.form-input::placeholder {
+.input::placeholder {
   color: var(--text-soft);
 }
 
-.form-input:focus {
+.input:focus {
   border-color: var(--primary-text);
-  box-shadow: 0 0 0 3px rgb(37 99 235 / 18%);
+  box-shadow: 0 0 0 3px var(--publish-focus-ring);
 }
 
-:root[data-theme='dark'] .form-input:focus {
-  box-shadow: 0 0 0 3px rgb(59 130 246 / 28%);
-}
-
-/* 带前置图标的输入框 */
-.form-input-icon-wrap {
+.iconWrap {
   position: relative;
 }
 
-.form-input-icon-wrap__icon {
+.icon {
   position: absolute;
   left: 0.875rem;
   top: 50%;
   z-index: 1;
   width: 1rem;
   height: 1rem;
-  flex-shrink: 0;
   transform: translateY(-50%);
   color: var(--text-soft);
   pointer-events: none;
 }
 
-.form-input-icon-wrap__icon svg {
+.icon svg {
   width: 1rem;
   height: 1rem;
   display: block;
 }
 
-.form-input--has-icon {
+.hasIcon {
   padding-left: 3rem;
 }

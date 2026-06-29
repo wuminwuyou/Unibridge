@@ -1,0 +1,77 @@
+/* 01）发布项目底部操作栏 */
+
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  border-top: 1px solid var(--publish-border);
+  background: var(--publish-footer-bg);
+  backdrop-filter: blur(12px);
+}
+
+.inner {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 10%;
+  box-sizing: border-box;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--publish-text-muted);
+}
+
+.error {
+  color: var(--publish-danger);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.button,
+.primaryButton {
+  border-radius: 0.75rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.button {
+  border: 1px solid var(--publish-border);
+  background: var(--publish-surface);
+  color: var(--publish-text);
+}
+
+.button:hover {
+  border-color: var(--publish-channel-hover);
+  background: var(--publish-surface-muted);
+}
+
+.primaryButton {
+  border: none;
+  background: var(--publish-btn-bg);
+  color: var(--publish-btn-text);
+}
+
+.primaryButton:hover {
+  background: var(--publish-btn-bg-hover);
+}
+
+.button:disabled,
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}

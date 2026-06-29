@@ -1,0 +1,99 @@
+/* 01）项目预览卡片 */
+
+.section {
+  border-radius: 1rem;
+  border: 1px solid var(--publish-border);
+  background: var(--publish-surface);
+  padding: 1.25rem;
+  box-shadow: var(--publish-shadow);
+}
+
+.header {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  color: var(--publish-text);
+}
+
+.headerIcon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--publish-warning);
+}
+
+.card {
+  border-radius: 1rem;
+  border: 1px dashed var(--publish-preview-dashed);
+  background: var(--publish-preview-gradient);
+  padding: 1rem;
+}
+
+.topRow {
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badge {
+  display: inline-block;
+  border-radius: 9999px;
+  background: var(--publish-accent-soft);
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--publish-accent);
+}
+
+.level {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--publish-warning);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  color: var(--publish-text);
+}
+
+.summary {
+  margin: 0.5rem 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--publish-text-muted);
+}
+
+.amount {
+  margin: 1rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  color: var(--publish-accent);
+}
+
+.tagList {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.tag {
+  display: inline-block;
+  border-radius: 0.375rem;
+  background: var(--publish-surface-muted);
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--publish-chip-text);
+}

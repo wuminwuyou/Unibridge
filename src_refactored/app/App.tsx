@@ -17,7 +17,6 @@ const LoginPage = lazy(() => import('@pages/auth/login/index'))
 const OrganizationVerificationPage = lazy(() => import('@pages/auth/verify/index'))
 const PublishProjectPage = lazy(() => import('@pages/project/publish/index'))
 const PublishNotePage = lazy(() => import('@pages/note/publish/index'))
-const OnlineTextEditorPage = lazy(() => import('@pages/note/editor/index'))
 const NotFoundPage = lazy(() => import('@pages/not-found/index'))
 
 // 02）加载中占位（PageLoadingFallback）
@@ -55,7 +54,6 @@ const appRouter = createBrowserRouter([
   { path: '/messages', element: <Suspensed><ProtectedRoute><InstantMessagePage /></ProtectedRoute></Suspensed> },
   { path: '/publish/project', element: <Suspensed><ProtectedRoute><PublishProjectPage /></ProtectedRoute></Suspensed> },
   { path: '/publish/note', element: <Suspensed><ProtectedRoute><PublishNotePage /></ProtectedRoute></Suspensed> },
-  { path: '/publish/markdown-editor', element: <Suspensed><ProtectedRoute><OnlineTextEditorPage /></ProtectedRoute></Suspensed> },
   { path: '*', element: <Suspensed><NotFoundPage /></Suspensed> },
 ])
 

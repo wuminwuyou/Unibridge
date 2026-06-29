@@ -1,0 +1,16 @@
+/* 01）发布项目表单 Widget */
+
+.root > * + * {
+  margin-top: 1.5rem;
+}
+
+.cooperationGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .cooperationGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

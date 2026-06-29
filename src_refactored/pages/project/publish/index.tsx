@@ -1,20 +1,116 @@
 // 01）发布项目页（PublishProjectPage）
+// pages 层：组装 TopNavbar + 左/右/底 Widget，通过 Hook 串联数据流
+import { usePublishEntryFreshFormKey } from '@shared/hooks/usePublishEntryFreshFormKey'
 import TopNavbar from '@widgets/top-navbar'
+import { PublishProjectFormWidget } from '@widgets/publish-project-form'
+import { PublishProjectPreviewWidget } from '@widgets/publish-project-preview'
+import { PublishProjectFooterWidget } from '@widgets/publish-project-footer'
+import { usePublishProjectFormWidget } from '@widgets/publish-project-form/usePublishProjectFormWidget'
+import styles from '@widgets/publish-project/PublishProjectWidget.module.css'
 
-function PublishProjectPage() {
-  return <>
-    <TopNavbar />
-    <div className="detail-page" style={{ paddingTop: '64px' }}>
-      <div className="detail-page-main">
-        <div className="detail-card"><h2>发布项目</h2>
-          <div className="auth-form" style={{ gap: '14px', marginTop: '14px' }}>
-            <div className="auth-floating-field has-value"><input type="text" id="project-title" placeholder=" " /><label htmlFor="project-title">项目名称</label></div>
-            <div className="auth-floating-field has-value"><textarea id="project-desc" placeholder=" " style={{ width: '100%', minHeight: '200px', borderRadius: '12px', border: '1px solid #dbe3f3', padding: '12px' }} /><label htmlFor="project-desc" style={{ position: 'static' }}>项目描述（Markdown）</label></div>
-            <button type="button" className="auth-submit-button">发布项目</button>
-          </div>
+import type { LevelCode } from '@shared/types/level'
+
+function PublishProjectPageContent() {
+  const {
+    draft,
+    displaySummary,
+    descriptionContent,
+    tagInput,
+    suggestedSkillTags,
+    completionPercent,
+    isSubmitting,
+    submitError,
+    leavePromptOpen,
+    leavePromptMessage,
+    confirmLeave,
+    cancelLeave,
+    updateField,
+    setChannel,
+    setCampusRecruitType,
+    handleDescriptionChange,
+    addSkillTag,
+    removeSkillTag,
+    setTagInput,
+    handleTagInputKeyDown,
+    toggleSuggestedTag,
+    handleSaveDraft,
+    handlePreview,
+    handlePublish,
+    publishChecklistItems,
+    resolvePublishPreviewBadge,
+  } = usePublishProjectFormWidget()
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.shell}>
+        <div className={styles.layout}>
+          <PublishProjectFormWidget
+            draft={{
+              title: draft.title,
+              summary: draft.summary,
+              channel: draft.channel,
+              campusRecruitType: draft.campusRecruitType,
+              amount: draft.amount,
+              level: draft.level,
+              duration: draft.duration,
+              teamSize: draft.teamSize,
+              skillTags: draft.skillTags,
+              deadline: draft.deadline,
+            }}
+            descriptionValue={descriptionContent.longtext}
+            tagInput={tagInput}
+            suggestedSkillTags={suggestedSkillTags}
+            completionPercent={completionPercent}
+            onTitleChange={(v) => updateField('title', v)}
+            onSummaryChange={(v) => updateField('summary', v)}
+            onAmountChange={(v) => updateField('amount', v)}
+            onLevelChange={(v) => updateField('level', v as LevelCode)}
+            onDurationChange={(v) => updateField('duration', v)}
+            onTeamSizeChange={(v) => updateField('teamSize', v)}
+            onDeadlineChange={(v) => updateField('deadline', v)}
+            onChannelChange={setChannel}
+            onCampusRecruitTypeChange={setCampusRecruitType}
+            onDescriptionChange={handleDescriptionChange}
+            onAddTag={addSkillTag}
+            onRemoveTag={removeSkillTag}
+            onTagInputChange={setTagInput}
+            onToggleSuggestedTag={toggleSuggestedTag}
+            onTagInputKeyDown={handleTagInputKeyDown}
+          />
+
+          <PublishProjectPreviewWidget
+            badge={resolvePublishPreviewBadge(draft)}
+            title={draft.title}
+            summary={displaySummary}
+            amount={draft.amount}
+            level={draft.level}
+            tags={draft.skillTags}
+            checklistItems={publishChecklistItems}
+          />
         </div>
       </div>
+
+      <PublishProjectFooterWidget
+        submitError={submitError}
+        isSubmitting={isSubmitting}
+        leavePromptOpen={leavePromptOpen}
+        leavePromptMessage={leavePromptMessage}
+        onSaveDraft={handleSaveDraft}
+        onPreview={handlePreview}
+        onPublish={handlePublish}
+        onConfirmLeave={confirmLeave}
+        onCancelLeave={cancelLeave}
+      />
     </div>
-  </>
+  )
 }
-export default PublishProjectPage
+
+export default function PublishProjectPage() {
+  const formInstanceKey = usePublishEntryFreshFormKey()
+  return (
+    <>
+      <TopNavbar />
+      <PublishProjectPageContent key={formInstanceKey} />
+    </>
+  )
+}

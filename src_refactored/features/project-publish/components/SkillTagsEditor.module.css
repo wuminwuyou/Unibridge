@@ -1,0 +1,96 @@
+/* 01）技能标签编辑器 */
+
+.root > * + * {
+  margin-top: 0.75rem;
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--publish-text);
+}
+
+.danger {
+  color: var(--publish-danger);
+}
+
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.inputRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input {
+  flex: 1 1 0%;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--publish-border);
+  background: var(--publish-surface);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--publish-text);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input::placeholder {
+  color: var(--publish-text-muted);
+}
+
+.input:focus {
+  border-color: var(--publish-accent);
+  box-shadow: 0 0 0 3px var(--publish-focus-ring);
+}
+
+.button {
+  border-radius: 0.75rem;
+  border: 1px solid var(--publish-border);
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.button:hover {
+  border-color: var(--publish-channel-hover);
+  background: var(--publish-surface-muted);
+}
+
+.suggestedChip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid var(--publish-border);
+  background: var(--publish-surface-muted);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--publish-chip-text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.suggestedChip:hover {
+  border-color: var(--publish-accent);
+  color: var(--publish-accent);
+}
+
+.suggestedChipSelected {
+  border-color: var(--publish-accent);
+  background: var(--publish-accent-soft);
+  color: var(--publish-accent);
+}
+
+.tagIcon {
+  margin-right: 0.25rem;
+  width: 0.75rem;
+  height: 0.75rem;
+}

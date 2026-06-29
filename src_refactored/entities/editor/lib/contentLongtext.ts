@@ -1,4 +1,4 @@
-import type { ContentEditorType } from '../../model/types'
+import type { ContentEditorType } from '../model/types'
 
 // 01）正文 longtext 存储结构（ContentLongtext）
 export interface ContentLongtext { editorType: ContentEditorType; longtext: string }
@@ -15,5 +15,10 @@ export function createDefaultContentLongtext(): ContentLongtext {
 
 // 04）迁移旧会话字段（migrateLegacyContentLongtext）
 export function migrateLegacyContentLongtext(longtext: string, editorType: ContentEditorType = 'MARKDOWN'): ContentLongtext {
+  return createContentLongtext(editorType, longtext)
+}
+
+// 05）从编辑器保存创建（createContentLongtextFromEditorSave）
+export function createContentLongtextFromEditorSave(editorType: ContentEditorType, longtext: string): ContentLongtext {
   return createContentLongtext(editorType, longtext)
 }

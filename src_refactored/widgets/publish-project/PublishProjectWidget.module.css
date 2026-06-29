@@ -1,0 +1,25 @@
+/* 01）发布项目页布局 */
+
+.page {
+  background: var(--publish-bg);
+  color: var(--publish-text);
+  min-height: 100vh;
+}
+
+.shell {
+  width: 100%;
+  padding: 2rem 10% 7rem;
+  box-sizing: border-box;
+}
+
+.layout {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}

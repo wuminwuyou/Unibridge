@@ -1,5 +1,5 @@
-import { FormInput } from './FormInput'
 import type { FormIconInputProps } from './types'
+import styles from './FormInput.module.css'
 
 // 01）带图标表单文本输入原子组件（FormIconInput）
 /**
@@ -27,23 +27,22 @@ export function FormIconInput({
   className,
 }: FormIconInputProps) {
   return (
-    <label className="form-input-label">
-      <span className="form-input-label-text">
+    <label className={styles.label}>
+      <span className={styles.labelText}>
         {label}
-        {required && <span className="form-input-required"> *</span>}
+        {required && <span className={styles.required}> *</span>}
       </span>
-      <div className="form-input-icon-wrap">
-        <span className="form-input-icon-wrap__icon" aria-hidden="true">
+      <div className={styles.iconWrap}>
+        <span className={styles.icon} aria-hidden="true">
           {icon}
         </span>
-        <FormInput
-          label=""
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
+        <input
           type={type}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
           disabled={disabled}
-          className={`form-input--has-icon ${className ?? ''}`}
+          className={`${styles.input} ${styles.hasIcon} ${className ?? ''}`.trim()}
         />
       </div>
     </label>

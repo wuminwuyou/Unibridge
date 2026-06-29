@@ -1,0 +1,10 @@
+/* 01）需求说明编辑器容器 */
+
+.root > * + * {
+  margin-top: 0.5rem;
+}
+
+.editorShell {
+  min-height: 320px;
+  height: 400px;
+}

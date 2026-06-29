@@ -65,6 +65,31 @@
   --auth-signup: #7f8ea7;
   --auth-shadow: 0 22px 46px rgba(13, 33, 72, 0.24);
   --auth-helper: #8d9db9;
+  /* PublishProject light */
+  --publish-bg: var(--page-bg);
+  --publish-text: var(--text-main);
+  --publish-text-muted: var(--text-soft);
+  --publish-border: var(--card-border);
+  --publish-line: var(--line-color);
+  --publish-surface: var(--card-bg);
+  --publish-surface-muted: var(--chip-bg);
+  --publish-accent: var(--primary-text);
+  --publish-accent-soft: var(--primary-soft);
+  --publish-chip-text: var(--chip-text);
+  --publish-btn-bg: #2563eb;
+  --publish-btn-bg-hover: #1d4ed8;
+  --publish-btn-text: #ffffff;
+  --publish-focus-ring: rgb(37 99 235 / 18%);
+  --publish-footer-bg: color-mix(in srgb, var(--card-bg) 92%, transparent);
+  --publish-shadow: var(--panel-shadow);
+  --publish-danger: #f43f5e;
+  --publish-success: #10b981;
+  --publish-warning: #f59e0b;
+  --publish-icon-muted: var(--text-soft);
+  --publish-channel-hover: color-mix(in srgb, var(--primary-text) 35%, var(--card-border));
+  --publish-channel-active-bg: color-mix(in srgb, var(--primary-soft) 70%, var(--card-bg));
+  --publish-preview-gradient: linear-gradient(180deg, var(--card-bg) 0%, var(--chip-bg) 100%);
+  --publish-preview-dashed: var(--line-color);
 }
 
 /* 03）全局主题变量（dark） */
@@ -122,6 +147,13 @@
   --auth-signup: #90a1bd;
   --auth-shadow: 0 24px 48px rgba(0, 0, 0, 0.48);
   --auth-helper: #92a3bf;
+  /* PublishProject dark */
+  --publish-btn-bg: #3b82f6;
+  --publish-btn-bg-hover: #60a5fa;
+  --publish-focus-ring: rgb(59 130 246 / 28%);
+  --publish-footer-bg: color-mix(in srgb, var(--card-bg) 88%, transparent);
+  --publish-channel-hover: color-mix(in srgb, var(--primary-text) 45%, var(--card-border));
+  --publish-channel-active-bg: color-mix(in srgb, var(--primary-soft) 55%, var(--card-bg));
 }
 
 /* 04）View Transition 主题切换动画 */

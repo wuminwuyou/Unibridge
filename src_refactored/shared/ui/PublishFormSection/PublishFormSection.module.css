@@ -1,6 +1,6 @@
-/* 01）表单段容器原子组件（FormSectionCard）— 对齐 index.css 全局主题变量 */
+/* 01）表单通用区块（PublishFormSection） */
 
-.form-section-card {
+.card {
   border-radius: 1rem;
   border: 1px solid var(--card-border);
   background: var(--card-bg);
@@ -8,7 +8,7 @@
   padding: 1.5rem;
 }
 
-.form-section-card__header {
+.header {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
@@ -17,7 +17,7 @@
   border-bottom: 1px solid var(--line-color);
 }
 
-.form-section-card__icon {
+.icon {
   display: flex;
   height: 2.5rem;
   width: 2.5rem;
@@ -29,24 +29,24 @@
   color: var(--primary-text);
 }
 
-.form-section-card__icon svg {
+.icon svg {
   width: 1.25rem;
   height: 1.25rem;
 }
 
-.form-section-card__title {
+.title {
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--text-main);
 }
 
-.form-section-card__description {
+.description {
   margin: 0.25rem 0 0;
   font-size: 0.875rem;
   color: var(--text-soft);
 }
 
-.form-section-card__body > * + * {
+.body > * + * {
   margin-top: 1.25rem;
 }

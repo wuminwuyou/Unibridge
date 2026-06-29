@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import './FormSectionCard.css'
+import styles from '../PublishFormSection/PublishFormSection.module.css'
 
 // 01）表单段容器 Props（FormSectionCardProps）
 export interface FormSectionCardProps {
@@ -25,15 +25,15 @@ export interface FormSectionCardProps {
  */
 export function FormSectionCard({ icon, title, description, children }: FormSectionCardProps) {
   return (
-    <section className="form-section-card">
-      <div className="form-section-card__header">
-        <div className="form-section-card__icon">{icon}</div>
+    <section className={styles.card}>
+      <div className={styles.header}>
+        <div className={styles.icon}>{icon}</div>
         <div>
-          <h2 className="form-section-card__title">{title}</h2>
-          <p className="form-section-card__description">{description}</p>
+          <h2 className={styles.title}>{title}</h2>
+          <p className={styles.description}>{description}</p>
         </div>
       </div>
-      <div className="form-section-card__body">{children}</div>
+      <div className={styles.body}>{children}</div>
     </section>
   )
 }

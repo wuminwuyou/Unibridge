@@ -1,0 +1,25 @@
+/* 01）通用标签 Chip */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid var(--publish-border);
+  background: var(--publish-surface-muted);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--publish-chip-text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--publish-accent);
+  color: var(--publish-accent);
+}
+
+.selected {
+  border-color: var(--publish-accent);
+  background: var(--publish-accent-soft);
+  color: var(--publish-accent);
+}
