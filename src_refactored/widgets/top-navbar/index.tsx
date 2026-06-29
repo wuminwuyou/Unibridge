@@ -4,10 +4,13 @@ import { useLocation, useNavigate, NavLink } from 'react-router-dom'
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useAuth } from '../../shared/hooks/useAuth'
 import { useTheme } from '../../shared/hooks/useTheme'
-import { useProfileMenu, buildDefaultStats, buildPersonalDefaultMenuItems, buildOrganizationDefaultMenuItems, type ProfileMenuChannel } from '../../app/providers/ProfileMenuProvider'
+import { buildDefaultStats, buildPersonalDefaultMenuItems, buildOrganizationDefaultMenuItems, type ProfileMenuChannel } from '../../app/providers/ProfileMenuProvider'
 import LevelBadge from '../../shared/ui/LevelBadge'
+import UserAvatar from '../../shared/ui/UserAvatar'
+import { useUserAvatarData } from '../../shared/hooks/useUserAvatarData'
 import { useUserMenuData } from './hooks/useUserMenuData'
-import { ChevronDown, Send, Ticket, ListTodo, BookOpenText, FolderKanban, ChevronRight, LogOut } from 'lucide-react'
+import { getUserUid, getMenuCache } from '../../shared/lib/tokenStorage'
+import { ChevronDown, Send, Ticket, ListTodo, BookOpenText, FolderKanban, ChevronRight, LogOut, MessageCircle } from 'lucide-react'
 import { isOrganizationAdminRole, isCounselorRole } from '../../shared/lib/organizationSession'
 import { getAccessToken, getRefreshToken } from '../../shared/lib/tokenStorage'
 import { logoutByTokens } from '../../features/auth-process/services/authService'
@@ -156,7 +159,8 @@ function TopNavbar() {
 
           {/* 通知按钮 */}
           <button className="notify-button" type="button" aria-label="消息通知" onClick={handleNotifyClick} title="打开即时通讯">
-            <span className="notify-button__glow" /><span className="notify-button__icon">🔔</span>
+            <span className="notify-button__glow" />
+            <span className="notify-button__icon"><MessageCircle size={18} strokeWidth={2.2} /></span>
           </button>
 
           {/* 学校认证码入口（组织管理员 + 学校主体） */}
@@ -243,19 +247,24 @@ function UserProfileMenu({ onLogout }: { onLogout: () => void }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const closeTimerRef = useRef<number | null>(null)
 
-  // React Query 懒加载：isOpen=true 时开始请求，staleTime=5min 命中缓存
+  const { avatarUrl, fallbackText: avatarFallbackText } = useUserAvatarData()
+  // hover 打开面板时才请求 menu API，降低调用频率
   const { data: menuData } = useUserMenuData(isOpen)
 
-  const isOrg = channel === 'organization'
-  const nickname = menuData?.nickname?.trim()
-  const title = nickname || (isOrg ? '机构' : userProfile?.uid ?? '用户')
-  const avatarText = menuData?.avatarUrl || userProfile?.avatarUrl ? '' : title.slice(0, 1)
-  const avatarUrl = menuData?.avatarUrl ?? userProfile?.avatarUrl ?? null
+  const localCache = getMenuCache()
+  const displayName = menuData?.nickname?.trim() || localCache?.nickname?.trim() || (isOrgAccount ? (userProfile?.entityName ?? '机构') : (userProfile?.uid ?? '用户'))
+  const displayLevel = menuData?.level ?? localCache?.level ?? 'N'
+  // /profile?uid=
+  const userId = userProfile?.uid ?? getUserUid()
+  const profilePath = userId ? `/profile?uid=${encodeURIComponent(userId)}` : '/profile'
+  const avatarHref = isOrgAccount && userProfile?.entityCode
+    ? `/org/${encodeURIComponent(userProfile.entityCode)}`
+    : profilePath
 
-  const level = menuData?.level ?? 'N'
   const levelWhitelist = ['N', 'R', 'SR', 'SSR', 'UR']
-  const normalizedLevel = (levelWhitelist.includes(level?.toUpperCase() ?? '') ? level?.toUpperCase() : 'N') as 'N' | 'R' | 'SR' | 'SSR' | 'UR'
+  const normalizedLevel = (levelWhitelist.includes(displayLevel?.toUpperCase() ?? '') ? displayLevel?.toUpperCase() : 'N') as 'N' | 'R' | 'SR' | 'SSR' | 'UR'
   const stats = useMemo(() => buildDefaultStats(), [])
+  const isOrg = channel === 'organization'
   const menuItems = useMemo(() => {
     if (isOrg && userProfile?.entityCode) return buildOrganizationDefaultMenuItems(userProfile.entityCode)
     return buildPersonalDefaultMenuItems()
@@ -276,37 +285,25 @@ function UserProfileMenu({ onLogout }: { onLogout: () => void }) {
 
   const handleLogout = () => { if (isLoggingOut) return; clearCloseTimer(); setIsLoggingOut(true); onLogout() }
 
-  const handleAvatarClick = () => {
-    clearCloseTimer()
-    setIsOpen((prev) => !prev)
-  }
-
-  const handleAvatarAuxClick = (e: React.MouseEvent) => {
-    if (e.button === 1) {
-      e.preventDefault()
-      window.open('/profile', '_blank', 'noopener,noreferrer')
-    }
-  }
-
   return (
     <div className={`user-menu ${isOpen || isLoggingOut ? 'is-open' : ''}`} onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
-      <button className="user-button" type="button" aria-label="用户菜单" onClick={handleAvatarClick} onAuxClick={handleAvatarAuxClick}>
-        {avatarUrl ? (
-          <img className="user-avatar user-avatar--image" src={avatarUrl} alt={`${title}头像`} />
-        ) : (
-          <span className="user-avatar user-avatar--fallback">{avatarText}</span>
-        )}
-      </button>
+      <UserAvatar
+        className="user-button"
+        href={avatarHref}
+        avatarUrl={avatarUrl}
+        fallbackText={avatarFallbackText}
+        alt={`${displayName}头像`}
+      />
       <div className="user-panel" role="menu">
         <div className="user-panel__header">
           <div className="user-panel__name-row">
-            <strong>{title}</strong>
+            <strong>{displayName}</strong>
             <LevelBadge level={normalizedLevel} className="user-level-badge" />
           </div>
         </div>
         <div className="user-panel__stats">
           {stats.map(s => (
-            <button key={s.label} type="button" className="user-stat-item user-stat-button" onClick={() => window.open('/profile', '_blank')}>
+            <button key={s.label} type="button" className="user-stat-item user-stat-button" onClick={() => window.open(profilePath, '_blank')}>
               <span className="user-stat-item__icon"><s.icon size={24} /></span>
               <span>{s.label}</span>
             </button>

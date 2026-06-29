@@ -6,7 +6,9 @@ import ProtectedRoute from './routes/ProtectedRoute'
 const HomePage = lazy(() => import('../pages/home/index'))
 const CommercialProjectsPage = lazy(() => import('../pages/project/commercial/index'))
 const CampusCoCreationPage = lazy(() => import('../pages/project/co-create/index'))
-const ProfileSpacePage = lazy(() => import('../pages/profile/personal/index'))
+const PersonalProfilePage = lazy(() => import('../pages/profile/personal/index'))
+const TeamProfilePage = lazy(() => import('../pages/profile/team/index'))
+const OrganizationProfilePage = lazy(() => import('../pages/profile/organization/index'))
 const NoteSharePage = lazy(() => import('../pages/note/share/index'))
 const ProjectDetailPage = lazy(() => import('../pages/project/detail/index'))
 const NoteReaderPage = lazy(() => import('../pages/note/reader/index'))
@@ -39,12 +41,13 @@ const appRouter = createBrowserRouter([
   { path: '/co-create', element: <Suspensed><CampusCoCreationPage /></Suspensed> },
   { path: '/note', element: <Suspensed><NoteSharePage /></Suspensed> },
   { path: '/login', element: <Suspensed><LoginPage /></Suspensed> },
-  { path: '/profile', element: <Suspensed><ProfileSpacePage /></Suspensed> },
-  { path: '/profile/:profileTab', element: <Suspensed><ProfileSpacePage /></Suspensed> },
-  { path: '/team/:teamUid', element: <Suspensed><ProfileSpacePage /></Suspensed> },
-  { path: '/team/:teamUid/:teamTab', element: <Suspensed><ProfileSpacePage /></Suspensed> },
-  { path: '/org/:entityCode', element: <Suspensed><ProfileSpacePage /></Suspensed> },
-  { path: '/org/:entityCode/:orgTab', element: <Suspensed><ProfileSpacePage /></Suspensed> },
+  { path: '/profile', element: <Suspensed><PersonalProfilePage /></Suspensed> },
+  { path: '/profile/:profileTab', element: <Suspensed><PersonalProfilePage /></Suspensed> },
+  { path: '/team/:teamUid', element: <Suspensed><TeamProfilePage /></Suspensed> },
+  { path: '/team/:teamUid/:teamTab', element: <Suspensed><TeamProfilePage /></Suspensed> },
+  { path: '/team/:teamUid/:teamTab/:teamSubTab', element: <Suspensed><TeamProfilePage /></Suspensed> },
+  { path: '/org/:entityCode', element: <Suspensed><OrganizationProfilePage /></Suspensed> },
+  { path: '/org/:entityCode/:orgTab', element: <Suspensed><OrganizationProfilePage /></Suspensed> },
   { path: '/verify/organization', element: <Suspensed><ProtectedRoute><OrganizationVerificationPage /></ProtectedRoute></Suspensed> },
   { path: '/verify', element: <Suspensed><ProtectedRoute><OrganizationVerificationPage /></ProtectedRoute></Suspensed> },
   { path: '/project-detail', element: <Suspensed><ProtectedRoute><ProjectDetailPage /></ProtectedRoute></Suspensed> },

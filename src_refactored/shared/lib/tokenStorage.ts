@@ -6,6 +6,8 @@ const USER_ROLE_KEY = 'user_role'
 const ENTITY_CODE_KEY = 'entity_code'
 const ENTITY_NAME_KEY = 'entity_name'
 const AVATAR_URL_KEY = 'avatar_url'
+const LOGO_URL_KEY = 'logo_url'
+const MENU_CACHE_KEY = 'user_profile_menu_cache'
 const LEGACY_USER_ID_KEY = 'user_id'
 const LEGACY_ACCESS_TOKEN_KEY = 'accessToken'
 const LEGACY_REFRESH_TOKEN_KEY = 'refreshToken'
@@ -13,160 +15,125 @@ const LEGACY_REFRESH_TOKEN_KEY = 'refreshToken'
 import type { UserResourceUid } from '../api/resourceUid'
 import { isUserResourceUid } from '../api/resourceUid'
 
-// 02）认证令牌结果类型定义（AuthTokenPair）
-export interface AuthTokenPair {
-  accessToken: string
-  refreshToken: string
+// ═══ Cookie 工具 ═══
+function setCookie(key: string, value: string, days = 7): void {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString()
+  document.cookie = `${key}=${encodeURIComponent(value)};expires=${expires};path=/;SameSite=Lax`
+}
+function getCookie(key: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${key}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : null
+}
+function removeCookie(key: string): void {
+  document.cookie = `${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
 }
 
-// 03）读取用户 uid（getUserUid）
-/**
- * 函数名：getUserUid
- * 功能：读取本地缓存的当前登录用户对外 uid。
- * 输入：无
- * 输出：
- * - 返回值：UserResourceUid | null
- * - 副作用：读取 localStorage
- */
-export function getUserUid(): UserResourceUid | null {
-  const rawUserUid = window.localStorage.getItem(USER_UID_KEY)
-  if (isUserResourceUid(rawUserUid)) {
-    return rawUserUid.trim()
-  }
+// ═══ Token（cookie）═══
+export function getAccessToken(): string | null {
+  const cookie = getCookie(ACCESS_TOKEN_KEY)
+  if (cookie) return cookie
+  // 兼容旧 localStorage 数据迁移
+  const legacy = window.localStorage.getItem(LEGACY_ACCESS_TOKEN_KEY) ?? window.localStorage.getItem(ACCESS_TOKEN_KEY)
+  if (legacy) { setAccessToken(legacy); window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY); window.localStorage.removeItem(ACCESS_TOKEN_KEY); return legacy }
   return null
 }
 
-// 04）写入用户 uid（setUserUid）
-/**
- * 函数名：setUserUid
- * 功能：将登录响应中的 uid 持久化到本地存储。
- * 输入：
- * - uid：登录响应中的用户对外 uid
- * 输出：
- * - 返回值：void
- * - 副作用：写入 localStorage
- */
+export function setAccessToken(token: string): void {
+  if (!token) return
+  setCookie(ACCESS_TOKEN_KEY, token)
+  // 同时写入 localStorage 备份（注：仅作为迁移阶段的兼容，后续可移除）
+  window.localStorage.setItem(ACCESS_TOKEN_KEY, token)
+}
+
+export function getRefreshToken(): string | null {
+  const cookie = getCookie(REFRESH_TOKEN_KEY)
+  if (cookie) return cookie
+  const legacy = window.localStorage.getItem(LEGACY_REFRESH_TOKEN_KEY) ?? window.localStorage.getItem(REFRESH_TOKEN_KEY)
+  if (legacy) { setRefreshToken(legacy); window.localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY); window.localStorage.removeItem(REFRESH_TOKEN_KEY); return legacy }
+  return null
+}
+
+export function setRefreshToken(token: string): void {
+  if (!token) return
+  setCookie(REFRESH_TOKEN_KEY, token, 14)
+  window.localStorage.setItem(REFRESH_TOKEN_KEY, token)
+}
+
+export interface AuthTokenPair { accessToken: string; refreshToken: string }
+
+export function setAuthTokens(tokens: AuthTokenPair): void {
+  if (!tokens.accessToken || !tokens.refreshToken) return
+  setAccessToken(tokens.accessToken)
+  setRefreshToken(tokens.refreshToken)
+}
+
+// ═══ uid（localStorage）═══
+export function getUserUid(): UserResourceUid | null {
+  const raw = window.localStorage.getItem(USER_UID_KEY)
+  return isUserResourceUid(raw) ? raw.trim() : null
+}
+
 export function setUserUid(uid: UserResourceUid): void {
   if (!isUserResourceUid(uid)) return
   window.localStorage.setItem(USER_UID_KEY, uid.trim())
   window.localStorage.removeItem(LEGACY_USER_ID_KEY)
 }
 
-// 05）读取 accessToken（getAccessToken）
-/**
- * 函数名：getAccessToken
- * 功能：优先读取新键 access_token，并兼容迁移旧键 accessToken。
- * 输入：无
- * 输出：
- * - 返回值：accessToken | null
- * - 副作用：可能写入/删除 localStorage（旧键迁移）
- */
-export function getAccessToken(): string | null {
-  const latestAccessToken = window.localStorage.getItem(ACCESS_TOKEN_KEY)
-  if (latestAccessToken) return latestAccessToken
-  const legacyAccessToken = window.localStorage.getItem(LEGACY_ACCESS_TOKEN_KEY)
-  if (legacyAccessToken) {
-    window.localStorage.setItem(ACCESS_TOKEN_KEY, legacyAccessToken)
-    window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY)
-    return legacyAccessToken
-  }
-  return null
-}
-
-// 06）读取 refreshToken（getRefreshToken）
-/**
- * 函数名：getRefreshToken
- * 功能：优先读取新键 refresh_token，并兼容迁移旧键 refreshToken。
- * 输入：无
- * 输出：
- * - 返回值：refreshToken | null
- * - 副作用：可能写入/删除 localStorage（旧键迁移）
- */
-export function getRefreshToken(): string | null {
-  const latestRefreshToken = window.localStorage.getItem(REFRESH_TOKEN_KEY)
-  if (latestRefreshToken) return latestRefreshToken
-  const legacyRefreshToken = window.localStorage.getItem(LEGACY_REFRESH_TOKEN_KEY)
-  if (legacyRefreshToken) {
-    window.localStorage.setItem(REFRESH_TOKEN_KEY, legacyRefreshToken)
-    window.localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY)
-    return legacyRefreshToken
-  }
-  return null
-}
-
-// 07）写入认证令牌（setAuthTokens）
-/**
- * 函数名：setAuthTokens
- * 功能：将 accessToken 与 refreshToken 按新键写入本地存储。
- * 输入：
- * - tokens：认证令牌对象（accessToken、refreshToken）
- * 输出：
- * - 返回值：void
- * - 副作用：写入并清理 localStorage
- */
-export function setAuthTokens(tokens: AuthTokenPair): void {
-  if (!tokens.accessToken || !tokens.refreshToken) return
-  window.localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
-  window.localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
-  window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY)
-  window.localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY)
-}
-
-// 08）清理用户 uid（clearUserUid）
 export function clearUserUid(): void {
   window.localStorage.removeItem(USER_UID_KEY)
   window.localStorage.removeItem(LEGACY_USER_ID_KEY)
 }
 
-// 08.1）读取主体代码（getEntityCode）
+// ═══ avatarUrl（localStorage）═══
+export function getAvatarUrl(): string | null {
+  return window.localStorage.getItem(AVATAR_URL_KEY)?.trim() || null
+}
+
+export function setAvatarUrl(url: string | null | undefined): void {
+  const v = url?.trim() ?? ''
+  v ? window.localStorage.setItem(AVATAR_URL_KEY, v) : window.localStorage.removeItem(AVATAR_URL_KEY)
+}
+
+// ═══ logoUrl（localStorage，机构登录）═══
+export function getLogoUrl(): string | null {
+  return window.localStorage.getItem(LOGO_URL_KEY)?.trim() || null
+}
+
+export function setLogoUrl(url: string | null | undefined): void {
+  const v = url?.trim() ?? ''
+  v ? window.localStorage.setItem(LOGO_URL_KEY, v) : window.localStorage.removeItem(LOGO_URL_KEY)
+}
+
+// ═══ entity（localStorage）═══
 export function getEntityCode(): string | null {
-  const rawEntityCode = window.localStorage.getItem(ENTITY_CODE_KEY)
-  const normalizedEntityCode = rawEntityCode?.trim() ?? ''
-  return normalizedEntityCode.length > 0 ? normalizedEntityCode : null
+  const raw = window.localStorage.getItem(ENTITY_CODE_KEY)?.trim() ?? ''
+  return raw.length > 0 ? raw : null
 }
 
-// 08.2）写入主体代码（setEntityCode）
-export function setEntityCode(entityCode: string): void {
-  const normalizedEntityCode = entityCode.trim()
-  if (!normalizedEntityCode) return
-  window.localStorage.setItem(ENTITY_CODE_KEY, normalizedEntityCode)
+export function setEntityCode(code: string): void {
+  const v = code.trim(); if (v) window.localStorage.setItem(ENTITY_CODE_KEY, v)
 }
 
-// 08.3）读取主体名称（getEntityName）
 export function getEntityName(): string | null {
-  const rawEntityName = window.localStorage.getItem(ENTITY_NAME_KEY)
-  const normalizedEntityName = rawEntityName?.trim() ?? ''
-  return normalizedEntityName.length > 0 ? normalizedEntityName : null
+  const raw = window.localStorage.getItem(ENTITY_NAME_KEY)?.trim() ?? ''
+  return raw.length > 0 ? raw : null
 }
 
-// 08.4）写入主体名称（setEntityName）
-export function setEntityName(entityName: string | null | undefined): void {
-  const normalizedEntityName = entityName?.trim() ?? ''
-  if (!normalizedEntityName) {
-    window.localStorage.removeItem(ENTITY_NAME_KEY)
-    return
-  }
-  window.localStorage.setItem(ENTITY_NAME_KEY, normalizedEntityName)
+export function setEntityName(name: string | null | undefined): void {
+  const v = name?.trim() ?? ''
+  v ? window.localStorage.setItem(ENTITY_NAME_KEY, v) : window.localStorage.removeItem(ENTITY_NAME_KEY)
 }
 
-// 08.5）读取用户角色（getUserRole）
 export function getUserRole(): string | null {
-  const rawUserRole = window.localStorage.getItem(USER_ROLE_KEY)
-  const normalizedUserRole = rawUserRole?.trim() ?? ''
-  return normalizedUserRole.length > 0 ? normalizedUserRole : null
+  const raw = window.localStorage.getItem(USER_ROLE_KEY)?.trim() ?? ''
+  return raw.length > 0 ? raw : null
 }
 
-// 08.6）写入用户角色（setUserRole）
-export function setUserRole(userRole: string | null | undefined): void {
-  const normalizedUserRole = userRole?.trim() ?? ''
-  if (!normalizedUserRole) {
-    window.localStorage.removeItem(USER_ROLE_KEY)
-    return
-  }
-  window.localStorage.setItem(USER_ROLE_KEY, normalizedUserRole)
+export function setUserRole(role: string | null | undefined): void {
+  const v = role?.trim() ?? ''
+  v ? window.localStorage.setItem(USER_ROLE_KEY, v) : window.localStorage.removeItem(USER_ROLE_KEY)
 }
 
-// 08.7）清理主体会话扩展字段（clearOrganizationSessionMeta）
 export function clearEntitySession(): void {
   window.localStorage.removeItem(ENTITY_CODE_KEY)
   window.localStorage.removeItem(ENTITY_NAME_KEY)
@@ -177,33 +144,49 @@ export function clearOrganizationSessionMeta(): void {
   clearEntitySession()
 }
 
-// 08.8）读取/写入头像 URL（getAvatarUrl / setAvatarUrl）
-export function getAvatarUrl(): string | null {
-  const raw = window.localStorage.getItem(AVATAR_URL_KEY)?.trim()
-  return raw && raw.length > 0 ? raw : null
+// ═══ 菜单缓存（localStorage）═══
+export interface MenuCacheData {
+  uid: string
+  nickname: string
+  level: string | null
+  avatarUrl: string | null
+  verifiedOrganization: string | null
+  verifyStatus?: string | null
+  subtitle?: string | null
+  entityCode?: string | null
 }
 
-export function setAvatarUrl(url: string | null | undefined): void {
-  const normalized = url?.trim() ?? ''
-  if (!normalized) { window.localStorage.removeItem(AVATAR_URL_KEY); return }
-  window.localStorage.setItem(AVATAR_URL_KEY, normalized)
+export function getMenuCache(): MenuCacheData | null {
+  try {
+    const raw = window.localStorage.getItem(MENU_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.uid || !parsed?.nickname) return null
+    return parsed as MenuCacheData
+  } catch { return null }
 }
 
-// 09）清理认证令牌（clearAuthTokens）
-/**
- * 函数名：clearAuthTokens
- * 功能：清除所有认证会话键（token + uid），供退出登录或会话失效使用。
- * 输入：无
- * 输出：
- * - 返回值：void
- * - 副作用：删除 localStorage 项
- */
+export function setMenuCache(data: Partial<MenuCacheData> & { uid: string; nickname: string }): void {
+  const existing = getMenuCache()
+  const merged = { ...(existing ?? {}), ...data }
+  window.localStorage.setItem(MENU_CACHE_KEY, JSON.stringify(merged))
+}
+
+export function clearMenuCache(): void {
+  window.localStorage.removeItem(MENU_CACHE_KEY)
+}
+
+// ═══ 清理（退出登录）═══
 export function clearAuthTokens(): void {
+  removeCookie(ACCESS_TOKEN_KEY)
+  removeCookie(REFRESH_TOKEN_KEY)
   window.localStorage.removeItem(ACCESS_TOKEN_KEY)
   window.localStorage.removeItem(REFRESH_TOKEN_KEY)
   window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY)
   window.localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY)
   window.localStorage.removeItem(AVATAR_URL_KEY)
+  window.localStorage.removeItem(LOGO_URL_KEY)
+  clearMenuCache()
   clearUserUid()
   clearOrganizationSessionMeta()
 }

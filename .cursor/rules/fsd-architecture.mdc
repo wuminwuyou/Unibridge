@@ -1,0 +1,94 @@
+---
+description: FSD六层架构规范 — 控制分层、依赖方向与模块划分
+alwaysApply: true
+---
+
+# FSD 六层架构规范
+
+- 对于每个代码文件的重构，都需要进行一次读取扫描，理解代码后符合以下规则进行重构，严格遵守规范，
+
+## 一、依赖规则
+
+```
+app → pages → widgets → features → entities → shared
+```
+
+- 上层可依赖下层，**下层禁止依赖上层**
+- 同层之间**禁止互相导入**
+- 跨层导入须通过 `index.ts` 公开接口
+
+## 二、六层职责
+
+### `app/`
+**职责**：应用入口、全局 Provider、路由配置、全局样式。
+
+**包含**：`providers/`、`routes/`、`App.tsx`、`main.tsx`、`index.css`
+
+**禁止**：业务组件、API 请求、业务状态管理
+
+### `pages/`
+**职责**：极薄路由入口，组合 `widgets` 组装页面，**禁止任何业务逻辑**。
+
+**包含**：`pageName/index.tsx`（≤20行）
+
+**禁止**：`useState` 管理业务状态、`fetch`/`axios`、业务条件判断
+
+### `widgets/`
+**职责**：大型业务 UI 区块，提供完整用例上下文闭环。
+
+**判定标准**：是否包含"业务用例的上下文闭环"——组合多个 `entities`/`features` 形成独立功能块。
+
+**包含**：`components/`、`hooks/`、`types/`、`index.tsx`
+
+**禁止**：单个实体卡片（放 `entities`）、纯布局容器（放 `shared/ui`）
+
+### `features/`
+**职责**：可复用的用户交互动作（动词）。
+
+**包含**：`components/`、`hooks/`、`services/`、`types/`、`constants/`、`utils/`、`index.ts`
+
+**禁止**：纯展示组件（放 `entities`）、底层工具函数（放 `shared/lib`）
+
+### `entities/`
+**职责**：业务实体（名词）的纯展示、数据模型、API 函数。
+
+**包含**：`***Card.tsx`
+
+**内部结构**：
+- `ui/`：纯展示组件，交互通过 Props 回调传入，**禁止** `navigate` 或 API 调用
+- `model/`：类型定义、数据 Hook
+- `api/`：业务 API 函数
+
+**禁止**：跨实体导入、路由跳转逻辑、业务流程编排
+
+### `shared/`
+**职责**：与业务完全解耦的底层基础设施。
+
+**包含**：`api/http.ts`、`ui/`（通用组件）、`lib/`（纯函数）、`hooks/`、`types/`、`styles/`
+
+**禁止**：任何业务 API URL、业务常量、业务实体类型
+
+## 三、路径别名
+
+```typescript
+alias: {
+  '@app': '/src/app',
+  '@pages': '/src/pages',
+  '@widgets': '/src/widgets',
+  '@features': '/src/features',
+  '@entities': '/src/entities',
+  '@shared': '/src/shared',
+}
+```
+
+## 四、决策流程
+
+```
+新增代码：
+├── 与业务无关？ → shared/
+├── 是业务实体（名词）的展示/数据？ → entities/
+├── 是用户交互动作（动词）？ → features/
+├── 组合多个实体/功能形成完整用例区块？ → widgets/
+├── 是路由入口？ → pages/
+└── 是全局配置/入口？ → app/
+```

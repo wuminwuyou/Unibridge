@@ -96,3 +96,42 @@ export async function removeEntityProfileMember(body: RemoveEntityMemberRequest)
   try { await deleteApi<void>(`/entity-profile/member?entityCode=${encodeURIComponent(body.entityCode)}&uid=${encodeURIComponent(body.uid)}`) }
   catch (error) { if (error instanceof HttpApiError) throw new EntityProfileApiError(error.code, error.message); throw error }
 }
+
+// 16）机构空间下检索可加人员（searchEntityProfileUsers）
+/**
+ * 函数名：searchEntityProfileUsers
+ * 功能：在机构空间「管理实验室」与「人员管理」表单中按关键词搜索可关联用户。
+ * 实现方法：
+ * - 调用 /entity-profile/user-search?keyword=
+ * - 透传 UserPublicPreviewDto 列表，便于上层下拉候选展示
+ * 输入：
+ * - keyword：模糊搜索关键词（UID / 昵称 / 姓名）
+ * 输出：
+ * - 返回值：Array<{ uid, nickname, realName, avatarUrl }>
+ * - 副作用：发起网络请求
+ */
+export async function searchEntityProfileUsers(
+  keyword: string,
+): Promise<Array<{ uid: string; nickname: string; realName: string | null; avatarUrl: string | null }>> {
+  const searchParams = new URLSearchParams()
+  searchParams.set('keyword', keyword.trim())
+  try {
+    const data = await getApi<Record<string, unknown>>(`/entity-profile/user-search?${searchParams.toString()}`)
+    const users = Array.isArray(data) ? data : Array.isArray(data.users) ? data.users : []
+    return (users as Array<Record<string, unknown>>).map((raw) => {
+      const realNameRaw = raw.realName ?? raw.real_name
+      return {
+        uid: typeof raw.uid === 'string' ? raw.uid : '',
+        nickname: typeof raw.nickname === 'string' ? raw.nickname.trim() : '',
+        realName:
+          typeof realNameRaw === 'string' && realNameRaw.trim().length > 0
+            ? realNameRaw.trim()
+            : null,
+        avatarUrl: typeof raw.avatarUrl === 'string' ? raw.avatarUrl : null,
+      }
+    })
+  } catch (error) {
+    if (error instanceof HttpApiError) throw new EntityProfileApiError(error.code, error.message)
+    throw error
+  }
+}

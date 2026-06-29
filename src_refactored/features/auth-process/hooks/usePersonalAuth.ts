@@ -104,7 +104,16 @@ export function usePersonalAuth(
         const data = personalLoginMode === 'password'
           ? await loginPersonalByPassword({ account: phone, password: hashPassword(code), rememberMe, channel })
           : await loginPersonalBySms({ account: phone, smsCode: code, rememberMe })
-        commitAuthLogin({ accessToken: data.accessToken, refreshToken: data.refreshToken, userProfile: { uid: data.uid, userRole: data.userRole, authStatus: data.authStatus, avatarUrl: data.avatarUrl ?? null } })
+        commitAuthLogin({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          userProfile: {
+            uid: data.uid,
+            userRole: data.userRole,
+            authStatus: data.authStatus,
+            avatarUrl: data.avatarUrl ?? null,
+          },
+        })
         onSuccess?.(data.userRole, data.authStatus); onClose()
         window.location.reload()
       } catch (e) { setAuthErrorMessage(mapAuthApiErrorMessage(e, '登录失败')) }
@@ -141,7 +150,16 @@ export function usePersonalAuth(
         setRegisterHintMessage(''); setAuthErrorMessage(''); setIsSubmitting(true)
         const channel = resolveChannelByAccount(a)
         const data = await registerPersonalAccount({ account: a, password: hashPassword(p), confirmPassword: hashPassword(cp), verifyCode: vc, channel })
-        commitAuthLogin({ accessToken: data.accessToken, refreshToken: data.refreshToken, userProfile: { uid: data.uid, userRole: data.userRole, authStatus: data.authStatus, avatarUrl: data.avatarUrl ?? null } })
+        commitAuthLogin({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          userProfile: {
+            uid: data.uid,
+            userRole: data.userRole,
+            authStatus: data.authStatus,
+            avatarUrl: data.avatarUrl ?? null,
+          },
+        })
         onSuccess?.(data.userRole, data.authStatus); onClose()
         window.location.reload()
       } catch (e) { setRegisterHintMessage(mapAuthApiErrorMessage(e, '注册失败')) }

@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useAuth } from '../../shared/hooks/useAuth'
 import { isOrganizationAdminRole } from '../../shared/lib/organizationSession'
 import {
-  BadgeCheck, BookOpenText, FolderKanban, MessageCircleMore,
+  BookOpenText, FolderKanban, MessageCircleMore,
   Send, Star, UserRound, Building2, type LucideIcon,
 } from 'lucide-react'
 
@@ -12,7 +12,6 @@ export type ProfileMenuChannel = 'personal' | 'organization'
 export interface ProfileMenuViewData {
   channel: ProfileMenuChannel
   title: string; subtitle: string | null
-  avatarUrl: string | null; avatarText: string
   level: string | null; verifyStatus: string | null
   verifiedOrganization: string | null; entityCode: string | null
   boundAdminCount: number | null; minAdminCount: number | null
@@ -45,8 +44,6 @@ export function ProfileMenuProvider({ children }: { children: ReactNode }) {
       channel: channel ?? 'personal',
       title: isOrg ? entityName ?? '机构' : (userProfile?.uid ?? '用户'),
       subtitle: isOrg ? null : null,
-      avatarUrl: null,
-      avatarText: isOrg ? entityName?.slice(0, 1) ?? '机' : (userProfile?.uid ?? 'U').slice(0, 1),
       level: null,
       verifyStatus: userProfile?.verifyStatus ?? null,
       verifiedOrganization: userProfile?.verifiedOrganization ?? null,

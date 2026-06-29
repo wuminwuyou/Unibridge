@@ -2,11 +2,16 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "esnext",
-    "types": ["vite/client"],
+    "types": [
+      "vite/client"
+    ],
     "skipLibCheck": true,
-
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
@@ -14,18 +19,39 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-
     /* Path aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src_refactored/*"]
+      "@/*": [
+        "src_refactored/*"
+      ],
+      "@app/*": [
+        "src_refactored/app/*"
+      ],
+      "@pages/*": [
+        "src_refactored/pages/*"
+      ],
+      "@widgets/*": [
+        "src_refactored/widgets/*"
+      ],
+      "@features/*": [
+        "src_refactored/features/*"
+      ],
+      "@entities/*": [
+        "src_refactored/entities/*"
+      ],
+      "@shared/*": [
+        "src_refactored/shared/*"
+      ]
     }
   },
-  "include": ["src", "src_refactored"]
+  "include": [
+    "src",
+    "src_refactored"
+  ]
 }

@@ -31,6 +31,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, sourceRoot),
+      '@app': path.resolve(__dirname, sourceRoot, 'app'),
+      '@pages': path.resolve(__dirname, sourceRoot, 'pages'),
+      '@widgets': path.resolve(__dirname, sourceRoot, 'widgets'),
+      '@features': path.resolve(__dirname, sourceRoot, 'features'),
+      '@entities': path.resolve(__dirname, sourceRoot, 'entities'),
+      '@shared': path.resolve(__dirname, sourceRoot, 'shared'),
     },
   },
   optimizeDeps: {

@@ -1,7 +1,7 @@
 import type { NoteResourceUid, TeamResourceUid, UserResourceUid } from '../../../shared/api/resourceUid'
 
-// 01）团队成员角色（TeamMemberRole）
-export type TeamMemberRole = 'LEADER' | 'MEMBER'
+// 01）团队成员角色（TeamMemberRole）— 与 entities/member 保持一致
+export type TeamMemberRole = 'LEADER' | 'MEMBER' | 'MENTOR'
 
 // 02）团队资料核心档案 DTO（TeamProfileCoreProfileDto）
 export interface TeamProfileCoreProfileDto {
@@ -76,7 +76,10 @@ export interface TeamProfileAchievementsData {
 
 // 14）成员更新项（TeamProfileMemberUpdateDto）
 export interface TeamProfileMemberUpdateDto {
-  uid: UserResourceUid; career?: string | null; role?: TeamMemberRole
+  uid: UserResourceUid
+  career?: string | null
+  role?: TeamMemberRole
+  isAdmin?: boolean
 }
 
 // 15）成员添加项（TeamProfileMemberAdditionDto）

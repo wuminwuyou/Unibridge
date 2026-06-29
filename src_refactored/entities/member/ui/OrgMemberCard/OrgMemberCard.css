@@ -1,0 +1,73 @@
+/* 01）机构人员卡片（复用 MemberCard 结构但使用独立 class） */
+.org-member-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--profile-member-card-max-width, 280px);
+  min-height: var(--profile-member-card-height, 72px);
+  border: 1px solid var(--profile-card-border);
+  border-radius: 14px;
+  background: var(--profile-card-bg);
+  padding: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: default;
+}
+
+a.org-member-card.org-member-card--linkable {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+a.org-member-card.org-member-card--linkable:hover {
+  border-color: color-mix(in srgb, var(--profile-tab-active) 45%, var(--profile-card-border));
+  box-shadow: var(--profile-card-shadow);
+}
+
+.org-member-card__avatar {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e2e8f0;
+}
+
+.org-member-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.org-member-card__name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.org-member-card__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--profile-text);
+}
+
+.org-member-card__role {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--profile-side-muted);
+}
+
+.org-member-card__role-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.org-member-card__role-text {
+  color: var(--profile-side-muted);
+}

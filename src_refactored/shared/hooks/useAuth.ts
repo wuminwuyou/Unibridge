@@ -12,6 +12,7 @@ export interface AuthUserProfile {
   entityCode?: string
   entityName?: string | null
   avatarUrl?: string | null
+  logoUrl?: string | null
 }
 
 // 03）认证状态类型定义（AuthState）
@@ -35,6 +36,11 @@ export interface AuthContextValue extends AuthState {
   login: (payload: AuthLoginPayload) => void
   updateTokens: (accessToken: string, refreshToken: string) => void
   logout: () => void
+  /** 全量替换用户档案 */
+  setUser: (profile: AuthUserProfile | null) => void
+  /** 局部更新用户档案（登录成功后更新 avatarUrl 等） */
+  updateUser: (patch: Partial<AuthUserProfile>) => void
+  /** @deprecated 请使用 setUser */
   setUserProfile: (profile: AuthUserProfile | null) => void
 }
 

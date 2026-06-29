@@ -62,14 +62,11 @@
 .notify-button:hover { transform: translateY(-1px) scale(1.04); border-color: color-mix(in srgb, #6fa8ff 45%, var(--line-color)); box-shadow: 0 5px 14px rgba(74,140,255,0.24); }
 .notify-button:active { transform: scale(0.92); }
 .notify-button__glow { position: absolute; inset: -28%; border-radius: 50%; opacity: 0.3; transform: scale(0.9); background: radial-gradient(circle, rgba(118,176,255,0.75) 0%, rgba(118,176,255,0) 72%); transition: transform 0.35s ease, opacity 0.35s ease; }
-.notify-button__icon { position: relative; z-index: 1; animation: notify-icon-pop 0.36s ease; }
+.notify-button__icon { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; animation: notify-icon-pop 0.36s ease; }
 .notify-button:hover .notify-button__glow { opacity: 0.52; transform: scale(1.08); }
 
 /* 08）用户头像按钮 */
-.user-button { width: 44px; height: 44px; padding: 0; border-radius: 999px; position: relative; z-index: 2; border: none; background: none; cursor: pointer; }
-.user-avatar { width: 100%; height: 100%; border-radius: 50%; }
-.user-avatar--fallback { display: grid; place-items: center; color: #ffffff; font-size: 14px; font-weight: 600; background: linear-gradient(135deg, #7ca7ff, #5f86d9); }
-.user-avatar--image { display: block; object-fit: cover; border: 1px solid rgba(163,190,255,0.35); background: color-mix(in srgb, #7ca7ff 34%, transparent); }
+.user-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; border-radius: 999px; position: relative; z-index: 2; border: none; background: none; cursor: pointer; overflow: hidden; }
 
 /* 09）用户菜单面板 */
 .user-menu { position: relative; }

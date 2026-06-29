@@ -81,12 +81,14 @@ export function useOrgAuth(
   const isTotpQrExpired = totpQrCountdownSec <= 0 && totpQrDataUrl != null && !isTotpQrLoading
 
   // ── 构建主体档案 ──
-  const buildOrgProfile = (lp: { uid?: string; userRole?: string; authStatus?: string }): AuthUserProfile => ({
+  const buildOrgProfile = (lp: { uid?: string; userRole?: string; authStatus?: string; avatarUrl?: string | null; logoUrl?: string | null }): AuthUserProfile => ({
     uid: lp.uid || orgSelectedAdminUid || undefined,
     userRole: lp.userRole ?? 'organization-admin',
     authStatus: lp.authStatus,
     entityCode: orgCode.trim(),
     entityName: orgEntityName,
+    avatarUrl: lp.avatarUrl ?? null,
+    logoUrl: lp.logoUrl ?? null,
   })
 
   function applyChallenge(cd: OrganizationCredentialChallengeData): void {

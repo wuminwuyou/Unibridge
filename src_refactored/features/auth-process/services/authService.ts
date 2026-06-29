@@ -14,7 +14,7 @@ async function postAuthApi<TPayload extends object, TData>(path: string, payload
 export type AuthChannel = 'sms' | 'email'
 export type AuthUserRole = 'student' | 'mentor' | 'pm' | 'counselor' | 'organization-admin'
 
-export interface TokenAuthData { uid: UserResourceUid; userRole: AuthUserRole; authStatus: string; accessToken: string; refreshToken: string; expiresIn?: number; avatarUrl?: string | null }
+export interface TokenAuthData { uid: UserResourceUid; userRole: AuthUserRole; authStatus: string; accessToken: string; refreshToken: string; expiresIn?: number; avatarUrl?: string | null; logoUrl?: string | null }
 
 export interface PersonalPasswordLoginRequest { account: string; password: string; rememberMe: boolean; channel: AuthChannel }
 export interface PersonalSmsLoginRequest { account: string; smsCode: string; rememberMe: boolean }
