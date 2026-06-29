@@ -15,6 +15,7 @@ import { isOrganizationAdminRole, isCounselorRole } from '../../shared/lib/organ
 import { getAccessToken, getRefreshToken } from '../../shared/lib/tokenStorage'
 import { logoutByTokens } from '../../features/auth-process/services/authService'
 import { resolveActiveNavByPathname, navRouteItems, mainNavItemLabels } from './navRoutes'
+import { createPublishEntryFreshLocationState } from '../../shared/lib/publishEntryNavigation'
 import AuthModal from '../../widgets/auth-modal'
 
 // 02）品牌区视图（BrandGroup）
@@ -113,7 +114,11 @@ function TopNavbar() {
     if (type === 'code-generate') { setIsCodeGenerateModalOpen(true); return }
     if (type === 'code-manage') { setIsCodeManageModalOpen(true); return }
     const opt = publishEntryMenuOptions.find(o => o.type === type)
-    if (opt?.path) navigate(opt.path)
+    if (opt?.path) {
+      // 从顶栏「发布」菜单进入时携带 fresh 标记，让发布页 remount 空表单
+      // Phase 2: 将在此补充 clearPublishProjectSession + clearProjectDetailPreview
+      navigate(opt.path, { state: createPublishEntryFreshLocationState() })
+    }
   }, [navigate])
 
   const handleLogout = useCallback(() => {

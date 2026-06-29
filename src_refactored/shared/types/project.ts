@@ -1,10 +1,13 @@
 import type { LevelCode } from './level'
 import type { ProjectResourceUid } from '../api/resourceUid'
 
-// 01）项目分类（ProjectCategory）- 对应 project.category
+// 01）高校招募子类型（CampusRecruitType）— 发布表单与 ProjectDetail 共用
+export type CampusRecruitType = 'LAB_RECRUIT' | 'TEAM_RECRUIT' | 'PERSONAL_RECRUIT'
+
+// 02）项目分类（ProjectCategory）- 对应 project.category
 export type ProjectCategory = 'COMMERCIAL' | 'RECRUITMENT'
 
-// 02）招募子类型（ProjectRecruitmentType）- 对应 project.recruitment_type
+// 03）招募子类型（ProjectRecruitmentType）- 对应 project.recruitment_type
 export type ProjectRecruitmentType =
   | 'LAB_RECRUIT'
   | 'TEAM_RECRUIT'

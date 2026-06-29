@@ -34,6 +34,7 @@ design.md
 # 重构项目副产物
 project.md
 Refactoring.md
+re*.md
 
 # 重构前旧项目源码
 src/
