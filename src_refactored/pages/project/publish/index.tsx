@@ -1,5 +1,5 @@
 // 01）发布项目页（PublishProjectPage）
-import TopNavbar from '../../widgets/top-navbar'
+import TopNavbar from '@widgets/top-navbar'
 
 function PublishProjectPage() {
   return <>

@@ -1,6 +1,6 @@
 // 01）项目详情页（ProjectDetailPage）
-import TopNavbar from '../../widgets/top-navbar'
-import ProjectDetailWidget from '../../widgets/project-detail'
+import TopNavbar from '@widgets/top-navbar'
+import ProjectDetailWidget from '@widgets/project-detail'
 
 function ProjectDetailPage() {
   return <>

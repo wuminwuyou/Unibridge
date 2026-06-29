@@ -1,6 +1,6 @@
 // 01）高校共创页（CampusCoCreation）
-import TopNavbar from '../../widgets/top-navbar'
-import ProjectChannelWidget from '../../widgets/project-channel'
+import TopNavbar from '@widgets/top-navbar'
+import ProjectChannelWidget from '@widgets/project-channel'
 
 function CampusCoCreationPage() {
   return <>

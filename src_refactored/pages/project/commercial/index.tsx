@@ -1,6 +1,6 @@
 // 01）企业实战频道页（CommercialProjects）
-import TopNavbar from '../../../widgets/top-navbar'
-import ProjectChannelWidget from '../../../widgets/project-channel'
+import TopNavbar from '@widgets/top-navbar'
+import ProjectChannelWidget from '@widgets/project-channel'
 
 function CommercialProjectsPage() {
   return <>

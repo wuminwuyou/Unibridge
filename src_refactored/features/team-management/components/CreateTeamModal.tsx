@@ -11,7 +11,7 @@ import {
   getUserVerifiedPreview, UserApiError,
 } from '@entities/user/api/userApi'
 import type { UserVerifiedPreviewDto } from '@entities/user/model/types'
-import { buildTeamSpacePath } from '@widgets/profile-space/lib/teamTabRouting'
+import { buildTeamSpacePath } from '@features/profile-space/lib/routing/teamTabRouting'
 
 // 02）Props（CreateTeamModalProps）
 interface CreateTeamModalProps {

@@ -1,6 +1,0 @@
-/* 01）空间成果列表 */
-.profile-space-achievement-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
