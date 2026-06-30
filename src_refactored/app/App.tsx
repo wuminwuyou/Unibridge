@@ -7,6 +7,7 @@ import {
   RedirectNotePublishToNotesCreate,
   RedirectNoteToNotes,
 } from './routes/legacyNoteRedirects'
+import { LegacyProjectDetailEntry } from './routes/legacyProjectRedirects'
 
 const HomePage = lazy(() => import('../pages/home/index'))
 const CommercialProjectsPage = lazy(() => import('@pages/project/commercial/index'))
@@ -47,6 +48,9 @@ const appRouter = createBrowserRouter([
   { path: '/projects/campus', element: <Suspensed><CampusCoCreationPage /></Suspensed> },
   { path: '/projects/:id', element: <Suspensed><ProtectedRoute><ProjectDetailPage /></ProtectedRoute></Suspensed> },
   { path: '/projects', element: <Suspensed><CommercialProjectsPage /></Suspensed> },
+
+  // 项目（旧路径重定向）
+  { path: '/project-detail', element: <Suspensed><LegacyProjectDetailEntry /></Suspensed> },
 
   // 笔记（新规范）
   { path: '/notes/create', element: <Suspensed><ProtectedRoute><PublishNotePage /></ProtectedRoute></Suspensed> },

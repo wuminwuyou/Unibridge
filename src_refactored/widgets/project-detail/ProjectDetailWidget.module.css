@@ -1,0 +1,56 @@
+/* 01）项目详情 Widget 层布局样式（从 ProjectDetailPage.css 迁移，仅桌面端，不含 @media） */
+
+.page {
+  min-height: 100vh;
+  background: var(--page-bg);
+  color: var(--text-main);
+  padding: 1.5rem 15% 3rem;
+}
+
+.pageEditorial {
+  min-height: 100vh;
+  --detail-sticky-top: 1.5rem;
+}
+
+.page:not(.pageEditorial) {
+  --detail-sticky-top: 6rem;
+}
+
+.shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.layout {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 280px minmax(0, 1fr);
+  align-items: start;
+  min-width: 0;
+}
+
+.main {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.sidebar {
+  align-self: start;
+  min-width: 0;
+}
+
+@media (min-width: 901px) {
+  .sidebar {
+    position: sticky;
+    top: var(--detail-sticky-top, 6rem);
+    z-index: 10;
+  }
+}
+
+.content {
+  min-height: 8rem;
+  min-width: 0;
+  max-width: 100%;
+}

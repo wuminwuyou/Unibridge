@@ -1,6 +1,6 @@
 // 01）顶部导航 Widget（top-navbar）
 import './style.css'
-import { useLocation, useNavigate, NavLink } from 'react-router-dom'
+import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useAuth } from '../../shared/hooks/useAuth'
 import { useTheme } from '../../shared/hooks/useTheme'
@@ -40,7 +40,7 @@ function NavMenu({ navItems, activeNavItem }: { navItems: string[]; activeNavIte
       {navItems.map((item) => {
         const route = navRouteItems.find(r => r.label === item)
         const cls = `top-nav__item ${item === activeNavItem ? 'active' : ''}`
-        if (route) return <NavLink key={item} className={cls} to={route.path}>{item}</NavLink>
+        if (route) return <Link key={item} className={cls} to={route.path}>{item}</Link>
         return <button key={item} className={cls} type="button">{item}</button>
       })}
     </nav>

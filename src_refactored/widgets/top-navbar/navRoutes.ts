@@ -13,12 +13,21 @@ export const navRouteItems: NavRouteItem[] = [
 
 export const mainNavItemLabels: string[] = navRouteItems.map(r => r.label)
 
+/**
+ * 函数名：resolveActiveNavByPathname
+ * 功能：根据当前 pathname 解析主导航栏应高亮的菜单项标签。
+ * 实现方法：
+ * - 在 navRouteItems 中做路径完全匹配
+ * - 兼容旧笔记路径在重定向前短暂高亮
+ * 输入：
+ * - pathname：当前路由路径
+ * 输出：
+ * - 返回值：匹配到的导航标签，无匹配时返回空字符串
+ * - 副作用：无
+ */
 export function resolveActiveNavByPathname(pathname: string): string {
   const exact = navRouteItems.find(r => r.path === pathname)
   if (exact) return exact.label
-  if (pathname === PROJECTS_CAMPUS_PATH) return '校园'
-  if (pathname.startsWith('/projects')) return '项目'
-  if (pathname.startsWith('/notes')) return '笔记'
   // 旧路径重定向前短暂命中
   if (pathname === '/note' || pathname.startsWith('/note/') || pathname === '/publish/note' || pathname === '/note-detail') {
     return '笔记'
