@@ -1,6 +1,6 @@
-// 01）发布项目表单 Widget Hook（usePublishProjectFormWidget）
+// 01）发布项目 Widget Hook（useProjectPublishWidget）
 /**
- * 函数名：usePublishProjectFormWidget
+ * 函数名：useProjectPublishWidget
  * 功能：管理发布项目表单的全部 state 与副作用——草稿/预览/发布、session 持久化、离开拦截。
  * 实现方法：
  * - 从 features/project-publish 导入所有 service/session/constants
@@ -46,11 +46,11 @@ function syncDraftDescription(draft: PublishProjectFormDraft, descriptionContent
 // 03）提交成功后的跳转方式（SubmitProjectSuccessMode）
 type SubmitProjectSuccessMode = 'detail' | 'preview'
 
-// 04）发布项目表单 Hook 返回值（PublishProjectFormWidgetModel）
-export type PublishProjectFormWidgetModel = ReturnType<typeof usePublishProjectFormWidget>
+// 04）发布项目 Widget Hook 返回值（ProjectPublishWidgetModel）
+export type ProjectPublishWidgetModel = ReturnType<typeof useProjectPublishWidget>
 
-// 05）usePublishProjectFormWidget
-export function usePublishProjectFormWidget() {
+// 05）useProjectPublishWidget
+export function useProjectPublishWidget() {
   const navigate = useNavigate()
   const initialSessionRef = useRef(loadPublishProjectSession())
   const skipClearSessionRef = useRef(false)

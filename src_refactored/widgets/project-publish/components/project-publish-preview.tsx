@@ -1,10 +1,10 @@
-// 01）发布项目预览 Widget（PublishProjectPreviewWidget）
+// 01）发布项目预览（ProjectPublishPreview）
 // 组合 entities ProjectPreviewCard + shared/ui/Checklist
 import { ProjectPreviewCard } from '@entities/project/ui/ProjectPreviewCard'
 import { ChecklistItem } from '@shared/ui/Checklist'
-import styles from './PublishProjectPreviewWidget.module.css'
+import styles from './project-publish-preview.module.css'
 
-export interface PublishProjectPreviewWidgetProps {
+export interface ProjectPublishPreviewProps {
   badge: string
   title: string
   summary: string
@@ -14,7 +14,7 @@ export interface PublishProjectPreviewWidgetProps {
   checklistItems: string[]
 }
 
-export function PublishProjectPreviewWidget({
+export function ProjectPublishPreview({
   badge,
   title,
   summary,
@@ -22,7 +22,7 @@ export function PublishProjectPreviewWidget({
   level,
   tags,
   checklistItems,
-}: PublishProjectPreviewWidgetProps) {
+}: ProjectPublishPreviewProps) {
   return (
     <aside className={styles.aside}>
       <ProjectPreviewCard

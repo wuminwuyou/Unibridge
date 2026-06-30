@@ -18,7 +18,7 @@ export interface DescriptionEditorProps {
   required?: boolean
 }
 
-export function DescriptionEditor({ value, onChange, maxLength = 20000 }: DescriptionEditorProps) {
+export function DescriptionEditor({ value, onChange, maxLength = 500 }: DescriptionEditorProps) {
   return (
     <div className={styles.root}>
       <div className={styles.editorShell}>
@@ -26,6 +26,7 @@ export function DescriptionEditor({ value, onChange, maxLength = 20000 }: Descri
           value={value}
           onChange={onChange}
           maxLength={maxLength}
+          allowMarkdownFileUpload
           placeholder="请输入项目需求说明，支持 Markdown 语法..."
         />
       </div>

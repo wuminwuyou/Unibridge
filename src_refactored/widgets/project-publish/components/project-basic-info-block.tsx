@@ -2,7 +2,7 @@
 // 组合 FormSectionCard + 标题/摘要表单字段 + features ChannelPicker slot
 import { FolderKanban } from 'lucide-react'
 import { FormSectionCard } from '@shared/ui/FormSectionCard'
-import { ProjectTitleField, ProjectSummaryField } from '@features/project-publish/components/ProjectFormFields'
+import { ProjectTitleField, ProjectSummaryField } from '@features/project-publish'
 import type { ReactNode } from 'react'
 
 export interface ProjectBasicInfoBlockProps {

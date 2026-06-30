@@ -81,7 +81,55 @@ alias: {
 }
 ```
 
-## 四、决策流程
+## 四、文件命名原则
+
+### 4.1 Slice 目录：领域-功能（kebab-case）平铺
+
+各层 slice 目录采用 **`{领域}-{功能}`** 格式，使用 **kebab-case**，在所属层内 **平铺** 存放，禁止嵌套多层业务目录。
+
+| 层 | 命名格式 | 示例 |
+|----|----------|------|
+| `pages/` | `{领域}/{功能}` | `project/publish/`、`note/share/` |
+| `widgets/` | `{领域}-{功能}` | `project-publish/`、`note-detail/`、`top-navbar/` |
+| `features/` | `{领域}-{功能}` | `project-publish/`、`note-annotation/`、`feed-filter/` |
+| `entities/` | `{领域}`（单数名词） | `project/`、`note/`、`user/` |
+
+**规则：**
+- 领域在前、功能在后，与路由语义保持一致（如路由 `/project/publish` → widget `project-publish`）
+- 同一用例的 widget / feature 共用同一 slice 名（如 `project-publish`），widget 负责组装、feature 负责交互
+- **禁止** 将同一用例拆成多个 widget slice（如 ~~`publish-project-form`~~、~~`publish-project-footer`~~），应合并为一个 slice，内部用 `components/` 拆分
+
+### 4.2 Slice 内部结构
+
+```
+{layer}/{domain-feature}/
+├── index.ts              # 对外公开接口（必须）
+├── hooks/                # 编排 Hook（widgets 层）
+├── components/           # 子部件（kebab-case 文件名）
+│   ├── {domain}-{part}.tsx
+│   ├── {domain}-{part}.module.css
+│   └── index.ts          # 子部件聚合导出
+├── model/ | services/ | lib/ | constants/   # 按层职责选用
+└── {domain}-{layout}.module.css             # slice 级布局样式（如有）
+```
+
+### 4.3 文件命名
+
+| 类型 | 命名 | 示例 |
+|------|------|------|
+| slice 目录 | kebab-case，领域-功能 | `project-publish/` |
+| 组件文件 | kebab-case | `project-publish-form.tsx` |
+| 组件导出名 | PascalCase | `ProjectPublishForm` |
+| Hook 文件 | camelCase，use 前缀 | `useProjectPublishWidget.ts` |
+| 样式文件 | 与组件同名 `.module.css` | `project-publish-form.module.css` |
+| 公开接口 | `index.ts` | 每层 slice 必须有 |
+
+### 4.4 导入规范
+
+- 跨 slice 引用：**仅通过** `{slice}/index.ts` 公开接口
+- 禁止 `@widgets/project-publish/components/project-publish-form` 等深层路径（slice 内部除外）
+
+## 五、决策流程
 
 ```
 新增代码：

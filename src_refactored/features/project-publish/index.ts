@@ -17,16 +17,22 @@ export {
   ProjectSummaryField,
   ProjectAmountField,
   ProjectLevelField,
-} from './components/ProjectFormFields'
+  ProjectDurationField,
+  ProjectTeamSizeField,
+  ProjectDeadlineField,
+} from './components/fields'
 
-export { ChannelPicker } from './components/ChannelPicker'
-export type { ChannelPickerProps } from './components/ChannelPicker'
+export type {
+  ProjectDurationFieldProps,
+  ProjectTeamSizeFieldProps,
+  ProjectDeadlineFieldProps,
+} from './components/fields'
 
-export { SkillTagsEditor } from './components/SkillTagsEditor'
-export type { SkillTagsEditorProps } from './components/SkillTagsEditor'
+export { ChannelPicker, CampusRecruitOptionCard } from './components/pickers'
+export type { ChannelPickerProps, CampusRecruitOptionCardProps } from './components/pickers'
 
-export { DescriptionEditor } from './components/DescriptionEditor'
-export type { DescriptionEditorProps } from './components/DescriptionEditor'
+export { SkillTagsEditor, DescriptionEditor } from './components/editors'
+export type { SkillTagsEditorProps, DescriptionEditorProps } from './components/editors'
 
 export {
   loadPublishProjectSession,

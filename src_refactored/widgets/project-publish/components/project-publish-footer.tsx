@@ -1,9 +1,9 @@
-// 01）发布项目底部操作栏 Widget（PublishProjectFooterWidget）
+// 01）发布项目底部操作栏（ProjectPublishFooter）
 // 保存草稿 / 预览 / 发布 三个按钮 + 提交状态提示
 import InfoPromptModal from '@shared/ui/InfoPromptModal'
-import styles from './PublishProjectFooterWidget.module.css'
+import styles from './project-publish-footer.module.css'
 
-export interface PublishProjectFooterWidgetProps {
+export interface ProjectPublishFooterProps {
   submitError: string | null
   isSubmitting: boolean
   leavePromptOpen: boolean
@@ -15,7 +15,7 @@ export interface PublishProjectFooterWidgetProps {
   onCancelLeave: () => void
 }
 
-export function PublishProjectFooterWidget({
+export function ProjectPublishFooter({
   submitError,
   isSubmitting,
   leavePromptOpen,
@@ -25,7 +25,7 @@ export function PublishProjectFooterWidget({
   onPublish,
   onConfirmLeave,
   onCancelLeave,
-}: PublishProjectFooterWidgetProps) {
+}: ProjectPublishFooterProps) {
   return (
     <>
       <footer className={styles.footer}>

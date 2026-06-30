@@ -49,11 +49,11 @@ const appRouter = createBrowserRouter([
   { path: '/org/:orgTab', element: <Suspensed><OrganizationProfilePage /></Suspensed> },
   { path: '/verify/organization', element: <Suspensed><ProtectedRoute><OrganizationVerificationPage /></ProtectedRoute></Suspensed> },
   { path: '/verify', element: <Suspensed><ProtectedRoute><OrganizationVerificationPage /></ProtectedRoute></Suspensed> },
-  { path: '/project-detail', element: <Suspensed><ProtectedRoute><ProjectDetailPage /></ProtectedRoute></Suspensed> },
-  { path: '/note-detail', element: <Suspensed><NoteReaderPage /></Suspensed> },
+  { path: '/project/detail', element: <Suspensed><ProtectedRoute><ProjectDetailPage /></ProtectedRoute></Suspensed> },
+  { path: '/note/detail', element: <Suspensed><NoteReaderPage /></Suspensed> },
   { path: '/messages', element: <Suspensed><ProtectedRoute><InstantMessagePage /></ProtectedRoute></Suspensed> },
-  { path: '/publish/project', element: <Suspensed><ProtectedRoute><PublishProjectPage /></ProtectedRoute></Suspensed> },
-  { path: '/publish/note', element: <Suspensed><ProtectedRoute><PublishNotePage /></ProtectedRoute></Suspensed> },
+  { path: '/project/publish', element: <Suspensed><ProtectedRoute><PublishProjectPage /></ProtectedRoute></Suspensed> },
+  { path: '/note/publish', element: <Suspensed><ProtectedRoute><PublishNotePage /></ProtectedRoute></Suspensed> },
   { path: '*', element: <Suspensed><NotFoundPage /></Suspensed> },
 ])
 

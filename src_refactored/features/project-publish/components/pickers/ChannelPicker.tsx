@@ -13,7 +13,7 @@
  */
 import { ChannelOptionCard } from '@entities/project/ui/ChannelOptionCard'
 import { CampusRecruitOptionCard } from './CampusRecruitOptionCard'
-import { publishChannelOptions, campusRecruitOptions } from '../constants/publishOptions'
+import { publishChannelOptions, campusRecruitOptions } from '../../constants/publishOptions'
 import type { CampusRecruitType } from '@shared/types/project'
 import styles from './ChannelPicker.module.css'
 

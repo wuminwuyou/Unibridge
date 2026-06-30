@@ -1,23 +1,23 @@
-// 01）发布项目表单 Widget（PublishProjectFormWidget）
-// 组装三个 Block + features 交互组件 + 返回链接 + 完成度显示
-import { ProjectBasicInfoBlock } from '@widgets/publish-project/components/ProjectBasicInfoBlock'
-import { ProjectDetailBlock } from '@widgets/publish-project/components/ProjectDetailBlock'
-import { ProjectCooperationBlock } from '@widgets/publish-project/components/ProjectCooperationBlock'
+// 01）发布项目表单（ProjectPublishForm）
+// 组装三个 Block + features 交互组件
+import { ProjectBasicInfoBlock } from './project-basic-info-block'
+import { ProjectDetailBlock } from './project-detail-block'
+import { ProjectCooperationBlock } from './project-cooperation-block'
 import {
   ProjectAmountField,
   ProjectLevelField,
-} from '@features/project-publish/components/ProjectFormFields'
-import ProjectDurationField from '@features/project-publish/components/ProjectDurationField'
-import ProjectTeamSizeField from '@features/project-publish/components/ProjectTeamSizeField'
-import ProjectDeadlineField from '@features/project-publish/components/ProjectDeadlineField'
-import { ChannelPicker } from '@features/project-publish/components/ChannelPicker'
-import { SkillTagsEditor } from '@features/project-publish/components/SkillTagsEditor'
-import { DescriptionEditor } from '@features/project-publish/components/DescriptionEditor'
-import { publishLevelOptions } from '@features/project-publish'
+  ProjectDurationField,
+  ProjectTeamSizeField,
+  ProjectDeadlineField,
+  ChannelPicker,
+  SkillTagsEditor,
+  DescriptionEditor,
+  publishLevelOptions,
+} from '@features/project-publish'
 import type { CampusRecruitType } from '@shared/types/project'
-import styles from './PublishProjectFormWidget.module.css'
+import styles from './project-publish-form.module.css'
 
-export interface PublishProjectFormWidgetProps {
+export interface ProjectPublishFormProps {
   draft: {
     title: string
     summary: string
@@ -51,12 +51,11 @@ export interface PublishProjectFormWidgetProps {
   onTagInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
 }
 
-export function PublishProjectFormWidget({
+export function ProjectPublishForm({
   draft,
   descriptionValue,
   tagInput,
   suggestedSkillTags,
-  // 已完成：completionPercent 用于页面 header 显示，此处预留
   onTitleChange,
   onSummaryChange,
   onAmountChange,
@@ -72,7 +71,7 @@ export function PublishProjectFormWidget({
   onTagInputChange,
   onToggleSuggestedTag,
   onTagInputKeyDown,
-}: PublishProjectFormWidgetProps) {
+}: ProjectPublishFormProps) {
   const levelOptions = publishLevelOptions.map((lv) => ({ value: lv, label: lv }))
 
   return (
