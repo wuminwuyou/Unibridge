@@ -1,0 +1,39 @@
+/* 01）合作信息卡片样式（从 ProjectDetailPage.css 迁移，不含 @media） */
+
+.card {
+  border-radius: 1rem;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--panel-shadow);
+  padding: 1.25rem 1.5rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.facts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.factItem {
+  display: grid;
+  grid-template-columns: 1rem 4rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-soft);
+}
+
+.factValue {
+  color: var(--text-main);
+  font-weight: 600;
+  text-align: right;
+}

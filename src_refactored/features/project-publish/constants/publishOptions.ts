@@ -51,23 +51,7 @@ export function resolvePublishPreviewBadge(draft: PublishProjectFormDraft): stri
   return '高校招募'
 }
 
-// 08）解析项目详情频道展示名（resolveProjectChannelLabel）
-export function resolveProjectChannelLabel(
-  channel: string,
-  campusRecruitType: string | null | undefined,
-): string {
-  if (channel !== 'campus') {
-    return publishChannelOptions.find((item) => item.value === channel)?.label ?? '企业实战'
-  }
-
-  if (campusRecruitType) {
-    return campusRecruitOptions.find((item) => item.value === campusRecruitType)?.label ?? '高校招募'
-  }
-
-  return '高校招募'
-}
-
-// 09）默认表单草稿（createDefaultPublishProjectDraft）
+// 08）默认表单草稿（createDefaultPublishProjectDraft）
 export function createDefaultPublishProjectDraft(): PublishProjectFormDraft {
   return {
     title: '',

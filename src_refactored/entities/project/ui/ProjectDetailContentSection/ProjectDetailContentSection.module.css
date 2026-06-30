@@ -1,0 +1,34 @@
+/* 01）项目详情正文区域样式（从 ProjectDetailPage.css 迁移，不含 @media） */
+
+.card {
+  border-radius: 1rem;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--panel-shadow);
+  padding: 1.5rem 1.75rem;
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.mode {
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  background: var(--chip-bg);
+  color: var(--text-soft);
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}

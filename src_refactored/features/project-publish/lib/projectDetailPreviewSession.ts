@@ -1,5 +1,5 @@
 // 01）项目详情预览 sessionStorage 工具
-import type { ProjectDetailPayload } from './buildProjectDetailPayload'
+import type { ProjectDetailPayload } from '@entities/project'
 
 // 02）项目详情预览存储键（PROJECT_DETAIL_PREVIEW_KEY）
 const PROJECT_DETAIL_PREVIEW_KEY = 'unibridge.project-detail.preview'

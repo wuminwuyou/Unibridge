@@ -1,39 +1,11 @@
 // 01）由发布表单构建项目详情载荷（buildProjectDetailPayload）
 import type { ContentEditorType } from '@entities/editor/model/types'
-import type { LevelCode } from '@shared/types/level'
-import type { CampusRecruitType } from '@shared/types/project'
 import { resolvePublishSummary } from '@shared/lib/publishSummary'
-import { resolveProjectChannelLabel } from '../constants/publishOptions'
+import { resolveProjectChannelLabel } from '@entities/project'
 import type { PublishProjectFormDraft } from '../model/types'
+import type { ProjectDetailPublishStatus, ProjectDetailPayload } from '@entities/project'
 
-// 02）项目详情发布状态（ProjectDetailPublishStatus）
-export type ProjectDetailPublishStatus = 'DRAFT' | 'PREVIEW' | 'PUBLISHED'
-
-// 03）项目详情载荷（ProjectDetailPayload）
-export interface ProjectDetailPayload {
-  title: string
-  summary: string
-  channel: string
-  channelLabel: string
-  campusRecruitType?: CampusRecruitType | null
-  description: string
-  descriptionEditorType: ContentEditorType
-  amount: string
-  level: LevelCode
-  duration: string
-  teamSize: string
-  skillTags: string[]
-  deadline: string
-  publishStatus: ProjectDetailPublishStatus
-  updatedAt: string
-}
-
-// 04）项目详情路由状态（ProjectDetailLocationState）
-export interface ProjectDetailLocationState {
-  payload?: ProjectDetailPayload
-}
-
-// 05）buildProjectDetailPayload
+// 02）buildProjectDetailPayload
 export function buildProjectDetailPayload(
   draft: PublishProjectFormDraft,
   longtext: string,

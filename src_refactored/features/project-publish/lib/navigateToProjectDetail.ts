@@ -5,7 +5,7 @@ import type { ProjectResourceUid } from '@shared/api/resourceUid'
 import { buildProjectDetailPath } from '@shared/lib/projectRoutes'
 import { saveProjectDetailPreview } from './projectDetailPreviewSession'
 import { buildProjectDetailPayload } from './buildProjectDetailPayload'
-import type { ProjectDetailLocationState, ProjectDetailPublishStatus } from './buildProjectDetailPayload'
+import type { ProjectDetailLocationState, ProjectDetailPublishStatus } from '@entities/project'
 import type { PublishProjectFormDraft } from '../model/types'
 
 // 02）navigateToProjectDetail

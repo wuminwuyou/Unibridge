@@ -8,9 +8,11 @@ export {
   suggestedSkillTags,
   publishChecklistItems,
   resolvePublishPreviewBadge,
-  resolveProjectChannelLabel,
   createDefaultPublishProjectDraft,
 } from './constants/publishOptions'
+
+// resolveProjectChannelLabel 已下沉至 @entities/project，改为 re-export
+export { resolveProjectChannelLabel } from '@entities/project'
 
 export {
   ProjectTitleField,
@@ -47,11 +49,13 @@ export { hasPublishProjectUserInput } from './lib/publishProjectFormUtils'
 export {
   buildProjectDetailPayload,
 } from './lib/buildProjectDetailPayload'
+
+// ProjectDetail 类型已下沉 @entities/project，re-export 保持发布页现有消费方不 broken
 export type {
   ProjectDetailPublishStatus,
   ProjectDetailPayload,
   ProjectDetailLocationState,
-} from './lib/buildProjectDetailPayload'
+} from '@entities/project'
 
 export {
   saveProjectDetailPreview,
