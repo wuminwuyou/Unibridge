@@ -16,6 +16,8 @@ import { getAccessToken, getRefreshToken } from '../../shared/lib/tokenStorage'
 import { logoutByTokens } from '../../features/auth-process/services/authService'
 import { resolveActiveNavByPathname, navRouteItems, mainNavItemLabels } from './navRoutes'
 import { createPublishEntryFreshLocationState } from '../../shared/lib/publishEntryNavigation'
+import { PROJECTS_CREATE_PATH } from '../../shared/lib/projectRoutes'
+import { NOTES_CREATE_PATH } from '../../shared/lib/noteRoutes'
 import AuthModal from '../../widgets/auth-modal'
 
 // 02）品牌区视图（BrandGroup）
@@ -50,8 +52,8 @@ type PublishEntryType = 'project' | 'note' | 'code-generate' | 'code-manage'
 interface PublishMenuOption { type: PublishEntryType; label: string; description: string; path?: string; icon: typeof FolderKanban }
 
 const publishEntryMenuOptions: PublishMenuOption[] = [
-  { type: 'project', label: '发布项目', description: '创建并发布新的项目需求', path: '/project/publish', icon: FolderKanban },
-  { type: 'note', label: '发布笔记', description: '撰写并分享图文或视频笔记', path: '/publish/note', icon: BookOpenText },
+  { type: 'project', label: '发布项目', description: '创建并发布新的项目需求', path: PROJECTS_CREATE_PATH, icon: FolderKanban },
+  { type: 'note', label: '发布笔记', description: '撰写并分享图文或视频笔记', path: NOTES_CREATE_PATH, icon: BookOpenText },
 ]
 const codeMenuOptions: PublishMenuOption[] = [
   { type: 'code-generate', label: '生成认证子码', description: '创建新的子码', icon: Ticket },

@@ -1,5 +1,5 @@
 // 01）发布笔记页（PublishNotePage）
-import TopNavbar from '../../widgets/top-navbar'
+import TopNavbar from '@widgets/top-navbar'
 
 function PublishNotePage() {
   return <>

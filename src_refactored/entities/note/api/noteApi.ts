@@ -4,8 +4,6 @@ import type {
   NoteDetailDto,
   UpsertNoteRequest,
   UpsertNoteResponse,
-  NoteCoverUploadResponse,
-  NoteVideoUploadResponse,
 } from '../model/types'
 
 // 01）笔记接口异常类型（NotesApiError）

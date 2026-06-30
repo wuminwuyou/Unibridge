@@ -1,4 +1,4 @@
-import type { FeedContentVo, FeedInteractionTargetType, HomeFeedData, NoteFeedData, ProjectFeedData } from '../model/types'
+import type { FeedContentVo, FeedInteractionTargetType, HomeFeedData, NoteFeedData, ProjectFeedData } from '../model/feedTypes'
 import { getApi, postApi, HttpApiError } from '../../../shared/api/http'
 
 // 01）Feed 接口异常类型（FeedApiError）

@@ -1,5 +1,5 @@
 // 01）发布笔记 Feature — Services
-import { extractAutoSummaryFromMarkdown, resolvePublishNoteSummary } from '../../../shared/lib/publishSummary'
+import { resolvePublishNoteSummary } from '../../../shared/lib/publishSummary'
 import { createNote, updateNote } from '../../../entities/note/api/noteApi'
 import type { UpsertNoteRequest, NotePublishAction } from '../../../entities/note/model/types'
 import type { NoteResourceUid } from '../../../shared/api/resourceUid'

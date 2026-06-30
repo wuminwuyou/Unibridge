@@ -52,7 +52,9 @@
     }
   },
   "include": [
-    "src",
     "src_refactored"
+  ],
+  "exclude": [
+    "src"
   ]
 }

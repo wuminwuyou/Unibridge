@@ -1,6 +1,7 @@
 // 01）首页流 Widget（HomeFeedWidget）
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { NOTES_CREATE_PATH, NOTES_LIST_PATH } from '@shared/lib/noteRoutes'
 import ProjectCard from '../../entities/project/ui/ProjectCard'
 import GridNoteCard from '../../entities/note/ui/GridNoteCard'
 import LoadingSpinner from '../../shared/ui/LoadingSpinner'
@@ -27,12 +28,12 @@ function HomeFeedWidget() {
       <aside className="home-page__insights" aria-label="学生项目复盘与经验">
         <header className="home-page__insights-header">
           <h2 className="home-page__insights-title">项目复盘与经验</h2>
-          <Link className="home-page__insights-link" to="/note">查看全部 &gt;</Link>
+          <Link className="home-page__insights-link" to={NOTES_LIST_PATH}>查看全部 &gt;</Link>
         </header>
         {loadState === 'loading' ? <div className="home-page__feed-status"><LoadingSpinner size={24} label="正在加载经验笔记…" /></div>
           : loadState === 'ready' && notes.length > 0 ? <div className="home-page__note-list">{renderedSidebarNotes}</div>
             : loadState === 'ready' && notes.length === 0 ? <p className="home-page__feed-status">暂无推荐笔记</p> : null}
-        <Link className="home-page__compose-trigger" to="/publish/note">📝 写下你的项目经验</Link>
+        <Link className="home-page__compose-trigger" to={NOTES_CREATE_PATH}>📝 写下你的项目经验</Link>
       </aside>
     </main>
   )

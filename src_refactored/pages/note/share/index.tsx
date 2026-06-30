@@ -1,6 +1,6 @@
 // 01）经验分享页（NoteSharePage）
-import TopNavbar from '../../widgets/top-navbar'
-import NoteFeedWidget from '../../widgets/note-feed'
+import TopNavbar from '@widgets/top-navbar'
+import NoteFeedWidget from '@widgets/note-feed'
 
 function NoteSharePage() {
   return <>

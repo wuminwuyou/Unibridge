@@ -1,5 +1,4 @@
 import type { NoteResourceUid } from '../../../shared/api/resourceUid'
-import type { LevelCode } from '../../../shared/types/level'
 
 // 01）笔记公共类型（ProfileNoteItem）
 export interface ProfileNoteItem {

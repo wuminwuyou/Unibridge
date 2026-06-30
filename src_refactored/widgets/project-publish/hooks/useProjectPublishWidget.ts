@@ -37,6 +37,7 @@ import {
 } from '@features/project-publish'
 import type { PublishProjectFormDraft } from '@features/project-publish'
 import type { CampusRecruitType } from '@shared/types/project'
+import { buildProjectDetailPath } from '@shared/lib/projectRoutes'
 
 // 02）同步需求说明 longtext 到 draft（syncDraftDescription）
 function syncDraftDescription(draft: PublishProjectFormDraft, descriptionContent: ContentLongtext): PublishProjectFormDraft {
@@ -196,7 +197,13 @@ export function useProjectPublishWidget() {
         skipClearSessionRef.current = true
         persistSessionSnapshot()
         leaveGuard.allowNextNavigation()
-        navigateToProjectDetail(navigate, syncDraftDescription(draft, descriptionContent), descriptionContent, 'PREVIEW')
+        navigateToProjectDetail(
+          navigate,
+          syncDraftDescription(draft, descriptionContent),
+          descriptionContent,
+          'PREVIEW',
+          result.projectUid,
+        )
         return true
       }
 
@@ -204,7 +211,7 @@ export function useProjectPublishWidget() {
       skipClearSessionRef.current = true
       persistSessionSnapshot()
       leaveGuard.allowNextNavigation()
-      navigate(`/project/detail?uid=${encodeURIComponent(result.projectUid)}`)
+      navigate(buildProjectDetailPath(result.projectUid))
       return true
     } catch (error) {
       const message = error instanceof ProjectsApiError ? error.message : '保存项目失败，请稍后重试'

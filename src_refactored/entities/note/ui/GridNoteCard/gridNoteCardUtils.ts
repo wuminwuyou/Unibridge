@@ -1,4 +1,4 @@
-import type { NoteContentType } from './gridNoteCardUtils'
+import type { NoteContentType } from '../rowNoteCardUtils'
 
 export interface GridNoteCardItem {
   id?: number

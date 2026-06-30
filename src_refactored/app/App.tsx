@@ -2,6 +2,11 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import ProtectedRoute from './routes/ProtectedRoute'
+import {
+  RedirectLegacyNoteDetail,
+  RedirectNotePublishToNotesCreate,
+  RedirectNoteToNotes,
+} from './routes/legacyNoteRedirects'
 
 const HomePage = lazy(() => import('../pages/home/index'))
 const CommercialProjectsPage = lazy(() => import('@pages/project/commercial/index'))
@@ -36,9 +41,25 @@ function Suspensed({ children }: { children: ReactNode }) {
 // 04）路由表定义（appRouter）
 const appRouter = createBrowserRouter([
   { path: '/', element: <Suspensed><HomePage /></Suspensed> },
-  { path: '/project', element: <Suspensed><CommercialProjectsPage /></Suspensed> },
-  { path: '/co-create', element: <Suspensed><CampusCoCreationPage /></Suspensed> },
-  { path: '/note', element: <Suspensed><NoteSharePage /></Suspensed> },
+
+  // 项目
+  { path: '/projects/create', element: <Suspensed><ProtectedRoute><PublishProjectPage /></ProtectedRoute></Suspensed> },
+  { path: '/projects/campus', element: <Suspensed><CampusCoCreationPage /></Suspensed> },
+  { path: '/projects/:id', element: <Suspensed><ProtectedRoute><ProjectDetailPage /></ProtectedRoute></Suspensed> },
+  { path: '/projects', element: <Suspensed><CommercialProjectsPage /></Suspensed> },
+
+  // 笔记（新规范）
+  { path: '/notes/create', element: <Suspensed><ProtectedRoute><PublishNotePage /></ProtectedRoute></Suspensed> },
+  { path: '/notes/:id', element: <Suspensed><NoteReaderPage /></Suspensed> },
+  { path: '/notes', element: <Suspensed><NoteSharePage /></Suspensed> },
+
+  // 笔记（旧路径重定向）
+  { path: '/note', element: <Suspensed><RedirectNoteToNotes /></Suspensed> },
+  { path: '/note/detail', element: <Suspensed><RedirectLegacyNoteDetail /></Suspensed> },
+  { path: '/note/publish', element: <Suspensed><RedirectNotePublishToNotesCreate /></Suspensed> },
+  { path: '/publish/note', element: <Suspensed><RedirectNotePublishToNotesCreate /></Suspensed> },
+  { path: '/note-detail', element: <Suspensed><RedirectLegacyNoteDetail /></Suspensed> },
+
   { path: '/login', element: <Suspensed><LoginPage /></Suspensed> },
   { path: '/profile', element: <Suspensed><PersonalProfilePage /></Suspensed> },
   { path: '/profile/:profileTab', element: <Suspensed><PersonalProfilePage /></Suspensed> },
@@ -49,11 +70,7 @@ const appRouter = createBrowserRouter([
   { path: '/org/:orgTab', element: <Suspensed><OrganizationProfilePage /></Suspensed> },
   { path: '/verify/organization', element: <Suspensed><ProtectedRoute><OrganizationVerificationPage /></ProtectedRoute></Suspensed> },
   { path: '/verify', element: <Suspensed><ProtectedRoute><OrganizationVerificationPage /></ProtectedRoute></Suspensed> },
-  { path: '/project/detail', element: <Suspensed><ProtectedRoute><ProjectDetailPage /></ProtectedRoute></Suspensed> },
-  { path: '/note/detail', element: <Suspensed><NoteReaderPage /></Suspensed> },
   { path: '/messages', element: <Suspensed><ProtectedRoute><InstantMessagePage /></ProtectedRoute></Suspensed> },
-  { path: '/project/publish', element: <Suspensed><ProtectedRoute><PublishProjectPage /></ProtectedRoute></Suspensed> },
-  { path: '/note/publish', element: <Suspensed><ProtectedRoute><PublishNotePage /></ProtectedRoute></Suspensed> },
   { path: '*', element: <Suspensed><NotFoundPage /></Suspensed> },
 ])
 

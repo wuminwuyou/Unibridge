@@ -1,5 +1,5 @@
 // 01）实名认证页（VerificationPage）
-import TopNavbar from '../../widgets/top-navbar'
+import TopNavbar from '@widgets/top-navbar'
 
 function VerificationPage() {
   return (

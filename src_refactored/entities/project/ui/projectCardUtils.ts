@@ -1,6 +1,8 @@
 // 01）项目卡片工具函数（projectCardUtils）
-import { isProjectResourceUid } from '../../../shared/api/resourceUid'
 import type { ProjectItem, ProjectRecruitmentType, ProjectStatus } from '../../../shared/types/project'
+import { resolveProjectDetailHref as resolveProjectDetailPath } from '../../../shared/lib/projectRoutes'
+
+export { resolveProjectDetailPath as resolveProjectDetailHref }
 
 const SIMPLE_ICONS_CDN_BASE = 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons'
 const organizationLogoIconMap: Record<string, string> = { 腾讯: 'tencentqq', Tencent: 'tencentqq', 阿里云: 'alibabacloud', Alibaba: 'alibabacloud', 英伟达: 'nvidia', NVIDIA: 'nvidia', 华为: 'huawei', Huawei: 'huawei', 字节跳动: 'bytedance', ByteDance: 'bytedance', 微软: 'microsoft', Microsoft: 'microsoft' }
@@ -10,11 +12,6 @@ export function resolveProjectCardTypeBadge(project: Pick<ProjectItem, 'category
   if (project.category === 'COMMERCIAL') return '企业实战'
   if (project.recruitmentType) return projectRecruitmentTypeLabelMap[project.recruitmentType] ?? '招募项目'
   return '招募项目'
-}
-
-export function resolveProjectDetailHref(project: Pick<ProjectItem, 'uid' | 'title'>): string {
-  if (isProjectResourceUid(project.uid)) return `/project-detail?uid=${encodeURIComponent(project.uid)}`
-  return `/project-detail?title=${encodeURIComponent(project.title)}`
 }
 
 export function resolveProjectLogoSvgUrl(project: Pick<ProjectItem, 'logoSvgUrl' | 'ownerOrganization'>): string | null {
