@@ -204,7 +204,7 @@ export function useProjectPublishWidget() {
       skipClearSessionRef.current = true
       persistSessionSnapshot()
       leaveGuard.allowNextNavigation()
-      navigate(`/project-detail?uid=${encodeURIComponent(result.projectUid)}`)
+      navigate(`/project/detail?uid=${encodeURIComponent(result.projectUid)}`)
       return true
     } catch (error) {
       const message = error instanceof ProjectsApiError ? error.message : '保存项目失败，请稍后重试'

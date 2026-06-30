@@ -18,5 +18,5 @@ export function navigateToProjectDetail(
   )
   saveProjectDetailPreview(payload)
   const state: ProjectDetailLocationState = { payload }
-  navigate('/project-detail', { state })
+  navigate('/project/detail', { state })
 }
