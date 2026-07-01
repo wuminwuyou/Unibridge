@@ -28,5 +28,6 @@ export function buildProjectDetailPayload(
     deadline: draft.deadline.trim() || '未填写',
     publishStatus,
     updatedAt: new Date().toISOString(),
+    owner: null,
   }
 }

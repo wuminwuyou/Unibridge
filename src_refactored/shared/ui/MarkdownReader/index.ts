@@ -1,4 +1,4 @@
-// 01）Reader 公开接口（shared/ui/Reader）
+// 01）MarkdownReader 公开接口（shared/ui/MarkdownReader）
 // 本期仅迁移项目详情使用的模块；NoteContentReader 留待笔记详情独立 Phase
 
 export { MarkdownMdPreview } from './MarkdownMdPreview'

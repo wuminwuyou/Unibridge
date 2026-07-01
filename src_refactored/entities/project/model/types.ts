@@ -49,4 +49,13 @@ export interface ProjectDetailDto {
   status: 'DRAFT' | 'OPEN' | 'ONGOING' | 'CLOSED'
   publishedAt: string | null
   updatedAt: string
+  /** 发布者身份信息（新增，可能为 null 兼容过渡期） */
+  owner?: {
+    uid: string
+    name: string
+    avatarUrl: string | null
+    careerData: unknown | null
+    organization: string | null
+    location: string | null
+  } | null
 }

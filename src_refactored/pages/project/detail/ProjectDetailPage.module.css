@@ -1,0 +1,22 @@
+/* 01）项目详情页路由层样式 — 页面外壳居中 + editorial 变量 */
+
+.page {
+  min-height: 100vh;
+  background: var(--page-bg);
+  color: var(--text-main);
+}
+
+.pageEditorial {
+  --detail-sticky-top: 1.5rem;
+}
+
+.page:not(.pageEditorial) {
+  --detail-sticky-top: 6rem;
+}
+
+.shell {
+  position: relative;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 3rem;
+}

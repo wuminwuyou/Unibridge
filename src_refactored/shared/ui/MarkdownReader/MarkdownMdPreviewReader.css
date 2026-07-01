@@ -1,0 +1,85 @@
+/* 01）md-editor-rt 阅读区宽度约束 */
+
+.markdown-md-reader {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.markdown-md-reader .md-editor-preview-wrapper,
+.markdown-md-reader .md-editor-preview {
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0 !important;
+}
+
+.markdown-md-reader .md-editor-preview img,
+.markdown-md-reader .md-editor-preview table {
+  max-width: 100%;
+}
+
+/* 01-a）撤消 index.css §07 对 prose pre 的 padding 覆写，恢复 md-editor-rt 行号原生对齐 */
+.markdown-md-reader .md-editor-preview pre {
+  overflow-x: auto;
+  padding: 0 !important;
+}
+
+/* 01-b）保护代码块 flex 容器：不被 prose 宽度约束或父级 overflow-x:hidden 挤压 */
+.markdown-md-reader .md-editor-preview [class*='md-editor-code'] {
+  min-width: max-content;
+  overflow: visible;
+}
+
+.markdown-md-reader .md-editor-preview [class*='md-editor-code'] pre {
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+/* 01-c）行号列 sticky 锚定左侧，随横向滚动代码时保持在原位 */
+.markdown-md-reader .md-editor-preview [class*='md-editor-code'] .rn-wrapper {
+  position: sticky !important;
+  left: 0 !important;
+  background-color: inherit !important;
+  z-index: 10 !important;
+}
+
+.markdown-md-reader .md-editor-preview table {
+  display: block;
+  overflow-x: auto;
+}
+
+/* 02）目录面板（页面级挂载） */
+
+.markdown-md-catalog-panel {
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--panel-shadow);
+}
+
+.markdown-md-catalog-panel__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* 04）性能优化：跳过屏幕外长内容块的布局计算（排除 pre 和 code 相关包裹容器，避免破坏内部 flex 行号对齐） */
+.markdown-md-reader .md-editor-preview > *:not(pre, [class*='code']),
+.markdown-content-prose .md-editor-preview > *:not(pre, [class*='code']) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* 03）压降 md-editor-rt 内 sticky 元素的层级，确保低于顶部导航栏 */
+.md-editor-preview .md-editor-preview-wrapper .md-editor-toc,
+.md-editor-catalog,
+.md-editor-preview details summary,
+.md-editor-code-block-header {
+  z-index: 1 !important;
+}

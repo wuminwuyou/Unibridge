@@ -6,22 +6,6 @@
   border-bottom: 1px solid var(--card-border);
 }
 
-.back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-soft);
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.back:hover {
-  color: var(--primary-text);
-}
-
 .meta {
   display: flex;
   flex-wrap: wrap;

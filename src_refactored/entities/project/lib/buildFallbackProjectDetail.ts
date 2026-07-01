@@ -32,5 +32,6 @@ export function buildFallbackProjectDetail(title: string | null): ProjectDetailP
     deadline: '—',
     publishStatus: 'PUBLISHED',
     updatedAt: new Date().toISOString(),
+    owner: null,
   }
 }

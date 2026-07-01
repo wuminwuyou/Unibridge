@@ -3,7 +3,7 @@
 // 无 query → 渲染详情页（读取 sessionStorage/route state，同旧版刷新预览）
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { buildProjectDetailPath } from '@shared/lib/projectRoutes'
-import ProjectDetailWidget from '@widgets/project-detail'
+import ProjectDetailPage from '@pages/project/detail/index'
 
 // 02）解析旧详情 query 并决定跳转目标（resolveLegacyProjectDetailTarget）
 function resolveLegacyProjectDetailTarget(searchParams: URLSearchParams): string | null {
@@ -33,6 +33,6 @@ export function LegacyProjectDetailEntry() {
     return <Navigate to={target} replace />
   }
 
-  // 无 query：保留原地，由 Widget 读取 sessionStorage 回退
-  return <ProjectDetailWidget />
+  // 无 query：保留原地，由页面内部 Hook 读取 sessionStorage 回退
+  return <ProjectDetailPage />
 }

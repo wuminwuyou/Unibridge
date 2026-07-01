@@ -1,96 +1,65 @@
-// 01）项目详情 Widget 主组件（ProjectDetailWidget）
-// 职责：组装 entities + features + TopNavbar，替换旧 ProjectDetailPage.tsx
-// 禁止：直接 API 调用（经 entity Hook）；禁止手写 DTO 映射（经 entity lib）
+// 01）项目详情内容区组件（ProjectDetailContent）
+// 职责：Hero + 侧栏（发布者 + 合作信息）+ 正文区域，不含 TopNavbar / banner / 状态卡片
+// 由 pages 层传入 viewModel 数据
 
-import { Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
-import TopNavbar from '@widgets/top-navbar'
+import { useLayoutEffect, useRef, useState } from 'react'
 import {
   ProjectDetailHero,
   ProjectCooperationCard,
+  ProjectPublisherCard,
   ProjectDetailContentSection,
 } from '@entities/project'
-import { ContentReader } from '@shared/ui/Reader'
-import { EditorialPreviewBanner } from '@features/project-detail-editorial'
-import { useProjectDetailWidget } from './hooks/useProjectDetailWidget'
-import '@shared/styles/DetailPage.css'
+import { ContentReader } from '@shared/ui/MarkdownReader'
+import type { ProjectDetailPayload } from '@entities/project'
 import styles from './ProjectDetailWidget.module.css'
 
-// 02）ProjectDetailWidget
-function ProjectDetailWidget() {
-  const vm = useProjectDetailWidget()
+// 02）ProjectDetailContent Props
+export interface ProjectDetailContentProps {
+  project: ProjectDetailPayload
+}
+
+// 03）ProjectDetailContent
+function ProjectDetailContent({ project }: ProjectDetailContentProps) {
+  const heroRef = useRef<HTMLDivElement>(null)
+  const [heroHeight, setHeroHeight] = useState(0)
+
+  useLayoutEffect(() => {
+    if (heroRef.current) {
+      setHeroHeight(heroRef.current.offsetHeight)
+    }
+  }, [project])
 
   return (
-    <div className={`${styles.page} ${vm.isEditorialFlow ? styles.pageEditorial : ''}`.trim()}>
-      {!vm.isEditorialFlow ? <TopNavbar /> : null}
-      {vm.isEditorialFlow && vm.project ? (
-        <EditorialPreviewBanner status={vm.project.publishStatus} />
-      ) : null}
-
-      {vm.showLoading ? (
-        <main className={styles.main} style={{ width: 'min(1400px, 70vw)', margin: '24px auto 0', paddingBottom: 36 }}>
-          <section className="detail-card" aria-label="项目详情加载中">
-            <p className="detail-card__label">项目详情</p>
-            <h1>加载中…</h1>
-            <p>正在从服务器获取项目内容。</p>
-          </section>
-        </main>
-      ) : vm.showError ? (
-        <main className={styles.main} style={{ width: 'min(1400px, 70vw)', margin: '24px auto 0', paddingBottom: 36 }}>
-          <section className="detail-card" aria-label="项目详情错误">
-            <p className="detail-card__label">项目详情</p>
-            <h1>加载失败</h1>
-            <p>{vm.errorMessage ?? '无法获取项目详情，请稍后重试。'}</p>
-          </section>
-        </main>
-      ) : vm.project ? (
-        <div className={styles.shell}>
-          <ProjectDetailHero
-            project={vm.project}
-            showBackLink={!vm.isEditorialFlow}
-            backLinkSlot={
-              !vm.isEditorialFlow ? (
-                <Link to="/projects/create" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'inherit', textDecoration: 'none' }}>
-                  <ArrowLeft className="h-4 w-4" />
-                  返回编辑
-                </Link>
-              ) : null
-            }
+    <div className={styles.layout}>
+      <aside className={styles.sidebar}>
+        <div style={{ height: heroHeight > 0 ? heroHeight + 56 : undefined }} />
+        <div className={styles.sidebarSticky}>
+          {project.owner && <ProjectPublisherCard owner={project.owner} />}
+          <ProjectCooperationCard
+            amount={project.amount}
+            duration={project.duration}
+            teamSize={project.teamSize}
           />
-          <div className={styles.layout}>
-            <aside className={styles.sidebar}>
-              <ProjectCooperationCard
-                amount={vm.project.amount}
-                duration={vm.project.duration}
-                teamSize={vm.project.teamSize}
-                deadline={vm.project.deadline}
-              />
-            </aside>
-
-            <main className={styles.main}>
-              <ProjectDetailContentSection editorType={vm.project.descriptionEditorType}>
-                <ContentReader
-                  contentLongtext={{
-                    editorType: vm.project.descriptionEditorType,
-                    longtext: vm.project.description,
-                  }}
-                  className={styles.content}
-                />
-              </ProjectDetailContentSection>
-            </main>
-          </div>
         </div>
-      ) : (
-        <main className={styles.main} style={{ width: 'min(1400px, 70vw)', margin: '24px auto 0', paddingBottom: 36 }}>
-          <section className="detail-card" aria-label="项目详情信息">
-            <p className="detail-card__label">项目详情</p>
-            <h1>未找到项目</h1>
-            <p>请从发布项目页保存草稿、预览或发布后查看，或通过有效标题链接访问。</p>
-          </section>
+      </aside>
+      <div className={styles.rightColumn}>
+        <div ref={heroRef}>
+          <ProjectDetailHero project={project} />
+        </div>
+        <main className={styles.main}>
+          <ProjectDetailContentSection editorType={project.descriptionEditorType}>
+            <ContentReader
+              contentLongtext={{
+                editorType: project.descriptionEditorType,
+                longtext: project.description,
+              }}
+              className={styles.content}
+            />
+          </ProjectDetailContentSection>
         </main>
-      )}
+      </div>
     </div>
   )
 }
 
-export default ProjectDetailWidget
+export default ProjectDetailContent

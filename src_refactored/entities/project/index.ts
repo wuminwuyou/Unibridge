@@ -16,6 +16,7 @@ export type {
   ProjectDetailApiLoadState,
   ProjectDetailPayload,
   ProjectDetailLocationState,
+  ProjectOwnerInfo,
 } from './model/projectDetailViewModel'
 
 export { useProjectDetail } from './model/useProjectDetail'
@@ -34,5 +35,7 @@ export { ProjectDetailHero } from './ui/ProjectDetailHero'
 export type { ProjectDetailHeroProps } from './ui/ProjectDetailHero'
 export { ProjectCooperationCard } from './ui/ProjectCooperationCard'
 export type { ProjectCooperationCardProps } from './ui/ProjectCooperationCard'
+export { ProjectPublisherCard } from './ui/ProjectPublisherCard'
+export type { ProjectPublisherCardProps } from './ui/ProjectPublisherCard'
 export { ProjectDetailContentSection } from './ui/ProjectDetailContentSection'
 export type { ProjectDetailContentSectionProps } from './ui/ProjectDetailContentSection'

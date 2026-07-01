@@ -2,7 +2,7 @@
 import type { ProjectDetailDto } from '../model/types'
 import type { LevelCode } from '@shared/types/level'
 import type { CampusRecruitType } from '@shared/types/project'
-import type { ProjectDetailPayload, ProjectDetailPublishStatus } from '../model/projectDetailViewModel'
+import type { ProjectDetailPayload, ProjectDetailPublishStatus, ProjectOwnerInfo } from '../model/projectDetailViewModel'
 import { resolveProjectChannelLabel } from './resolveProjectChannelLabel'
 
 // 02）映射项目发布状态（mapProjectDetailPublishStatus）
@@ -27,6 +27,18 @@ function normalizeProjectLevel(level: string): LevelCode {
  * - 返回值：ProjectDetailPayload
  */
 export function mapProjectDetailToPayload(dto: ProjectDetailDto): ProjectDetailPayload {
+  const owner: ProjectOwnerInfo | null =
+    dto.owner
+      ? {
+          uid: dto.owner.uid,
+          name: dto.owner.name || '用户',
+          avatarUrl: dto.owner.avatarUrl ?? null,
+          careerData: dto.owner.careerData ?? null,
+          organization: dto.owner.organization ?? null,
+          location: dto.owner.location ?? null,
+        }
+      : null
+
   return {
     title: dto.title,
     summary: dto.summary,
@@ -43,5 +55,6 @@ export function mapProjectDetailToPayload(dto: ProjectDetailDto): ProjectDetailP
     deadline: dto.deadline ?? '未填写',
     publishStatus: mapProjectDetailPublishStatus(dto.status),
     updatedAt: dto.updatedAt,
+    owner,
   }
 }
