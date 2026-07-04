@@ -21,7 +21,6 @@ function HomeFeedWidget() {
     overscan: 3,
   })
 
-  // effects 作为 virtualizer 实例的变更通知灯，这里用 useEffect 解决
   useEffect(() => {
     if (typeof document !== 'undefined') {
       virtualizer.measure()
@@ -67,7 +66,7 @@ function HomeFeedWidget() {
         {loadState === 'loading' ? <div className="home-page__feed-status"><LoadingSpinner size={24} label="正在加载经验笔记…" /></div>
           : loadState === 'ready' && notes.length > 0 ? <div className="home-page__note-list">{renderedSidebarNotes}</div>
             : loadState === 'ready' && notes.length === 0 ? <p className="home-page__feed-status">暂无推荐笔记</p> : null}
-        <Link className="home-page__compose-trigger" to={NOTES_CREATE_PATH}>📝 写下你的项目经验</Link>
+        <Link className="home-page__compose-trigger" to={NOTES_CREATE_PATH}>📝 写下你的学习经验</Link>
       </aside>
     </main>
   )

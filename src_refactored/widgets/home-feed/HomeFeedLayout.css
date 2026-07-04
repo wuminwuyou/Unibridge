@@ -1,11 +1,9 @@
-/* 01）首页双栏布局 + 项目实验室 + 侧栏（HomeFeedLayout.css —— 完整保留原始 class） */
+/* 01）首页双栏布局 + 项目实验室 + 侧栏（HomeFeedLayout.css） */
 .home-page__insights {
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    position: sticky;
-    top: 96px;
     align-self: start;
 }
 
@@ -91,10 +89,6 @@
 @media (max-width: 980px) {
     .home-page__note-list {
         grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    }
-
-    .home-page__insights {
-        position: static;
     }
 }
 
