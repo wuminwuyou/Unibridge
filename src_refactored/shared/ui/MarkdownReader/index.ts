@@ -1,8 +1,9 @@
 // 01）MarkdownReader 公开接口（shared/ui/MarkdownReader）
-// 本期仅迁移项目详情使用的模块；NoteContentReader 留待笔记详情独立 Phase
 
 export { MarkdownMdPreview } from './MarkdownMdPreview'
 export type { MarkdownMdPreviewProps } from './MarkdownMdPreview'
+export { MarkdownMdCatalogPanel } from './MarkdownMdCatalogPanel'
+export type { MarkdownMdCatalogPanelProps } from './MarkdownMdCatalogPanel'
 export { useMarkdownReaderId } from './useMarkdownReaderId'
 export { ContentReader, inferContentEditorType } from './ContentReader'
 export type { ContentReaderProps } from './ContentReader'

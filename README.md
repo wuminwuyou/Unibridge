@@ -222,7 +222,7 @@ web-client/
         ├── constants/index.ts       # 全局常量
         ├── styles/                  # 共享页面样式
         └── ui/                      # 通用 UI 组件
-            ├── MarkdownEditor/      # Milkdown 编辑器
+            ├── MarkdownEditor/      # Markdown 编辑器
             ├── MarkdownReader/      # Markdown 内容阅读器
             ├── FormInput/等          # 表单输入组件
             ├── Chip/                # 标签芯片
@@ -251,7 +251,7 @@ web-client/
 | `/projects/:id` | 项目详情 | 是 |
 | `/projects/create` | 发布项目 | 是 |
 | `/notes` | 笔记分享 | 否 |
-| `/notes/:id` | 笔记详情 | 否 |
+| `/notes/:id` | 笔记内容 | 否 |
 | `/notes/create` | 发布笔记 | 是 |
 | `/login` | 登录页 | 否 |
 | `/profile`, `/profile/:profileTab` | 个人空间 | 否 |
