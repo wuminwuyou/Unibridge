@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
 import { useMarkdownReaderId, ContentReader, MarkdownMdCatalogPanel } from '@shared/ui/MarkdownReader'
+import { NoteArticleColumnLayout } from '@shared/ui/note-article-column-layout'
+import layoutStyles from '@shared/ui/note-article-column-layout/noteArticleColumnLayout.module.css'
 import { NoteEditorialBanner } from '@features/note-viewer-editorial'
+import { resolveNoteEditorReturnPath } from '@features/note-editor'
 import { NoteQuickMdEditor } from '@features/note-viewer-annotation'
 import { NoteAuthorCard, NotePublishStatusBadge, NoteTagList, NoteSummaryBox, NoteMetaRow, ParentNoteEntry } from '@entities/note'
 import type { NoteArticleDetailPayload } from '@entities/note'
@@ -15,9 +18,9 @@ interface NoteArticleReaderLayoutProps {
   isEditorialFlow?: boolean
 }
 
-const NAVBAR_HEIGHT = 64
-const STICKY_TOP_PX = NAVBAR_HEIGHT + 24
-const STICKY_TOP_CLASS = 'top-[5.5rem]'
+const NAVBAR_HEIGHT = 60
+const STICKY_TOP_PX = NAVBAR_HEIGHT
+const STICKY_TOP_CLASS = 'top-[var(--top-header-height,60px)]'
 const SIDEBAR_PANEL_ANIMATION_MS = 350
 const EDITOR_MIN_EXPANDED_HEIGHT_PX = 280
 
@@ -43,6 +46,11 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
     }
     return null
   }, [note.author.uid])
+
+  const editorReturnPath = useMemo(
+    () => resolveNoteEditorReturnPath(note.uid),
+    [note.uid],
+  )
 
   // TOC sticky
   const contentShellRef = useRef<HTMLElement>(null)
@@ -136,16 +144,17 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
   const editorCardStyle: React.CSSProperties = { height: `${editorCardHeight}px` }
 
   return (
-    <div className={`bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 ${isEditorialFlow ? 'min-h-screen' : 'min-h-[calc(100vh-4rem)]'}`}>
-      {isEditorialFlow ? <NoteEditorialBanner publishStatus={note.publishStatus} /> : null}
+    <div className={`bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 ${isEditorialFlow ? 'min-h-screen' : 'min-h-[calc(100vh-var(--top-header-height,60px))]'}`}>
+      {isEditorialFlow ? (
+        <NoteEditorialBanner publishStatus={note.publishStatus} editorReturnPath={editorReturnPath} />
+      ) : null}
 
-      <main className={styles.noteArticleLayout}>
-        <div className={styles.noteArticleGrid}>
-          {/* 左侧 TOC */}
-          {showMarkdownCatalog ? (
+      <NoteArticleColumnLayout
+        tocAside={
+          showMarkdownCatalog ? (
             <aside
               ref={tocRef}
-              className={`${styles.noteArticleTocAside} ${tocSticky ? `sticky ${STICKY_TOP_CLASS}` : ''}`}
+              className={`${layoutStyles.noteArticleTocAside} ${tocSticky ? `sticky ${STICKY_TOP_CLASS}` : ''}`}
               aria-label="文章目录"
             >
               <MarkdownMdCatalogPanel
@@ -155,10 +164,10 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
                 offsetTop={STICKY_TOP_PX}
               />
             </aside>
-          ) : (<div className="col-span-3" />)}
-
-          {/* 中间正文 */}
-          <article ref={contentShellRef} className={styles.noteArticleBodyCol} aria-label="笔记正文">
+          ) : undefined
+        }
+        body={
+          <article ref={contentShellRef} aria-label="笔记正文">
             <header className="mb-8">
               <NotePublishStatusBadge status={note.publishStatus} />
               <h1 className="m-0 text-[clamp(1.5rem,2.5vw,2rem)] font-bold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
@@ -169,7 +178,7 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
               <NoteMetaRow publishTime={note.publishTime} updateTime={note.updateTime} />
             </header>
 
-            <div className="prose prose-zinc max-w-none dark:prose-invert prose-headings:scroll-mt-[5.5rem] prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-p:max-w-3xl prose-p:mx-auto">
+            <div className="prose prose-zinc max-w-none dark:prose-invert prose-headings:scroll-mt-[var(--top-header-height,60px)] prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-p:max-w-3xl prose-p:mx-auto">
               <ContentReader
                 contentLongtext={{ editorType: 'MARKDOWN', longtext: note.body }}
                 className="markdown-md-reader"
@@ -177,59 +186,57 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
               />
             </div>
           </article>
+        }
+        sidebar={
+          <div className={styles.noteArticleSidebarInner}>
+            <NoteAuthorCard
+              author={note.author}
+              views={note.views}
+              favorites={note.favorites}
+              comments={note.comments}
+              profilePath={authorProfilePath}
+            />
 
-          {/* 右侧栏 */}
-          <aside className={`${styles.noteArticleSidebar} sticky ${STICKY_TOP_CLASS} self-start`}>
-            <div className={styles.noteArticleSidebarInner}>
-              <NoteAuthorCard
-                author={note.author}
-                views={note.views}
-                favorites={note.favorites}
-                comments={note.comments}
-                profilePath={authorProfilePath}
-              />
+            <ParentNoteEntry
+              note={note.parentNote}
+              expanded={isParentNoteExpanded}
+              onToggle={toggleParentNotePanel}
+            />
 
-              <ParentNoteEntry
-                note={note.parentNote}
-                expanded={isParentNoteExpanded}
-                onToggle={toggleParentNotePanel}
-              />
-
-              {note.uid ? (
-                <div
-                  ref={editorCardRef}
-                  className={`${styles.noteArticleEditorCard} ${isLearningNoteExpanded ? '' : styles.noteArticleEditorCardCollapsed}`}
-                  style={editorCardStyle}
+            {note.uid ? (
+              <div
+                ref={editorCardRef}
+                className={`${styles.noteArticleEditorCard} ${isLearningNoteExpanded ? '' : styles.noteArticleEditorCardCollapsed}`}
+                style={editorCardStyle}
+              >
+                <button
+                  ref={editorHeaderRef}
+                  type="button"
+                  className={styles.noteArticleEditorToggle}
+                  onClick={toggleLearningNotePanel}
+                  aria-expanded={isLearningNoteExpanded}
                 >
-                  <button
-                    ref={editorHeaderRef}
-                    type="button"
-                    className={styles.noteArticleEditorToggle}
-                    onClick={toggleLearningNotePanel}
-                    aria-expanded={isLearningNoteExpanded}
-                  >
-                    <h3 className={styles.noteArticleEditorToggleTitle}>
-                      <Pencil size={14} aria-hidden="true" />
-                      学习笔记
-                    </h3>
-                    {isLearningNoteExpanded ? (
-                      <ChevronRight size={16} className={styles.noteArticleEditorToggleChevron} aria-hidden="true" />
-                    ) : (
-                      <ChevronLeft size={16} className={styles.noteArticleEditorToggleChevron} aria-hidden="true" />
-                    )}
-                  </button>
-                  <div className={styles.noteArticleEditorCardBody} aria-hidden={!isLearningNoteExpanded}>
-                    <NoteQuickMdEditor
-                      note={{ uid: note.uid, title: note.title, body: '', tags: note.tags }}
-                      initialContent=""
-                    />
-                  </div>
+                  <h3 className={styles.noteArticleEditorToggleTitle}>
+                    <Pencil size={14} aria-hidden="true" />
+                    学习笔记
+                  </h3>
+                  {isLearningNoteExpanded ? (
+                    <ChevronRight size={16} className={styles.noteArticleEditorToggleChevron} aria-hidden="true" />
+                  ) : (
+                    <ChevronLeft size={16} className={styles.noteArticleEditorToggleChevron} aria-hidden="true" />
+                  )}
+                </button>
+                <div className={styles.noteArticleEditorCardBody} aria-hidden={!isLearningNoteExpanded}>
+                  <NoteQuickMdEditor
+                    note={{ uid: note.uid, title: note.title, body: '', tags: note.tags }}
+                    initialContent=""
+                  />
                 </div>
-              ) : null}
-            </div>
-          </aside>
-        </div>
-      </main>
+              </div>
+            ) : null}
+          </div>
+        }
+      />
     </div>
   )
 }

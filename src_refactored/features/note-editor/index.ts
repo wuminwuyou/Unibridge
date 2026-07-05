@@ -31,3 +31,26 @@ export {
 
 // Lib — 表单校验
 export { validateNoteEditorDraft } from './lib/noteEditorValidation'
+
+// Lib — 返回编辑路径
+export { resolveNoteEditorReturnPath } from './lib/resolveNoteEditorReturnPath'
+
+// Constants
+export { suggestedNoteTags } from './constants/suggestedNoteTags'
+
+// Hooks — 封面上传 / 提交
+export {
+  useNoteCoverUpload,
+  useNoteEditorSubmit,
+  isRemoteAssetUrl,
+  resolvePreviewUrlBlob,
+} from './hooks'
+export type {
+  UseNoteCoverUploadOptions,
+  UseNoteCoverUploadResult,
+  NoteCoverUploadSource,
+  UploadCoverBeforeSubmitInput,
+  NoteEditorSubmitContext,
+  UseNoteEditorSubmitOptions,
+  UseNoteEditorSubmitResult,
+} from './hooks'

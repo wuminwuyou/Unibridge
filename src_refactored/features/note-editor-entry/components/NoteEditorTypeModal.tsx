@@ -2,10 +2,8 @@
 import { createPortal } from 'react-dom'
 import { useEffect, type MouseEvent } from 'react'
 import CloseIconButton from '@shared/ui/CloseIconButton'
-import {
-  noteEditorTypeOptions,
-  type NoteEditorRouteType,
-} from '../constants/noteEditorTypeOptions'
+import type { NoteEditorRouteType } from '../constants/noteEditorTypeOptions'
+import { NoteEditorTypeCardGrid } from './NoteEditorTypeCardGrid'
 import styles from './NoteEditorTypeModal.module.css'
 
 // 02）弹窗 Props（NoteEditorTypeModalProps）
@@ -89,25 +87,7 @@ export function NoteEditorTypeModal({ open, onClose, onSelect }: NoteEditorTypeM
           <p>请选择你要创建的笔记形式，后续可在编辑页继续完善内容。</p>
         </header>
 
-        <div className={styles.noteEditorTypeModalGrid}>
-          {noteEditorTypeOptions.map((option) => {
-            const Icon = option.icon
-            return (
-              <button
-                key={option.type}
-                type="button"
-                className={styles.noteEditorTypeCard}
-                onClick={() => onSelect(option.type)}
-              >
-                <span className={styles.noteEditorTypeCardIcon}>
-                  <Icon size={18} strokeWidth={2.2} />
-                </span>
-                <span className={styles.noteEditorTypeCardLabel}>{option.label}</span>
-                <span className={styles.noteEditorTypeCardDesc}>{option.description}</span>
-              </button>
-            )
-          })}
-        </div>
+        <NoteEditorTypeCardGrid onSelect={onSelect} />
       </section>
     </div>,
     document.body,

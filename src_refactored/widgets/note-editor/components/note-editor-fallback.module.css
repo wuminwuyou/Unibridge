@@ -1,0 +1,79 @@
+/* 01）编辑页空态 / 占位（noteEditorFallback） */
+.noteEditorFallback {
+  display: flex;
+  min-height: calc(100vh - 4rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #52525b;
+}
+
+:root[data-theme='dark'] .noteEditorFallback {
+  color: #a1a1aa;
+}
+
+.noteEditorFallbackIcon {
+  margin-bottom: 1rem;
+  color: #0d9488;
+}
+
+.noteEditorFallbackTitle {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #18181b;
+}
+
+:root[data-theme='dark'] .noteEditorFallbackTitle {
+  color: #fafafa;
+}
+
+.noteEditorFallbackDesc {
+  margin: 0 0 1.25rem;
+  max-width: 28rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+/* 02）兜底页类型卡片网格（noteEditorFallbackCardGrid） */
+.noteEditorFallbackCardGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: min(560px, 100%);
+  margin: 0 0 1.5rem;
+}
+
+@media (max-width: 560px) {
+  .noteEditorFallbackCardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.noteEditorFallbackLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d4d4d8;
+  background: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #18181b;
+  text-decoration: none;
+}
+
+.noteEditorFallbackLink:hover {
+  border-color: #0d9488;
+  color: #0f766e;
+}
+
+:root[data-theme='dark'] .noteEditorFallbackLink {
+  border-color: #3f3f46;
+  background: #27272a;
+  color: #fafafa;
+}

@@ -1,0 +1,65 @@
+/* 01）三栏 Grid 容器（noteArticleLayout） */
+.noteArticleLayout {
+  width: clamp(1380px, 80vw, 1500px);
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+/* 02）12 列 Grid 骨架（noteArticleGrid） */
+.noteArticleGrid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 2rem;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* 03）左侧 TOC 栏（noteArticleTocAside） */
+.noteArticleTocAside {
+  grid-column: span 3;
+  width: clamp(280px, 22vw, 340px);
+  align-self: flex-start;
+}
+
+/* 04）TOC 占位（无目录时保持 Grid 对齐） */
+.noteArticleTocSpacer {
+  grid-column: span 3;
+}
+
+/* 05）中间正文栏（noteArticleBodyCol） */
+.noteArticleBodyCol {
+  grid-column: span 6;
+  flex: 1;
+  min-width: 0;
+  max-width: clamp(640px, 58vw, 920px);
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* 06）正文 prose 区防止子元素撑出横向滚动 */
+.noteArticleBodyCol :global(.prose) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 07）右侧栏（noteArticleSidebar） */
+.noteArticleSidebar {
+  grid-column: span 3;
+  width: clamp(280px, 22vw, 340px);
+  align-self: flex-start;
+  justify-self: end;
+}
+
+/* 08）响应式：窄屏隐藏左栏 TOC */
+@media (max-width: 1279px) {
+  .noteArticleTocAside,
+  .noteArticleTocSpacer {
+    display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .noteArticleTocAside {
+    display: block;
+  }
+}

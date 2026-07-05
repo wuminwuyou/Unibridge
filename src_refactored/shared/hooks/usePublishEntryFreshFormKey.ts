@@ -37,8 +37,11 @@ export function usePublishEntryFreshFormKey(defaultKey = 'default'): string {
     }
     handledInstanceKeyRef.current = instanceKey
     setFormInstanceKey(instanceKey)
-    navigate(location.pathname, { replace: true, state: null })
-  }, [location.pathname, location.state, navigate])
+    navigate(
+      { pathname: location.pathname, search: location.search, hash: location.hash },
+      { replace: true, state: null },
+    )
+  }, [location.hash, location.pathname, location.search, location.state, navigate])
 
   return formInstanceKey
 }

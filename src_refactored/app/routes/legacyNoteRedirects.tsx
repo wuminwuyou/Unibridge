@@ -1,6 +1,10 @@
 // 01）笔记旧路由重定向（兼容书签 / 外链）
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom'
-import { NOTES_EDITOR_PATH, NOTES_LIST_PATH, buildNoteDetailPath } from '@shared/lib/noteRoutes'
+import {
+  NOTES_LIST_PATH,
+  buildNoteDetailPath,
+  buildNoteEditorPathWithDefaults,
+} from '@shared/lib/noteRoutes'
 
 // 02）解析旧详情 query 并跳转（resolveLegacyNoteDetailTarget）
 function resolveLegacyNoteDetailTarget(searchParams: URLSearchParams): string {
@@ -26,13 +30,14 @@ export function RedirectLegacyNoteDetail() {
   return <Navigate to={resolveLegacyNoteDetailTarget(searchParams)} replace />
 }
 
-// 05）/note/publish、/publish/note → /notes/editor
+// 05）/note/publish、/publish/note → /notes/editor?type=article（保留 query）
 export function RedirectNotePublishToNotesEditor() {
-  return <Navigate to={NOTES_EDITOR_PATH} replace />
+  const location = useLocation()
+  return <Navigate to={buildNoteEditorPathWithDefaults(location.search)} replace />
 }
 
-// 06）/notes/create → /notes/editor（保留 query）
+// 06）/notes/create → /notes/editor（保留 query，缺省 type=article）
 export function RedirectNotesCreateToNotesEditor() {
   const location = useLocation()
-  return <Navigate to={`${NOTES_EDITOR_PATH}${location.search}`} replace />
+  return <Navigate to={buildNoteEditorPathWithDefaults(location.search)} replace />
 }

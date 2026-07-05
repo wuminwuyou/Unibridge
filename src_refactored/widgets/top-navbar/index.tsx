@@ -18,7 +18,7 @@ import { resolveActiveNavByPathname, navRouteItems, mainNavItemLabels } from './
 import { createPublishEntryFreshLocationState } from '../../shared/lib/publishEntryNavigation'
 import { PROJECTS_CREATE_PATH } from '../../shared/lib/projectRoutes'
 import { buildNoteEditorPath } from '../../shared/lib/noteRoutes'
-import { clearNoteDetailPreview } from '@features/note-editor'
+import { clearNoteDetailPreview, clearNoteEditorFormSession } from '@features/note-editor'
 import { NoteEditorTypeModal, useNoteEditorTypeModal } from '@features/note-editor-entry'
 import AuthModal from '../../widgets/auth-modal'
 
@@ -119,6 +119,7 @@ function TopNavbar() {
   const noteEditorTypeModal = useNoteEditorTypeModal({
     onSelect: (type) => {
       clearNoteDetailPreview()
+      clearNoteEditorFormSession()
       navigate(buildNoteEditorPath({ type }), { state: createPublishEntryFreshLocationState() })
     },
   })

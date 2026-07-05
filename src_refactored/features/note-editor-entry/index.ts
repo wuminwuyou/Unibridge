@@ -6,6 +6,9 @@ export { noteEditorTypeOptions } from './constants/noteEditorTypeOptions'
 export { NoteEditorTypeModal } from './components/NoteEditorTypeModal'
 export type { NoteEditorTypeModalProps } from './components/NoteEditorTypeModal'
 
+export { NoteEditorTypeCardGrid } from './components/NoteEditorTypeCardGrid'
+export type { NoteEditorTypeCardGridProps } from './components/NoteEditorTypeCardGrid'
+
 export { useNoteEditorTypeModal } from './hooks/useNoteEditorTypeModal'
 export type {
   UseNoteEditorTypeModalOptions,

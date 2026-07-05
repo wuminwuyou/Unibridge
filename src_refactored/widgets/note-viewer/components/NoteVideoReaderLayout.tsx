@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { VideoPlayer } from '@shared/ui/VideoPlayer'
 import { useElementHeight } from '@shared/hooks/useElementHeight'
 import { NoteEditorialBanner } from '@features/note-viewer-editorial'
+import { resolveNoteEditorReturnPath } from '@features/note-editor'
 import { NoteQuickMdEditor } from '@features/note-viewer-annotation'
 import type { NoteVideoDetailPayload } from '@entities/note'
 import { resolveNoteAuthorInitial, noteDetailPublishStatusLabelMap, useSimilarNotes, RowNoteCard } from '@entities/note'
@@ -34,6 +35,11 @@ export function NoteVideoReaderLayout({ note, isEditorialFlow = false }: NoteVid
     return null
   }, [note.author.uid])
 
+  const editorReturnPath = useMemo(
+    () => resolveNoteEditorReturnPath(note.uid),
+    [note.uid],
+  )
+
   // 播放器高度同步：侧栏高度 = 播放器高度
   const [playerRef, playerHeight] = useElementHeight<HTMLDivElement>('.art-video')
   const sidebarHeightStyle = sidebarCollapsed
@@ -47,7 +53,9 @@ export function NoteVideoReaderLayout({ note, isEditorialFlow = false }: NoteVid
   return (
     <div className={`${styles.noteVideoLayout} ${isEditorialFlow ? styles.noteVideoLayoutEditorial : ''}`}>
       <div className={styles.noteVideoShell}>
-        {isEditorialFlow ? <NoteEditorialBanner publishStatus={note.publishStatus} /> : null}
+        {isEditorialFlow ? (
+          <NoteEditorialBanner publishStatus={note.publishStatus} editorReturnPath={editorReturnPath} />
+        ) : null}
 
         <section className={styles.noteVideoHero} aria-label="视频播放区">
           <div className={styles.noteVideoLeftCol}>

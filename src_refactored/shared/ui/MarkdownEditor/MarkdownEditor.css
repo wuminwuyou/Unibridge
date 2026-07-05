@@ -21,6 +21,62 @@
   flex-shrink: 0;
 }
 
+/* 02-a）sticky head 变体（md-editor-core--sticky-head）——对齐 home-page__lab-toolbar */
+.md-editor-core--sticky-head {
+  overflow: visible;
+  height: auto;
+  flex: none;
+}
+
+.md-editor-core--sticky-head .md-editor-core__head {
+  position: sticky;
+  top: var(--md-editor-sticky-top, var(--top-header-height, 60px));
+  z-index: 15;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--card-border);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--card-border) 85%, transparent);
+}
+
+/* 02-b）head 内工具栏挂载槽（md-editor-core__head-toolbar-slot） */
+.md-editor-core__head-toolbar-slot {
+  display: block;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.md-editor-core__head-toolbar-slot:empty {
+  display: none;
+}
+
+.md-editor-core__head-toolbar-slot .md-editor-toolbar-wrapper,
+.md-editor-core__hoisted-toolbar {
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+  margin: 0.375rem -0.5rem 0 !important;
+  width: calc(100% + 1rem);
+  padding-top: 0 !important;
+  border-top: 1px solid var(--card-border);
+  border-bottom: none !important;
+  background: var(--chip-bg);
+  box-shadow: none;
+}
+
+.md-editor-core__head-leading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.md-editor-core__char-count {
+  font-size: 0.625rem;
+  line-height: 1;
+  color: var(--text-soft);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .md-editor-core__head-main {
   display: flex;
   align-items: center;
@@ -123,6 +179,16 @@
 
 .md-editor-core__status--success {
   color: var(--primary-text);
+}
+
+.md-editor-core--sticky-head .md-editor-core__body {
+  overflow: visible;
+}
+
+.md-editor-core--sticky-head .md-editor {
+  overflow: visible !important;
+  gap: 0 !important;
+  row-gap: 0 !important;
 }
 
 /* 03）正文区填充父容器 */

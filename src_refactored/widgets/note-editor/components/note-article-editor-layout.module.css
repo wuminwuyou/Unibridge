@@ -1,0 +1,69 @@
+/* 01）右栏纵向堆叠（noteArticleEditorSidebarStack） */
+.noteArticleEditorSidebarStack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* 02）编辑页布局：窄屏封面折叠（noteArticleEditorCoverInline / Sidebar） */
+.noteArticleEditorCoverInline {
+  display: none;
+  margin-bottom: 1.5rem;
+}
+
+.noteArticleEditorCoverSidebar {
+  display: block;
+}
+
+@media (max-width: 1279px) {
+  .noteArticleEditorCoverInline {
+    display: block;
+  }
+
+  .noteArticleEditorCoverSidebar {
+    display: none;
+  }
+}
+
+/* 02）TOC 占位卡片（noteArticleEditorTocPlaceholder） */
+.noteArticleEditorTocPlaceholder {
+  border-radius: 0.75rem;
+  border: 1px dashed #d4d4d8;
+  background: rgb(244 244 245 / 0.6);
+  padding: 1rem;
+  color: #71717a;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+:root[data-theme='dark'] .noteArticleEditorTocPlaceholder {
+  border-color: #3f3f46;
+  background: rgb(24 24 27 / 0.6);
+  color: #a1a1aa;
+}
+
+.noteArticleEditorTocPlaceholderTitle {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+}
+
+.noteArticleEditorTocPlaceholderText {
+  margin: 0;
+}
+
+/* 04）编辑页根容器（noteArticleEditorRoot） */
+.noteArticleEditorRoot {
+  min-height: calc(100vh - var(--top-header-height, 60px));
+  padding-bottom: 4.75rem;
+}
+
+/* 05）左右栏 sticky 随动（保留与页面 padding 一致的上间距） */
+.noteArticleEditorStickyAside {
+  position: sticky;
+  top: calc(var(--top-header-height, 60px) + 1.5rem);
+  align-self: flex-start;
+}

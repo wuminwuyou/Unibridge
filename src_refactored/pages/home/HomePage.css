@@ -1,6 +1,6 @@
 /* 01）首页根布局（频道页根容器 —— 完整保留原始 CSS） */
 .home-page {
-    --home-top-header-height: 76px;
+    --home-top-header-height: var(--top-header-height, 60px);
     min-height: 100vh;
     background: var(--page-bg);
     color: var(--text-main);

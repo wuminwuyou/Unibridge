@@ -30,6 +30,32 @@ export function buildNoteEditorPath(options: {
   return `${NOTES_EDITOR_PATH}?${params.toString()}`
 }
 
+/** 解析编辑页 type query（resolveNoteEditorRouteType） */
+export function resolveNoteEditorRouteType(type: string | null | undefined): 'article' | 'video' | null {
+  if (type === 'article' || type === 'video') {
+    return type
+  }
+  return null
+}
+
+/**
+ * 函数名：buildNoteEditorPathWithDefaults
+ * 功能：合并已有 query 并确保包含 type（缺省 article），供旧路由重定向使用。
+ * 输入：
+ * - search：location.search（含或不含前导 ?）
+ * 输出：
+ * - 返回值：完整 editor 路径
+ */
+export function buildNoteEditorPathWithDefaults(search = ''): string {
+  const raw = search.startsWith('?') ? search.slice(1) : search
+  const params = new URLSearchParams(raw)
+  if (!params.get('type')) {
+    params.set('type', 'article')
+  }
+  const query = params.toString()
+  return query ? `${NOTES_EDITOR_PATH}?${query}` : buildNoteEditorPath({ type: 'article' })
+}
+
 /** 笔记详情（RESTful） */
 export function buildNoteDetailPath(noteId: string): string {
   return `/notes/${encodeURIComponent(noteId)}`

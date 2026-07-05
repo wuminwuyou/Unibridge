@@ -1,49 +1,4 @@
-/* 01）三栏 Grid 容器 */
-.noteArticleLayout {
-  width: clamp(1380px, 80vw, 1500px);
-  margin: 0 auto;
-  padding: 1.5rem 1rem;
-}
-
-.noteArticleGrid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 2rem;
-  align-items: flex-start;
-  width: 100%;
-}
-
-/* 02）左侧 TOC 栏 */
-.noteArticleTocAside {
-  grid-column: span 3;
-  width: clamp(280px, 22vw, 340px);
-  align-self: flex-start;
-}
-
-/* 03）中间正文栏 */
-.noteArticleBodyCol {
-  grid-column: span 6;
-  flex: 1;
-  min-width: 0;
-  max-width: clamp(640px, 58vw, 920px);
-  margin: 0 auto;
-  width: 100%;
-}
-
-/* 03-a）正文 prose 区防止子元素撑出横向滚动 */
-.noteArticleBodyCol :global(.prose) {
-  min-width: 0;
-  max-width: 100%;
-}
-
-/* 04）右侧栏 */
-.noteArticleSidebar {
-  grid-column: span 3;
-  width: clamp(280px, 22vw, 340px);
-  align-self: flex-start;
-  justify-self: end;
-}
-
+/* 01）阅读页侧栏内部布局（noteArticleSidebarInner） */
 .noteArticleSidebarInner {
   --sidebar-panel-duration: 0.35s;
   --sidebar-panel-easing: cubic-bezier(0.4, 0, 0.2, 1);
@@ -52,7 +7,7 @@
   gap: 1.5rem;
 }
 
-/* 05）学习笔记编辑器卡片 */
+/* 02）学习笔记编辑器卡片（noteArticleEditorCard） */
 .noteArticleEditorCard {
   display: flex;
   flex-direction: column;
@@ -138,27 +93,13 @@
   }
 }
 
-/* 05-a）编辑器卡片内学习笔记占满剩余高度 */
+/* 03）编辑器卡片内学习笔记占满剩余高度 */
 .noteArticleEditorCardBody :global(.note-quick-md-editor) {
   flex: 1;
   min-height: 0;
   height: 100%;
 }
 
-/* 05-b）编辑器内 md-editor 可滚动长文本（与旧 ArticleNoteView 一致） */
 .noteArticleEditorCardBody :global(.note-quick-md-editor .md-editor) {
   overflow: auto !important;
-}
-
-/* 06）响应式 */
-@media (max-width: 1279px) {
-  .noteArticleTocAside {
-    display: none;
-  }
-}
-
-@media (min-width: 1280px) {
-  .noteArticleTocAside {
-    display: block;
-  }
 }

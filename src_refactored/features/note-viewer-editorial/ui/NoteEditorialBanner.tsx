@@ -5,8 +5,10 @@ import type { NoteDetailPublishStatus } from '../../../entities/note/model/noteD
 import styles from './NoteEditorialBanner.module.css'
 
 // 01）预览回流横幅 Props（NoteEditorialBannerProps）
-interface NoteEditorialBannerProps {
+export interface NoteEditorialBannerProps {
   publishStatus: NoteDetailPublishStatus
+  /** 返回编辑页路径（由上层 widget 注入 buildNoteEditorPath / resolveNoteEditorReturnPath） */
+  editorReturnPath: string
 }
 
 // 02）预览回流横幅组件（NoteEditorialBanner）
@@ -15,10 +17,11 @@ interface NoteEditorialBannerProps {
  * 功能：发布预览/草稿态下展示「当前为笔记预览…」警告 +「返回编辑」链接。
  * 输入：
  * - publishStatus：DRAFT / PREVIEW / PUBLISHED
+ * - editorReturnPath：返回编辑页路由
  * 输出：
  * - 返回值：React 节点
  */
-export function NoteEditorialBanner({ publishStatus }: NoteEditorialBannerProps) {
+export function NoteEditorialBanner({ publishStatus, editorReturnPath }: NoteEditorialBannerProps) {
   const bannerText = resolveNoteEditorialBannerText(publishStatus)
 
   return (
@@ -28,7 +31,7 @@ export function NoteEditorialBanner({ publishStatus }: NoteEditorialBannerProps)
           {bannerText}
         </p>
         <Link
-          to="/publish/note"
+          to={editorReturnPath}
           className={`text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 ${styles.noteEditorialBannerLink}`}
         >
           <ArrowLeft size={16} aria-hidden="true" />

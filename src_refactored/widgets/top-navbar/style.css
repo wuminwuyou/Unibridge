@@ -1,18 +1,22 @@
 /* 01）顶部导航区域（毛玻璃 + 中间浅色渐变） */
+:root {
+  --top-header-height: 60px;
+}
+
 .top-header { position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(12px) saturate(1.15); -webkit-backdrop-filter: blur(12px) saturate(1.15); background: var(--header-bg); border-bottom: 1px solid var(--line-color); box-shadow: 0 4px 14px var(--header-shadow); overflow: visible; isolation: isolate; }
 .top-header::before { content: ''; position: absolute; top: -160px; left: 50%; width: 700px; height: 300px; transform: translateX(-50%); pointer-events: none; background: radial-gradient(circle at center, var(--header-highlight) 0%, rgba(255,255,255,0) 70%); }
 .top-header::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(230,250,255,0.26) 50%, rgba(255,255,255,0) 100%); opacity: 0.78; }
 :root[data-theme='dark'] .top-header::after { opacity: 0.48; }
 
 /* 02）内层容器 */
-.top-header__inner { position: relative; z-index: 1; width: 100%; margin: 0; padding: 0 50px; box-sizing: border-box; height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.top-header__inner { position: relative; z-index: 1; width: 100%; margin: 0; padding: 0 40px; box-sizing: border-box; height: var(--top-header-height); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 
 /* 03）品牌信息模块 */
 .brand-group { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.brand-logo { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #f8fbff; font-weight: 700; font-size: 14px; background: linear-gradient(130deg, #4e8cff, #6ca8ff); box-shadow: 0 6px 14px rgba(78,140,255,0.24); }
+.brand-logo { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: #f8fbff; font-weight: 700; font-size: 13px; background: linear-gradient(130deg, #4e8cff, #6ca8ff); box-shadow: 0 6px 14px rgba(78,140,255,0.24); }
 .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-.brand-text strong { font-size: 15px; color: var(--text-main); }
-.brand-text span { margin-top: 3px; font-size: 11px; color: var(--text-soft); }
+.brand-text strong { font-size: 14px; color: var(--text-main); }
+.brand-text span { margin-top: 2px; font-size: 10px; color: var(--text-soft); }
 
 /* 04）导航菜单模块 */
 .top-nav { display: flex; align-items: stretch; gap: 4px; margin-right: auto; margin-left: 24px; height: 100%; }
@@ -27,20 +31,20 @@
 .header-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 
 /* 05-1）顶部导航搜索框 */
-.top-header-search { display: flex; align-items: center; gap: 8px; height: 38px; width: clamp(220px, 24vw, 360px); border: 1px solid var(--button-border); border-radius: 12px; background: var(--button-bg); color: var(--text-soft); padding: 0 12px; }
+.top-header-search { display: flex; align-items: center; gap: 8px; height: 32px; width: clamp(200px, 22vw, 320px); border: 1px solid var(--button-border); border-radius: 10px; background: var(--button-bg); color: var(--text-soft); padding: 0 10px; }
 .top-header-search__icon { flex-shrink: 0; opacity: 0.9; }
 .top-header-search input { width: 100%; border: none; outline: none; background: transparent; color: var(--text-main); font-size: 13px; }
 .top-header-search input::placeholder { color: var(--text-soft); }
 
 /* 05-2）操作按钮基础 */
-.theme-button, .notify-button, .login-entry-button, .user-button { border: 1px solid var(--line-color); background: var(--card-bg); border-radius: 12px; height: 38px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main); }
-.theme-button, .notify-button { width: 38px; }
-.login-entry-button { height: 38px; border-radius: 10px; border: 1px solid var(--button-border); background: var(--button-bg); color: var(--button-text); padding: 0 14px; min-width: 92px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+.theme-button, .notify-button, .login-entry-button, .user-button { border: 1px solid var(--line-color); background: var(--card-bg); border-radius: 10px; height: 32px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main); }
+.theme-button, .notify-button { width: 32px; }
+.login-entry-button { height: 32px; border-radius: 9px; border: 1px solid var(--button-border); background: var(--button-bg); color: var(--button-text); padding: 0 12px; min-width: 84px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
 .login-entry-button:hover { border-color: color-mix(in srgb, var(--primary-text) 52%, var(--button-border)); color: var(--primary-text); }
 .login-entry-button--authenticated { min-width: 86px; }
 
 /* 05.3）发布按钮 */
-.publish-entry-button { min-width: 76px; height: 38px; padding: 0 20px; border-radius: 12px; border: 1px solid color-mix(in srgb, #ffffff 22%, #1e3151); background: color-mix(in srgb, #2563EB 88%, rgba(255,255,255,0.1)); color: #f7fbff; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; letter-spacing: 0.4px; cursor: pointer; backdrop-filter: blur(12px) saturate(1.14); -webkit-backdrop-filter: blur(12px) saturate(1.14); box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 6px 14px rgba(15,27,48,0.32); transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease; }
+.publish-entry-button { min-width: 68px; height: 32px; padding: 0 16px; border-radius: 10px; border: 1px solid color-mix(in srgb, #ffffff 22%, #1e3151); background: color-mix(in srgb, #2563EB 88%, rgba(255,255,255,0.1)); color: #f7fbff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; letter-spacing: 0.3px; cursor: pointer; backdrop-filter: blur(12px) saturate(1.14); -webkit-backdrop-filter: blur(12px) saturate(1.14); box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 6px 14px rgba(15,27,48,0.32); transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease; }
 .publish-entry-button:hover { transform: translateY(-1px); border-color: color-mix(in srgb, #ffffff 30%, #1e3151); background: color-mix(in srgb, #1e3151 82%, rgba(255,255,255,0.18)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), 0 9px 20px rgba(15,27,48,0.36); }
 .publish-entry-button:active { transform: translateY(0); box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 5px 12px rgba(15,27,48,0.28); }
 .publish-entry-button span { display: inline-flex; align-items: center; justify-content: center; }
@@ -66,7 +70,7 @@
 .notify-button:hover .notify-button__glow { opacity: 0.52; transform: scale(1.08); }
 
 /* 08）用户头像按钮 */
-.user-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; border-radius: 999px; position: relative; z-index: 2; border: none; background: none; cursor: pointer; overflow: hidden; }
+.user-button { width: 36px; height: 36px; min-width: 36px; min-height: 36px; padding: 0; border-radius: 999px; position: relative; z-index: 2; border: none; background: none; cursor: pointer; overflow: hidden; }
 
 /* 09）用户菜单面板 */
 .user-menu { position: relative; }

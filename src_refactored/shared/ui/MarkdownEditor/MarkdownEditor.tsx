@@ -14,7 +14,7 @@
  * - 返回值：React 节点
  * - 副作用：无 API 调用、无路由跳转（纯 UI 组件）
  */
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { Eye, FilePen, FileUp } from 'lucide-react'
 import { MdEditor, MdPreview } from 'md-editor-rt'
 import 'md-editor-rt/lib/style.css'
@@ -65,6 +65,10 @@ export interface MarkdownEditorProps {
   ) => boolean | Promise<boolean>
   /** 附加 className */
   className?: string
+  /** 滚动时固定编辑器 head（模式切换 / 上传 / 字数）于视口内 */
+  stickyHead?: boolean
+  /** sticky head 的 top 偏移，默认与 TopNavbar 高度一致 */
+  stickyHeadTop?: string
 }
 
 // 05）编辑器模式类型（EditorMode）
@@ -100,12 +104,18 @@ export function MarkdownEditor({
   placeholder = '在这里输入 Markdown 内容...',
   allowMarkdownFileUpload = false,
   onLengthLimitExceeded,
+  onUpload,
   className,
+  stickyHead = false,
+  stickyHeadTop = 'var(--top-header-height, 60px)',
 }: MarkdownEditorProps) {
   const theme = useDocumentTheme()
   const [mode, setMode] = useState<EditorMode>('edit')
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const toolbarSlotRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   const isEdit = mode === 'edit'
   const charCount = value.length
@@ -233,31 +243,99 @@ export function MarkdownEditor({
     fileInputRef.current?.click()
   }, [])
 
+  const handleUploadImg = useCallback<NonNullable<React.ComponentProps<typeof MdEditor>['onUploadImg']>>(
+    (files, callback) => {
+      if (!onUpload) {
+        return
+      }
+
+      void (async () => {
+        try {
+          const urls = await Promise.all(files.map((file) => onUpload(file)))
+          callback(urls)
+        } catch {
+          setUploadError('图片上传失败')
+        }
+      })()
+    },
+    [onUpload],
+  )
+
+  // 13）将 md-editor 工具栏移入 head，与 tabs 一体 sticky（useLayoutEffect hoistToolbar）
+  useLayoutEffect(() => {
+    if (!stickyHead || !isEdit) {
+      return undefined
+    }
+
+    const bodyEl = bodyRef.current
+    const slotEl = toolbarSlotRef.current
+    if (!bodyEl || !slotEl) {
+      return undefined
+    }
+
+    const hoistToolbar = (): void => {
+      const toolbar = bodyEl.querySelector(
+        ':scope .md-editor .md-editor-toolbar-wrapper',
+      ) as HTMLElement | null
+      if (!toolbar || toolbar.parentElement === slotEl) {
+        return
+      }
+      toolbar.classList.add('md-editor-core__hoisted-toolbar')
+      slotEl.appendChild(toolbar)
+    }
+
+    hoistToolbar()
+
+    const observer = new MutationObserver(hoistToolbar)
+    observer.observe(bodyEl, { childList: true, subtree: true })
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [isEdit, stickyHead, theme, allowMarkdownFileUpload])
+
+  const rootClassName = [
+    'md-editor-core',
+    stickyHead ? 'md-editor-core--sticky-head' : '',
+    className ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const rootStyle = stickyHead
+    ? ({ '--md-editor-sticky-top': stickyHeadTop } as React.CSSProperties)
+    : undefined
+
   return (
-    <div className={`md-editor-core ${className ?? ''}`.trim()}>
+    <div ref={rootRef} className={rootClassName} style={rootStyle}>
       <div className="md-editor-core__head">
         <div className="md-editor-core__head-main">
-          <div className="md-editor-core__tabs" role="tablist" aria-label="编辑器模式">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={isEdit}
-              className={`md-editor-core__tab ${isEdit ? 'md-editor-core__tab--active' : ''}`.trim()}
-              onClick={() => setMode('edit')}
-            >
-              <FilePen className="h-3.5 w-3.5" aria-hidden="true" />
-              编辑
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={!isEdit}
-              className={`md-editor-core__tab ${!isEdit ? 'md-editor-core__tab--active' : ''}`.trim()}
-              onClick={() => setMode('preview')}
-            >
-              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-              预览
-            </button>
+          <div className="md-editor-core__head-leading">
+            <div className="md-editor-core__tabs" role="tablist" aria-label="编辑器模式">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={isEdit}
+                className={`md-editor-core__tab ${isEdit ? 'md-editor-core__tab--active' : ''}`.trim()}
+                onClick={() => setMode('edit')}
+              >
+                <FilePen className="h-3.5 w-3.5" aria-hidden="true" />
+                编辑
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={!isEdit}
+                className={`md-editor-core__tab ${!isEdit ? 'md-editor-core__tab--active' : ''}`.trim()}
+                onClick={() => setMode('preview')}
+              >
+                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                预览
+              </button>
+            </div>
+            <span className="md-editor-core__char-count" aria-live="polite">
+              {charCount} / {maxLength} 字
+            </span>
           </div>
 
           {allowMarkdownFileUpload && (
@@ -292,15 +370,12 @@ export function MarkdownEditor({
           </p>
         )}
 
-        {/* 字符计数 */}
-        <div className="flex items-center gap-2">
-          <span className="text-[0.625rem] text-zinc-400 dark:text-zinc-500">
-            {charCount} / {maxLength} 字
-          </span>
-        </div>
+        {stickyHead && isEdit ? (
+          <div ref={toolbarSlotRef} className="md-editor-core__head-toolbar-slot" />
+        ) : null}
       </div>
 
-      <div className="md-editor-core__body" onPasteCapture={handlePasteCapture}>
+      <div ref={bodyRef} className="md-editor-core__body" onPasteCapture={handlePasteCapture}>
         {isEdit ? (
           <MdEditor
             value={value}
@@ -313,6 +388,7 @@ export function MarkdownEditor({
             placeholder={placeholder}
             preview={false}
             toolbarsExclude={[...EXCLUDED_TOOLBARS]}
+            onUploadImg={onUpload ? handleUploadImg : undefined}
             style={{ height: '100%' }}
           />
         ) : (

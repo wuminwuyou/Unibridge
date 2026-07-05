@@ -1,5 +1,5 @@
 // 01）发布表单自动摘要最大长度（PUBLISH_AUTO_SUMMARY_MAX_LENGTH）
-export const PUBLISH_AUTO_SUMMARY_MAX_LENGTH = 100
+export const PUBLISH_AUTO_SUMMARY_MAX_LENGTH = 50
 
 // 02）Markdown 转纯文本（stripMarkdownToPlainText）
 /**
