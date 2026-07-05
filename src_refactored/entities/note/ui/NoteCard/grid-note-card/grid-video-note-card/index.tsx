@@ -43,9 +43,8 @@ function GridVideoNoteCard({ note, showAuthor = true }: { note: GridVideoNoteCar
         ) : null}
         <GridNoteCardFooter
           views={note.views}
-          comments={note.comments}
-          favorites={note.favorites}
           publishTime={note.publishTime}
+          updateTime={note.updateTime}
         />
       </div>
     </Link>

@@ -1,5 +1,5 @@
 // 01）关联笔记紧凑卡片（ParentNoteCompactCard）
-import { Eye, Heart, ThumbsUp } from 'lucide-react'
+import { Eye, Star, ThumbsUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
 import { formatMetricCount } from '@shared/lib'
@@ -67,7 +67,7 @@ function ParentNoteCompactCard({ note }: ParentNoteCompactCardProps) {
           {formatMetricCount(note.comments)}
         </span>
         <span className={styles.compactCardStat}>
-          <Heart size={STAT_ICON_SIZE} aria-hidden="true" />
+          <Star size={STAT_ICON_SIZE} aria-hidden="true" />
           {formatMetricCount(note.favorites)}
         </span>
       </div>

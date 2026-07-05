@@ -55,9 +55,7 @@ function RowNoteCard({
   })
   const typeBadgeLabel = resolveNoteCardTypeBadge(contentType)
   const authorName = resolveNoteCardAuthorName(note)
-  const metaText = isVerticalLayout
-    ? `${note.views} 浏览 · ${note.comments} 评论 · ${note.favorites} 收藏`
-    : resolveNoteCardMetaText(note)
+  const metaText = resolveNoteCardMetaText(note)
 
   const isReviewing = note.status === 'REVIEWING'
   const isPrivate = note.visibility === 'PRIVATE'

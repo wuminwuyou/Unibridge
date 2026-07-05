@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react'
-import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
 import { useMarkdownReaderId, ContentReader, MarkdownMdCatalogPanel } from '@shared/ui/MarkdownReader'
 import { NoteEditorialBanner } from '@features/note-viewer-editorial'
 import { NoteQuickMdEditor } from '@features/note-viewer-annotation'
@@ -209,7 +209,7 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
                     aria-expanded={isLearningNoteExpanded}
                   >
                     <h3 className={styles.noteArticleEditorToggleTitle}>
-                      <BookOpen size={14} aria-hidden="true" />
+                      <Pencil size={14} aria-hidden="true" />
                       学习笔记
                     </h3>
                     {isLearningNoteExpanded ? (

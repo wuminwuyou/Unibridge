@@ -57,7 +57,6 @@ export function mapApiNotes(notes: UserProfileNoteDto[]): ProfileNoteItem[] {
     favorites: note.favorites,
     cover: note.cover,
     authorNickname: resolveNoteAuthorNickname(note),
-    authorOrganization: note.authorOrganization?.trim() || undefined,
     authorAvatar: note.authorAvatar?.trim() || undefined,
     videoDuration: formatProfileNoteVideoDuration(note.videoDuration),
   }))

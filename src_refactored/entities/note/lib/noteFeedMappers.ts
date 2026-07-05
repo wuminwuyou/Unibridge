@@ -38,20 +38,20 @@ function formatFeedVideoDuration(value: string | number | null | undefined): str
  */
 export function mapFeedNoteToProfileNoteItem(item: NoteFeedContentVo): ProfileNoteItem {
   const publishTime = item.publishTime ?? ''
+  const updateTime = item.updateTime ?? publishTime
   return {
     uid: item.uid,
     title: item.title,
-    summary: item.summary?.trim() || '',
+    summary: item.summary?.trim() || item.preview?.trim() || '',
     contentType: item.noteType === 'VIDEO' ? '视频' : '图文',
     tags: extractNoteFeedTagLabels(item.tags),
     publishTime,
-    updateTime: publishTime,
+    updateTime,
     views: item.views ?? 0,
     comments: item.likes ?? item.comments ?? 0,
     favorites: item.favorites ?? 0,
     cover: item.coverUrl?.trim() || '',
     authorNickname: resolveNoteAuthorNickname(item),
-    authorOrganization: item.authorOrganization?.trim() || undefined,
     authorAvatar: item.authorAvatar?.trim() || undefined,
     videoDuration: formatFeedVideoDuration(item.videoDuration),
     status: item.status,

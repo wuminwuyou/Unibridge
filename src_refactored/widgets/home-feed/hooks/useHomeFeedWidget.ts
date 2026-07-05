@@ -4,7 +4,7 @@ import { getHomeFeed, FeedApiError } from '../../../entities/project/api/project
 import type { FeedLoadState } from '../../../entities/project/model/feedTypes'
 import type { ProjectItem } from '../../../shared/types/project'
 import type { ProfileNoteItem } from '../../../entities/note/model/profileNoteItem'
-import { resolveNoteAuthorNickname } from '../../../entities/note/lib/resolveNoteAuthorNickname'
+import { mapFeedNoteToProfileNoteItem } from '../../../entities/note/lib/noteFeedMappers'
 
 export interface UseHomeFeedWidgetResult {
   loadState: FeedLoadState
@@ -29,7 +29,7 @@ export function useHomeFeedWidget(): UseHomeFeedWidgetResult {
         const pItems = (data as any).projects ?? []
         const nItems = (data as any).notes ?? []
         setProjects(Array.isArray(pItems) ? pItems.map((p: any) => ({ uid: p.uid, title: p.title ?? '', preview: p.preview ?? p.summary ?? '', tags: p.tags ?? [], category: p.projectCategory ?? 'COMMERCIAL', ownerOrganization: p.ownerOrganization ?? '', publishTime: p.publishTime ?? '', level: p.level ?? 'N', logoSvgUrl: p.logoSvgUrl ?? null, teamSize: p.teamSize ?? null, duration: p.duration ?? null })) : [])
-        setNotes(Array.isArray(nItems) ? nItems.map((n: any) => ({ uid: n.uid, title: n.title ?? '', summary: n.summary ?? n.preview ?? '', contentType: n.noteType === 'VIDEO' ? '视频' : '图文', tags: Array.isArray(n.tags) ? (typeof n.tags[0] === 'string' ? n.tags : n.tags.map((t: any) => t.label ?? '')) : [], publishTime: n.publishTime ?? '', updateTime: n.publishTime ?? '', views: n.views ?? 0, comments: n.comments ?? 0, favorites: n.favorites ?? 0, cover: n.coverUrl ?? '', authorNickname: resolveNoteAuthorNickname(n), authorOrganization: n.authorOrganization, authorAvatar: n.authorAvatar, videoDuration: n.videoDuration })) : [])
+        setNotes(Array.isArray(nItems) ? nItems.map(mapFeedNoteToProfileNoteItem) : [])
         setLoadState('ready')
       } catch (e) {
         if (cancelled) return

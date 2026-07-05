@@ -127,7 +127,7 @@ function TeamMainContent({ model }: TeamMainContentProps) {
   }
 
   if (isNotesTabActive) {
-    return <NotesList title="团队笔记" notes={notesTabData.notes} mode="full" layout="grid-three" loadState={notesTabData.loadState} errorMessage={notesTabData.errorMessage} emptyLabel="暂无团队笔记" />
+    return <NotesList title="团队笔记" notes={notesTabData.notes} mode="full" layout="grid-four" loadState={notesTabData.loadState} errorMessage={notesTabData.errorMessage} emptyLabel="暂无团队笔记" />
   }
 
   return null
@@ -192,7 +192,7 @@ function OrganizationMainContent({ model }: OrganizationMainContentProps) {
   }
 
   if (isNotesTabActive) {
-    return <NotesList title="机构笔记" notes={notesTabData.notes} mode="full" layout="grid-three" loadState={notesTabData.loadState} errorMessage={notesTabData.errorMessage} emptyLabel="暂无机构笔记" />
+    return <NotesList title="机构笔记" notes={notesTabData.notes} mode="full" layout="grid-four" loadState={notesTabData.loadState} errorMessage={notesTabData.errorMessage} emptyLabel="暂无机构笔记" />
   }
 
   return null

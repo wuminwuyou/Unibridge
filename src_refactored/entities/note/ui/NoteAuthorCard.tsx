@@ -1,4 +1,4 @@
-import { Eye, Heart, ThumbsUp } from 'lucide-react'
+import { Eye, Star, ThumbsUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { NoteDetailAuthor } from '../model/noteDetailCommon'
 import styles from './NoteAuthorCard.module.css'
@@ -81,7 +81,7 @@ export function NoteAuthorCard({
       </div>
       <div className={styles.noteStatsRow}>
         <span className={styles.noteStatsItem}><Eye size={12} aria-hidden="true" />{views} 浏览</span>
-        <span className={styles.noteStatsItem}><Heart size={12} aria-hidden="true" />{favorites} 收藏</span>
+        <span className={styles.noteStatsItem}><Star size={12} aria-hidden="true" />{favorites} 收藏</span>
         <span className={styles.noteStatsItem}><ThumbsUp size={12} aria-hidden="true" />{comments} 评论</span>
       </div>
     </div>

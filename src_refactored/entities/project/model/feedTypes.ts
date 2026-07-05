@@ -14,7 +14,7 @@ export interface FeedContentVo {
   tags?: Array<{ label: string }> | string[]; ownerOrganization?: string
   logoSvgUrl?: string | null; level?: string; teamSize?: string | null; duration?: string | null
   coverUrl?: string | null; authorNickname?: string; authorName?: string
-  authorOrganization?: string; authorAvatar?: string | null
+  authorAvatar?: string | null
   videoDuration?: string | number | null; publishTime?: string; views?: number
   likes?: number; favorites?: number; comments?: number; score?: number
   status?: string; visibility?: string

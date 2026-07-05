@@ -249,13 +249,13 @@
     gap: 14px;
 }
 
-.profile-note-grid--three-columns {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+.profile-note-grid--four-columns {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
 }
 
-.profile-note-grid--three-columns .grid-note-card {
-    min-width: var(--grid-note-card-min-width);
+.profile-note-grid--four-columns .grid-note-card {
+    min-width: 0;
     width: 100%;
 }
 
@@ -635,13 +635,13 @@
 }
 
 @media (max-width: 1200px) {
-    .profile-note-grid--three-columns {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .profile-note-grid--four-columns {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 960px) {
-    .profile-note-grid--three-columns {
+    .profile-note-grid--four-columns {
         grid-template-columns: 1fr;
     }
 }

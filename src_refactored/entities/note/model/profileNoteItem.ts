@@ -14,7 +14,6 @@ export interface ProfileNoteItem {
   favorites: number
   cover: string
   authorNickname?: string
-  authorOrganization?: string
   authorAvatar?: string
   videoDuration?: string
   status?: string

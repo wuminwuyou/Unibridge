@@ -15,7 +15,7 @@ export interface NotesListProps {
   previewLimit?: number
   total?: number | null
   emptyLabel?: string
-  layout?: 'grid-three' | 'row-list'
+  layout?: 'grid-four' | 'row-list'
   showAuthor?: boolean
   loadState?: ProfileTabLoadState
   errorMessage?: string | null
@@ -28,7 +28,7 @@ export interface NotesListProps {
  * 函数名：NotesList
  * 功能：渲染个人 / 团队 / 机构空间的笔记预览或完整列表（含可选加载/错误态）。
  * 实现方法：
- * - grid-three：三列 GridNoteCard
+ * - grid-four：四列 GridNoteCard
  * - row-list：纵向 RowNoteCard
  * 输入：
  * - NotesListProps
@@ -43,7 +43,7 @@ export function NotesList({
   previewLimit = 3,
   total,
   emptyLabel = '暂无笔记内容',
-  layout = 'grid-three',
+  layout = 'grid-four',
   showAuthor = false,
   loadState,
   errorMessage,
@@ -94,7 +94,7 @@ export function NotesList({
             ))}
           </div>
         ) : (
-          <div className="profile-space-note-grid profile-space-note-grid--three-columns">
+          <div className="profile-space-note-grid profile-space-note-grid--four-columns">
             {visibleNotes.map((note) => (
               <GridNoteCard key={note.uid ?? note.title} note={note} showAuthor={showAuthor} />
             ))}

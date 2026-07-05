@@ -13,11 +13,11 @@ export interface NoteFeedContentVo {
   authorNickname?: string
   authorNickName?: string
   authorName?: string
-  authorOrganization?: string
   authorAvatar?: string | null
   coverUrl?: string | null
   videoDuration?: string | number | null
   publishTime?: string
+  updateTime?: string
   views?: number
   likes?: number
   favorites?: number

@@ -357,7 +357,7 @@ QueryClientProvider
 ## API 文档
 
 - 全量 API 契约：[`API.md`](./API.md)
-- 待办 API 增量需求：[`API-request.md`](./API-request.md)
+- 待办 API 增量需求：[`API-request.md`](./API-request.md)（仅含尚未并入 `API.md` 的接口）
 
 ---
 

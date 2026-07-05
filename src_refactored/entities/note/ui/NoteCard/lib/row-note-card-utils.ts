@@ -1,14 +1,14 @@
 // 01）笔记内容类型（NoteContentType）
 import type { ProfileNoteItem } from '../../../model/profileNoteItem'
+import { resolveGridNoteSmartUpdateTime, formatGridNoteSmartUpdateTimeLabel } from './grid-note-card-utils'
 
 export type NoteContentType = '图文' | '视频'
 
 // 02）笔记卡片元信息字段（NoteCardMetaFields）
 export interface NoteCardMetaFields {
   publishTime: string
+  updateTime: string
   views: number
-  comments: number
-  favorites: number
 }
 
 // 03）笔记内容类型展示文案（noteContentTypeLabelMap）
@@ -22,29 +22,23 @@ export function resolveNoteCardTypeBadge(contentType: NoteContentType = '图文'
   return noteContentTypeLabelMap[contentType ?? '图文']
 }
 
-// 05）格式化发布时间（formatNoteCardPublishTime）
-export function formatNoteCardPublishTime(publishTime: string): string {
-  const normalized = publishTime.replace('T', ' ').trim()
-  if (normalized.length <= 10) return `${normalized} 00:00`
-  return normalized.slice(0, 16)
-}
-
 // 06）解析笔记卡片底部元信息（resolveNoteCardMetaText）
 /**
  * 函数名：resolveNoteCardMetaText
- * 功能：合并发布时间、浏览、评论、收藏为一行灰色元信息。
+ * 功能：合并浏览量与智能更新时间为一行灰色元信息。
+ * 实现方法：
+ * - 浏览量保留数字原样展示
+ * - 时间字段复用 resolveGridNoteSmartUpdateTime
  * 输入：
- * - note：含 publishTime、views、comments、favorites 的笔记数据
+ * - note：含 publishTime、updateTime、views 的笔记数据
  * 输出：
  * - 返回值：以「 · 」连接的展示文案
  */
 export function resolveNoteCardMetaText(note: NoteCardMetaFields): string {
-  return [
-    formatNoteCardPublishTime(note.publishTime),
-    `${note.views} 浏览`,
-    `${note.comments} 评论`,
-    `${note.favorites} 收藏`,
-  ].join(' · ')
+  const smartTime = formatGridNoteSmartUpdateTimeLabel(
+    resolveGridNoteSmartUpdateTime(note.publishTime, note.updateTime),
+  )
+  return [`${note.views} 浏览`, smartTime].filter(Boolean).join(' · ')
 }
 
 // 07）解析笔记卡片作者展示名（resolveNoteCardAuthorName）

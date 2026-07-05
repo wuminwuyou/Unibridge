@@ -92,7 +92,6 @@ export interface UserProfileNoteDto {
   /** 个人空间笔记接口实际返回字段（authorNickName） */
   authorNickName?: string
   authorName?: string
-  authorOrganization?: string
   authorAvatar?: string | null
   videoDuration?: string | number | null
 }
