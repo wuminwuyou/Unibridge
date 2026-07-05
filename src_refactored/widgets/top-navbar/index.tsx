@@ -17,7 +17,9 @@ import { logoutByTokens } from '../../features/auth-process/services/authService
 import { resolveActiveNavByPathname, navRouteItems, mainNavItemLabels } from './navRoutes'
 import { createPublishEntryFreshLocationState } from '../../shared/lib/publishEntryNavigation'
 import { PROJECTS_CREATE_PATH } from '../../shared/lib/projectRoutes'
-import { NOTES_CREATE_PATH } from '../../shared/lib/noteRoutes'
+import { buildNoteEditorPath } from '../../shared/lib/noteRoutes'
+import { clearNoteDetailPreview } from '@features/note-editor'
+import { NoteEditorTypeModal, useNoteEditorTypeModal } from '@features/note-editor-entry'
 import AuthModal from '../../widgets/auth-modal'
 
 // 02）品牌区视图（BrandGroup）
@@ -53,7 +55,7 @@ interface PublishMenuOption { type: PublishEntryType; label: string; description
 
 const publishEntryMenuOptions: PublishMenuOption[] = [
   { type: 'project', label: '发布项目', description: '创建并发布新的项目需求', path: PROJECTS_CREATE_PATH, icon: FolderKanban },
-  { type: 'note', label: '发布笔记', description: '撰写并分享图文或视频笔记', path: NOTES_CREATE_PATH, icon: BookOpenText },
+  { type: 'note', label: '发布笔记', description: '撰写并分享图文或视频笔记', icon: BookOpenText },
 ]
 const codeMenuOptions: PublishMenuOption[] = [
   { type: 'code-generate', label: '生成认证子码', description: '创建新的子码', icon: Ticket },
@@ -111,17 +113,30 @@ function TopNavbar() {
     setIsPublishMenuOpen(prev => !prev); setIsCodeMenuOpen(false)
   }, [isLoggedIn])
 
+  const handleNotifyClick = useCallback(() => { navigate('/messages') }, [navigate])
+  const handleAuthEntryClick = useCallback(() => { setIsAuthModalOpen(true) }, [])
+
+  const noteEditorTypeModal = useNoteEditorTypeModal({
+    onSelect: (type) => {
+      clearNoteDetailPreview()
+      navigate(buildNoteEditorPath({ type }), { state: createPublishEntryFreshLocationState() })
+    },
+  })
+
   const handleSelectPublishType = useCallback((type: PublishEntryType) => {
-    setIsPublishMenuOpen(false); setIsCodeMenuOpen(false)
+    setIsPublishMenuOpen(false)
+    setIsCodeMenuOpen(false)
     if (type === 'code-generate') { setIsCodeGenerateModalOpen(true); return }
     if (type === 'code-manage') { setIsCodeManageModalOpen(true); return }
+    if (type === 'note') {
+      noteEditorTypeModal.open()
+      return
+    }
     const opt = publishEntryMenuOptions.find(o => o.type === type)
     if (opt?.path) {
-      // 从顶栏「发布」菜单进入时携带 fresh 标记，让发布页 remount 空表单
-      // Phase 2: 将在此补充 clearPublishProjectSession + clearProjectDetailPreview
       navigate(opt.path, { state: createPublishEntryFreshLocationState() })
     }
-  }, [navigate])
+  }, [navigate, noteEditorTypeModal])
 
   const handleLogout = useCallback(() => {
     void (async () => {
@@ -136,8 +151,6 @@ function TopNavbar() {
       }
     })()
   }, [logout])
-  const handleNotifyClick = useCallback(() => { navigate('/messages') }, [navigate])
-  const handleAuthEntryClick = useCallback(() => { setIsAuthModalOpen(true) }, [])
 
   return (
     <header className="top-header">
@@ -240,6 +253,12 @@ function TopNavbar() {
           </div>
         </div>
       ) : null}
+      {/* 笔记类型选择弹窗 */}
+      <NoteEditorTypeModal
+        open={noteEditorTypeModal.isOpen}
+        onClose={noteEditorTypeModal.close}
+        onSelect={noteEditorTypeModal.selectType}
+      />
     </header>
   )
 }

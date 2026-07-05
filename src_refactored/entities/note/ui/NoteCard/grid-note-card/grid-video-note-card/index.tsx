@@ -1,7 +1,7 @@
 // 01）视频网格笔记卡片（GridVideoNoteCard）
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
-import { buildNoteDetailHref } from '../../../../model/noteDetailRouting'
+import { resolveNoteDetailHref as buildNoteDetailHref } from '@shared/lib/noteRoutes'
 import {
   GridNoteCardAuthor,
   GridNoteCardFooter,

@@ -1,7 +1,7 @@
 // 01）行卡片笔记纯展示组件（RowNoteCard）
 import { useNavigate } from 'react-router-dom'
 import { memo, useCallback, type KeyboardEvent } from 'react'
-import { buildNoteDetailHref } from '../../../model/noteDetailRouting'
+import { resolveNoteDetailHref as buildNoteDetailHref } from '@shared/lib/noteRoutes'
 import type { ProfileNoteItem } from '../../../model/profileNoteItem'
 import { NoteCardTags } from '../components/note-card-tags'
 import {

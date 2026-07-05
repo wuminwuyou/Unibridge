@@ -209,7 +209,7 @@ export function resolvePublishSummary(manualSummary: string, contentMarkdown: st
  */
 export function resolvePublishNoteSummary(
   manualSummary: string,
-  contentType: '文章' | '视频',
+  contentType: '图文' | '视频',
   bodyMarkdown: string,
   videoDescription: string,
 ): string {

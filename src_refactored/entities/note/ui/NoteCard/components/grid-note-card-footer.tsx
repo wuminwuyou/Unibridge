@@ -38,7 +38,7 @@ export function GridNoteCardFooter({
         </span>
       </div>
       <span className="grid-note-card__time">
-        {smartTime.kind === 'modified' ? `修改于 ${smartTime.dateLabel}` : smartTime.label}
+        {smartTime.kind === 'modified' ? `修改于 · ${smartTime.dateLabel}` : smartTime.label}
       </span>
     </div>
   )

@@ -1,7 +1,7 @@
-import type { NoteDetailPayload } from '../../../entities/note/model/noteDetailViewModel'
-import { isNoteArticleDetailPayload, isNoteVideoDetailPayload } from '../../../entities/note/model/noteDetailViewModel'
+// 01）笔记详情预览 Session（noteDetailPreviewSession）
+import type { NoteDetailPayload } from '@entities/note/model/noteDetailViewModel'
+import { isNoteArticleDetailPayload, isNoteVideoDetailPayload } from '@entities/note/model/noteDetailViewModel'
 
-// 01）笔记详情预览存储键（NOTE_DETAIL_PREVIEW_KEY）
 const NOTE_DETAIL_PREVIEW_KEY = 'unibridge.note-detail.preview'
 
 // 02）保存笔记详情预览（saveNoteDetailPreview）
@@ -9,7 +9,7 @@ const NOTE_DETAIL_PREVIEW_KEY = 'unibridge.note-detail.preview'
  * 函数名：saveNoteDetailPreview
  * 功能：将图文/视频笔记详情预览数据写入 sessionStorage。
  * 输入：
- * - payload：笔记详情载荷
+ * - payload：NoteDetailPayload
  * 输出：
  * - 副作用：写入 sessionStorage
  */
@@ -24,7 +24,7 @@ export function saveNoteDetailPreview(payload: NoteDetailPayload): void {
 // 03）读取笔记详情预览（loadNoteDetailPreview）
 /**
  * 函数名：loadNoteDetailPreview
- * 功能：从 sessionStorage 读取最近一次笔记详情预览（图文或视频）。
+ * 功能：从 sessionStorage 读取最近一次笔记详情预览。
  * 输出：
  * - 返回值：NoteDetailPayload 或 null
  */
@@ -49,7 +49,7 @@ export function loadNoteDetailPreview(): NoteDetailPayload | null {
 // 04）清除笔记详情预览（clearNoteDetailPreview）
 /**
  * 函数名：clearNoteDetailPreview
- * 功能：清除 sessionStorage 中的笔记详情预览缓存，避免保存/发布后仍展示旧预览数据。
+ * 功能：清除 sessionStorage 中的笔记详情预览缓存。
  * 输出：
  * - 副作用：移除 sessionStorage 键
  */

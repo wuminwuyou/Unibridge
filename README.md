@@ -138,7 +138,7 @@ web-client/
     │   │   └── co-create/index.tsx   # 校园共创（/projects/campus）
     │   ├── note/
     │   │   ├── share/index.tsx       # 笔记分享（/notes）
-    │   │   ├── publish/index.tsx     # 发布笔记（/notes/create）
+    │   │   ├── editor/index.tsx      # 笔记编辑（/notes/editor）
     │   │   └── reader/index.tsx      # 笔记详情（/notes/:id）
     │   ├── profile-space/
     │   │   ├── personal/index.tsx    # 个人空间（/profile）
@@ -165,7 +165,7 @@ web-client/
     │
     ├── features/               # ── 04）用户交互层（动词）──
     │   ├── project-publish/          # 项目发布逻辑（表单字段/校验/提交/草稿）
-    │   ├── note-publish/             # 笔记发布逻辑
+    │   ├── note-editor/             # 笔记编辑逻辑
     │   ├── feed-filter/              # Feed 筛选交互（Tab/技术方向/排序）
     │   ├── auth-process/             # 认证流程（个人注册登录/机构凭证/OTP/TOTP）
     │   ├── profile-space/            # 空间路由解析与 Tab 导航
@@ -252,7 +252,8 @@ web-client/
 | `/projects/create` | 发布项目 | 是 |
 | `/notes` | 笔记分享 | 否 |
 | `/notes/:id` | 笔记内容 | 否 |
-| `/notes/create` | 发布笔记 | 是 |
+| `/notes/editor` | 笔记编辑 | 是 |
+| `/notes/create` | 笔记编辑（旧路径，重定向） | 是 |
 | `/login` | 登录页 | 否 |
 | `/profile`, `/profile/:profileTab` | 个人空间 | 否 |
 | `/team`, `/team/:teamTab`, `/team/:teamTab/:teamSubTab` | 团队空间 | 否 |

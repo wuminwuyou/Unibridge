@@ -1,0 +1,97 @@
+/* 01）标签输入容器（tagInputRoot） */
+.tagInputRoot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* 02）标签区标题（tagInputLabel） */
+.tagInputLabel {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.tagInputRequired {
+  color: var(--publish-danger);
+}
+
+/* 03）已选标签列表（tagInputList） */
+.tagInputList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* 04）输入行（tagInputFieldRow） */
+.tagInputFieldRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tagInputField {
+  flex: 1;
+  min-width: 0;
+  border-radius: 0.75rem;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--text-main);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tagInputField::placeholder {
+  color: var(--text-soft);
+}
+
+.tagInputField:focus {
+  border-color: var(--primary-text);
+  box-shadow: 0 0 0 3px var(--publish-focus-ring);
+}
+
+.tagInputField:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 05）添加按钮（tagInputAddButton） */
+.tagInputAddButton {
+  flex-shrink: 0;
+  min-width: 4.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.tagInputAddButton:hover:not(:disabled) {
+  border-color: var(--primary-text);
+  color: var(--primary-text);
+}
+
+.tagInputAddButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 06）推荐标签区（tagInputSuggested） */
+.tagInputSuggested {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tagInputHint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}

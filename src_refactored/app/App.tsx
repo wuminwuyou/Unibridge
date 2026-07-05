@@ -4,7 +4,8 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import ProtectedRoute from './routes/ProtectedRoute'
 import {
   RedirectLegacyNoteDetail,
-  RedirectNotePublishToNotesCreate,
+  RedirectNotePublishToNotesEditor,
+  RedirectNotesCreateToNotesEditor,
   RedirectNoteToNotes,
 } from './routes/legacyNoteRedirects'
 import { LegacyProjectDetailEntry } from './routes/legacyProjectRedirects'
@@ -22,7 +23,7 @@ const InstantMessagePage = lazy(() => import('@pages/im/index'))
 const LoginPage = lazy(() => import('@pages/auth/login/index'))
 const OrganizationVerificationPage = lazy(() => import('@pages/auth/verify/index'))
 const PublishProjectPage = lazy(() => import('@pages/project/publish/index'))
-const PublishNotePage = lazy(() => import('@pages/note/publish/index'))
+const NoteEditorPage = lazy(() => import('@pages/note/editor/index'))
 const NotFoundPage = lazy(() => import('@pages/not-found/index'))
 
 // 02）加载中占位（PageLoadingFallback）
@@ -52,16 +53,29 @@ const appRouter = createBrowserRouter([
   // 项目（旧路径重定向）
   { path: '/project-detail', element: <Suspensed><LegacyProjectDetailEntry /></Suspensed> },
 
-  // 笔记（新规范）
-  { path: '/notes/create', element: <Suspensed><ProtectedRoute><PublishNotePage /></ProtectedRoute></Suspensed> },
-  { path: '/notes/:id', element: <Suspensed><NoteReaderPage /></Suspensed> },
-  { path: '/notes', element: <Suspensed><NoteSharePage /></Suspensed> },
+  // 笔记（新规范）— 静态段 editor/create 与 :id 同组，避免 editor 被当成笔记 uid
+  {
+    path: '/notes',
+    children: [
+      { index: true, element: <Suspensed><NoteSharePage /></Suspensed> },
+      {
+        path: 'editor',
+        element: (
+          <Suspensed>
+            <ProtectedRoute><NoteEditorPage /></ProtectedRoute>
+          </Suspensed>
+        ),
+      },
+      { path: 'create', element: <Suspensed><RedirectNotesCreateToNotesEditor /></Suspensed> },
+      { path: ':id', element: <Suspensed><NoteReaderPage /></Suspensed> },
+    ],
+  },
 
   // 笔记（旧路径重定向）
   { path: '/note', element: <Suspensed><RedirectNoteToNotes /></Suspensed> },
   { path: '/note/detail', element: <Suspensed><RedirectLegacyNoteDetail /></Suspensed> },
-  { path: '/note/publish', element: <Suspensed><RedirectNotePublishToNotesCreate /></Suspensed> },
-  { path: '/publish/note', element: <Suspensed><RedirectNotePublishToNotesCreate /></Suspensed> },
+  { path: '/note/publish', element: <Suspensed><RedirectNotePublishToNotesEditor /></Suspensed> },
+  { path: '/publish/note', element: <Suspensed><RedirectNotePublishToNotesEditor /></Suspensed> },
   { path: '/note-detail', element: <Suspensed><RedirectLegacyNoteDetail /></Suspensed> },
 
   { path: '/login', element: <Suspensed><LoginPage /></Suspensed> },

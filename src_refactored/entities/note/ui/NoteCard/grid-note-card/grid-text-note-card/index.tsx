@@ -1,7 +1,7 @@
 // 01）图文网格笔记卡片（GridTextNoteCard）
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
-import { buildNoteDetailHref } from '../../../../model/noteDetailRouting'
+import { resolveNoteDetailHref as buildNoteDetailHref } from '@shared/lib/noteRoutes'
 import {
   GridNoteCardFooter,
   GridNoteCardMenuButton,

@@ -1,8 +1,11 @@
 // 01）笔记阅读页（NoteReaderPage）
+import { Navigate, useParams, useSearchParams } from 'react-router-dom'
 import TopNavbar from '@widgets/top-navbar'
 import NoteViewerWidget, { useNoteReaderWidget } from '@widgets/note-viewer'
+import { isNoteReaderReservedSegment, NOTES_EDITOR_PATH } from '@shared/lib/noteRoutes'
 
-function NoteReaderPage() {
+// 02）笔记阅读页内容（NoteReaderPageContent）
+function NoteReaderPageContent() {
   const data = useNoteReaderWidget()
 
   return (
@@ -12,4 +15,18 @@ function NoteReaderPage() {
     </>
   )
 }
+
+function NoteReaderPage() {
+  const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+
+  // 兜底：若 :id 误匹配 editor/create，重定向至编辑页（保留 query）
+  if (isNoteReaderReservedSegment(id)) {
+    const query = searchParams.toString()
+    return <Navigate to={`${NOTES_EDITOR_PATH}${query ? `?${query}` : ''}`} replace />
+  }
+
+  return <NoteReaderPageContent />
+}
+
 export default NoteReaderPage

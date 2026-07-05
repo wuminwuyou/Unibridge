@@ -29,7 +29,14 @@ export function resolveActiveNavByPathname(pathname: string): string {
   const exact = navRouteItems.find(r => r.path === pathname)
   if (exact) return exact.label
   // 旧路径重定向前短暂命中
-  if (pathname === '/note' || pathname.startsWith('/note/') || pathname === '/publish/note' || pathname === '/note-detail') {
+  if (
+    pathname === '/note'
+    || pathname.startsWith('/note/')
+    || pathname === '/publish/note'
+    || pathname === '/note-detail'
+    || pathname === '/notes/editor'
+    || pathname === '/notes/create'
+  ) {
     return '笔记'
   }
   return ''

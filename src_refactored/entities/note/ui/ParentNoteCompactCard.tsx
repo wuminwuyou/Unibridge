@@ -3,7 +3,7 @@ import { Eye, Star, ThumbsUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { memo } from 'react'
 import { formatMetricCount } from '@shared/lib'
-import { buildNoteDetailHref } from '../model/noteDetailRouting'
+import { resolveNoteDetailHref as buildNoteDetailHref } from '@shared/lib/noteRoutes'
 import type { ProfileNoteItem } from '../model/profileNoteItem'
 import styles from './ParentNoteCompactCard.module.css'
 

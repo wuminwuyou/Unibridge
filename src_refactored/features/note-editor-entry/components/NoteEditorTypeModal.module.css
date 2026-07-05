@@ -1,0 +1,114 @@
+/* 01）类型选择弹窗遮罩（noteEditorTypeModalMask） */
+.noteEditorTypeModalMask {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 12, 20, 0.52);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* 02）类型选择弹窗容器（noteEditorTypeModal） */
+.noteEditorTypeModal {
+  position: relative;
+  width: min(560px, 94vw);
+  border-radius: 18px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--panel-shadow);
+  padding: 22px 22px 20px;
+}
+
+/* 03）标题区（noteEditorTypeModalHeader） */
+.noteEditorTypeModalHeader {
+  padding-right: 36px;
+}
+
+.noteEditorTypeModalHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-main);
+}
+
+.noteEditorTypeModalHeader p {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+/* 04）关闭按钮（noteEditorTypeModalClose） */
+.noteEditorTypeModalClose {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+/* 05）双卡片网格（noteEditorTypeModalGrid） */
+.noteEditorTypeModalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+@media (max-width: 560px) {
+  .noteEditorTypeModalGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 06）类型卡片（noteEditorTypeCard） */
+.noteEditorTypeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 132px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card-bg) 92%, var(--primary-text) 8%);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.noteEditorTypeCard:hover {
+  border-color: color-mix(in srgb, var(--primary-text) 36%, var(--card-border));
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.noteEditorTypeCard:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary-text) 48%, transparent);
+  outline-offset: 2px;
+}
+
+/* 07）卡片图标与文案（noteEditorTypeCardIcon / Label / Desc） */
+.noteEditorTypeCardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary-text) 12%, transparent);
+  color: var(--primary-text);
+}
+
+.noteEditorTypeCardLabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.noteEditorTypeCardDesc {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-soft);
+}

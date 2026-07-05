@@ -2,7 +2,7 @@
 import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { NOTES_CREATE_PATH, NOTES_LIST_PATH } from '@shared/lib/noteRoutes'
+import { NOTES_EDITOR_PATH, NOTES_LIST_PATH } from '@shared/lib/noteRoutes'
 import ProjectCard from '../../entities/project/ui/ProjectCard'
 import { GridNoteCard } from '@entities/note'
 import LoadingSpinner from '../../shared/ui/LoadingSpinner'
@@ -66,7 +66,7 @@ function HomeFeedWidget() {
         {loadState === 'loading' ? <div className="home-page__feed-status"><LoadingSpinner size={24} label="正在加载经验笔记…" /></div>
           : loadState === 'ready' && notes.length > 0 ? <div className="home-page__note-list">{renderedSidebarNotes}</div>
             : loadState === 'ready' && notes.length === 0 ? <p className="home-page__feed-status">暂无推荐笔记</p> : null}
-        <Link className="home-page__compose-trigger" to={NOTES_CREATE_PATH}>📝 写下你的学习经验</Link>
+        <Link className="home-page__compose-trigger" to={NOTES_EDITOR_PATH}>📝 写下你的学习经验</Link>
       </aside>
     </main>
   )

@@ -25,8 +25,7 @@ export {
   resolveNoteEditorialBannerText,
   formatNoteDetailTime,
 } from './lib/noteDetailFormatUtils'
-export { formatVideoDurationLabel } from './lib/videoDetailFormatUtils'
-export { mapParentNoteToRowItem, mapNoteDetailPublishStatus, mapNoteDetailToPayload } from './lib/mapNoteDetailToPayload'
+export { mapNoteDetailToPayload } from './lib/mapNoteDetailToPayload'
 
 // UI — 纯展示组件
 export { NoteAuthorCard } from './ui/NoteAuthorCard'
