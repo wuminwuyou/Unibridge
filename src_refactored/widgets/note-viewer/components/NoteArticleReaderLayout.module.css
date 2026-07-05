@@ -1,0 +1,85 @@
+/* 01）三栏 Grid 容器 */
+.noteArticleLayout {
+  width: clamp(1380px, 80vw, 1500px);
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.noteArticleGrid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 2rem;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* 02）左侧 TOC 栏 */
+.noteArticleTocAside {
+  grid-column: span 3;
+  width: clamp(280px, 22vw, 340px);
+  align-self: flex-start;
+}
+
+/* 03）中间正文栏 */
+.noteArticleBodyCol {
+  grid-column: span 6;
+  flex: 1;
+  min-width: 0;
+  max-width: clamp(640px, 58vw, 920px);
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* 04）右侧栏 */
+.noteArticleSidebar {
+  grid-column: span 3;
+  width: clamp(280px, 22vw, 340px);
+  align-self: flex-start;
+  justify-self: end;
+}
+
+.noteArticleSidebarInner {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* 05）编辑器卡片容器 */
+.noteArticleEditorCard {
+  transition: height 0.35s ease;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid #e4e4e7;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+:root[data-theme='dark'] .noteArticleEditorCard {
+  border-color: #27272a;
+  background: #18181b;
+}
+
+.noteArticleEditorCardBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.noteArticleEditorCardBody :global(.note-quick-md-editor .md-editor) {
+  overflow: auto !important;
+}
+
+/* 06）响应式 */
+@media (max-width: 1279px) {
+  .noteArticleTocAside {
+    display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .noteArticleTocAside {
+    display: block;
+  }
+}

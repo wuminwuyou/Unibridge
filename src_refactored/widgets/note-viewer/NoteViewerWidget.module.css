@@ -1,0 +1,43 @@
+/* 01）壳层容器 */
+.noteReaderWidget {
+  min-height: 100vh;
+}
+
+.noteReaderWidgetEditorial {
+  min-height: 100vh;
+}
+
+/* 02）加载 / 错误 / 空态 */
+.noteReaderStatus {
+  box-sizing: border-box;
+  width: min(100%, 48rem);
+  margin: 0 auto;
+  padding: 4rem 1.5rem 5rem;
+}
+
+.noteReaderStatusLabel {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.noteReaderStatusTitle {
+  margin: 0;
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.noteReaderStatusDesc {
+  margin: 0.75rem 0 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #475569;
+}
+
+:root[data-theme='dark'] .noteReaderStatusDesc {
+  color: #cbd5e1;
+}

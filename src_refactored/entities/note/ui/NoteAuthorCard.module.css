@@ -1,0 +1,180 @@
+/* 01）作者卡片容器（note-author-card） */
+.noteAuthorCard {
+  border-radius: 0.75rem;
+  border: 1px solid #e4e4e7;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+:root[data-theme='dark'] .noteAuthorCard {
+  border-color: #27272a;
+  background: #18181b;
+}
+
+/* 02）卡片标题 */
+.noteAuthorCardTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+}
+
+:root[data-theme='dark'] .noteAuthorCardTitle {
+  color: #71717a;
+}
+
+/* 03）作者区块容器 */
+.noteAuthorBlock {
+  display: flex;
+  align-items: center;
+}
+
+/* 04）可点击的作者链接行 */
+.noteAuthorLink {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  margin-left: -0.75rem;
+  border-radius: 0.5rem 0 0 0.5rem;
+  transition: background-color 0.15s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.noteAuthorLink:hover {
+  background: #f4f4f5;
+}
+
+:root[data-theme='dark'] .noteAuthorLink:hover {
+  background: #27272a;
+}
+
+/* 05）无跳转的纯展示行 */
+.noteAuthorRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 06）作者头像 */
+.noteAuthorAvatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.noteAuthorAvatarFallback {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  background: #e4e4e7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #71717a;
+  flex-shrink: 0;
+}
+
+:root[data-theme='dark'] .noteAuthorAvatarFallback {
+  background: #3f3f46;
+  color: #d4d4d8;
+}
+
+/* 07）作者名字 */
+.noteAuthorName {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #27272a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-theme='dark'] .noteAuthorName {
+  color: #e4e4e7;
+}
+
+/* 08）作者机构 */
+.noteAuthorOrg {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-theme='dark'] .noteAuthorOrg {
+  color: #71717a;
+}
+
+/* 09）作者文字容器 */
+.noteAuthorText {
+  min-width: 0;
+}
+
+/* 10）关注按钮 */
+.noteFollowBtn {
+  flex-shrink: 0;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #d4d4d8;
+  border-radius: 9999px;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #52525b;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.noteFollowBtn:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #27272a;
+}
+
+:root[data-theme='dark'] .noteFollowBtn {
+  border-color: #3f3f46;
+  color: #a1a1aa;
+}
+
+:root[data-theme='dark'] .noteFollowBtn:hover {
+  background: #27272a;
+  border-color: #71717a;
+  color: #e4e4e7;
+}
+
+/* 11）卡片底部统计行 */
+.noteStatsRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f4f4f5;
+  font-size: 0.75rem;
+  color: #a1a1aa;
+}
+
+:root[data-theme='dark'] .noteStatsRow {
+  border-color: #27272a;
+  color: #71717a;
+}
+
+.noteStatsItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}

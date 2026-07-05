@@ -1,0 +1,346 @@
+/* 01）视频布局壳层 */
+.noteVideoLayout {
+  min-height: calc(100vh - 4rem);
+  background: var(--page-bg);
+  color: var(--text-main);
+  padding: 1.25rem 0 3rem;
+}
+
+.noteVideoLayoutEditorial {
+  min-height: 100vh;
+  padding-top: 1.5rem;
+}
+
+.noteVideoShell {
+  box-sizing: border-box;
+  width: clamp(90vw, 1080px, calc(100vw - 48px));
+  max-width: 1920px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+/* 02）左右双栏 */
+.noteVideoHero {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.noteVideoLeftCol {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.noteVideoRightCol {
+  flex: 0 0 clamp(20rem, 30%, 35rem);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: sticky;
+  top: 1.25rem;
+}
+
+/* 03）播放器 */
+.noteVideoMain {
+  min-width: 0;
+}
+
+/* 04）信息区 */
+.noteVideoContent {
+  min-width: 0;
+}
+
+.noteVideoTitle {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.275rem, 3.3vw, 1.575rem);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 05）频道行 */
+.noteVideoChannelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+  min-width: 0;
+}
+
+.noteVideoAuthor {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.noteVideoAuthorLink {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  padding: 0.25rem;
+  margin: -0.25rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.15s ease;
+}
+
+.noteVideoAuthorLink:hover {
+  background: rgb(0 0 0 / 0.04);
+}
+
+:root[data-theme='dark'] .noteVideoAuthorLink:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.noteVideoFollowBtn {
+  flex-shrink: 0;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #d4d4d8;
+  border-radius: 9999px;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #52525b;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.noteVideoFollowBtn:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #27272a;
+}
+
+:root[data-theme='dark'] .noteVideoFollowBtn {
+  border-color: #3f3f46;
+  color: #a1a1aa;
+}
+
+:root[data-theme='dark'] .noteVideoFollowBtn:hover {
+  background: #27272a;
+  border-color: #71717a;
+  color: #e4e4e7;
+}
+
+.noteVideoAvatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.noteVideoAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-soft), var(--chip-bg));
+  color: var(--primary-text);
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.noteVideoAuthorMeta {
+  min-width: 0;
+}
+
+.noteVideoAuthorLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.9375rem;
+}
+
+.noteVideoAuthorLine span {
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+}
+
+.noteVideoTime {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+/* 06）操作按钮 */
+.noteVideoActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.noteVideoViews {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.noteVideoActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid var(--card-border);
+  border-radius: 9999px;
+  background: var(--chip-bg);
+  padding: 0.4375rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.noteVideoActionBtn:hover {
+  border-color: var(--primary-text);
+  background: color-mix(in srgb, var(--primary-soft) 65%, transparent);
+  color: var(--primary-text);
+}
+
+/* 07）描述区 */
+.noteVideoDescBox {
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--chip-bg) 85%, var(--card-bg));
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.noteVideoSummaryBlock {
+  margin-bottom: 0.625rem;
+}
+
+.noteVideoSummary {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--text-main);
+  white-space: pre-wrap;
+}
+
+.noteVideoSummaryCollapsed {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.noteVideoSummaryToggle {
+  margin-top: 0.375rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.noteVideoSummaryToggle:hover {
+  color: var(--primary-text);
+}
+
+/* 08）学习笔记侧栏 */
+.noteVideoSidebar {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: height 0.35s ease;
+}
+
+.noteVideoSidebarCard {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--card-border);
+  border-radius: 0.75rem;
+  background: var(--card-bg);
+  overflow: hidden;
+  box-shadow: var(--panel-shadow);
+}
+
+.noteVideoSidebarCardHead {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--card-border);
+  background: var(--chip-bg);
+}
+
+.noteVideoSidebarCardHeadInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.625rem 0.875rem;
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+}
+
+.noteVideoSidebarCardHeadInner:hover {
+  background: color-mix(in srgb, var(--primary-soft) 25%, transparent);
+}
+
+.noteVideoSidebarCardTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.noteVideoSidebarCardBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 09）推荐列表 */
+.noteVideoRecommendations {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.noteVideoRecommendationsTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.noteVideoRecommendationsEmpty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+}

@@ -1,0 +1,70 @@
+/* 01）md-editor 实例去边框/圆角，填充父容器 */
+.note-quick-md-editor .md-editor {
+  flex: 1;
+  min-height: 0;
+  height: 100% !important;
+  max-height: 100%;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  overflow: hidden !important;
+}
+
+/* 02）工具栏横向滚动 */
+.note-quick-md-editor .md-editor-toolbar-item {
+  flex-shrink: 0 !important;
+}
+
+.note-quick-md-editor .md-editor-toolbar-left,
+.note-quick-md-editor .md-editor-toolbar-right {
+  flex-shrink: 0 !important;
+}
+
+.note-quick-md-editor .md-editor-toolbar-wrapper {
+  border-color: var(--card-border) !important;
+  scrollbar-width: thin !important;
+}
+
+.note-quick-md-editor .md-editor-toolbar-wrapper::-webkit-scrollbar {
+  height: 4px !important;
+}
+
+.note-quick-md-editor .md-editor-toolbar-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.note-quick-md-editor .md-editor-toolbar-wrapper::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 2px;
+}
+
+.note-quick-md-editor .md-editor-toolbar-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--text-soft);
+}
+
+/* 03）库内置自绘滚动条样式微调 */
+.note-quick-md-editor .md-editor-custom-scrollbar__track {
+  background: transparent !important;
+}
+
+.note-quick-md-editor .md-editor-custom-scrollbar__thumb {
+  background: var(--card-border) !important;
+}
+
+.note-quick-md-editor .md-editor-custom-scrollbar__thumb:hover {
+  background: var(--text-soft) !important;
+}
+
+/* 04）预览区外层 md-editor */
+.note-quick-md-editor .noteQuickMdEditorPreviewScroll .md-editor {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* 05）底部栏边框跟随站点变量 */
+.note-quick-md-editor .md-editor-footer {
+  border-color: var(--card-border) !important;
+}

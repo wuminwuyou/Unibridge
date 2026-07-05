@@ -1,13 +1,15 @@
 // 01）笔记阅读页（NoteReaderPage）
-import TopNavbar from '../../../widgets/top-navbar'
-import NoteDetailWidget from '../../../widgets/note-detail'
+import TopNavbar from '@widgets/top-navbar'
+import NoteViewerWidget, { useNoteReaderWidget } from '@widgets/note-viewer'
 
 function NoteReaderPage() {
-  return <>
-    <TopNavbar />
-    <div className="detail-page" style={{ paddingTop: '64px' }}>
-      <div className="detail-page-main"><NoteDetailWidget /></div>
-    </div>
-  </>
+  const data = useNoteReaderWidget()
+
+  return (
+    <>
+      {!data.isEditorialFlow ? <TopNavbar /> : null}
+      <NoteViewerWidget data={data} />
+    </>
+  )
 }
 export default NoteReaderPage

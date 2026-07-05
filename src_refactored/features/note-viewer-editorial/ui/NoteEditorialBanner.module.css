@@ -1,0 +1,29 @@
+/* 01）发布预览横幅（note-editorial-banner） */
+.noteEditorialBanner {
+  border-bottom: 1px solid;
+}
+
+.noteEditorialBannerInner {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.noteEditorialBannerText {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.noteEditorialBannerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.15s ease;
+  text-decoration: none;
+}

@@ -4,7 +4,7 @@ import type { ProfileNoteItem } from '../model/profileNoteItem'
 import { formatNoteDetailTime } from './noteDetailFormatUtils'
 
 // 01）将父笔记 DTO 映射为行卡片数据（mapParentNoteToRowItem）
-function mapParentNoteToRowItem(
+export function mapParentNoteToRowItem(
   parent: NoteDetailDto['parentNote'],
 ): ProfileNoteItem | null {
   if (!parent) return null
@@ -24,7 +24,7 @@ function mapParentNoteToRowItem(
 }
 
 // 02）映射笔记发布状态（mapNoteDetailPublishStatus）
-function mapNoteDetailPublishStatus(
+export function mapNoteDetailPublishStatus(
   status: NoteDetailDto['status'],
 ): 'DRAFT' | 'PREVIEW' | 'PUBLISHED' {
   return status === 'DRAFT' ? 'DRAFT' : 'PUBLISHED'
