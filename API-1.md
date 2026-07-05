@@ -1,144 +1,123 @@
-### 06.2）查询笔记详情
+## 3) 笔记卡片 Footer 精简 — 列表接口补充 `updateTime`
 
-- **Method**：`GET`
-- **Path**：`/notes/{noteId}`
-- **Auth**：条件（见 §01.2）
-- **说明**：供 `NoteArticleDetailView`（图文）及后续视频详情页渲染；按 `content_type_code` 前缀区分类型。
+> **消费方**：`GridNoteCard` / `RowNoteCard`（首页侧栏、笔记专区、档案空间、相似推荐等）  
+> **变更类型**：已有列表接口增量 + 字段裁剪说明  
+> **前端状态**：UI 已改为仅展示 **浏览量 + 智能更新时间**；收藏/点赞/评论指标已从卡片 Footer 移除
 
-#### Path Parameters
+### 背景
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `noteId` | number | 是 | `note.id` |
+新版笔记卡片 Footer 遵循「无情做减法，时效放第一」：
 
-#### Response Data（图文）
+| 保留 | 移除（卡片层不再消费） |
+|------|------------------------|
+| `views` 浏览量 | `likes` / `comments` 点赞量 |
+| `publishTime` + `updateTime` 融合为单字段时效 | `favorites` 收藏量 |
+
+**智能更新时间展示规则（前端 `resolveGridNoteSmartUpdateTime`）**
+
+| 条件 | 卡片展示 |
+|------|----------|
+| `updateTime` 与 `publishTime` 不一致（精确到分钟） | `修改于 yyyy-MM-DD` |
+| 仅有 `updateTime`、无 `publishTime`（如草稿） | `修改于 yyyy-MM-DD` |
+| 未修改 | 相对时效：`刚刚` / `N 分钟前` / `N 小时前` / `yyyy-MM-DD` |
+
+### 受影响接口
+
+以下接口的笔记列表项须返回 **`updateTime`**（最近更新时间）；`publishTime` 保持现有语义。
+
+| 接口 | 当前 `updateTime` | 说明 |
+|------|-------------------|------|
+| `GET /user-profile/notes` | ✅ 已有 | 档案空间笔记 Tab，无需改动 |
+| `GET /user-profile/home` → `notes[]` | ⚠️ 待确认 | 主页预览区笔记卡片 |
+| `GET /team-profile/notes` | ⚠️ 待确认 | 团队空间笔记 Tab |
+| `GET /entity-profile/notes` | ⚠️ 待确认 | 机构空间笔记 Tab |
+| `GET /feed/home` → `notes[]` | ❌ 缺失 | 首页侧栏笔记推荐 |
+| `GET /feed/notes` | ❌ 缺失 | 笔记专区列表 |
+| `GET /feed/notes/shuffle` | ❌ 缺失 | 笔记专区「换一换」 |
+| `GET /feed/notes/{uid}/similar` | ❌ 缺失 | 阅读器相似推荐 |
+
+### 新增 / 统一字段约定
+
+在每个笔记列表项（`ProfileNoteItem` / Feed `ContentVO` NOTE 类型）中，除 Footer 时效字段外，**作者信息为卡片主体展示的必要字段**（`GridNoteCard` 在 `showAuthor=true` 时渲染作者行；`RowNoteCard` 始终展示作者昵称）：
 
 ```json
 {
-  "noteId": 80001,
+  "uid": "TXa8f2K9w3N7p",
+  "title": "Spring Boot 实战笔记",
+  "summary": "实践经验总结",
+  "coverUrl": "https://cdn.example.com/covers/xxx.jpg",
+  "tags": ["Spring Boot", "后端"],
   "contentType": "图文",
-  "contentTypeCode": "TXa1B2c3D4e5F",
-  "title": "大三暑期实习投递复盘",
-  "summary": "从简历、笔试到面试的完整时间线与踩坑总结。",
-  "body": "# 背景\n\n## 时间线\n...",
-  "tags": ["求职经验", "实习"],
-  "coverUrl": "https://cdn.example.com/notes/cover/abc123.jpg",
-  "author": {
-    "uid": "US",
-    "name": "张同学",
-    "organization": "XX 大学计算机学院",
-    "avatarUrl": "https://cdn.example.com/avatar/u10001.jpg"
-  },
-  "publishTime": "2026-05-22T11:30:00+08:00",
-  "updateTime": "2026-05-22T11:30:00+08:00",
   "views": 128,
-  "comments": 6,
-  "favorites": 24,
-  "status": "PUBLISHED",
-  "visibility": "PUBLIC",
-  "parentNote": {
-    "uid": "VDx9Y8z7W6v5U",
-    "title": "如何设计一个高质量用户系统",
-    "summary": "结合权限模型与可观测方案的经验分享。",
-    "contentType": "视频",
-    "tags": ["系统设计"],
-    "cover": "https://cdn.example.com/notes/cover/frame.jpg",
-    "views": 520,
-    "comments": 18,
-    "favorites": 73
-  }
+  "publishTime": "2026-05-10 14:20",
+  "updateTime": "2026-05-12 09:30",
+  "authorNickname": "代码小能手",
+  "authorAvatar": "https://cdn.example.com/avatars/user.jpg"
 }
 ```
 
-#### Response Data（视频，增量字段）
+#### Footer 时效字段
 
-```json
-{
-  "noteId": 80002,
-  "contentType": "视频",
-  "contentTypeCode": "VDx9Y8z7W6v5U",
-  "title": "如何设计一个高质量用户系统",
-  "summary": "结合权限模型与可观测方案的经验分享。",
-  "body": null,
-  "tags": ["系统设计"],
-  "coverUrl": "https://cdn.example.com/notes/cover/frame.jpg",
-  "videoUrl": "https://cdn.example.com/notes/video/xyz789.mp4",
-  "videoDuration": 186,
-  "author": { "name": "李同学", "organization": "YY 大学软件学院", "avatarUrl": null },
-  "publishTime": "2026-05-20T09:00:00+08:00",
-  "updateTime": "2026-05-20T09:00:00+08:00",
-  "views": 520,
-  "comments": 18,
-  "favorites": 73,
-  "status": "PUBLISHED",
-  "visibility": "PUBLIC",
-  "parentNote": null
-}
-```
+| 字段 | 类型 | 必填 | 说明 | 数据库来源 |
+|------|------|------|------|------------|
+| `views` | number | 是 | 浏览量；卡片 Footer 唯一保留的互动指标 | `t_user_note_detail.views` 或等价统计 |
+| `publishTime` | string | 否 | 展示用发布时间；未发布可为空字符串 | `COALESCE(published_at, created_at)` |
+| `updateTime` | string | 是 | 最近更新时间；与 `publishTime` 相同时前端走相对时效 | `t_user_note_detail.updated_at` |
 
-| 字段 | 类型 | 说明 | 数据库来源 |
-|------|------|------|------------|
-| `noteId` | number | 笔记 ID | `note.id` |
-| `contentType` | string | `图文` \| `视频` | 由 `note.content_type_code` 前缀：`TX*`→`图文`，`VD*`→`视频` |
-| `contentTypeCode` | string | 类型编码 | `note.content_type_code` |
-| `title` | string | 标题 | `note.title` |
-| `summary` | string | 摘要 | `note.summary` |
-| `body` | string \| null | Markdown 正文 | `note.content`；视频笔记为 `null` |
-| `tags` | string[] | 话题标签 | `note.tags` JSON |
-| `coverUrl` | string | 封面 | `note.cover_url` |
-| `videoUrl` | string | 视频地址 | `note.video_url`；仅 `contentType=视频` |
-| `videoDuration` | number | 时长（秒） | `note.video_duration`；仅视频 |
-| `author.name` | string | 作者昵称 | `user_profile.nick_name`（空则回退「用户」） |
-| `author.organization` | string | 作者所属机构 | `user_profile.organization_name` |
-| `author.avatarUrl` | string \| null | 头像 | `user_profile.avatar_url` |
-| `publishTime` | string | 展示用发布时间 | `COALESCE(note.published_at, note.created_at)` |
-| `updateTime` | string | 最近更新 | `note.updated_at` |
-| `views` | number | 浏览量 | `note.view_count` |
-| `comments` | number | 评论数 | `note.comment_count` |
-| `favorites` | number | 收藏数 | `note.collect_count` |
-| `status` | string | `DRAFT` \| `PUBLISHED` | `note.status` |
-| `visibility` | string | `PUBLIC` \| `PRIVATE` | 笔记可见范围 | `note.visibility` |
-| `parentNote` | object \| null | 父笔记简要信息；通过 `t_user_note_detail.parent_content_type_code` 关联，父笔记存在时返回；顶级笔记为 `null` | JOIN `note` / `user_profile` |
+#### 作者信息字段
 
-#### ParentNoteDto
+| 字段 | 类型 | 必填 | 说明 | 数据库来源 |
+|------|------|------|------|------------|
+| `authorNickname` | string | 是 | 作者昵称；**禁止**返回实名 `name`；空时前端回退「匿名用户」 | `p_user_profile.nick_name` |
+| `authorAvatar` | string \| null | 否 | 作者头像 URL；空时前端以昵称首字作占位 | `p_user_profile.avatar_url` |
 
-| 字段 | 类型 | 说明 | 数据库来源 |
-|------|------|------|------------|
-| `uid` | string | 父笔记 UID | `parent_note.uid` / `content_type_code` |
-| `title` | string | 父笔记标题 | `parent_note.title` |
-| `summary` | string | 父笔记摘要 | `parent_note.summary` |
-| `contentType` | `图文` \| `视频` | 由 `parent_note.content_type_code` 前缀推导 | — |
-| `tags` | string[] | 话题标签 | `parent_note.tags` JSON |
-| `cover` | string | 封面 URL | `parent_note.cover_url` |
-| `views` | number | 浏览量 | `parent_note.view_count` |
-| `comments` | number | 评论数 | `parent_note.comment_count` |
-| `favorites` | number | 收藏数 | `parent_note.collect_count` |
+> **命名兼容**：空间类接口历史字段为 `authorNickName`（驼峰 `Name`），Feed 类为 `authorNickname`；前端 `resolveNoteAuthorNickname` 已兼容两者，后端新接口建议统一为 `authorNickname`。
 
-**前端映射（`NoteArticleDetailPayload`）**
+#### 作者字段覆盖情况
 
-| API 字段 | 前端字段 | 规则 |
-|----------|----------|------|
-| `body` | `body` | 图文直接映射 |
-| `status` | `publishStatus` | `DRAFT`→`DRAFT`；`PUBLISHED`→`PUBLISHED` |
-| `publishTime` / `updateTime` | 同名字段 | ISO 或前端格式化 |
-| — | `PREVIEW` | 仅发布页本地预览 |
+| 接口 | `authorNickname` | `authorAvatar` |
+|------|------------------|----------------|
+| `GET /feed/home` → `notes[]` | ✅ 已有 | ✅ 已有 |
+| `GET /feed/notes` | ✅ 已有 | ⚠️ 待确认 |
+| `GET /feed/notes/{uid}/similar` | ⚠️ 待确认 | ❌ 待补充 |
+| `GET /user-profile/notes` | ✅（`authorNickName`） | ✅ 已有 |
+| `GET /user-profile/home` → `notes[]` | ⚠️ 待确认 | ⚠️ 待确认 |
+| `GET /team-profile/notes` | ⚠️ 待确认 | ⚠️ 待确认 |
+| `GET /entity-profile/notes` | ⚠️ 待确认 | ⚠️ 待确认 |
 
-**可见性**
+**展示策略（前端，非接口裁剪）**
 
-| `note.status` | `note.visibility` | 未登录 | 登录非 owner | owner |
-|---------------|-------------------|--------|--------------|-------|
-| `DRAFT` | — | 404 | 403 | ✅ |
-| `REVIEWING` | — | 404 | 404 | ✅ |
-| `PUBLISHED` | `PUBLIC` | ✅ | ✅ | ✅ |
-| `PUBLISHED` | `PRIVATE` | 404 | 404 | ✅ |
-| `BANNED` | — | 404 | 404 | 404 |
+- 首页侧栏 / 笔记专区 Feed：`showAuthor=true`，须保证 `authorNickname` + `authorAvatar` 可用
+- 档案空间笔记 Tab：`showAuthor=false`，作者字段可返回但网格卡不渲染；`RowNoteCard` 布局仍展示 `authorNickname`
 
-> 公开读 `PUBLISHED` 笔记时，满足下列条件才 `view_count +1`：**非发布者本人**；**同一访问者 30 分钟内不重复计次**（登录按 `userId`，未登录按 IP）。
+**格式化**：ISO 8601 或 `yyyy-MM-dd HH:mm` 均可，前端统一归一化；日期精度建议至少到分钟。
 
-#### 常见错误码
+**兜底**：若 `updateTime` 暂不可用，后端应回退 `publishTime`；两者皆空时前端隐藏时间字段。
 
-- `NOTE_NOT_FOUND`（含 BANNED 对外隐藏）
-- `NOTE_NOT_OWNER`（草稿且非 owner）
-- `UNAUTHORIZED`（草稿未登录）
+### 可裁剪字段（卡片列表层）
 
----
+以下字段在 **笔记卡片列表** 响应中可标记为 **可选 / 后续废弃**（详情页、互动接口仍保留）：
+
+| 字段 | 说明 |
+|------|------|
+| `likes` | 点赞数；Feed 排序算法仍可使用，但卡片 UI 不再展示 |
+| `comments` | 评论数；同上 |
+| `favorites` | 收藏数；同上 |
+| `authorOrganization` | 作者机构；卡片 UI 已移除，列表层可不再返回 |
+
+> Feed 热度排序公式（`likes × 5 + collects × 10 + comments × 8`）**不受影响**，仅列表响应面向卡片 UI 的字段需求发生变化。
+
+### 前端接入说明
+
+- `noteFeedMappers.mapFeedNoteToProfileNoteItem` 已读取 `updateTime`，缺省时回退 `publishTime`
+- 档案空间 `GET /user-profile/notes` 已具备 `updateTime`，修改后可正确展示「修改于 …」
+- Feed 类接口在后端补齐 `updateTime` 前，卡片时间将退化为仅基于 `publishTime` 的相对时效
+
+### 验收要点
+
+- [ ] `GET /feed/home`、`/feed/notes`、`/feed/notes/{uid}/similar` 的 NOTE 项均含 `updateTime`
+- [ ] 上述 Feed 接口在需要展示作者的场景下均含 `authorNickname` + `authorAvatar`
+- [ ] 用户编辑已发布笔记后，卡片 Footer 显示 `修改于 yyyy-MM-DD`（`updateTime` > `publishTime`）
+- [ ] 未修改笔记显示相对时间（如 `3 小时前`），而非冗余绝对日期
+- [ ] 列表响应不返回 `likes` / `favorites` / `comments`，前端卡片功能不受影响
+- [ ] `authorNickname` 为空时接口仍返回字段（空字符串），前端回退「匿名用户」；禁止用实名 `name` 顶替

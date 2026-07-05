@@ -1,6 +1,7 @@
 package com.unibridge.backend.domain.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.unibridge.backend.application.shared.CareerDataParser;
 import com.unibridge.backend.infrastructure.entities.profile.TenantOrgProfile;
 import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
 import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
@@ -10,8 +11,10 @@ import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrgan
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+
 /**
- * 解析项目发布人（owner）所属主体信息，供项目卡片 Feed / 个人空间共用。
+ * 解析项目发布人（owner）所属主体信息，供项目卡片 Feed / 个人空间 / 项目详情共用。
  */
 @Component
 public class ProjectPublisherEntityResolver {
@@ -46,6 +49,41 @@ public class ProjectPublisherEntityResolver {
         }
 
         return new PublisherEntityContext(fallbackOrganizationName(ownerUid), null, null);
+    }
+
+    /**
+     * 解析项目详情页所需的发布者身份信息。
+     */
+    public OwnerContext resolveOwner(String ownerUid) {
+        if (ownerUid == null || ownerUid.isBlank()) {
+            return OwnerContext.empty();
+        }
+
+        UserProfile profile = loadUserProfile(ownerUid);
+        String name = "用户";
+        String avatarUrl = null;
+        List<String> careerData = null;
+        if (profile != null) {
+            if (StringUtils.hasText(profile.getNickName())) {
+                name = profile.getNickName().trim();
+            }
+            avatarUrl = trimToNull(profile.getAvatarUrl());
+            List<String> parsedCareer = CareerDataParser.parse(profile.getCareerData());
+            careerData = parsedCareer.isEmpty() ? null : parsedCareer;
+        }
+
+        String organization = null;
+        String location = null;
+        UserOrganizationBinding authLink = loadActiveAuthLink(ownerUid);
+        if (authLink != null && authLink.getEntityCode() != null) {
+            TenantOrgProfile entityProfile = loadEntityProfile(authLink.getEntityCode());
+            if (entityProfile != null) {
+                organization = trimToNull(entityProfile.getName());
+                location = trimToNull(entityProfile.getLocation());
+            }
+        }
+
+        return new OwnerContext(ownerUid.trim(), name, avatarUrl, careerData, organization, location);
     }
 
     private UserOrganizationBinding loadActiveAuthLink(String userUid) {
@@ -83,6 +121,13 @@ public class ProjectPublisherEntityResolver {
     public record PublisherEntityContext(String ownerOrganization, String coverUrl, String logoSvgUrl) {
         static PublisherEntityContext empty() {
             return new PublisherEntityContext("", null, null);
+        }
+    }
+
+    public record OwnerContext(String uid, String name, String avatarUrl, List<String> careerData,
+                               String organization, String location) {
+        static OwnerContext empty() {
+            return new OwnerContext("", "用户", null, null, null, null);
         }
     }
 }

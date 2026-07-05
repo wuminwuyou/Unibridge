@@ -16,6 +16,7 @@ import com.unibridge.backend.domain.auth.dto.SendCodeRequest;
 import com.unibridge.backend.infrastructure.common.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -59,10 +60,23 @@ public class AuthController {
         return Result.success(authService.loginPersonalByEmail(request));
     }
 
-    @Operation(summary = "发送个人验证码", description = "支持短信 / 邮箱场景")
+    @Operation(summary = "发送个人验证码", description = "支持短信 / 邮箱场景，含 Redis 三层限流保护")
     @PostMapping("/personal/sms/send")
-    public Result sendPersonalCode(@RequestBody SendCodeRequest request) {
-        return Result.success(authService.sendPersonalCode(request));
+    public Result sendPersonalCode(@RequestBody SendCodeRequest request, HttpServletRequest httpRequest) {
+        String clientIp = getClientIp(httpRequest);
+        return Result.success(authService.sendPersonalCode(request, clientIp));
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip.trim())) {
+            return ip.split(",")[0].trim();
+        }
+        ip = request.getHeader("X-Real-IP");
+        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip.trim())) {
+            return ip.trim();
+        }
+        return request.getRemoteAddr();
     }
 
     @Operation(summary = "机构凭证登录（第一步）", description = "支持主体根密码或管理员密码；根密码且已有管理员时返回 admin_select")

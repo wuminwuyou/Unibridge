@@ -22,6 +22,7 @@ import com.unibridge.backend.domain.auth.dto.RefreshTokenResponse;
 import com.unibridge.backend.domain.auth.dto.RegisterResponse;
 import com.unibridge.backend.domain.auth.dto.SendCodeRequest;
 import com.unibridge.backend.domain.auth.dto.SendCodeResponse;
+import com.unibridge.backend.application.shared.RateLimitService;
 import com.unibridge.backend.infrastructure.entities.auth.TenantOrganization;
 import com.unibridge.backend.infrastructure.entities.auth.User;
 import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
@@ -58,6 +59,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -119,6 +122,9 @@ public class AuthService {
 
     @Autowired
     private RedissonClient redissonClient;
+
+    @Autowired
+    private RateLimitService rateLimitService;
 
     @Autowired
     private UserMapper userMapper;
@@ -207,7 +213,6 @@ public class AuthService {
         if (!Objects.equals(user.getPasswordHash(), request.getPassword())) {
             throw new RuntimeException("ACCOUNT_OR_PASSWORD_INVALID");
         }
-        saveAvatarIfPresent(user.getUserUid(), request.getAvatarUrl());
         return buildPersonalLoginResponse(user);
     }
 
@@ -232,15 +237,19 @@ public class AuthService {
     /**
      * 下发验证码。
      * 使用 Redis SET NX + TTL 保证冷却期原子性，多实例安全。
+     * 引入三层 Redis 计数器限流：全局 / IP / 账户。
      */
-    public SendCodeResponse sendPersonalCode(SendCodeRequest request) {
+    public SendCodeResponse sendPersonalCode(SendCodeRequest request, String clientIp) {
         String account = normalize(request.getAccount());
         String bizType = normalizeOrDefault(request.getBizType(), "login");
         String channel = normalizeOrDefault(request.getChannel(), "sms");
         String codeKey = REDIS_CODE_PREFIX + buildCodeKey(account, channel, bizType);
         String retryKey = REDIS_CODE_RETRY_PREFIX + buildCodeKey(account, channel, bizType);
 
-        // 检查冷却期：retryKey 存在则拒绝
+        // 0) 三层限流前置检查（全局 → IP → 账户）
+        rateLimitService.checkSendCodeRateLimit(account, normalizeIp(clientIp));
+
+        // 1) 检查冷却期：retryKey 存在则拒绝
         if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(retryKey))) {
             throw new RuntimeException("TOO_FREQUENT_REQUEST");
         }
@@ -249,7 +258,7 @@ public class AuthService {
         long counter = stringRedisTemplate.opsForValue().increment(REDIS_REQUEST_COUNTER_KEY);
         String requestId = "req_" + System.currentTimeMillis() + "_" + counter;
 
-        // 验证码写入 Redis（带 TTL），同时写入冷却期标记
+        // 2) 验证码写入 Redis（带 TTL），同时写入冷却期标记
         stringRedisTemplate.opsForValue().set(retryKey, "1", Duration.ofSeconds(CODE_RETRY_AFTER_SEC));
         stringRedisTemplate.opsForValue().set(codeKey, code, Duration.ofSeconds(CODE_EXPIRE_SEC));
 
@@ -263,7 +272,7 @@ public class AuthService {
             System.out.println("=========================================");
         }
 
-        log.info("[ClientAuth] send code channel={}, account={}, code={}, bizType={}", channel, account, code, bizType);
+        log.info("[ClientAuth] send code channel={}, account={}, code={}, bizType={}, ip={}", channel, account, code, bizType, clientIp);
         return new SendCodeResponse(requestId, CODE_EXPIRE_SEC, CODE_RETRY_AFTER_SEC);
     }
 
@@ -734,8 +743,9 @@ public class AuthService {
 
         AuthMeta authMeta = resolveUserAuthMeta(user.getUserUid());
         TokenPair tokenPair = issueTokenPair(user.getUserUid(), "CLIENT_USER", "CLIENT_USER_REFRESH");
+        String avatarUrl = loadUserAvatarUrl(user.getUserUid());
         return new LoginResponse(user.getUserUid(), authMeta.userRole, authMeta.authStatus,
-                tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC);
+                tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC, avatarUrl, null);
     }
 
     private User loadPersonalUserByAccount(String accountRaw) {
@@ -786,24 +796,22 @@ public class AuthService {
         userProfileMapper.insert(profile);
     }
 
-    /**
-     * 登录时若前端传入头像 URL，更新 p_user_profile.avatar_url。
-     * 仅当 profile 已存在时才写入，避免在注册路径之外意外创建空 profile。
-     */
-    private void saveAvatarIfPresent(String userUid, String avatarUrl) {
-        if (avatarUrl == null || avatarUrl.isBlank()) {
-            return;
-        }
+    private String loadUserAvatarUrl(String userUid) {
         LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserProfile::getUserUid, userUid).last("LIMIT 1");
-        UserProfile existing = userProfileMapper.selectOne(wrapper);
-        if (existing == null) {
-            log.warn("saveAvatarIfPresent: no profile found for userUid={}, skip", userUid);
-            return;
-        }
-        existing.setAvatarUrl(avatarUrl.trim());
-        existing.setUpdatedAt(LocalDateTime.now());
-        userProfileMapper.updateById(existing);
+        wrapper.eq(UserProfile::getUserUid, userUid)
+                .select(UserProfile::getAvatarUrl)
+                .last("LIMIT 1");
+        UserProfile profile = userProfileMapper.selectOne(wrapper);
+        return profile != null ? profile.getAvatarUrl() : null;
+    }
+
+    private String loadEntityLogoUrl(String entityCode) {
+        LambdaQueryWrapper<TenantOrgProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TenantOrgProfile::getEntityCode, entityCode)
+                .select(TenantOrgProfile::getLogoUrl)
+                .last("LIMIT 1");
+        TenantOrgProfile profile = tenantOrgProfileMapper.selectOne(wrapper);
+        return profile != null ? profile.getLogoUrl() : null;
     }
 
     private void createDefaultCreditProfile(String userUid) {
@@ -868,6 +876,13 @@ public class AuthService {
 
     private String buildCodeKey(String account, String channel, String bizType) {
         return account + "|" + channel + "|" + bizType;
+    }
+
+    private String normalizeIp(String ip) {
+        if (ip == null || ip.isBlank()) {
+            return "unknown";
+        }
+        return ip.trim();
     }
 
     // ===================== Challenge Redis 操作 =====================
@@ -975,15 +990,17 @@ public class AuthService {
     private LoginResponse completeOrganizationLogin(EntityTotpCredentials admin) {
         entityAdminCredentialService.updateAdminLastLoginAt(admin.getAdminUid(), LocalDateTime.now());
         TokenPair tokenPair = issueTokenPair(admin.getAdminUid(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
+        String logoUrl = loadEntityLogoUrl(admin.getEntityCode());
         return new LoginResponse(admin.getAdminUid(), "organization-admin", "verified",
-                tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC);
+                tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC, null, logoUrl);
     }
 
     private LoginResponse completeEntityRootLogin(TenantOrganization entity) {
         entityAdminCredentialService.updateEntityLastLoginAt(entity.getEntityCode(), LocalDateTime.now());
         TokenPair tokenPair = issueTokenPair(entity.getEntityCode(), "CLIENT_ORG", "CLIENT_ORG_REFRESH");
+        String logoUrl = loadEntityLogoUrl(entity.getEntityCode());
         return new LoginResponse(entity.getEntityCode(), "organization-admin", "verified",
-                tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC);
+                tokenPair.accessToken(), tokenPair.refreshToken(), ACCESS_TOKEN_EXPIRE_SEC, null, logoUrl);
     }
 
     private OrganizationCredentialResponse buildOrganizationCredentialResponse(String challengeId,

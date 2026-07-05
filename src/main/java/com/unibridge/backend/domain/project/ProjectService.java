@@ -3,6 +3,7 @@ package com.unibridge.backend.domain.project;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.unibridge.backend.application.shared.ContentUidResolver;
+import com.unibridge.backend.application.shared.UserVerificationService;
 import com.unibridge.backend.domain.auth.AccessService;
 import com.unibridge.backend.domain.project.dto.ProjectDetailResponse;
 import com.unibridge.backend.domain.project.dto.PublishProjectDraftResponse;
@@ -11,11 +12,9 @@ import com.unibridge.backend.domain.project.dto.PublishProjectResponse;
 import com.unibridge.backend.infrastructure.entities.project.Project;
 import com.unibridge.backend.infrastructure.entities.project.ProjectBody;
 import com.unibridge.backend.infrastructure.entities.project.ProjectSecret;
-import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
 import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectSecretMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectBodyMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
-import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.unibridge.backend.infrastructure.util.ProjectUidGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -69,21 +68,24 @@ public class ProjectService {
     private final ProjectMapper projectMapper;
     private final ProjectSecretMapper projectSecretMapper;
     private final ProjectBodyMapper projectBodyMapper;
-    private final UserOrganizationBindingMapper userOrganizationBindingMapper;
     private final ContentUidResolver contentUidResolver;
+    private final UserVerificationService userVerificationService;
+    private final ProjectPublisherEntityResolver projectPublisherEntityResolver;
 
     public ProjectService(AccessService clientAccessService,
                                 ProjectMapper projectMapper,
                                 ProjectSecretMapper projectSecretMapper,
                                 ProjectBodyMapper projectBodyMapper,
-                                UserOrganizationBindingMapper userOrganizationBindingMapper,
-                                ContentUidResolver contentUidResolver) {
+                                ContentUidResolver contentUidResolver,
+                                UserVerificationService userVerificationService,
+                                ProjectPublisherEntityResolver projectPublisherEntityResolver) {
         this.clientAccessService = clientAccessService;
         this.projectMapper = projectMapper;
         this.projectSecretMapper = projectSecretMapper;
         this.projectBodyMapper = projectBodyMapper;
-        this.userOrganizationBindingMapper = userOrganizationBindingMapper;
         this.contentUidResolver = contentUidResolver;
+        this.userVerificationService = userVerificationService;
+        this.projectPublisherEntityResolver = projectPublisherEntityResolver;
     }
 
     @Transactional
@@ -92,7 +94,10 @@ public class ProjectService {
     public PublishProjectResponse createProject(String authorization, PublishProjectRequest request) {
         String userUid = clientAccessService.requireCurrentUserUid(authorization);
         validateRequest(request);
-        assertPublishPermission(userUid, request.getChannel());
+        if (PUBLISH_ACTION_PUBLISH.equals(normalizePublishAction(request.getPublishAction()))) {
+            userVerificationService.requireVerifiedForProjectPublish(userUid);
+            assertPublishPermission(userUid, request.getChannel());
+        }
 
         Project project = new Project();
         project.setOwnerUid(userUid);
@@ -117,7 +122,10 @@ public class ProjectService {
         Project project = requireOwnedProject(projectUid, userUid);
 
         validateRequest(request);
-        assertPublishPermission(userUid, request.getChannel());
+        if (PUBLISH_ACTION_PUBLISH.equals(normalizePublishAction(request.getPublishAction()))) {
+            userVerificationService.requireVerifiedForProjectPublish(userUid);
+            assertPublishPermission(userUid, request.getChannel());
+        }
 
         applyRequestToProject(project, request);
         projectMapper.updateById(project);
@@ -179,6 +187,9 @@ public class ProjectService {
             amount = formatAmount(secret.getTotalBudget());
         }
 
+        ProjectPublisherEntityResolver.OwnerContext ownerContext =
+                projectPublisherEntityResolver.resolveOwner(project.getOwnerUid());
+
         return ProjectDetailResponse.builder()
                 .uid(project.getProjectUid())
                 .title(project.getTitle())
@@ -196,6 +207,14 @@ public class ProjectService {
                 .status(project.getStatus())
                 .publishedAt(formatOffsetDateTime(project.getPublishedAt()))
                 .updatedAt(formatOffsetDateTime(project.getUpdatedAt()))
+                .owner(ProjectDetailResponse.Owner.builder()
+                        .uid(ownerContext.uid())
+                        .name(ownerContext.name())
+                        .avatarUrl(ownerContext.avatarUrl())
+                        .careerData(ownerContext.careerData())
+                        .organization(ownerContext.organization())
+                        .location(ownerContext.location())
+                        .build())
                 .build();
     }
 
@@ -295,14 +314,20 @@ public class ProjectService {
         }
     }
 
+    private String normalizePublishAction(String publishAction) {
+        if (!StringUtils.hasText(publishAction)) {
+            return "";
+        }
+        return publishAction.trim().toUpperCase(Locale.ROOT);
+    }
+
     private void assertPublishPermission(String userUid, String channel) {
-        UserOrganizationBinding authLink = loadCurrentAuthLink(userUid);
-        if (authLink == null || !StringUtils.hasText(authLink.getRole())) {
+        String role = userVerificationService.resolveApprovedRole(userUid);
+        if (!StringUtils.hasText(role)) {
             throw new BusinessException(403, "PROJECT_PUBLISH_FORBIDDEN");
         }
 
-        String role = authLink.getRole().toUpperCase(Locale.ROOT);
-        boolean allowed = switch (role) {
+        boolean allowed = switch (role.toUpperCase(Locale.ROOT)) {
             case "PM" -> CHANNEL_ENTERPRISE.equals(channel);
             case "MENTOR" -> CHANNEL_ENTERPRISE.equals(channel) || CHANNEL_CAMPUS.equals(channel);
             case "STUDENT" -> CHANNEL_CAMPUS.equals(channel);
@@ -312,15 +337,6 @@ public class ProjectService {
         if (!allowed) {
             throw new BusinessException(403, "PROJECT_PUBLISH_FORBIDDEN");
         }
-    }
-
-    private UserOrganizationBinding loadCurrentAuthLink(String userUid) {
-        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
-                .eq(UserOrganizationBinding::getIsActive, 1)
-                .orderByDesc(UserOrganizationBinding::getUpdatedAt)
-                .last("LIMIT 1");
-        return userOrganizationBindingMapper.selectOne(wrapper);
     }
 
     private void applyRequestToProject(Project project, PublishProjectRequest request) {
@@ -467,13 +483,19 @@ public class ProjectService {
         return dateTime.atZone(ZONE_SHANGHAI).format(ISO_OFFSET_FORMATTER);
     }
 
+    private ProjectBody loadProjectBodyRow(String projectUid) {
+        LambdaQueryWrapper<ProjectBody> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProjectBody::getProjectUid, projectUid).last("LIMIT 1");
+        return projectBodyMapper.selectOne(wrapper);
+    }
+
     private String loadProjectBody(String projectUid) {
-        ProjectBody body = projectBodyMapper.selectById(projectUid);
+        ProjectBody body = loadProjectBodyRow(projectUid);
         return body != null ? body.getDescription() : null;
     }
 
     private void saveProjectBody(String projectUid, String description) {
-        ProjectBody existing = projectBodyMapper.selectById(projectUid);
+        ProjectBody existing = loadProjectBodyRow(projectUid);
         if (existing == null) {
             ProjectBody body = new ProjectBody();
             body.setProjectUid(projectUid);

@@ -24,6 +24,7 @@ db-*.sql
 *-admin.md
 projectDescription.md
 InstentMessage.sql
+TOFIX-*.md
 
 # 重构项目辅助文件
 rebuild-*.md

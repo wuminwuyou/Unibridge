@@ -7,6 +7,7 @@ import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBin
 import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
 import com.unibridge.backend.infrastructure.entities.profile.TenantOrgProfile;
 import com.unibridge.backend.infrastructure.persistence.mapper.profile.TenantOrgProfileMapper;
+import com.unibridge.backend.infrastructure.common.BusinessException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -70,8 +71,55 @@ public class UserVerificationService {
 
     /** 组织绑定是否已审核通过（{@code audit_status = 'APPROVED' AND is_active = 1}）。 */
     public boolean isOrgBindingApproved(String userUid) {
+        return loadApprovedBinding(userUid) != null;
+    }
+
+    /** 已审核通过的组织绑定角色；无则返回 {@code null}。 */
+    public String resolveApprovedRole(String userUid) {
         UserOrganizationBinding binding = loadApprovedBinding(userUid);
-        return binding != null;
+        if (binding == null || !StringUtils.hasText(binding.getRole())) {
+            return null;
+        }
+        return binding.getRole().trim();
+    }
+
+    /**
+     * 个人空间 Sidebar 展示文案：{@code 已实名} / {@code 学校已认证} / {@code 企业已认证} / 空串。
+     */
+    public String resolveVerifyStatusDisplayLabel(String userUid) {
+        String status = resolveVerifyStatus(userUid);
+        if (STATUS_VERIFIED.equals(status)) {
+            UserOrganizationBinding binding = loadApprovedBinding(userUid);
+            if (binding != null && StringUtils.hasText(binding.getRole())
+                    && "PM".equalsIgnoreCase(binding.getRole().trim())) {
+                return "企业已认证";
+            }
+            return "学校已认证";
+        }
+        if (STATUS_IDENTITY_ONLY.equals(status)) {
+            return "已实名";
+        }
+        return "";
+    }
+
+    /** 未完成实名认证时抛出 {@code USER_NOT_VERIFIED}（403）。 */
+    public void requireIdentityVerified(String userUid) {
+        if (!isIdentityVerified(userUid)) {
+            throw BusinessException.forbidden("USER_NOT_VERIFIED");
+        }
+    }
+
+    /** 组织绑定未审核通过时抛出 {@code USER_NOT_VERIFIED}（403）。 */
+    public void requireOrgBindingApproved(String userUid) {
+        if (!isOrgBindingApproved(userUid)) {
+            throw BusinessException.forbidden("USER_NOT_VERIFIED");
+        }
+    }
+
+    /** 正式发布项目前：须已完成实名且机构绑定审核通过。 */
+    public void requireVerifiedForProjectPublish(String userUid) {
+        requireIdentityVerified(userUid);
+        requireOrgBindingApproved(userUid);
     }
 
     /**

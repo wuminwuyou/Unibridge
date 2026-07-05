@@ -143,16 +143,14 @@ public class UserProfileService {
         }
 
         UserProfile profile = loadProfile(targetUserUid);
-        String verifyStatus = resolveVerifyStatus(targetUserUid);
-        String verifiedOrganization = resolveVerifiedOrganization(targetUserUid);
 
         return ProfileMenuResponse.builder()
                 .userUid(targetUserUid)
                 .nickname(nullSafe(profile == null ? null : profile.getNickName()))
                 .level(nullSafe(profile == null ? null : profile.getLevel()))
                 .avatarUrl(nullSafe(profile == null ? null : profile.getAvatarUrl()))
-                .verifiedOrganization(verifiedOrganization)
-                .verifyStatus(verifyStatus)
+                .verifiedOrganization(userVerificationService.resolveVerifiedOrganization(targetUserUid))
+                .verifyStatus(userVerificationService.resolveVerifyStatus(targetUserUid))
                 .build();
     }
 
@@ -185,8 +183,8 @@ public class UserProfileService {
 
         UserProfile profile = loadProfile(targetUserUid);
         UserOrganizationBinding currentAuthLink = loadCurrentAuthLink(targetUserUid);
-        ProfileSpaceResponse.BaseInfo baseInfo = buildBaseInfo(profile, currentAuthLink);
-        ProfileSpaceResponse.ExtendInfo extendInfo = buildExtendInfo(user, profile, currentAuthLink, request);
+        ProfileSpaceResponse.BaseInfo baseInfo = buildBaseInfo(targetUserUid, profile, currentAuthLink);
+        ProfileSpaceResponse.ExtendInfo extendInfo = buildExtendInfo(user, profile, request);
         List<ProfileSpaceResponse.AssociatedTeam> associatedTeams = loadAssociatedTeams(targetUserUid);
 
         return ProfileSpaceResponse.builder()
@@ -296,7 +294,7 @@ public class UserProfileService {
                 .build();
     }
 
-    private ProfileSpaceResponse.BaseInfo buildBaseInfo(UserProfile profile, UserOrganizationBinding currentAuthLink) {
+    private ProfileSpaceResponse.BaseInfo buildBaseInfo(String userUid, UserProfile profile, UserOrganizationBinding currentAuthLink) {
         String nickname = nullSafe(profile == null ? null : profile.getNickName());
         String avatarUrl = nullSafe(profile == null ? null : profile.getAvatarUrl());
         String bio = nullSafe(profile == null ? null : profile.getIntro());
@@ -304,14 +302,14 @@ public class UserProfileService {
 
         // position：user_auth_link.role（当前活跃身份 is_active=1，含 PENDING 待审核）
         String position = mapAuthRoleToPosition(currentAuthLink == null ? null : currentAuthLink.getRole());
-        String organization = resolveOrganization(currentAuthLink, profile);
-        String verifyStatus = resolveVerifyStatus(profile, currentAuthLink);
+        String organization = userVerificationService.resolveVerifiedOrganization(userUid);
+        String verifyStatusCode = userVerificationService.resolveVerifyStatus(userUid);
 
         return ProfileSpaceResponse.BaseInfo.builder()
                 .nickname(nickname)
                 .avatarText(resolveAvatarText(nickname))
                 .avatarUrl(avatarUrl)
-                .isVerified(!verifyStatus.isEmpty())
+                .isVerified(!UserVerificationService.STATUS_UNVERIFIED.equals(verifyStatusCode))
                 .organization(organization)
                 .position(position)
                 .bio(bio)
@@ -319,11 +317,13 @@ public class UserProfileService {
                 .build();
     }
 
-    /**
-     * 通过 user_auth_link.entity_code 关联 entity_profile.name 获取所属主体名称。
-     * 无有效认证记录时回退 user_profile.current_entity_name。
-     */
     private String resolveOrganization(UserOrganizationBinding authLink, UserProfile profile) {
+        if (profile != null && StringUtils.hasText(profile.getUserUid())) {
+            String verifiedOrg = userVerificationService.resolveVerifiedOrganization(profile.getUserUid());
+            if (StringUtils.hasText(verifiedOrg)) {
+                return verifiedOrg;
+            }
+        }
         if (authLink != null && authLink.getEntityCode() != null) {
             LambdaQueryWrapper<TenantOrgProfile> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(TenantOrgProfile::getEntityCode, authLink.getEntityCode()).last("LIMIT 1");
@@ -337,53 +337,16 @@ public class UserProfileService {
 
     private ProfileSpaceResponse.ExtendInfo buildExtendInfo(User user,
                                                             UserProfile profile,
-                                                            UserOrganizationBinding authLink,
                                                             HttpServletRequest request) {
+        String userUid = user.getUserUid();
         return ProfileSpaceResponse.ExtendInfo.builder()
                 .notice(nullSafe(profile == null ? null : profile.getAnnouncement()))
-                .verifyStatus(resolveVerifyStatus(profile, authLink))
+                .verifyStatus(userVerificationService.resolveVerifyStatusDisplayLabel(userUid))
                 .ipLocation(resolveIpLocation(request))
                 .joinDate(formatJoinDate(user.getCreatedAt()))
                 .careerData(parseCareerData(profile == null ? null : profile.getCareerData()))
                 .skills(parseJsonStringList(profile == null ? null : profile.getBioData()))
                 .build();
-    }
-
-    /**
-     * 实名/认证状态判定：
-     * <ul>
-     *   <li>机构认证：user_auth_link.audit_status=APPROVED 且 is_active=1</li>
-     *   <li>已实名：t_user_identity.verified_at 非空（含毕业/退出机构 is_active=0 时的回退）</li>
-     * </ul>
-     */
-    private String resolveVerifyStatus(UserProfile profile, UserOrganizationBinding authLink) {
-        if (isOrgAuthVerified(authLink)) {
-            String role = authLink.getRole();
-            if (role != null && "PM".equalsIgnoreCase(role)) {
-                return "企业已认证";
-            }
-            return "学校已认证";
-        }
-        if (isRealNameVerified(profile)) {
-            return "已实名";
-        }
-        return "";
-    }
-
-    /** 已实名：t_user_identity.verified_at 非空（委托 UserVerificationService）。 */
-    private boolean isRealNameVerified(UserProfile profile) {
-        if (profile == null) {
-            return false;
-        }
-        return userVerificationService.isIdentityVerified(profile.getUserUid());
-    }
-
-    /** 机构认证通过：user_auth_link.audit_status=APPROVED 且 is_active=1。 */
-    private boolean isOrgAuthVerified(UserOrganizationBinding authLink) {
-        return authLink != null
-                && "APPROVED".equalsIgnoreCase(authLink.getAuditStatus())
-                && authLink.getIsActive() != null
-                && authLink.getIsActive() == 1;
     }
 
     private UserProfile loadProfile(String userUid) {
@@ -829,15 +792,7 @@ public class UserProfileService {
         }
         UserProfile profile = loadProfile(uid.trim());
 
-        // 检查实名认证：user_auth_link 中需有 APPROVED + is_active = 1 的记录
-        LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserOrganizationBinding::getUserUid, uid.trim())
-                .eq(UserOrganizationBinding::getAuditStatus, "APPROVED")
-                .eq(UserOrganizationBinding::getIsActive, 1)
-                .last("LIMIT 1");
-        UserOrganizationBinding authLink = userOrganizationBindingMapper.selectOne(wrapper);
-
-        if (authLink == null) {
+        if (!userVerificationService.isOrgBindingApproved(uid.trim())) {
             throw BusinessException.forbidden("USER_NOT_VERIFIED");
         }
 
@@ -846,7 +801,7 @@ public class UserProfileService {
                 ? identity.getRealNameMask().trim() : null;
         String nickname = profile != null && StringUtils.hasText(profile.getNickName())
                 ? profile.getNickName().trim() : "用户";
-        String role = authLink.getRole();
+        String role = userVerificationService.resolveApprovedRole(uid.trim());
 
         return UserVerifiedPreviewResponse.builder()
                 .uid(user.getUserUid())
@@ -859,18 +814,4 @@ public class UserProfileService {
     }
 
     // ===================== 认证状态判定 =====================
-
-    /**
-     * 三级认证状态判定（委托 {@link UserVerificationService} 统一实现）。
-     */
-    private String resolveVerifyStatus(String userUid) {
-        return userVerificationService.resolveVerifyStatus(userUid);
-    }
-
-    /**
-     * 获取已认证主体名称（委托 {@link UserVerificationService} 统一实现）。
-     */
-    private String resolveVerifiedOrganization(String userUid) {
-        return userVerificationService.resolveVerifiedOrganization(userUid);
-    }
 }

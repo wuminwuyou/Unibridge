@@ -40,6 +40,10 @@ public class MybatisPlusConfig {
                     return tableName;
                 }
             }
+            // 已含 t_ 前缀（@TableName 误写完整表名）时不再重复拼接
+            if (tableName.startsWith("t_")) {
+                return tableName;
+            }
             // 裸表名自动补 t_ 前缀
             return "t_" + tableName;
         });

@@ -30,4 +30,19 @@ public class ProjectDetailResponse {
     private String status;
     private String publishedAt;
     private String updatedAt;
+    /** 项目发布者身份信息 */
+    private Owner owner;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Owner {
+        private String uid;
+        private String name;
+        private String avatarUrl;
+        private List<String> careerData;
+        private String organization;
+        private String location;
+    }
 }

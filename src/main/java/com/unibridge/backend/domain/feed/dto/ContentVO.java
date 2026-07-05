@@ -1,6 +1,8 @@
 package com.unibridge.backend.domain.feed.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,6 +18,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ContentVO {
     /** NOTE | PROJECT */
     private String contentType;
@@ -50,22 +53,27 @@ public class ContentVO {
     /** PROJECT：{ label }[] 标签 */
     @JsonIgnore
     private List<ContentTagLabel> projectTags;
-    /** 笔记：发布者昵称 */
-    private String authorNickName;
-    /** 笔记：作者所属学校 / 组织 */
-    private String authorOrganization;
+    /** 笔记：发布者昵称（卡片展示；禁止返回实名） */
+    @JsonProperty("authorNickname")
+    @JsonAlias("authorNickName")
+    private String authorNickname;
     /** 笔记：作者头像 URL */
     private String authorAvatar;
     /** 笔记：视频时长（仅 VIDEO，格式 MM:SS） */
     private String videoDuration;
     private Integer views;
-    /** 笔记：点赞数 */
+    /** 笔记：点赞数（列表卡片层不再返回，排序算法内部仍可使用） */
+    @JsonIgnore
     private Integer likes;
-    /** 笔记：收藏数 */
+    /** 笔记：收藏数（列表卡片层不再返回） */
+    @JsonIgnore
     private Integer favorites;
-    /** 笔记：评论数 */
+    /** 笔记：评论数（列表卡片层不再返回） */
+    @JsonIgnore
     private Integer comments;
     private String publishTime;
+    /** 笔记：最近更新时间；与 publishTime 相同时前端走相对时效 */
+    private String updateTime;
     /** 推荐分（调试/排序透明，前端可忽略） */
     private Double score;
 }

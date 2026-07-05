@@ -1,5 +1,6 @@
 package com.unibridge.backend.infrastructure.common;
 
+import com.unibridge.backend.application.shared.RateLimitService.RateLimitExceededException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -102,6 +103,16 @@ public class GlobalExceptionHandler {
     // =========================================================================
     // 🟡 B. 前端参数校验异常（UX 与安全并存 —— 可返回具体字段提示）
     // =========================================================================
+
+    /**
+     * 限流异常：映射为 429 Too Many Requests。
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<Result> handleRateLimit(RateLimitExceededException ex, HttpServletRequest request) {
+        logInternalWarn(request, "RATELIMIT", HttpStatus.TOO_MANY_REQUESTS.value(),
+                ex.getLabel() + " limit=" + ex.getLimit() + "/" + ex.getWindowSec() + "s", ex);
+        return buildSafeResponse(HttpStatus.TOO_MANY_REQUESTS.value(), ex.getMessage());
+    }
 
     /**
      * 拦截 {@code @Valid} / {@code @Validated} 触发的参数校验失败。

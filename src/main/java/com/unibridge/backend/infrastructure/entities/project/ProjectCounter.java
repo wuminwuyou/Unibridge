@@ -7,7 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 @Data
-@TableName("t_project_counter")
+@TableName("project_counter")
 public class ProjectCounter {
     @TableId(type = IdType.AUTO)
     private Long id;

@@ -32,8 +32,8 @@ public class NoteCardAssembler {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final DateTimeFormatter PROFILE_PUBLISH_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final DateTimeFormatter PROFILE_UPDATE_DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter CARD_UPDATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
@@ -61,15 +61,12 @@ public class NoteCardAssembler {
                 .summary(note.getSummary())
                 .coverUrl(note.getCoverUrl())
                 .noteTags(parseTags(note.getTags()))
-                .authorNickName(author.authorNickName())
-                .authorOrganization(author.authorOrganization())
+                .authorNickname(author.authorNickName())
                 .authorAvatar(author.authorAvatar())
                 .videoDuration(formatVideoDuration(note.getVideoDuration(), note.getContentTypeCode()))
                 .views(nullSafe(counter.getViewCount()))
-                .likes(nullSafe(counter.getLikeCount()))
-                .favorites(nullSafe(counter.getCollectCount()))
-                .comments(nullSafe(counter.getCommentCount()))
                 .publishTime(formatFeedPublishTime(publishTime))
+                .updateTime(resolveCardUpdateTime(note.getUpdatedAt(), publishTime))
                 .score(roundScore(score))
                 .build();
     }
@@ -86,16 +83,12 @@ public class NoteCardAssembler {
                 .contentType(mapNoteContentTypeDisplay(note.getContentTypeCode()))
                 .tags(parseTags(note.getTags()))
                 .cover(nullToEmpty(note.getCoverUrl()))
-                .authorNickName(author.authorNickName())
-                .authorOrganization(author.authorOrganization())
+                .authorNickname(author.authorNickName())
                 .authorAvatar(author.authorAvatar())
                 .videoDuration(formatVideoDuration(note.getVideoDuration(), note.getContentTypeCode()))
                 .views(nullSafe(counter.getViewCount()))
-                .likes(nullSafe(counter.getLikeCount()))
-                .comments(nullSafe(counter.getCommentCount()))
-                .favorites(nullSafe(counter.getCollectCount()))
                 .publishTime(formatProfilePublishTime(publishTime))
-                .updateTime(formatProfileUpdateTime(note.getUpdatedAt()))
+                .updateTime(resolveCardUpdateTime(note.getUpdatedAt(), publishTime))
                 .status(note.getStatus())
                 .visibility(note.getVisibility())
                 .build();
@@ -173,8 +166,12 @@ public class NoteCardAssembler {
         return time == null ? "" : time.format(PROFILE_PUBLISH_TIME_FORMATTER);
     }
 
-    private String formatProfileUpdateTime(LocalDateTime time) {
-        return time == null ? "" : time.format(PROFILE_UPDATE_DATE_FORMATTER);
+    /** updateTime 优先取 updated_at，缺失时回退 publishTime（与 API-1 约定一致）。 */
+    private String resolveCardUpdateTime(LocalDateTime updatedAt, LocalDateTime publishTime) {
+        if (updatedAt != null) {
+            return updatedAt.format(CARD_UPDATE_TIME_FORMATTER);
+        }
+        return formatFeedPublishTime(publishTime);
     }
 
     private int nullSafe(Integer value) {
