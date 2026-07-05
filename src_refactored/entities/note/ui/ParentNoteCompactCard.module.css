@@ -1,0 +1,101 @@
+/* 01）关联笔记紧凑卡片（parent-note-compact-card） */
+.compactCard {
+  display: block;
+  padding: 0.625rem 1rem 0.875rem;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s ease;
+}
+
+.compactCard:hover {
+  background: rgb(0 0 0 / 0.04);
+}
+
+:root[data-theme='dark'] .compactCard:hover {
+  background: rgb(255 255 255 / 0.05);
+}
+
+/* 02）标题（单行省略） */
+.compactCardTitle {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #27272a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-theme='dark'] .compactCardTitle {
+  color: #f4f4f5;
+}
+
+.compactCard:hover .compactCardTitle {
+  color: var(--primary-text, #2563eb);
+}
+
+/* 02-a）摘要（最多两行省略） */
+.compactCardSummary {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #64748b;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+:root[data-theme='dark'] .compactCardSummary {
+  color: #94a3b8;
+}
+
+/* 03）标签行（可选，单行截断） */
+.compactCardTags {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+  overflow: hidden;
+}
+
+.compactCardTag {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 1px 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #64748b;
+  background: #f1f5f9;
+  white-space: nowrap;
+}
+
+:root[data-theme='dark'] .compactCardTag {
+  color: #94a3b8;
+  background: #27272a;
+}
+
+/* 04）互动统计（图标 + 数字） */
+.compactCardStats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.375rem;
+  min-width: 0;
+}
+
+.compactCardStat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+:root[data-theme='dark'] .compactCardStat {
+  color: #71717a;
+}

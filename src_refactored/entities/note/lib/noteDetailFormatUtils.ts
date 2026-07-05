@@ -21,26 +21,7 @@ export function resolveNoteAuthorInitial(name: string): string {
   return trimmed ? trimmed.slice(0, 1).toUpperCase() : 'U'
 }
 
-// 03）格式化互动数字（formatNoteStatCount）
-/**
- * 函数名：formatNoteStatCount
- * 功能：将浏览/评论/收藏数格式化为 k/w 缩写文案。
- * 输入：
- * - value：原始计数
- * 输出：
- * - 返回值：展示字符串
- */
-export function formatNoteStatCount(value: number): string {
-  if (value >= 10000) {
-    return `${(value / 10000).toFixed(1)}w`
-  }
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}k`
-  }
-  return String(value)
-}
-
-// 04）解析发布流程提示（resolveNoteEditorialBannerText）
+// 03）解析发布流程提示（resolveNoteEditorialBannerText）
 /**
  * 函数名：resolveNoteEditorialBannerText
  * 功能：根据发布状态生成发布页回流横幅文案。
@@ -59,7 +40,7 @@ export function resolveNoteEditorialBannerText(status: NoteDetailPublishStatus):
   return '笔记已保存发布，可返回继续修改'
 }
 
-// 05）格式化笔记详情时间（formatNoteDetailTime）
+// 04）格式化笔记详情时间（formatNoteDetailTime）
 /**
  * 函数名：formatNoteDetailTime
  * 功能：将 API ISO 时间或已有展示时间统一为「YYYY-MM-DD HH:mm」。

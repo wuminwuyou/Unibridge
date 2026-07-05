@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react'
 import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMarkdownReaderId, ContentReader, MarkdownMdCatalogPanel } from '@shared/ui/MarkdownReader'
 import { NoteEditorialBanner } from '@features/note-viewer-editorial'
@@ -18,8 +18,21 @@ interface NoteArticleReaderLayoutProps {
 const NAVBAR_HEIGHT = 64
 const STICKY_TOP_PX = NAVBAR_HEIGHT + 24
 const STICKY_TOP_CLASS = 'top-[5.5rem]'
+const SIDEBAR_PANEL_ANIMATION_MS = 350
+const EDITOR_MIN_EXPANDED_HEIGHT_PX = 280
 
-// 02）图文阅读布局组件（NoteArticleReaderLayout）
+// 03）解析侧栏默认展开面板（resolveInitialSidebarPanel）
+function resolveInitialSidebarPanel(note: NoteArticleDetailPayload): SidebarExpandedPanel {
+  if (note.parentNote?.title?.trim()) {
+    return 'parentNote'
+  }
+  return null
+}
+
+// 04）侧栏可折叠面板类型（SidebarExpandedPanel）
+type SidebarExpandedPanel = 'parentNote' | 'learningNote' | null
+
+// 05）图文阅读布局组件（NoteArticleReaderLayout）
 export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteArticleReaderLayoutProps) {
   const markdownReaderId = useMarkdownReaderId()
   const showMarkdownCatalog = note.body.trim().length > 0
@@ -50,26 +63,77 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
     return () => { window.removeEventListener('scroll', handler); window.removeEventListener('resize', handler) }
   }, [])
 
-  // 编辑器折叠动画
-  const [isEditorExpanded, setIsEditorExpanded] = useState(false)
-  const editorCardRef = useRef<HTMLDivElement>(null)
-  const [editorHeight, setEditorHeight] = useState<number | null>(null)
+  // 侧栏折叠面板（关联笔记 / 学习笔记互斥展开；有关联笔记时默认展开关联笔记）
+  const [expandedPanel, setExpandedPanel] = useState<SidebarExpandedPanel>(() => resolveInitialSidebarPanel(note))
+  const isParentNoteExpanded = expandedPanel === 'parentNote'
+  const isLearningNoteExpanded = expandedPanel === 'learningNote'
+
+  const toggleParentNotePanel = () => {
+    setExpandedPanel((prev) => (prev === 'parentNote' ? null : 'parentNote'))
+  }
+
+  const toggleLearningNotePanel = () => {
+    setExpandedPanel((prev) => (prev === 'learningNote' ? null : 'learningNote'))
+  }
 
   useEffect(() => {
-    if (!isEditorExpanded) { setEditorHeight(null); return }
-    const compute = () => {
-      if (!editorCardRef.current) return
-      const cardRect = editorCardRef.current.getBoundingClientRect()
-      setEditorHeight(Math.max(280, window.innerHeight - cardRect.top - 16))
-    }
-    const rafId = requestAnimationFrame(compute)
-    window.addEventListener('scroll', compute, { passive: true })
-    window.addEventListener('resize', compute, { passive: true })
-    return () => { cancelAnimationFrame(rafId); window.removeEventListener('scroll', compute); window.removeEventListener('resize', compute) }
-  }, [isEditorExpanded])
+    setExpandedPanel(resolveInitialSidebarPanel(note))
+  }, [note.uid, note.parentNote?.title])
 
-  const editorStyle: React.CSSProperties | undefined =
-    isEditorExpanded && editorHeight != null ? { height: `${editorHeight}px` } : undefined
+  // 学习笔记编辑器高度动画（与关联笔记折叠同步）
+  const editorCardRef = useRef<HTMLDivElement>(null)
+  const editorHeaderRef = useRef<HTMLButtonElement>(null)
+  const [editorCollapsedHeight, setEditorCollapsedHeight] = useState(48)
+  const [editorExpandedHeight, setEditorExpandedHeight] = useState(EDITOR_MIN_EXPANDED_HEIGHT_PX)
+
+  const computeEditorExpandedHeight = useCallback(() => {
+    if (!editorCardRef.current) {
+      return EDITOR_MIN_EXPANDED_HEIGHT_PX
+    }
+    const top = editorCardRef.current.getBoundingClientRect().top
+    return Math.max(EDITOR_MIN_EXPANDED_HEIGHT_PX, window.innerHeight - top - 16)
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!editorHeaderRef.current) {
+      return
+    }
+    setEditorCollapsedHeight(editorHeaderRef.current.offsetHeight)
+  }, [note.uid])
+
+  useEffect(() => {
+    if (!isLearningNoteExpanded) {
+      return
+    }
+
+    const updateHeight = () => {
+      setEditorExpandedHeight(computeEditorExpandedHeight())
+    }
+
+    updateHeight()
+
+    let rafId = 0
+    const animationEndAt = performance.now() + SIDEBAR_PANEL_ANIMATION_MS + 80
+    const trackHeightDuringPanelAnimation = () => {
+      updateHeight()
+      if (performance.now() < animationEndAt) {
+        rafId = requestAnimationFrame(trackHeightDuringPanelAnimation)
+      }
+    }
+    rafId = requestAnimationFrame(trackHeightDuringPanelAnimation)
+
+    window.addEventListener('scroll', updateHeight, { passive: true })
+    window.addEventListener('resize', updateHeight)
+
+    return () => {
+      cancelAnimationFrame(rafId)
+      window.removeEventListener('scroll', updateHeight)
+      window.removeEventListener('resize', updateHeight)
+    }
+  }, [isLearningNoteExpanded, isParentNoteExpanded, computeEditorExpandedHeight])
+
+  const editorCardHeight = isLearningNoteExpanded ? editorExpandedHeight : editorCollapsedHeight
+  const editorCardStyle: React.CSSProperties = { height: `${editorCardHeight}px` }
 
   return (
     <div className={`bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 ${isEditorialFlow ? 'min-h-screen' : 'min-h-[calc(100vh-4rem)]'}`}>
@@ -125,37 +189,41 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
                 profilePath={authorProfilePath}
               />
 
-              {note.parentNote ? (
-                <ParentNoteEntry>
-                  {note.parentNote ? '' : null}
-                </ParentNoteEntry>
-              ) : null}
+              <ParentNoteEntry
+                note={note.parentNote}
+                expanded={isParentNoteExpanded}
+                onToggle={toggleParentNotePanel}
+              />
 
               {note.uid ? (
-                <div ref={editorCardRef} className={`${styles.noteArticleEditorCard} flex flex-col`} style={editorStyle}>
+                <div
+                  ref={editorCardRef}
+                  className={`${styles.noteArticleEditorCard} ${isLearningNoteExpanded ? '' : styles.noteArticleEditorCardCollapsed}`}
+                  style={editorCardStyle}
+                >
                   <button
+                    ref={editorHeaderRef}
                     type="button"
-                    className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors flex-shrink-0"
-                    onClick={() => setIsEditorExpanded((prev) => !prev)}
-                    aria-expanded={isEditorExpanded}
+                    className={styles.noteArticleEditorToggle}
+                    onClick={toggleLearningNotePanel}
+                    aria-expanded={isLearningNoteExpanded}
                   >
-                    <h3 className="flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-zinc-400 dark:text-zinc-500">
-                      <BookOpen size={14} aria-hidden="true" />学习笔记
+                    <h3 className={styles.noteArticleEditorToggleTitle}>
+                      <BookOpen size={14} aria-hidden="true" />
+                      学习笔记
                     </h3>
-                    {isEditorExpanded ? (
-                      <ChevronRight size={16} className="text-zinc-400 dark:text-zinc-500 flex-shrink-0" />
+                    {isLearningNoteExpanded ? (
+                      <ChevronRight size={16} className={styles.noteArticleEditorToggleChevron} aria-hidden="true" />
                     ) : (
-                      <ChevronLeft size={16} className="text-zinc-400 dark:text-zinc-500 flex-shrink-0" />
+                      <ChevronLeft size={16} className={styles.noteArticleEditorToggleChevron} aria-hidden="true" />
                     )}
                   </button>
-                  {isEditorExpanded ? (
-                    <div className={styles.noteArticleEditorCardBody}>
-                      <NoteQuickMdEditor
-                        note={{ uid: note.uid, title: note.title, body: '', tags: note.tags }}
-                        initialContent=""
-                      />
-                    </div>
-                  ) : null}
+                  <div className={styles.noteArticleEditorCardBody} aria-hidden={!isLearningNoteExpanded}>
+                    <NoteQuickMdEditor
+                      note={{ uid: note.uid, title: note.title, body: '', tags: note.tags }}
+                      initialContent=""
+                    />
+                  </div>
                 </div>
               ) : null}
             </div>

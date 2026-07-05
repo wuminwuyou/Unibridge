@@ -1,6 +1,7 @@
 import type { NoteDetailDto } from '../model/types'
 import type { NoteDetailPayload } from '../model/noteDetailViewModel'
 import type { ProfileNoteItem } from '../model/profileNoteItem'
+import { resolveNoteAuthorNickname } from './resolveNoteAuthorNickname'
 import { formatNoteDetailTime } from './noteDetailFormatUtils'
 
 // 01）将父笔记 DTO 映射为行卡片数据（mapParentNoteToRowItem）
@@ -8,6 +9,7 @@ export function mapParentNoteToRowItem(
   parent: NoteDetailDto['parentNote'],
 ): ProfileNoteItem | null {
   if (!parent) return null
+  const publishTimeRaw = parent.publishTime?.trim() ?? ''
   return {
     uid: parent.uid,
     title: parent.title,
@@ -15,11 +17,13 @@ export function mapParentNoteToRowItem(
     contentType: parent.contentType,
     tags: parent.tags ?? [],
     cover: parent.cover ?? '',
-    publishTime: '',
-    updateTime: '',
+    publishTime: publishTimeRaw ? formatNoteDetailTime(publishTimeRaw) : '',
+    updateTime: publishTimeRaw ? formatNoteDetailTime(publishTimeRaw) : '',
     views: parent.views ?? 0,
     comments: parent.comments ?? 0,
     favorites: parent.favorites ?? 0,
+    authorNickname:
+      resolveNoteAuthorNickname(parent) ?? (parent.author?.name?.trim() || undefined),
   }
 }
 

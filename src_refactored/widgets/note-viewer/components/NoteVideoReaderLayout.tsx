@@ -6,7 +6,8 @@ import { useElementHeight } from '@shared/hooks/useElementHeight'
 import { NoteEditorialBanner } from '@features/note-viewer-editorial'
 import { NoteQuickMdEditor } from '@features/note-viewer-annotation'
 import type { NoteVideoDetailPayload } from '@entities/note'
-import { resolveNoteAuthorInitial, formatNoteStatCount, noteDetailPublishStatusLabelMap, useSimilarNotes, RowNoteCard } from '@entities/note'
+import { resolveNoteAuthorInitial, noteDetailPublishStatusLabelMap, useSimilarNotes, RowNoteCard } from '@entities/note'
+import { formatMetricCount } from '@shared/lib'
 import { isUserResourceUid } from '@shared/api/resourceUid'
 import { buildPersonalSpacePath } from '@shared/lib/userRoutes'
 import styles from './NoteVideoReaderLayout.module.css'
@@ -101,7 +102,7 @@ export function NoteVideoReaderLayout({ note, isEditorialFlow = false }: NoteVid
                 </div>
 
                 <div className={styles.noteVideoActions}>
-                  <span className={styles.noteVideoViews}><Eye className="h-3.5 w-3.5" />{formatNoteStatCount(note.views)} 浏览</span>
+                  <span className={styles.noteVideoViews}><Eye className="h-3.5 w-3.5" />{formatMetricCount(note.views)} 浏览</span>
                   <button type="button" className={styles.noteVideoActionBtn}><ThumbsUp className="h-4 w-4" />点赞</button>
                   <button type="button" className={styles.noteVideoActionBtn}><Share2 className="h-4 w-4" />分享</button>
                   <button type="button" className={styles.noteVideoActionBtn} aria-label="收藏"><Bookmark className="h-4 w-4" /></button>

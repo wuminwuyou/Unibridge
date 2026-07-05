@@ -1,4 +1,147 @@
-/* 01）md-editor 实例去边框/圆角，填充父容器 */
+/* 01）学习笔记编辑器容器 */
+
+.note-quick-md-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 02）head（模式 tabs + 动作按钮） */
+
+.note-quick-md-editor__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--card-border);
+  background: var(--chip-bg);
+  flex-shrink: 0;
+}
+
+.note-quick-md-editor__head-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* 02-a）模式 tabs */
+
+.note-quick-md-editor__tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0.125rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem;
+}
+
+.note-quick-md-editor__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.note-quick-md-editor__tab:hover {
+  color: var(--text-main);
+}
+
+.note-quick-md-editor__tab--active {
+  background: color-mix(in srgb, var(--primary-soft) 80%, transparent);
+  color: var(--primary-text);
+  font-weight: 600;
+}
+
+/* 02-b）动作按钮（草稿 / 保存） */
+
+.note-quick-md-editor__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.note-quick-md-editor__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.375rem;
+  background: var(--card-bg);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.note-quick-md-editor__action:hover {
+  border-color: var(--primary-text);
+  background: color-mix(in srgb, var(--primary-soft) 50%, transparent);
+  color: var(--primary-text);
+}
+
+.note-quick-md-editor__action--primary {
+  border-color: var(--primary-text);
+  background: var(--primary-text);
+  color: var(--card-bg);
+}
+
+.note-quick-md-editor__action--primary:hover {
+  background: color-mix(in srgb, var(--primary-text) 85%, transparent);
+  border-color: var(--primary-text);
+  color: var(--card-bg);
+}
+
+.note-quick-md-editor__action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* 02-c）保存状态提示 */
+
+.note-quick-md-editor__status {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.note-quick-md-editor__status--error {
+  color: var(--danger-text, #dc2626);
+}
+
+.note-quick-md-editor__status--success {
+  color: var(--primary-text);
+}
+
+/* 03）正文区填充父容器 */
+
+.note-quick-md-editor__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 04）md-editor 实例去边框/圆角，填充父容器 */
+
 .note-quick-md-editor .md-editor {
   flex: 1;
   min-height: 0;
@@ -10,7 +153,8 @@
   overflow: hidden !important;
 }
 
-/* 02）工具栏横向滚动 */
+/* 05）工具栏横向滚动：按钮不被压缩，溢出由 wrapper 滚动 */
+
 .note-quick-md-editor .md-editor-toolbar-item {
   flex-shrink: 0 !important;
 }
@@ -42,7 +186,8 @@
   background: var(--text-soft);
 }
 
-/* 03）库内置自绘滚动条样式微调 */
+/* 06）库内置自绘滚动条样式微调（保留功能，只调色/收窄） */
+
 .note-quick-md-editor .md-editor-custom-scrollbar__track {
   background: transparent !important;
 }
@@ -55,8 +200,16 @@
   background: var(--text-soft) !important;
 }
 
-/* 04）预览区外层 md-editor */
-.note-quick-md-editor .noteQuickMdEditorPreviewScroll .md-editor {
+/* 07）预览区外层滚动（previewOnly 默认 height:auto，需要外层容器约束并滚动） */
+
+.note-quick-md-editor__preview-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem 1rem;
+}
+
+.note-quick-md-editor__preview-scroll .md-editor {
   height: auto !important;
   max-height: none !important;
   overflow: visible !important;
@@ -64,7 +217,8 @@
   background: transparent !important;
 }
 
-/* 05）底部栏边框跟随站点变量 */
+/* 08）底部栏边框跟随站点变量 */
+
 .note-quick-md-editor .md-editor-footer {
   border-color: var(--card-border) !important;
 }

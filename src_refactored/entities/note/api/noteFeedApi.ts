@@ -11,6 +11,7 @@ export interface NoteFeedContentVo {
   preview?: string
   tags?: Array<{ label: string }> | string[]
   authorNickname?: string
+  authorNickName?: string
   authorName?: string
   authorOrganization?: string
   authorAvatar?: string | null

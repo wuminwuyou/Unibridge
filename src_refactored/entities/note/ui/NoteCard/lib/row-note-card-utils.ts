@@ -1,4 +1,6 @@
 // 01）笔记内容类型（NoteContentType）
+import type { ProfileNoteItem } from '../../../model/profileNoteItem'
+
 export type NoteContentType = '图文' | '视频'
 
 // 02）笔记卡片元信息字段（NoteCardMetaFields）
@@ -43,4 +45,19 @@ export function resolveNoteCardMetaText(note: NoteCardMetaFields): string {
     `${note.comments} 评论`,
     `${note.favorites} 收藏`,
   ].join(' · ')
+}
+
+// 07）解析笔记卡片作者展示名（resolveNoteCardAuthorName）
+/**
+ * 函数名：resolveNoteCardAuthorName
+ * 功能：从笔记卡片数据解析作者昵称展示文案。
+ * 输入：
+ * - note：含 authorNickname 的笔记数据
+ * 输出：
+ * - 返回值：作者昵称或「匿名用户」
+ */
+export function resolveNoteCardAuthorName(
+  note: Pick<ProfileNoteItem, 'authorNickname'>,
+): string {
+  return note.authorNickname?.trim() || '匿名用户'
 }

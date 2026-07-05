@@ -4,8 +4,7 @@ import LoadingSpinner from '@shared/ui/LoadingSpinner'
 import type { ProfileTabLoadState } from '@shared/types/loadState'
 import { ProfileTabSection } from '@shared/ui/ProfileTabSection'
 import type { ProfileNoteItem } from '@entities/note/model/profileNoteItem'
-import GridNoteCard from '@entities/note/ui/GridNoteCard'
-import RowNoteCard from '@entities/note/ui/RowNoteCard'
+import { RowNoteCard, GridNoteCard } from '@entities/note'
 import './NotesList.css'
 
 // 02）笔记列表 Props（NotesListProps）

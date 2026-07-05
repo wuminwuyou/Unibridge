@@ -4,8 +4,14 @@ export const MARKDOWN_CONTENT_SHELL_CLASSES =
   'markdown-content-shell rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 overflow-auto'
 
 // 02）Markdown 阅读器外层皮囊（MARKDOWN_READER_SHELL_CLASSES）
-/** 阅读器在共用皮囊上追加内边距，与编辑器 Milkdown 内边距视觉对齐 */
-export const MARKDOWN_READER_SHELL_CLASSES = `${MARKDOWN_CONTENT_SHELL_CLASSES} p-5 sm:p-6`
+/** 阅读器在共用皮囊上追加内边距，与编辑器 Milkdown 内边距视觉对齐；禁止横向滚动 */
+export const MARKDOWN_READER_SHELL_CLASSES = [
+  'markdown-content-shell',
+  'rounded-xl border border-zinc-200 dark:border-zinc-700',
+  'bg-white dark:bg-zinc-800',
+  'overflow-x-hidden overflow-y-auto',
+  'p-5 sm:p-6',
+].join(' ')
 
 // 03）Markdown Prose 排版矩阵（MARKDOWN_PROSE_CLASSES）
 /** Milkdown / MdPreview 包裹层统一 Typography 矩阵，消除两端色差 */

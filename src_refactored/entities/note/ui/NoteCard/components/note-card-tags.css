@@ -1,0 +1,38 @@
+/* 01）笔记卡片标签容器（note-card-tags） */
+.note-card-tags {
+  --note-card-tag-bg: #f0fdf4;
+  --note-card-tag-text: #166534;
+  --note-card-tag-overflow: #64748b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 1.45rem;
+  overflow: hidden;
+}
+
+:root[data-theme='dark'] .note-card-tags {
+  --note-card-tag-bg: #064e3b;
+  --note-card-tag-text: #a7f3d0;
+  --note-card-tag-overflow: #94a3b8;
+}
+
+/* 02）笔记卡片标签项（note-card-tag） */
+.note-card-tag {
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  background: var(--note-card-tag-bg);
+  color: var(--note-card-tag-text);
+  white-space: nowrap;
+}
+
+/* 03）标签溢出计数（note-card-tags__overflow） */
+.note-card-tags__overflow {
+  align-self: center;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--note-card-tag-overflow);
+  white-space: nowrap;
+}

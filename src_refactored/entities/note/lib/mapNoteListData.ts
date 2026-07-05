@@ -1,5 +1,6 @@
 // 01）笔记列表 DTO 映射工具（mapNoteListData）
 import type { ProfileNoteItem } from '@entities/note/model/profileNoteItem'
+import { resolveNoteAuthorNickname } from '@entities/note/lib/resolveNoteAuthorNickname'
 import type { UserProfileNoteDto } from '@entities/user/model/userProfileTypes'
 
 // 02）归一化笔记内容类型（normalizeNoteContentType）
@@ -55,7 +56,7 @@ export function mapApiNotes(notes: UserProfileNoteDto[]): ProfileNoteItem[] {
     comments: note.comments,
     favorites: note.favorites,
     cover: note.cover,
-    authorNickname: (note.authorNickname ?? note.authorName)?.trim() || undefined,
+    authorNickname: resolveNoteAuthorNickname(note),
     authorOrganization: note.authorOrganization?.trim() || undefined,
     authorAvatar: note.authorAvatar?.trim() || undefined,
     videoDuration: formatProfileNoteVideoDuration(note.videoDuration),

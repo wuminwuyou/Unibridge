@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { getHomeFeed, FeedApiError } from '../api/projectFeedApi'
 import type { FeedLoadState } from '../model/feedTypes'
 import type { ProjectItem } from '../../../shared/types/project'
+import { resolveNoteAuthorNickname } from '../../note/lib/resolveNoteAuthorNickname'
 
 interface ProfileNoteItem {
   uid: any; title: string; summary: string; contentType: string
@@ -35,7 +36,7 @@ export function useHomeFeedData(): UseHomeFeedDataResult {
         const pItems = (data as any).projects ?? []
         const nItems = (data as any).notes ?? []
         setProjects(Array.isArray(pItems) ? pItems.map((p: any) => ({ uid: p.uid, title: p.title ?? '', preview: p.preview ?? p.summary ?? '', tags: p.tags ?? [], category: p.projectCategory ?? 'COMMERCIAL', ownerOrganization: p.ownerOrganization ?? '', publishTime: p.publishTime ?? '', level: p.level ?? 'N', logoSvgUrl: p.logoSvgUrl ?? null, teamSize: p.teamSize ?? null, duration: p.duration ?? null })) : [])
-        setNotes(Array.isArray(nItems) ? nItems.map((n: any) => ({ uid: n.uid, title: n.title ?? '', summary: n.summary ?? '', contentType: n.noteType === 'VIDEO' ? '视频' : '图文', tags: Array.isArray(n.tags) ? (typeof n.tags[0] === 'string' ? n.tags : n.tags.map((t: any) => t.label ?? '')) : [], publishTime: n.publishTime ?? '', updateTime: n.publishTime ?? '', views: n.views ?? 0, comments: n.comments ?? 0, favorites: n.favorites ?? 0, cover: n.coverUrl ?? '', authorNickname: n.authorNickname ?? n.authorName, authorOrganization: n.authorOrganization, authorAvatar: n.authorAvatar, videoDuration: n.videoDuration })) : [])
+        setNotes(Array.isArray(nItems) ? nItems.map((n: any) => ({ uid: n.uid, title: n.title ?? '', summary: n.summary ?? '', contentType: n.noteType === 'VIDEO' ? '视频' : '图文', tags: Array.isArray(n.tags) ? (typeof n.tags[0] === 'string' ? n.tags : n.tags.map((t: any) => t.label ?? '')) : [], publishTime: n.publishTime ?? '', updateTime: n.publishTime ?? '', views: n.views ?? 0, comments: n.comments ?? 0, favorites: n.favorites ?? 0, cover: n.coverUrl ?? '', authorNickname: resolveNoteAuthorNickname(n), authorOrganization: n.authorOrganization, authorAvatar: n.authorAvatar, videoDuration: n.videoDuration })) : [])
         setLoadState('ready')
       } catch (e) {
         if (isCancelled) return

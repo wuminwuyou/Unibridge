@@ -7,8 +7,20 @@ export interface NoteDetailAuthorDto {
 
 // 02）父笔记简要 DTO（ParentNoteDto）
 export interface ParentNoteDto {
-  uid: string; title: string; summary: string; contentType: '图文' | '视频'
-  tags: string[]; cover: string; views: number; comments: number; favorites: number
+  uid: string
+  title: string
+  summary: string
+  contentType: '图文' | '视频'
+  tags: string[]
+  cover: string
+  views: number
+  comments: number
+  favorites: number
+  publishTime?: string
+  authorNickname?: string
+  authorNickName?: string
+  authorName?: string
+  author?: NoteDetailAuthorDto
 }
 
 // 03）笔记详情响应 DTO（NoteDetailDto）

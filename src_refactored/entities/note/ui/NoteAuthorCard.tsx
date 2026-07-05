@@ -1,4 +1,4 @@
-import { Eye, Heart, ThumbsUp, User } from 'lucide-react'
+import { Eye, Heart, ThumbsUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { NoteDetailAuthor } from '../model/noteDetailCommon'
 import styles from './NoteAuthorCard.module.css'
@@ -63,10 +63,6 @@ export function NoteAuthorCard({
 
   return (
     <div className={styles.noteAuthorCard + ' p-4'}>
-      <h3 className={styles.noteAuthorCardTitle + ' mb-3'}>
-        <User size={14} aria-hidden="true" />
-        作者
-      </h3>
       <div className={styles.noteAuthorBlock}>
         {profilePath ? (
           <Link to={profilePath} className={styles.noteAuthorLink}>

@@ -35,8 +35,10 @@
   gap: 0;
 }
 
+/* 02-a）右侧栏固定宽度（1440px 视口下原 clamp 计算值：shell 1296px × 30% ≈ 389px） */
 .noteVideoRightCol {
-  flex: 0 0 clamp(20rem, 30%, 35rem);
+  flex: 0 0 390px;
+  width: 389px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -321,6 +323,13 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* 08-a）侧栏内学习笔记编辑器占满剩余高度 */
+.noteVideoSidebarCardBody :global(.note-quick-md-editor) {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
 }
 
 /* 09）推荐列表 */

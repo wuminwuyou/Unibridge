@@ -22,7 +22,6 @@ export { getNoteDetail, createNote, updateNote, NotesApiError } from './api/note
 export {
   noteDetailPublishStatusLabelMap,
   resolveNoteAuthorInitial,
-  formatNoteStatCount,
   resolveNoteEditorialBannerText,
   formatNoteDetailTime,
 } from './lib/noteDetailFormatUtils'
@@ -37,5 +36,5 @@ export { NoteTagList } from './ui/NoteTagList'
 export { NoteSummaryBox } from './ui/NoteSummaryBox'
 export { NoteMetaRow } from './ui/NoteMetaRow'
 export { ParentNoteEntry } from './ui/ParentNoteEntry'
-export { default as RowNoteCard } from './ui/RowNoteCard'
-export type { RowNoteCardItem } from './ui/RowNoteCard'
+export { RowNoteCard, GridNoteCard } from './ui/NoteCard'
+export type { RowNoteCardItem, GridNoteCardNote } from './ui/NoteCard'

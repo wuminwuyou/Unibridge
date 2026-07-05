@@ -1,4 +1,5 @@
 import type { NoteFeedContentVo } from '../api/noteFeedApi'
+import { resolveNoteAuthorNickname } from './resolveNoteAuthorNickname'
 import type { ProfileNoteItem } from '../model/profileNoteItem'
 
 // 01）提取 Feed 标签字符串列表（extractNoteFeedTagLabels）
@@ -49,7 +50,7 @@ export function mapFeedNoteToProfileNoteItem(item: NoteFeedContentVo): ProfileNo
     comments: item.likes ?? item.comments ?? 0,
     favorites: item.favorites ?? 0,
     cover: item.coverUrl?.trim() || '',
-    authorNickname: (item.authorNickname ?? item.authorName)?.trim() || undefined,
+    authorNickname: resolveNoteAuthorNickname(item),
     authorOrganization: item.authorOrganization?.trim() || undefined,
     authorAvatar: item.authorAvatar?.trim() || undefined,
     videoDuration: formatFeedVideoDuration(item.videoDuration),

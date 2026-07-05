@@ -5,13 +5,34 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  overflow-x: hidden;
 }
 
+.markdown-md-reader .markdown-content-prose {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.markdown-md-reader .md-editor-previewOnly,
 .markdown-md-reader .md-editor-preview-wrapper,
 .markdown-md-reader .md-editor-preview {
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   padding: 0 !important;
+  overflow-x: hidden;
+}
+
+/* md-editor-rt 默认 preview-wrapper 为 overflow:visible，阅读器内收回 */
+.markdown-md-reader .md-editor-previewOnly .md-editor-preview-wrapper {
+  overflow-x: hidden;
+}
+
+.markdown-md-reader .md-editor-preview {
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .markdown-md-reader .md-editor-preview img,
@@ -23,12 +44,14 @@
 .markdown-md-reader .md-editor-preview pre {
   overflow-x: auto;
   padding: 0 !important;
+  max-width: 100%;
 }
 
-/* 01-b）保护代码块 flex 容器：不被 prose 宽度约束或父级 overflow-x:hidden 挤压 */
+/* 01-b）代码块限制在容器内，横向滚动仅在 pre 内部发生 */
 .markdown-md-reader .md-editor-preview [class*='md-editor-code'] {
-  min-width: max-content;
-  overflow: visible;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .markdown-md-reader .md-editor-preview [class*='md-editor-code'] pre {
@@ -36,6 +59,7 @@
   word-break: normal;
   overflow-wrap: normal;
   overflow-x: auto;
+  max-width: 100%;
 }
 
 /* 01-c）行号列 sticky 锚定左侧，随横向滚动代码时保持在原位 */
