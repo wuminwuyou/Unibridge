@@ -1,9 +1,19 @@
 /* 01）顶部导航区域（毛玻璃 + 中间浅色渐变） */
 :root {
   --top-header-height: 60px;
+  --navbar-height: var(--top-header-height);
+  --sticky-aside-gap: 1.5rem;
+  --sticky-aside-top: calc(var(--navbar-height) + var(--sticky-aside-gap));
+  --sticky-head-top: var(--navbar-height);
 }
 
-.top-header { position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(12px) saturate(1.15); -webkit-backdrop-filter: blur(12px) saturate(1.15); background: var(--header-bg); border-bottom: 1px solid var(--line-color); box-shadow: 0 4px 14px var(--header-shadow); overflow: visible; isolation: isolate; }
+html.navbar-hidden {
+  --sticky-aside-top: var(--sticky-aside-gap);
+  --sticky-head-top: 0px;
+}
+
+.top-header { position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(12px) saturate(1.15); -webkit-backdrop-filter: blur(12px) saturate(1.15); background: var(--header-bg); border-bottom: 1px solid var(--line-color); box-shadow: 0 4px 14px var(--header-shadow); overflow: visible; isolation: isolate; transform: translateY(0); transition: transform 0.25s ease, box-shadow 0.25s ease; will-change: transform; }
+.top-header--scroll-hidden { transform: translateY(-100%); pointer-events: none; box-shadow: none; }
 .top-header::before { content: ''; position: absolute; top: -160px; left: 50%; width: 700px; height: 300px; transform: translateX(-50%); pointer-events: none; background: radial-gradient(circle at center, var(--header-highlight) 0%, rgba(255,255,255,0) 70%); }
 .top-header::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(230,250,255,0.26) 50%, rgba(255,255,255,0) 100%); opacity: 0.78; }
 :root[data-theme='dark'] .top-header::after { opacity: 0.48; }

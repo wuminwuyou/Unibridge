@@ -107,7 +107,7 @@ export function MarkdownEditor({
   onUpload,
   className,
   stickyHead = false,
-  stickyHeadTop = 'var(--top-header-height, 60px)',
+  stickyHeadTop = 'var(--sticky-head-top)',
 }: MarkdownEditorProps) {
   const theme = useDocumentTheme()
   const [mode, setMode] = useState<EditorMode>('edit')

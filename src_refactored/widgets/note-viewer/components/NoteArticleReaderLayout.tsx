@@ -20,7 +20,6 @@ interface NoteArticleReaderLayoutProps {
 
 const NAVBAR_HEIGHT = 60
 const STICKY_TOP_PX = NAVBAR_HEIGHT
-const STICKY_TOP_CLASS = 'top-[var(--top-header-height,60px)]'
 const SIDEBAR_PANEL_ANIMATION_MS = 350
 const EDITOR_MIN_EXPANDED_HEIGHT_PX = 280
 
@@ -154,7 +153,7 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
           showMarkdownCatalog ? (
             <aside
               ref={tocRef}
-              className={`${layoutStyles.noteArticleTocAside} ${tocSticky ? `sticky ${STICKY_TOP_CLASS}` : ''}`}
+              className={`${layoutStyles.noteArticleTocAside} ${tocSticky ? layoutStyles.noteArticleStickyAside : ''}`.trim()}
               aria-label="文章目录"
             >
               <MarkdownMdCatalogPanel

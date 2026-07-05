@@ -50,6 +50,14 @@
   justify-self: end;
 }
 
+/* 07-a）sticky 侧栏 top 随导航栏显隐适配（noteArticleStickyAside） */
+.noteArticleStickyAside {
+  position: sticky;
+  top: var(--sticky-aside-top, calc(var(--top-header-height, 60px) + var(--sticky-aside-gap, 1.5rem)));
+  align-self: flex-start;
+  transition: top 0.3s ease;
+}
+
 /* 08）响应式：窄屏隐藏左栏 TOC */
 @media (max-width: 1279px) {
   .noteArticleTocAside,

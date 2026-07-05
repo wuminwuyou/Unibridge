@@ -30,11 +30,15 @@
 
 .md-editor-core--sticky-head .md-editor-core__head {
   position: sticky;
-  top: var(--md-editor-sticky-top, var(--top-header-height, 60px));
+  top: var(
+    --md-editor-sticky-top,
+    var(--sticky-head-top, var(--top-header-height, 60px))
+  );
   z-index: 15;
   margin-bottom: 0;
   border-bottom: 1px solid var(--card-border);
   box-shadow: 0 1px 0 color-mix(in srgb, var(--card-border) 85%, transparent);
+  transition: top 0.3s ease;
 }
 
 /* 02-b）head 内工具栏挂载槽（md-editor-core__head-toolbar-slot） */

@@ -14,7 +14,7 @@ export interface NoteArticleColumnLayoutProps {
   className?: string
   /** 中栏附加 className */
   bodyClassName?: string
-  /** 右栏附加 className（默认 sticky top-[5.5rem] self-start） */
+  /** 右栏附加 className（默认 sticky，top 随导航栏显隐适配） */
   sidebarClassName?: string
 }
 
@@ -37,7 +37,7 @@ export function NoteArticleColumnLayout({
   sidebar,
   className,
   bodyClassName,
-  sidebarClassName = 'sticky top-[var(--top-header-height,60px)] self-start',
+  sidebarClassName = styles.noteArticleStickyAside,
 }: NoteArticleColumnLayoutProps) {
   const layoutClassName = [styles.noteArticleLayout, className].filter(Boolean).join(' ')
   const bodyColClassName = [styles.noteArticleBodyCol, bodyClassName].filter(Boolean).join(' ')

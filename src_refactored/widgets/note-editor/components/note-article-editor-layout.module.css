@@ -61,9 +61,10 @@
   padding-bottom: 4.75rem;
 }
 
-/* 05）左右栏 sticky 随动（保留与页面 padding 一致的上间距） */
+/* 05）左右栏 sticky 随动（与 shared noteArticleStickyAside 规则一致） */
 .noteArticleEditorStickyAside {
   position: sticky;
-  top: calc(var(--top-header-height, 60px) + 1.5rem);
+  top: var(--sticky-aside-top, calc(var(--top-header-height, 60px) + var(--sticky-aside-gap, 1.5rem)));
   align-self: flex-start;
+  transition: top 0.3s ease;
 }
