@@ -93,7 +93,7 @@ export function NoteEditorWidgetBody() {
   )
 
   return (
-    <>
+    <div key={form.formResetKey}>
       <NoteArticleEditorLayout renderCoverPicker={renderCoverPicker} sidebarExtra={sidebarTags}>
         <NoteArticleEditorForm
           form={form}
@@ -128,6 +128,15 @@ export function NoteEditorWidgetBody() {
         onClose={form.closeCoverGeneratePrompt}
         onConfirm={form.closeCoverGeneratePrompt}
       />
-    </>
+
+      <InfoPromptModal
+        open={form.submitResultModal.open}
+        message={form.submitResultModal.message}
+        title={form.submitResultModal.title}
+        confirmText={form.submitResultModal.isSuccess ? '回到首页' : '确认'}
+        onClose={form.submitResultModal.isSuccess ? form.confirmSubmitResultModal : form.closeSubmitResultModal}
+        onConfirm={form.submitResultModal.isSuccess ? form.confirmSubmitResultModal : form.closeSubmitResultModal}
+      />
+    </div>
   )
 }

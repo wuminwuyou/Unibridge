@@ -36,7 +36,7 @@ export function NoteEditorActionBar({
       ? '正在上传封面…'
       : submitPhase === 'saving-note'
         ? '正在保存笔记…'
-        : '保存草稿与发布将先上传封面，再写入服务端'
+        : '预览仅本地展示；保存草稿与发布将先上传封面，再写入服务端'
 
   const saveDraftLabel =
     isSubmitting && submitPhase === 'uploading-cover'
@@ -45,7 +45,7 @@ export function NoteEditorActionBar({
         ? '保存中…'
         : '保存草稿'
 
-  const previewLabel = isSubmitting ? '保存并预览…' : '预览'
+  const previewLabel = '预览'
 
   const publishLabel =
     isSubmitting && submitPhase === 'uploading-cover'

@@ -6,8 +6,14 @@ export const NOTES_LIST_PATH = '/notes'
 
 export const NOTES_EDITOR_PATH = '/notes/editor'
 
-/** 笔记阅读页 `:id` 路由保留段（不可作为笔记 uid 解析） */
-export const NOTE_READER_RESERVED_SEGMENTS = ['editor', 'create'] as const
+/** 笔记阅读页 `:id` 误匹配时需重定向至编辑页的段（与静态路由 editor/create 对应） */
+export const NOTE_READER_EDITOR_REDIRECT_SEGMENTS = ['editor', 'create'] as const
+
+/** @deprecated 使用 NOTE_READER_EDITOR_REDIRECT_SEGMENTS */
+export const NOTE_READER_RESERVED_SEGMENTS = NOTE_READER_EDITOR_REDIRECT_SEGMENTS
+
+/** 本地预览阅读页 `:id` 占位段（非真实笔记 uid，走阅读页 + session 预览，不重定向） */
+export const NOTE_LOCAL_PREVIEW_SEGMENT = 'preview'
 
 /** 判断是否为笔记阅读页保留路由段（isNoteReaderReservedSegment） */
 export function isNoteReaderReservedSegment(value: string | null | undefined): boolean {
@@ -59,6 +65,11 @@ export function buildNoteEditorPathWithDefaults(search = ''): string {
 /** 笔记详情（RESTful） */
 export function buildNoteDetailPath(noteId: string): string {
   return `/notes/${encodeURIComponent(noteId)}`
+}
+
+/** 构建笔记本地预览阅读页路径（buildNoteLocalPreviewPath） */
+export function buildNoteLocalPreviewPath(): string {
+  return `${buildNoteDetailPath(NOTE_LOCAL_PREVIEW_SEGMENT)}?preview=1`
 }
 
 /** 笔记详情路由解析入参（contentType 等非路由字段可传入但会被忽略） */

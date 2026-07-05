@@ -16,6 +16,8 @@ export interface NoteEditorSession {
   routeType?: NoteEditorRouteType
   /** 为 true 时离开发布页不自动清除 session（预览/保存后返回编辑） */
   keepForRestore?: boolean
+  /** 封面来源：auto | upload，用于预览返回后恢复封面状态 */
+  coverSource?: 'auto' | 'upload' | null
 }
 
 // 05）规范化内容类型（normalizeNoteEditorContentType）
@@ -115,6 +117,10 @@ export function loadNoteEditorFormSession(): NoteEditorSession | null {
       noteUid,
       routeType,
       keepForRestore: parsed.keepForRestore === true,
+      coverSource:
+        parsed.coverSource === 'auto' || parsed.coverSource === 'upload'
+          ? parsed.coverSource
+          : null,
     }
   } catch {
     return null
@@ -137,6 +143,7 @@ export function saveNoteEditorFormSession(session: NoteEditorSession): void {
       noteUid: session.noteUid ?? null,
       routeType: session.routeType,
       keepForRestore: session.keepForRestore === true,
+      coverSource: session.coverSource ?? null,
     }
     sessionStorage.setItem(NOTE_EDITOR_SESSION_KEY, JSON.stringify(payload))
   } catch {

@@ -10,6 +10,7 @@ export type {
 export { useNoteEditorSubmit } from './useNoteEditorSubmit'
 export type {
   NoteEditorSubmitContext,
+  NoteEditorSubmitResultCallback,
   UseNoteEditorSubmitOptions,
   UseNoteEditorSubmitResult,
 } from './useNoteEditorSubmit'

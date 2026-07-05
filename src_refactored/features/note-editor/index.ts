@@ -16,7 +16,13 @@ export {
 } from './lib/noteDetailPreviewSession'
 
 // Lib — 构建详情预览载荷
-export { buildNoteDetailFromEditorDraft } from './lib/buildNoteDetailFromEditorDraft'
+export {
+  buildNoteDetailFromEditorDraft,
+  buildNoteVideoDetailFromEditorDraft,
+} from './lib/buildNoteDetailFromEditorDraft'
+
+// Lib — 本地预览
+export { executeNoteEditorLocalPreview, resolveLocalNoteCoverUrl } from './lib/noteEditorLocalPreview'
 
 // Lib — 表单 Session
 export type { NoteEditorRouteType, NoteEditorSession } from './lib/noteEditorFormSession'
@@ -30,7 +36,7 @@ export {
 } from './lib/noteEditorFormSession'
 
 // Lib — 表单校验
-export { validateNoteEditorDraft } from './lib/noteEditorValidation'
+export { validateNoteEditorDraft, validateNoteEditorDraftForLocalPreview, validateNoteEditorPreSubmit } from './lib/noteEditorValidation'
 
 // Lib — 返回编辑路径
 export { resolveNoteEditorReturnPath } from './lib/resolveNoteEditorReturnPath'
