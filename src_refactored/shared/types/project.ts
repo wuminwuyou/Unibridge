@@ -47,8 +47,6 @@ export interface ProjectItem {
   budget?: string | null
   /** 发布主体 Logo SVG 地址，对应 entity_profile.logo_url */
   logoSvgUrl?: string | null
-  /** 对应 project.team_size */
-  teamSize?: string | null
   /** 对应 project.duration */
   duration?: string | null
   status?: ProjectStatus

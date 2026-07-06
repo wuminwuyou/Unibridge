@@ -12,10 +12,10 @@ export interface PublishProjectFormDraft {
   channel: string
   campusRecruitType: CampusRecruitType | null
   description: string
-  amount: string
+  amountMin: string
+  amountMax: string
   level: LevelCode
   duration: string
-  teamSize: string
   skillTags: string[]
   deadline: string
 }

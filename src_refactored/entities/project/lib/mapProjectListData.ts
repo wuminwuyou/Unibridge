@@ -69,7 +69,6 @@ export function mapApiProjects(projects: UserProfileProjectDto[]): ProjectItem[]
       publishTime: project.publishTime,
       level: normalizeProjectLevel(project.level),
       logoSvgUrl: project.logoSvgUrl?.trim() || null,
-      teamSize: project.teamSize?.trim() || null,
       duration: project.duration?.trim() || null,
       status: normalizeProjectStatus(project.status),
     }

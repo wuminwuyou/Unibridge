@@ -16,7 +16,7 @@
  */
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { Eye, FilePen, FileUp } from 'lucide-react'
-import { MdEditor, MdPreview } from 'md-editor-rt'
+import { MdEditor, MdPreview, type ToolbarNames } from 'md-editor-rt'
 import 'md-editor-rt/lib/style.css'
 import { useDocumentTheme } from '@shared/hooks/useDocumentTheme'
 
@@ -69,6 +69,8 @@ export interface MarkdownEditorProps {
   stickyHead?: boolean
   /** sticky head 的 top 偏移，默认与 TopNavbar 高度一致 */
   stickyHeadTop?: string
+  /** 额外排除的工具栏按钮（追加到默认排除列表），如 ['image', 'mermaid', 'katex'] */
+  toolbarsExcludeExtra?: readonly string[]
 }
 
 // 05）编辑器模式类型（EditorMode）
@@ -108,6 +110,7 @@ export function MarkdownEditor({
   className,
   stickyHead = false,
   stickyHeadTop = 'var(--sticky-head-top)',
+  toolbarsExcludeExtra,
 }: MarkdownEditorProps) {
   const theme = useDocumentTheme()
   const [mode, setMode] = useState<EditorMode>('edit')
@@ -387,7 +390,7 @@ export function MarkdownEditor({
             codeTheme={theme === 'dark' ? 'atom' : 'github'}
             placeholder={placeholder}
             preview={false}
-            toolbarsExclude={[...EXCLUDED_TOOLBARS]}
+            toolbarsExclude={toolbarsExcludeExtra ? [...EXCLUDED_TOOLBARS, ...toolbarsExcludeExtra] as ToolbarNames[] : [...EXCLUDED_TOOLBARS]}
             onUploadImg={onUpload ? handleUploadImg : undefined}
             style={{ height: '100%' }}
           />

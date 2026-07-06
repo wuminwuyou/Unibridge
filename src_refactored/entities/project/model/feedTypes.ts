@@ -12,7 +12,7 @@ export interface FeedContentVo {
   noteType?: 'IMAGE_TEXT' | 'VIDEO'; projectCategory?: 'COMMERCIAL' | 'RECRUITMENT'
   recruitmentType?: string | null; title: string; preview?: string; summary?: string
   tags?: Array<{ label: string }> | string[]; ownerOrganization?: string
-  logoSvgUrl?: string | null; level?: string; teamSize?: string | null; duration?: string | null
+  logoSvgUrl?: string | null; level?: string; duration?: string | null
   coverUrl?: string | null; authorNickname?: string; authorName?: string
   authorAvatar?: string | null
   videoDuration?: string | number | null; publishTime?: string; views?: number

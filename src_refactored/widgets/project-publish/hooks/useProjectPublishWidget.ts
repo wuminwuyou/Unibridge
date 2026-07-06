@@ -65,6 +65,9 @@ export function useProjectPublishWidget() {
   const [descriptionContent, setDescriptionContent] = useState<ContentLongtext>(
     () => initialSessionRef.current?.descriptionContent ?? createDefaultContentLongtext(),
   )
+  const [contentDetailContent, setContentDetailContent] = useState<ContentLongtext>(
+    () => initialSessionRef.current?.contentDetailContent ?? createDefaultContentLongtext(),
+  )
   const [tagInput, setTagInput] = useState<string>('')
   const [projectUid, setProjectUid] = useState<ProjectResourceUid | null>(
     () => initialSessionRef.current?.projectUid ?? null,
@@ -86,10 +89,11 @@ export function useProjectPublishWidget() {
       draft: syncDraftDescription(draft, descriptionContent),
       descriptionMeta: null,
       descriptionContent,
+      contentDetailContent,
       projectUid,
       keepForRestore: true,
     })
-  }, [descriptionContent, draft, projectUid])
+  }, [descriptionContent, contentDetailContent, draft, projectUid])
 
   useEffect(() => {
     if (initialSessionRef.current) markSaved()
@@ -125,7 +129,7 @@ export function useProjectPublishWidget() {
       draft.title.trim().length > 0,
       displaySummary.length > 0,
       descriptionContent.longtext.trim().length > 0,
-      draft.amount.trim().length > 0,
+      draft.amountMin.trim().length > 0,
       draft.skillTags.length > 0,
     ]
     const completedCount = checkpoints.filter(Boolean).length
@@ -160,6 +164,12 @@ export function useProjectPublishWidget() {
     markEdited()
   }
 
+  const handleContentDetailChange = (value: string): void => {
+    const nextContent = createContentLongtext(contentDetailContent.editorType, value)
+    setContentDetailContent(nextContent)
+    markEdited()
+  }
+
   const addSkillTag = (tag: string): void => {
     const normalizedTag = tag.trim()
     if (!normalizedTag || draft.skillTags.includes(normalizedTag)) return
@@ -189,7 +199,7 @@ export function useProjectPublishWidget() {
     setSubmitError(null)
     setIsSubmitting(true)
     try {
-      const result = await submitPublishProject({ draft, descriptionContent, projectUid, publishAction })
+      const result = await submitPublishProject({ draft, descriptionContent, contentDetailContent, projectUid, publishAction })
       setProjectUid(result.projectUid)
       markSaved()
 
@@ -203,6 +213,7 @@ export function useProjectPublishWidget() {
           descriptionContent,
           'PREVIEW',
           result.projectUid,
+          contentDetailContent,
         )
         return true
       }
@@ -221,13 +232,13 @@ export function useProjectPublishWidget() {
   }
 
   return {
-    draft, displaySummary, descriptionContent, tagInput, completionPercent, projectUid,
+    draft, displaySummary, descriptionContent, contentDetailContent, tagInput, completionPercent, projectUid,
     isSubmitting, submitError,
     leavePromptOpen: leaveGuard.leavePromptOpen,
     leavePromptMessage: leaveGuard.leavePromptMessage,
     confirmLeave: leaveGuard.confirmLeave, cancelLeave: leaveGuard.cancelLeave,
     setTagInput, updateField, setChannel, setCampusRecruitType,
-    handleDescriptionChange, addSkillTag, removeSkillTag,
+    handleDescriptionChange, handleContentDetailChange, addSkillTag, removeSkillTag,
     handleTagInputKeyDown, toggleSuggestedTag,
     handleSaveDraft: () => { void submitProject('DRAFT', 'detail') },
     handlePreview: () => { void submitProject('DRAFT', 'preview') },

@@ -21,7 +21,7 @@ export function validatePublishProjectSubmit(
   if (!descriptionContent.longtext.trim()) return '请填写项目需求说明'
   const resolvedSummary = resolvePublishSummary(draft.summary, descriptionContent.longtext)
   if (!resolvedSummary) return '请填写项目摘要，或确保需求说明含有可提取的文字内容'
-  if (!draft.amount.trim()) return '请填写项目预算'
+  if (!draft.amountMin.trim()) return '请填写项目预算最小值'
   if (draft.skillTags.length === 0) return '请至少添加 1 个技能标签'
   return null
 }
@@ -30,6 +30,7 @@ export function validatePublishProjectSubmit(
 export async function submitPublishProject(options: {
   draft: PublishProjectFormDraft
   descriptionContent: ContentLongtext
+  contentDetailContent?: ContentLongtext
   projectUid?: ProjectResourceUid | null
   publishAction: ProjectPublishAction
 }): Promise<{ projectUid: ProjectResourceUid }> {
@@ -41,15 +42,15 @@ export async function submitPublishProject(options: {
     summary: options.draft.summary,
     channel: options.draft.channel,
     campusRecruitType: options.draft.campusRecruitType,
-    amount: options.draft.amount,
+    amountMin: options.draft.amountMin,
+    amountMax: options.draft.amountMax,
     level: options.draft.level,
     duration: options.draft.duration,
-    teamSize: options.draft.teamSize,
     skillTags: options.draft.skillTags,
     deadline: options.draft.deadline,
   }
 
-  const payload = buildUpsertProjectRequest(requestDraft, options.descriptionContent.longtext, options.publishAction)
+  const payload = buildUpsertProjectRequest(requestDraft, options.descriptionContent.longtext, options.contentDetailContent?.longtext, options.publishAction)
 
   const response = isProjectResourceUid(options.projectUid)
     ? await updateProject(options.projectUid, payload)

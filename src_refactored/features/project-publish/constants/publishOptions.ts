@@ -59,10 +59,10 @@ export function createDefaultPublishProjectDraft(): PublishProjectFormDraft {
     channel: 'enterprise',
     campusRecruitType: null,
     description: '',
-    amount: '',
+    amountMin: '',
+    amountMax: '',
     level: 'R',
     duration: '',
-    teamSize: '',
     skillTags: [],
     deadline: '',
   }

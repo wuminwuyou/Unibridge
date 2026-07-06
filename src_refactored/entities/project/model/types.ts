@@ -11,10 +11,11 @@ export interface UpsertProjectRequest {
   channel: string
   campusRecruitType: string | null
   description: string
-  amount: string
+  contentDetail?: string
+  amountMin: string
+  amountMax: string
   level: string
   duration: string
-  teamSize: string
   skillTags: string[]
   deadline: string
 }
@@ -40,10 +41,10 @@ export interface ProjectDetailDto {
   campusRecruitType: string | null
   description: string
   descriptionEditorType: 'MARKDOWN' | 'RICHTEXT'
-  amount: string | null
+  amountMin?: string | null
+  amountMax?: string | null
   level: string
   duration: string | null
-  teamSize: string | null
   skillTags: string[]
   deadline: string | null
   status: 'DRAFT' | 'OPEN' | 'ONGOING' | 'CLOSED'

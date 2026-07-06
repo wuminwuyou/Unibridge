@@ -22,7 +22,7 @@ export function resolveProjectLogoSvgUrl(project: Pick<ProjectItem, 'logoSvgUrl'
 }
 
 export function resolveProjectLogoFallbackText(ownerOrganization: string): string { const t = ownerOrganization.trim(); return t ? t.slice(0, 2) : '项' }
-export function resolveProjectCardMetaText(p: Pick<ProjectItem, 'ownerOrganization' | 'teamSize' | 'duration'>): string { return [p.ownerOrganization?.trim(), p.teamSize?.trim(), p.duration?.trim()].filter(Boolean).join(' · ') }
+export function resolveProjectCardMetaText(p: Pick<ProjectItem, 'ownerOrganization' | 'duration'>): string { return [p.ownerOrganization?.trim(), p.duration?.trim()].filter(Boolean).join(' · ') }
 
 export function resolveProjectStatusLabel(status: ProjectStatus): string {
   const m: Record<ProjectStatus, string> = { DRAFT: '草稿', OPEN: '招募中', ONGOING: '进行中', CLOSED: '已结项' }; return m[status]

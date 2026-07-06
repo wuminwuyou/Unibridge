@@ -31,13 +31,14 @@ export interface ProjectDetailPayload {
   campusRecruitType?: CampusRecruitType | null
   description: string
   descriptionEditorType: ContentEditorType
-  amount: string
+  amountMin: string
+  amountMax: string
   level: LevelCode
   duration: string
-  teamSize: string
   skillTags: string[]
   deadline: string
   publishStatus: ProjectDetailPublishStatus
+  contentDetail?: string
   updatedAt: string
   owner: ProjectOwnerInfo | null
 }

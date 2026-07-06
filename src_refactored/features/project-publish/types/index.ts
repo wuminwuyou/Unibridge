@@ -6,6 +6,6 @@ export type ProjectPublishAction = 'DRAFT' | 'PUBLISH'
 export interface PublishProjectFormDraft {
   title: string; summary: string; channel: string
   campusRecruitType: CampusRecruitType | null
-  amount: string; level: string; duration: string; teamSize: string
+  amountMin: string; amountMax: string; level: string; duration: string
   skillTags: string[]; deadline: string; descriptionEditorType: string
 }

@@ -24,12 +24,14 @@ export interface DescriptionEditorProps {
   onChange: (value: string) => void
   maxLength?: number
   required?: boolean
+  /** 额外排除的工具栏按钮（传递给共享的 MarkdownEditor） */
+  toolbarsExcludeExtra?: readonly string[]
 }
 
 const LENGTH_LIMIT_MODAL_MESSAGE = '内容将超过字数限制，是否继续执行？继续后将自动截断至上限字数。'
 
 // 02）需求说明编辑器（DescriptionEditor）
-export function DescriptionEditor({ value, onChange, maxLength = 2000 }: DescriptionEditorProps) {
+export function DescriptionEditor({ value, onChange, maxLength = 2000, toolbarsExcludeExtra }: DescriptionEditorProps) {
   const [limitModalOpen, setLimitModalOpen] = useState(false)
   const pendingConfirmRef = useRef<((confirmed: boolean) => void) | null>(null)
 
@@ -77,6 +79,7 @@ export function DescriptionEditor({ value, onChange, maxLength = 2000 }: Descrip
           allowMarkdownFileUpload
           onLengthLimitExceeded={handleLengthLimitExceeded}
           placeholder="请输入项目需求说明，支持 Markdown 语法..."
+          toolbarsExcludeExtra={toolbarsExcludeExtra}
         />
       </div>
 

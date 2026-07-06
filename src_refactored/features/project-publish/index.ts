@@ -20,14 +20,14 @@ export {
   ProjectAmountField,
   ProjectLevelField,
   ProjectDurationField,
-  ProjectTeamSizeField,
   ProjectDeadlineField,
+  ProjectBudgetRangeField,
 } from './components/fields'
 
 export type {
   ProjectDurationFieldProps,
-  ProjectTeamSizeFieldProps,
   ProjectDeadlineFieldProps,
+  ProjectBudgetRangeFieldProps,
 } from './components/fields'
 
 export { ChannelPicker, CampusRecruitOptionCard } from './components/pickers'

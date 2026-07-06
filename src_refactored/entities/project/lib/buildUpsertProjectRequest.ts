@@ -21,10 +21,10 @@ export interface PublishProjectFormDraftForRequest {
   summary: string
   channel: string
   campusRecruitType: string | null
-  amount: string
+  amountMin: string
+  amountMax: string
   level: string
   duration: string
-  teamSize: string
   skillTags: string[]
   deadline: string
 }
@@ -32,6 +32,7 @@ export interface PublishProjectFormDraftForRequest {
 export function buildUpsertProjectRequest(
   draft: PublishProjectFormDraftForRequest,
   description: string,
+  contentDetail: string | undefined,
   publishAction: ProjectPublishAction,
 ): UpsertProjectRequest {
   return {
@@ -41,10 +42,11 @@ export function buildUpsertProjectRequest(
     channel: draft.channel,
     campusRecruitType: draft.channel === 'campus' ? draft.campusRecruitType : null,
     description,
-    amount: draft.amount.trim(),
+    contentDetail: contentDetail?.trim() || undefined,
+    amountMin: draft.amountMin.trim(),
+    amountMax: draft.amountMax.trim(),
     level: draft.level,
     duration: draft.duration.trim(),
-    teamSize: draft.teamSize.trim(),
     skillTags: draft.skillTags,
     deadline: draft.deadline.trim(),
   }

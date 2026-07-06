@@ -23,9 +23,10 @@ export function navigateToProjectDetail(
   descriptionContent: ContentLongtext,
   publishStatus: ProjectDetailPublishStatus,
   projectUid: ProjectResourceUid,
+  contentDetailContent?: ContentLongtext,
 ): void {
   const payload = buildProjectDetailPayload(
-    draft, descriptionContent.longtext, descriptionContent.editorType, publishStatus,
+    draft, descriptionContent.longtext, descriptionContent.editorType, publishStatus, contentDetailContent?.longtext,
   )
   saveProjectDetailPreview(payload)
   const state: ProjectDetailLocationState = { payload }

@@ -17,6 +17,7 @@ export interface PublishProjectSession {
   draft: PublishProjectFormDraft
   descriptionMeta: MarkdownContentChangeMeta | null
   descriptionContent: ContentLongtext
+  contentDetailContent?: ContentLongtext
   projectUid?: ProjectResourceUid | null
   keepForRestore?: boolean
 }
@@ -26,10 +27,25 @@ export interface PublishProjectFormRestore {
   draft: PublishProjectFormDraft
   descriptionMeta: MarkdownContentChangeMeta | null
   descriptionContent: ContentLongtext
+  contentDetailContent?: ContentLongtext
   projectUid: ProjectResourceUid | null
 }
 
-// 05）解析会话中的需求说明存储（resolvePublishProjectDescriptionContent）
+// 05）解析会话中的内容详细描述存储（resolveContentDetailContent）
+function resolveContentDetailContent(
+  parsed: Partial<PublishProjectSession> & { contentDetailEditorType?: ContentLongtext['editorType'] },
+): ContentLongtext | undefined {
+  if (
+    parsed.contentDetailContent &&
+    (parsed.contentDetailContent.editorType === 'MARKDOWN' || parsed.contentDetailContent.editorType === 'RICHTEXT') &&
+    typeof parsed.contentDetailContent.longtext === 'string'
+  ) {
+    return parsed.contentDetailContent
+  }
+  return undefined
+}
+
+// 06）解析会话中的需求说明存储（resolvePublishProjectDescriptionContent）
 function resolvePublishProjectDescriptionContent(
   parsed: Partial<PublishProjectSession> & { descriptionEditorType?: ContentLongtext['editorType'] },
   draft: PublishProjectFormDraft,
@@ -45,7 +61,7 @@ function resolvePublishProjectDescriptionContent(
   return migrateLegacyContentLongtext(draft.description, parsed.descriptionEditorType ?? 'MARKDOWN')
 }
 
-// 06）读取发布项目会话（loadPublishProjectSession）
+// 07）读取发布项目会话（loadPublishProjectSession）
 export function loadPublishProjectSession(): PublishProjectSession | null {
   try {
     const raw = sessionStorage.getItem(PUBLISH_PROJECT_SESSION_KEY)
@@ -62,12 +78,14 @@ export function loadPublishProjectSession(): PublishProjectSession | null {
       draft.campusRecruitType = 'LAB_RECRUIT'
     }
     const descriptionContent = resolvePublishProjectDescriptionContent(parsed, draft)
+    const contentDetailContent = resolveContentDetailContent(parsed)
     const projectUid = isProjectResourceUid(parsed.projectUid) ? parsed.projectUid : null
 
     return {
       draft: { ...draft, description: descriptionContent.longtext },
       descriptionMeta: parsed.descriptionMeta ?? null,
       descriptionContent,
+      contentDetailContent,
       projectUid,
       keepForRestore: parsed.keepForRestore === true,
     }
@@ -76,13 +94,14 @@ export function loadPublishProjectSession(): PublishProjectSession | null {
   }
 }
 
-// 07）保存发布项目会话（savePublishProjectSession）
+// 08）保存发布项目会话（savePublishProjectSession）
 export function savePublishProjectSession(session: PublishProjectSession): void {
   try {
     const payload: PublishProjectSession = {
       draft: { ...session.draft, description: session.descriptionContent.longtext },
       descriptionMeta: session.descriptionMeta,
       descriptionContent: session.descriptionContent,
+      contentDetailContent: session.contentDetailContent,
       projectUid: session.projectUid ?? null,
       keepForRestore: session.keepForRestore === true,
     }
@@ -90,12 +109,12 @@ export function savePublishProjectSession(session: PublishProjectSession): void 
   } catch { /* 存储不可用时静默降级 */ }
 }
 
-// 08）清除发布项目本地缓存（clearPublishProjectSession）
+// 09）清除发布项目本地缓存（clearPublishProjectSession）
 export function clearPublishProjectSession(): void {
   try { sessionStorage.removeItem(PUBLISH_PROJECT_SESSION_KEY) } catch { /* 静默降级 */ }
 }
 
-// 09）创建恢复快照
+// 10）创建恢复快照
 export function createPublishProjectFormRestore(
   draft: PublishProjectFormDraft,
   descriptionMeta: MarkdownContentChangeMeta | null,

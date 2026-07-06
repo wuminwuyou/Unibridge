@@ -5,7 +5,7 @@ import TopNavbar from '@widgets/top-navbar'
 import {
   ProjectPublishLayout,
   ProjectPublishForm,
-  ProjectPublishPreview,
+  ProjectPublishRightColumn,
   ProjectPublishFooter,
   useProjectPublishWidget,
 } from '@widgets/project-publish'
@@ -15,11 +15,10 @@ import type { LevelCode } from '@shared/types/level'
 function PublishProjectPageContent() {
   const {
     draft,
-    displaySummary,
     descriptionContent,
+    contentDetailContent,
     tagInput,
     suggestedSkillTags,
-    completionPercent,
     isSubmitting,
     submitError,
     leavePromptOpen,
@@ -30,6 +29,7 @@ function PublishProjectPageContent() {
     setChannel,
     setCampusRecruitType,
     handleDescriptionChange,
+    handleContentDetailChange,
     addSkillTag,
     removeSkillTag,
     setTagInput,
@@ -38,56 +38,46 @@ function PublishProjectPageContent() {
     handleSaveDraft,
     handlePreview,
     handlePublish,
-    publishChecklistItems,
-    resolvePublishPreviewBadge,
   } = useProjectPublishWidget()
 
   return (
     <ProjectPublishLayout
-      form={
+      left={
         <ProjectPublishForm
-          draft={{
-            title: draft.title,
-            summary: draft.summary,
-            channel: draft.channel,
-            campusRecruitType: draft.campusRecruitType,
-            amount: draft.amount,
-            level: draft.level,
-            duration: draft.duration,
-            teamSize: draft.teamSize,
-            skillTags: draft.skillTags,
-            deadline: draft.deadline,
-          }}
+          channel={draft.channel}
+          campusRecruitType={draft.campusRecruitType}
           descriptionValue={descriptionContent.longtext}
-          tagInput={tagInput}
-          suggestedSkillTags={suggestedSkillTags}
-          completionPercent={completionPercent}
-          onTitleChange={(v) => updateField('title', v)}
-          onSummaryChange={(v) => updateField('summary', v)}
-          onAmountChange={(v) => updateField('amount', v)}
-          onLevelChange={(v) => updateField('level', v as LevelCode)}
-          onDurationChange={(v) => updateField('duration', v)}
-          onTeamSizeChange={(v) => updateField('teamSize', v)}
-          onDeadlineChange={(v) => updateField('deadline', v)}
+          contentDetailValue={contentDetailContent.longtext}
           onChannelChange={setChannel}
           onCampusRecruitTypeChange={setCampusRecruitType}
           onDescriptionChange={handleDescriptionChange}
+          onContentDetailChange={handleContentDetailChange}
+        />
+      }
+      right={
+        <ProjectPublishRightColumn
+          title={draft.title}
+          summary={draft.summary}
+          onTitleChange={(v) => updateField('title', v)}
+          onSummaryChange={(v) => updateField('summary', v)}
+          tags={draft.skillTags}
+          tagInput={tagInput}
+          suggestedSkillTags={suggestedSkillTags}
           onAddTag={addSkillTag}
           onRemoveTag={removeSkillTag}
           onTagInputChange={setTagInput}
           onToggleSuggestedTag={toggleSuggestedTag}
           onTagInputKeyDown={handleTagInputKeyDown}
-        />
-      }
-      preview={
-        <ProjectPublishPreview
-          badge={resolvePublishPreviewBadge(draft)}
-          title={draft.title}
-          summary={displaySummary}
-          amount={draft.amount}
+          amountMin={draft.amountMin}
+          amountMax={draft.amountMax}
           level={draft.level}
-          tags={draft.skillTags}
-          checklistItems={publishChecklistItems}
+          duration={draft.duration}
+          deadline={draft.deadline}
+          onAmountMinChange={(v) => updateField('amountMin', v)}
+          onAmountMaxChange={(v) => updateField('amountMax', v)}
+          onLevelChange={(v) => updateField('level', v as LevelCode)}
+          onDurationChange={(v) => updateField('duration', v)}
+          onDeadlineChange={(v) => updateField('deadline', v)}
         />
       }
       footer={

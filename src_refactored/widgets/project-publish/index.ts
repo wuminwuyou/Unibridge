@@ -2,21 +2,19 @@
 export {
   ProjectPublishLayout,
   ProjectPublishForm,
-  ProjectPublishPreview,
+  ProjectPublishRightColumn,
   ProjectPublishFooter,
-  ProjectBasicInfoBlock,
-  ProjectDetailBlock,
-  ProjectCooperationBlock,
+  ProjectRightBasicInfoCard,
+  ProjectRightCooperationCard,
 } from './components'
 
 export type {
   ProjectPublishLayoutProps,
   ProjectPublishFormProps,
-  ProjectPublishPreviewProps,
+  ProjectPublishRightColumnProps,
   ProjectPublishFooterProps,
-  ProjectBasicInfoBlockProps,
-  ProjectDetailBlockProps,
-  ProjectCooperationBlockProps,
+  ProjectRightBasicInfoCardProps,
+  ProjectRightCooperationCardProps,
 } from './components'
 
 export { useProjectPublishWidget } from './hooks/useProjectPublishWidget'

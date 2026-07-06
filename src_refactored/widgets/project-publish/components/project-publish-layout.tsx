@@ -3,18 +3,18 @@ import type { ReactNode } from 'react'
 import styles from '../project-publish-layout.module.css'
 
 export interface ProjectPublishLayoutProps {
-  form: ReactNode
-  preview: ReactNode
+  left: ReactNode
+  right: ReactNode
   footer: ReactNode
 }
 
-export function ProjectPublishLayout({ form, preview, footer }: ProjectPublishLayoutProps) {
+export function ProjectPublishLayout({ left, right, footer }: ProjectPublishLayoutProps) {
   return (
     <div className={styles.page}>
       <div className={styles.shell}>
         <div className={styles.layout}>
-          {form}
-          {preview}
+          {left}
+          {right}
         </div>
       </div>
       {footer}

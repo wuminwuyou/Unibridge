@@ -36,9 +36,9 @@ function ProjectDetailContent({ project }: ProjectDetailContentProps) {
         <div className={styles.sidebarSticky}>
           {project.owner && <ProjectPublisherCard owner={project.owner} />}
           <ProjectCooperationCard
-            amount={project.amount}
+            amountMin={project.amountMin}
+            amountMax={project.amountMax}
             duration={project.duration}
-            teamSize={project.teamSize}
           />
         </div>
       </aside>

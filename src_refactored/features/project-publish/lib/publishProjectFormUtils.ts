@@ -10,10 +10,9 @@ export function hasPublishProjectUserInput(
   if (draft.title.trim().length > 0) return true
   if (draft.summary.trim().length > 0) return true
   if (descriptionContent.longtext.trim().length > 0) return true
-  if (draft.amount.trim().length > 0) return true
+  if (draft.amountMin.trim().length > 0) return true
   if (draft.skillTags.length > 0) return true
   if (draft.duration.trim().length > 0) return true
-  if (draft.teamSize.trim().length > 0) return true
   if (draft.deadline.trim().length > 0) return true
   return false
 }

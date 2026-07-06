@@ -5,10 +5,11 @@ export {
   ProjectAmountField,
   ProjectLevelField,
   ProjectDurationField,
-  ProjectTeamSizeField,
   ProjectDeadlineField,
 } from './ProjectFormFields'
 
+export { ProjectBudgetRangeField } from './ProjectBudgetRangeField'
+export type { ProjectBudgetRangeFieldProps } from './ProjectBudgetRangeField'
+
 export type { ProjectDurationFieldProps } from './ProjectDurationField'
-export type { ProjectTeamSizeFieldProps } from './ProjectTeamSizeField'
 export type { ProjectDeadlineFieldProps } from './ProjectDeadlineField'

@@ -1,4 +1,4 @@
-/* 01）发布项目右侧预览 */
+/* 01）发布项目右侧栏 */
 
 .aside {
   display: block;
@@ -8,30 +8,10 @@
   margin-top: 1.5rem;
 }
 
-.checkCard {
-  border-radius: 1rem;
-  border: 1px solid var(--publish-border);
-  background: var(--publish-surface);
-  padding: 1.25rem;
-  box-shadow: var(--publish-shadow);
-}
-
-.checkTitle {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  font-weight: 600;
-  color: var(--publish-text);
-}
-
-.checkList {
-  margin: 1rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.checkList > * + * {
-  margin-top: 0.75rem;
+.cooperationGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (min-width: 1024px) {

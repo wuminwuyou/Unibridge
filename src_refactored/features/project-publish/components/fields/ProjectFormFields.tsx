@@ -62,10 +62,6 @@ export function ProjectLevelField({ value, options, onChange, disabled }: { valu
 export { default as ProjectDurationField } from './ProjectDurationField'
 export type { ProjectDurationFieldProps } from './ProjectDurationField'
 
-// 07）团队人数字段（带 Users 图标）
-export { default as ProjectTeamSizeField } from './ProjectTeamSizeField'
-export type { ProjectTeamSizeFieldProps } from './ProjectTeamSizeField'
-
-// 08）报名截止日期字段
+// 07）报名截止日期字段
 export { default as ProjectDeadlineField } from './ProjectDeadlineField'
 export type { ProjectDeadlineFieldProps } from './ProjectDeadlineField'
