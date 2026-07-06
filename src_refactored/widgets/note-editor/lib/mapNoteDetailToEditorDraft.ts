@@ -6,6 +6,7 @@ import {
 import type { NoteDetailPayload } from '@entities/note/model/noteDetailViewModel'
 import { isNoteArticleDetailPayload, isNoteVideoDetailPayload } from '@entities/note/model/noteDetailViewModel'
 import type { NoteEditorFormDraft } from '@features/note-editor'
+import { normalizeNoteEditorCoverUrl } from '@shared/lib/noteCoverSentinel'
 
 // 02）映射结果（NoteDetailToEditorDraftResult）
 export interface NoteDetailToEditorDraftResult {
@@ -34,7 +35,7 @@ export function mapNoteDetailToEditorDraft(payload: NoteDetailPayload): NoteDeta
       bodyMarkdown: '',
       videoDescription: payload.body,
       tags: [...payload.tags],
-      coverUrl: payload.coverUrl ?? '',
+      coverUrl: normalizeNoteEditorCoverUrl(payload.coverUrl),
       videoUrl: payload.videoUrl,
       videoDuration: payload.videoDuration,
     }
@@ -54,7 +55,7 @@ export function mapNoteDetailToEditorDraft(payload: NoteDetailPayload): NoteDeta
       bodyMarkdown: body,
       videoDescription: '',
       tags: [...payload.tags],
-      coverUrl: payload.coverUrl ?? '',
+      coverUrl: normalizeNoteEditorCoverUrl(payload.coverUrl),
     }
 
     return {

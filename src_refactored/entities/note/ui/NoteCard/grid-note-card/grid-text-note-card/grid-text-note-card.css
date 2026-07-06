@@ -22,6 +22,11 @@
   overflow: hidden;
 }
 
+/* 02b）无封面：取消与视频卡对齐的最小高度，左侧内容自然撑满 */
+.grid-text-note-card__main--no-cover {
+  min-height: 0;
+}
+
 .grid-text-note-card__content {
   display: flex;
   flex: 1 1 auto;

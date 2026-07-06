@@ -7,6 +7,7 @@ import {
   NoteCardTags,
   type GridNoteCardNote,
 } from '../../components'
+import { useNoteCardCoverVisibility } from '../../hooks/useNoteCardCoverVisibility'
 import {
   resolveGridNoteAuthorFallback,
   resolveGridNoteAuthorText,
@@ -32,10 +33,13 @@ function GridTextNoteCard({
   const noteDetailPath = buildNoteDetailHref({ uid: note.uid, title: note.title, contentType: note.contentType })
   const authorText = showAuthor ? resolveGridNoteAuthorText(note) : ''
   const authorFallback = showAuthor ? resolveGridNoteAuthorFallback(note.authorNickname) : ''
+  const coverVisibility = useNoteCardCoverVisibility(note.cover, { onLoadFailure: 'hide' })
 
   return (
     <Link className="grid-note-card grid-note-card--link grid-text-note-card" to={noteDetailPath}>
-      <div className="grid-text-note-card__main">
+      <div
+        className={`grid-text-note-card__main ${coverVisibility.shouldRenderCover ? '' : 'grid-text-note-card__main--no-cover'}`.trim()}
+      >
         <div className="grid-text-note-card__content">
           <div className="grid-text-note-card__core">
             <h3 className="grid-note-card__title">{note.title}</h3>
@@ -53,9 +57,11 @@ function GridTextNoteCard({
           </div>
           <NoteCardTags tags={note.tags} itemKey={note.uid ?? note.title} maxVisible={6} />
         </div>
-        <div className="grid-text-note-card__cover" aria-hidden="true">
-          <img src={note.cover} alt="" loading="lazy" decoding="async" />
-        </div>
+        {coverVisibility.shouldRenderCover && coverVisibility.coverSrc ? (
+          <div className="grid-text-note-card__cover" aria-hidden="true">
+            <img src={coverVisibility.coverSrc} alt="" decoding="async" />
+          </div>
+        ) : null}
       </div>
       <div className="grid-text-note-card__footer">
         <GridNoteCardFooter

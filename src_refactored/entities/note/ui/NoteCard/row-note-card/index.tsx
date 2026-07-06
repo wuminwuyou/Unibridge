@@ -4,6 +4,7 @@ import { memo, useCallback, type KeyboardEvent } from 'react'
 import { resolveNoteDetailHref as buildNoteDetailHref } from '@shared/lib/noteRoutes'
 import type { ProfileNoteItem } from '../../../model/profileNoteItem'
 import { NoteCardTags } from '../components/note-card-tags'
+import { useNoteCardCoverVisibility } from '../hooks/useNoteCardCoverVisibility'
 import {
   resolveNoteCardAuthorName,
   resolveNoteCardMetaText,
@@ -59,6 +60,8 @@ function RowNoteCard({
 
   const isReviewing = note.status === 'REVIEWING'
   const isPrivate = note.visibility === 'PRIVATE'
+  const coverVisibility = useNoteCardCoverVisibility(note.cover, { onLoadFailure: 'hide' })
+  const effectiveHideCover = hideCover || !coverVisibility.shouldRenderCover
 
   const handleCardClick = useCallback(() => {
     navigate(noteDetailPath)
@@ -76,7 +79,7 @@ function RowNoteCard({
 
   return (
     <div
-      className={`row-note-card row-note-card--interactive ${isVerticalLayout ? 'row-note-card--vertical' : ''} ${hideCover ? 'row-note-card--no-cover' : ''} ${className ?? ''}`.trim()}
+      className={`row-note-card row-note-card--interactive ${isVerticalLayout ? 'row-note-card--vertical' : ''} ${effectiveHideCover ? 'row-note-card--no-cover' : ''} ${className ?? ''}`.trim()}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
       role="link"
@@ -84,9 +87,16 @@ function RowNoteCard({
       aria-label={`阅读笔记：${note.title}`}
     >
       <div className="row-note-card__inner">
-        {!hideCover ? (
+        {!effectiveHideCover ? (
           <div className="row-note-card__cover" aria-hidden="true">
-            <img className="row-note-card__cover-image" src={note.cover} alt="" loading="lazy" decoding="async" />
+            {coverVisibility.coverSrc ? (
+              <img
+                className="row-note-card__cover-image"
+                src={coverVisibility.coverSrc}
+                alt=""
+                decoding="async"
+              />
+            ) : null}
             <span className="row-note-card__cover-type-badge">{typeBadgeLabel}</span>
             {isReviewing ? (
               <div className="row-note-card__cover-overlay row-note-card__cover-overlay--reviewing">
@@ -104,7 +114,7 @@ function RowNoteCard({
         <div className="row-note-card__content">
           <div className="row-note-card__main">
             <div className="row-note-card__main-top">
-              {hideCover ? (
+              {effectiveHideCover ? (
                 <span className="row-note-card__type-badge">{typeBadgeLabel}</span>
               ) : null}
               <h3 className="row-note-card__title">{note.title}</h3>

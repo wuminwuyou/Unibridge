@@ -2,6 +2,11 @@
 import { NotesApiError } from '@entities/note/api/noteApi'
 import type { NoteResourceUid } from '@shared/api/resourceUid'
 import type { NotePublishAction } from '@entities/note/model/types'
+import {
+  NOTE_ARTICLE_EMPTY_COVER_URL,
+  hasNoteEditorCoverInput,
+  isNoteCoverDisplayable,
+} from '@shared/lib/noteCoverSentinel'
 import { submitNote, type NoteEditorFormDraft } from '../services/noteEditorService'
 import { validateNoteEditorDraft } from './noteEditorValidation'
 import type { NoteCoverUploadSource, UploadCoverBeforeSubmitInput } from './noteCoverUploadUtils'
@@ -78,14 +83,35 @@ export async function executeNoteEditorSubmit(
     }
   }
 
-  const coverUrl = await input.uploadCoverBeforeSubmit({
-    source: input.cover.source,
-    activePreviewUrl: input.cover.activePreviewUrl,
-    selectedFile: input.cover.selectedFile,
-    persistedCoverUrl: input.cover.persistedCoverUrl,
-  })
+  const coverUrl = await (async (): Promise<string> => {
+    const hasCoverInput = hasNoteEditorCoverInput({
+      activePreviewUrl: input.cover.activePreviewUrl,
+      selectedFile: input.cover.selectedFile,
+      persistedCoverUrl: input.cover.persistedCoverUrl,
+    })
 
-  if (!coverUrl) {
+    if (submitDraft.contentType === '图文' && !hasCoverInput) {
+      return NOTE_ARTICLE_EMPTY_COVER_URL
+    }
+
+    const uploadedCoverUrl = await input.uploadCoverBeforeSubmit({
+      source: input.cover.source,
+      activePreviewUrl: input.cover.activePreviewUrl,
+      selectedFile: input.cover.selectedFile,
+      persistedCoverUrl: input.cover.persistedCoverUrl,
+    })
+
+    if (!uploadedCoverUrl) {
+      if (submitDraft.contentType === '图文') {
+        return NOTE_ARTICLE_EMPTY_COVER_URL
+      }
+      throw new NotesApiError(400, '请配置笔记封面')
+    }
+
+    return uploadedCoverUrl
+  })()
+
+  if (submitDraft.contentType === '视频' && !isNoteCoverDisplayable(coverUrl)) {
     throw new NotesApiError(400, '请配置笔记封面')
   }
 

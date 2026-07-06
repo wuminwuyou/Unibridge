@@ -8,6 +8,7 @@ import {
   buildNoteVideoDetailFromEditorDraft,
 } from './buildNoteDetailFromEditorDraft'
 import { validateNoteEditorDraftForLocalPreview } from './noteEditorValidation'
+import { isNoteCoverEmptySentinel } from '@shared/lib/noteCoverSentinel'
 import {
   isRemoteAssetUrl,
 } from './noteCoverUploadUtils'
@@ -47,12 +48,12 @@ export function resolveLocalNoteCoverUrl(
     return activePreviewUrl
   }
 
-  if (isRemoteAssetUrl(cover.persistedCoverUrl)) {
+  if (isRemoteAssetUrl(cover.persistedCoverUrl) && !isNoteCoverEmptySentinel(cover.persistedCoverUrl)) {
     return cover.persistedCoverUrl
   }
 
   const normalizedDraftCoverUrl = draftCoverUrl?.trim()
-  if (isRemoteAssetUrl(normalizedDraftCoverUrl)) {
+  if (isRemoteAssetUrl(normalizedDraftCoverUrl) && !isNoteCoverEmptySentinel(normalizedDraftCoverUrl)) {
     return normalizedDraftCoverUrl
   }
 
