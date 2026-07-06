@@ -1,5 +1,6 @@
 // 01）笔记编辑表单校验（noteEditorValidation）
 import type { NoteEditorFormDraft } from '../services/noteEditorService'
+import { validateNoteEditorFieldLimits } from './noteEditorFieldLimitValidation'
 
 // 02）判断是否为远程资源 URL（isRemoteAssetUrl）
 function isRemoteAssetUrl(url: string | null | undefined): url is string {
@@ -48,7 +49,7 @@ export function validateNoteEditorDraft(
     }
   }
 
-  return null
+  return validateNoteEditorFieldLimits(draft)
 }
 
 // 04）提交前前端校验（validateNoteEditorPreSubmit）
@@ -102,10 +103,10 @@ export function validateNoteEditorPreSubmit(
     }
   }
 
-  return null
+  return validateNoteEditorFieldLimits(draft)
 }
 
-// 04）校验本地预览草稿（validateNoteEditorDraftForLocalPreview）
+// 05）校验本地预览草稿（validateNoteEditorDraftForLocalPreview）
 /**
  * 函数名：validateNoteEditorDraftForLocalPreview
  * 功能：校验编辑表单是否满足本地预览展示要求（不上传、不保存）。
@@ -129,6 +130,10 @@ export function validateNoteEditorDraftForLocalPreview(
 
   if (!coverUrl?.trim()) {
     return '请配置笔记封面'
+  }
+
+  if (draft.contentType === '视频' && !draft.videoUrl?.trim()) {
+    return '请先添加视频'
   }
 
   return null

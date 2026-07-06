@@ -2,6 +2,7 @@
 import { isNoteResourceUid } from '@shared/api/resourceUid'
 import type { NoteResourceUid } from '@shared/api/resourceUid'
 import type { NoteEditorContentType, NoteEditorFormDraft } from '../services/noteEditorService'
+import { releaseAllRetainedBlobUrls } from '@shared/lib/retainedBlobRegistry'
 
 // 02）编辑页路由类型（NoteEditorRouteType）
 export type NoteEditorRouteType = 'article' | 'video'
@@ -18,6 +19,10 @@ export interface NoteEditorSession {
   keepForRestore?: boolean
   /** 封面来源：auto | upload，用于预览返回后恢复封面状态 */
   coverSource?: 'auto' | 'upload' | null
+  /** 视频预览 URL 备份（与 draft.videoUrl 同步，防止预览返回后丢失） */
+  videoPreviewUrl?: string | null
+  /** 本地视频文件名（预览返回后展示用） */
+  videoFileName?: string | null
 }
 
 // 05）规范化内容类型（normalizeNoteEditorContentType）
@@ -99,6 +104,12 @@ export function loadNoteEditorFormSession(): NoteEditorSession | null {
 
     const contentType = normalizeNoteEditorContentType(parsed.draft.contentType)
 
+    const draftVideoUrl =
+      typeof parsed.draft.videoUrl === 'string' ? parsed.draft.videoUrl.trim() : ''
+    const sessionVideoPreviewUrl =
+      typeof parsed.videoPreviewUrl === 'string' ? parsed.videoPreviewUrl.trim() : ''
+    const resolvedVideoUrl = draftVideoUrl || sessionVideoPreviewUrl || undefined
+
     const draft: NoteEditorFormDraft = {
       ...createDefaultNoteEditorDraft(contentType),
       ...parsed.draft,
@@ -106,7 +117,13 @@ export function loadNoteEditorFormSession(): NoteEditorSession | null {
       tags: Array.isArray(parsed.draft.tags)
         ? parsed.draft.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
         : [],
+      ...(resolvedVideoUrl ? { videoUrl: resolvedVideoUrl } : {}),
     }
+
+    const videoFileName =
+      typeof parsed.videoFileName === 'string' && parsed.videoFileName.trim().length > 0
+        ? parsed.videoFileName.trim()
+        : null
 
     const noteUid = isNoteResourceUid(parsed.noteUid) ? parsed.noteUid : null
     const routeType =
@@ -121,6 +138,8 @@ export function loadNoteEditorFormSession(): NoteEditorSession | null {
         parsed.coverSource === 'auto' || parsed.coverSource === 'upload'
           ? parsed.coverSource
           : null,
+      videoPreviewUrl: resolvedVideoUrl ?? null,
+      videoFileName,
     }
   } catch {
     return null
@@ -144,6 +163,8 @@ export function saveNoteEditorFormSession(session: NoteEditorSession): void {
       routeType: session.routeType,
       keepForRestore: session.keepForRestore === true,
       coverSource: session.coverSource ?? null,
+      videoPreviewUrl: session.videoPreviewUrl ?? session.draft.videoUrl ?? null,
+      videoFileName: session.videoFileName ?? null,
     }
     sessionStorage.setItem(NOTE_EDITOR_SESSION_KEY, JSON.stringify(payload))
   } catch {
@@ -154,9 +175,9 @@ export function saveNoteEditorFormSession(session: NoteEditorSession): void {
 // 09）清除笔记编辑 Session（clearNoteEditorFormSession）
 /**
  * 函数名：clearNoteEditorFormSession
- * 功能：清除 sessionStorage 中的笔记编辑表单缓存。
+ * 功能：清除 sessionStorage 中的笔记编辑表单缓存，并释放已登记的本地 blob URL。
  * 输出：
- * - 副作用：移除 sessionStorage 键
+ * - 副作用：移除 sessionStorage 键；revoke 预览保留的 blob
  */
 export function clearNoteEditorFormSession(): void {
   try {
@@ -164,4 +185,5 @@ export function clearNoteEditorFormSession(): void {
   } catch {
     // 存储不可用时静默降级
   }
+  releaseAllRetainedBlobUrls()
 }

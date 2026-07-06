@@ -6,11 +6,33 @@ import GridVideoNoteCard from './grid-video-note-card'
 
 export type { GridNoteCardNote } from '../components'
 
-function GridNoteCard({ note, showAuthor = true }: { note: GridNoteCardNote; showAuthor?: boolean }) {
-  if (note.contentType === '视频') {
-    return <GridVideoNoteCard note={note} showAuthor={showAuthor} />
+// 02）网格笔记卡片 Props（GridNoteCardProps）
+export interface GridNoteCardProps {
+  note: GridNoteCardNote
+  showAuthor?: boolean
+  /** 是否展示 Footer 更多菜单（ProfileSpace 内应为 false） */
+  showMoreMenu?: boolean
+  onNotInterestedInContent?: () => void
+  onNotInterestedInAuthor?: () => void
+}
+
+function GridNoteCard({
+  note,
+  showAuthor = true,
+  showMoreMenu = false,
+  onNotInterestedInContent,
+  onNotInterestedInAuthor,
+}: GridNoteCardProps) {
+  const menuProps = {
+    showMoreMenu,
+    onNotInterestedInContent,
+    onNotInterestedInAuthor,
   }
-  return <GridTextNoteCard note={note} showAuthor={showAuthor} />
+
+  if (note.contentType === '视频') {
+    return <GridVideoNoteCard note={note} showAuthor={showAuthor} {...menuProps} />
+  }
+  return <GridTextNoteCard note={note} showAuthor={showAuthor} {...menuProps} />
 }
 
 export default memo(GridNoteCard)

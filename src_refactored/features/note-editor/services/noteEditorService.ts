@@ -9,6 +9,7 @@
  * 输入/输出：见各导出函数 JSDoc
  */
 import { resolvePublishNoteSummary } from '@shared/lib/publishSummary'
+import { sanitizePlainTextInput, sanitizeUserInput } from '@shared/lib/sanitizeUserInput'
 import { createNote, updateNote } from '@entities/note/api/noteApi'
 import type { UpsertNoteRequest, NotePublishAction } from '@entities/note/model/types'
 import type { NoteResourceUid } from '@shared/api/resourceUid'
@@ -46,7 +47,7 @@ export function buildUpsertNoteRequest(
   const isVideo = draft.contentType === '视频'
   return {
     publishAction,
-    title: draft.title.trim(),
+    title: sanitizeUserInput(draft.title.trim(), 'title'),
     summary: resolvePublishNoteSummary(
       draft.summary,
       draft.contentType,
@@ -54,7 +55,9 @@ export function buildUpsertNoteRequest(
       draft.videoDescription,
     ),
     contentType: draft.contentType,
-    content: isVideo ? draft.videoDescription : draft.bodyMarkdown,
+    content: isVideo
+      ? sanitizePlainTextInput(draft.videoDescription).trim()
+      : draft.bodyMarkdown,
     tags: draft.tags,
     coverUrl: draft.coverUrl,
     videoUrl: draft.videoUrl,

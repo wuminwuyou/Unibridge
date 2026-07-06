@@ -1,5 +1,16 @@
 // 01）封面选择 Hook（useNoteCoverPicker）
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react'
+import {
+  cropImageToCoverFile,
+  getDefaultCoverCropTransform,
+  resolveCoverOutputWidthByAspect,
+  type CoverCropTransform,
+} from '@shared/lib/cropCoverImage'
+import {
+  releaseBlobUrl,
+  retainBlobUrl,
+  revokeBlobUrlIfNotRetained,
+} from '@shared/lib/retainedBlobRegistry'
 
 // 02）封面来源类型（NoteCoverSource）
 export type NoteCoverSource = 'auto' | 'upload'
@@ -15,9 +26,21 @@ export interface UseNoteCoverPickerOptions {
   coverUrl?: string | null
   /** 初始来源模式 */
   initialSource?: NoteCoverSource
+  /** 目标封面宽高比（图文 3:4 / 视频 16:9） */
+  coverAspect: { width: number; height: number }
+  /** 为 true 时卸载不 revoke blob（预览跳转后需保留本地封面 URL） */
+  preserveBlobOnUnmountRef?: RefObject<boolean>
 }
 
-// 05）封面选择 Hook 返回值（UseNoteCoverPickerResult）
+// 05）设置封面时可选参数（SetCoverFileOptions）
+export interface SetCoverFileOptions {
+  /** 用于「调整封面」的原始图源 URL（未裁剪上传图或视频原始帧） */
+  adjustSourceUrl?: string | null
+  /** 当前裁剪变换，默认居中 */
+  cropTransform?: CoverCropTransform
+}
+
+// 06）封面选择 Hook 返回值（UseNoteCoverPickerResult）
 export interface UseNoteCoverPickerResult {
   source: NoteCoverSource
   setSource: (source: NoteCoverSource) => void
@@ -26,11 +49,22 @@ export interface UseNoteCoverPickerResult {
   activePreviewUrl: string | null
   selectedFile: File | null
   hasLocalCover: boolean
-  handleSelectFile: (file: File) => void
-  handleSetAutoCoverFile: (file: File) => void
+  coverAdjustSourceUrl: string | null
+  coverCropTransform: CoverCropTransform
+  handleSelectFile: (file: File) => Promise<void>
+  handleSetAutoCoverFile: (file: File, options?: SetCoverFileOptions) => void
+  handleApplyAdjustedCover: (file: File, transform: CoverCropTransform) => void
+  clearAuto: () => void
   clearUpload: () => void
   clearAfterSubmit: () => void
   reset: () => void
+}
+
+// 07）释放调整源 URL（releaseAdjustSourceUrl）
+function releaseAdjustSourceUrl(url: string | null): void {
+  if (url && !isRemoteAssetUrl(url)) {
+    releaseBlobUrl(url)
+  }
 }
 
 /**
@@ -38,17 +72,23 @@ export interface UseNoteCoverPickerResult {
  * 功能：管理笔记封面选择 UI 状态（自动生成 / 手动上传），auto 与 upload 预览互不干扰，不发起 API。
  * 实现方法：
  * - auto / upload 各自维护 preview Object URL 与 File
+ * - 上传或视频帧提取后按 coverAspect 居中裁剪；保留 adjustSourceUrl 供用户二次调整
  * - activePreviewUrl 按当前 source 计算；upload 模式不回退到 auto 或远程图
- * - persistedRemoteUrl 仅用于 auto 模式且无本地生成图时的初始展示
  * 输入：
  * - options.coverUrl：父级已持久化的远程封面
+ * - options.coverAspect：目标宽高比
  * - options.initialSource：默认 auto
  * 输出：
  * - 返回值：封面 UI 状态与 handlers
  * - 副作用：创建/释放 Object URL
  */
-export function useNoteCoverPicker(options: UseNoteCoverPickerOptions = {}): UseNoteCoverPickerResult {
-  const { coverUrl = null, initialSource = 'auto' } = options
+export function useNoteCoverPicker(options: UseNoteCoverPickerOptions): UseNoteCoverPickerResult {
+  const {
+    coverUrl = null,
+    initialSource = 'auto',
+    coverAspect,
+    preserveBlobOnUnmountRef,
+  } = options
   const persistedRemoteUrl = isRemoteAssetUrl(coverUrl) ? coverUrl : null
 
   const [source, setSource] = useState<NoteCoverSource>(initialSource)
@@ -56,26 +96,68 @@ export function useNoteCoverPicker(options: UseNoteCoverPickerOptions = {}): Use
   const [autoSelectedFile, setAutoSelectedFile] = useState<File | null>(null)
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null)
   const [uploadSelectedFile, setUploadSelectedFile] = useState<File | null>(null)
+  const [adjustSourceUrl, setAdjustSourceUrl] = useState<string | null>(null)
+  const [coverCropTransform, setCoverCropTransform] = useState<CoverCropTransform>(
+    getDefaultCoverCropTransform(),
+  )
+
+  const replacePreviewForSource = useCallback(
+    (targetSource: NoteCoverSource, file: File): void => {
+      if (targetSource === 'upload') {
+        setUploadSelectedFile(file)
+        setUploadPreviewUrl((previous) => {
+          if (previous) {
+            releaseBlobUrl(previous)
+          }
+          const nextUrl = URL.createObjectURL(file)
+          retainBlobUrl(nextUrl)
+          return nextUrl
+        })
+        return
+      }
+
+      setAutoSelectedFile(file)
+      setAutoPreviewUrl((previous) => {
+        if (previous) {
+          releaseBlobUrl(previous)
+        }
+        const nextUrl = URL.createObjectURL(file)
+        retainBlobUrl(nextUrl)
+        return nextUrl
+      })
+    },
+    [],
+  )
+
+  const clearAdjustSource = useCallback((): void => {
+    setAdjustSourceUrl((previous) => {
+      releaseAdjustSourceUrl(previous)
+      return null
+    })
+    setCoverCropTransform(getDefaultCoverCropTransform())
+  }, [])
 
   const clearAuto = useCallback((): void => {
     setAutoPreviewUrl((previous) => {
       if (previous) {
-        URL.revokeObjectURL(previous)
+        releaseBlobUrl(previous)
       }
       return null
     })
     setAutoSelectedFile(null)
-  }, [])
+    clearAdjustSource()
+  }, [clearAdjustSource])
 
   const clearUpload = useCallback((): void => {
     setUploadPreviewUrl((previous) => {
       if (previous) {
-        URL.revokeObjectURL(previous)
+        releaseBlobUrl(previous)
       }
       return null
     })
     setUploadSelectedFile(null)
-  }, [])
+    clearAdjustSource()
+  }, [clearAdjustSource])
 
   const clearAfterSubmit = useCallback((): void => {
     clearAuto()
@@ -89,42 +171,74 @@ export function useNoteCoverPicker(options: UseNoteCoverPickerOptions = {}): Use
 
   useEffect(() => {
     return () => {
-      if (autoPreviewUrl) {
-        URL.revokeObjectURL(autoPreviewUrl)
+      if (preserveBlobOnUnmountRef?.current) {
+        return
       }
-      if (uploadPreviewUrl) {
-        URL.revokeObjectURL(uploadPreviewUrl)
-      }
+      revokeBlobUrlIfNotRetained(autoPreviewUrl)
+      revokeBlobUrlIfNotRetained(uploadPreviewUrl)
+      revokeBlobUrlIfNotRetained(adjustSourceUrl)
     }
-  }, [autoPreviewUrl, uploadPreviewUrl])
+  }, [adjustSourceUrl, autoPreviewUrl, preserveBlobOnUnmountRef, uploadPreviewUrl])
 
-  const handleSetAutoCoverFile = useCallback((file: File): void => {
+  const setAdjustSource = useCallback((nextUrl: string | null): void => {
+    setAdjustSourceUrl((previous) => {
+      if (previous && previous !== nextUrl) {
+        releaseAdjustSourceUrl(previous)
+      }
+      if (nextUrl && !isRemoteAssetUrl(nextUrl)) {
+        retainBlobUrl(nextUrl)
+      }
+      return nextUrl
+    })
+  }, [])
+
+  const handleSetAutoCoverFile = useCallback((file: File, setOptions?: SetCoverFileOptions): void => {
     if (!file.type.startsWith('image/')) {
       return
     }
     setSource('auto')
-    setAutoSelectedFile(file)
-    setAutoPreviewUrl((previous) => {
-      if (previous) {
-        URL.revokeObjectURL(previous)
-      }
-      return URL.createObjectURL(file)
-    })
-  }, [])
+    replacePreviewForSource('auto', file)
 
-  const handleSelectFile = useCallback((file: File): void => {
+    if (setOptions?.adjustSourceUrl) {
+      setAdjustSource(setOptions.adjustSourceUrl)
+    } else {
+      setAdjustSource(URL.createObjectURL(file))
+    }
+
+    setCoverCropTransform(setOptions?.cropTransform ?? getDefaultCoverCropTransform())
+  }, [replacePreviewForSource, setAdjustSource])
+
+  const handleSelectFile = useCallback(async (file: File): Promise<void> => {
     if (!file.type.startsWith('image/')) {
       return
     }
+
     setSource('upload')
-    setUploadSelectedFile(file)
-    setUploadPreviewUrl((previous) => {
-      if (previous) {
-        URL.revokeObjectURL(previous)
-      }
-      return URL.createObjectURL(file)
-    })
-  }, [])
+
+    const originalUrl = URL.createObjectURL(file)
+    retainBlobUrl(originalUrl)
+    setAdjustSource(originalUrl)
+
+    try {
+      const croppedFile = await cropImageToCoverFile(
+        originalUrl,
+        coverAspect,
+        getDefaultCoverCropTransform(),
+        resolveCoverOutputWidthByAspect(coverAspect),
+        file.name.endsWith('.jpg') || file.name.endsWith('.jpeg') ? file.name : `${file.name.replace(/\.[^.]+$/, '')}-cover.jpg`,
+      )
+      replacePreviewForSource('upload', croppedFile)
+      setCoverCropTransform(getDefaultCoverCropTransform())
+    } catch {
+      replacePreviewForSource('upload', file)
+      setCoverCropTransform(getDefaultCoverCropTransform())
+    }
+  }, [coverAspect, replacePreviewForSource, setAdjustSource])
+
+  const handleApplyAdjustedCover = useCallback((file: File, transform: CoverCropTransform): void => {
+    replacePreviewForSource(source, file)
+    setCoverCropTransform(transform)
+  }, [replacePreviewForSource, source])
 
   const activePreviewUrl = useMemo((): string | null => {
     if (source === 'upload') {
@@ -132,6 +246,10 @@ export function useNoteCoverPicker(options: UseNoteCoverPickerOptions = {}): Use
     }
     return autoPreviewUrl ?? persistedRemoteUrl
   }, [autoPreviewUrl, persistedRemoteUrl, source, uploadPreviewUrl])
+
+  const coverAdjustSourceUrl = useMemo((): string | null => {
+    return adjustSourceUrl ?? activePreviewUrl
+  }, [activePreviewUrl, adjustSourceUrl])
 
   const selectedFile = useMemo((): File | null => {
     return source === 'upload' ? uploadSelectedFile : autoSelectedFile
@@ -149,8 +267,12 @@ export function useNoteCoverPicker(options: UseNoteCoverPickerOptions = {}): Use
     activePreviewUrl,
     selectedFile,
     hasLocalCover,
+    coverAdjustSourceUrl,
+    coverCropTransform,
     handleSelectFile,
     handleSetAutoCoverFile,
+    handleApplyAdjustedCover,
+    clearAuto,
     clearUpload,
     clearAfterSubmit,
     reset,

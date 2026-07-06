@@ -7,6 +7,7 @@ import { createPublishEntryFreshLocationState } from '@shared/lib/publishEntryNa
 import { clearNoteDetailPreview, clearNoteEditorFormSession } from '@features/note-editor'
 import { NoteEditorTypeModal, useNoteEditorTypeModal } from '@features/note-editor-entry'
 import ProjectCard from '../../entities/project/ui/ProjectCard'
+import { createNoteCardFeedbackActions } from '@features/note-card-feedback'
 import { GridNoteCard } from '@entities/note'
 import LoadingSpinner from '../../shared/ui/LoadingSpinner'
 import ProjectLabHeader from '../../features/feed-filter/ui/ProjectLabHeader'
@@ -39,7 +40,17 @@ function HomeFeedWidget() {
     }
   }, [projects, virtualizer])
 
-  const renderedSidebarNotes = useMemo(() => notes.map((n) => <GridNoteCard key={n.uid ?? n.title} note={n} />), [notes])
+  const renderedSidebarNotes = useMemo(
+    () => notes.map((note) => (
+      <GridNoteCard
+        key={note.uid ?? note.title}
+        note={note}
+        showMoreMenu
+        {...createNoteCardFeedbackActions(note)}
+      />
+    )),
+    [notes],
+  )
 
   return (
     <>

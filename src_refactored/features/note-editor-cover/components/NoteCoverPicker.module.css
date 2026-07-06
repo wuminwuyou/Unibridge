@@ -52,15 +52,37 @@
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 }
 
-/* 03）预览区（noteCoverPickerPreview） */
+/* 03）预览区块（noteCoverPickerPreviewBlock） */
+.noteCoverPickerPreviewBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  width: 100%;
+}
+
+.noteCoverPickerPreviewStage {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
 .noteCoverPickerPreview {
   position: relative;
   overflow: hidden;
   border-radius: 0.625rem;
   border: 1px solid var(--card-border);
-  aspect-ratio: 16 / 9;
-  max-height: 7rem;
+  box-sizing: border-box;
   background: var(--publish-surface-muted, color-mix(in srgb, var(--card-bg) 90%, var(--primary-text) 10%));
+}
+
+/* 横版封面（如 16:9）：铺满容器宽度，高度由 aspect-ratio 决定 */
+.noteCoverPickerPreviewLandscape {
+  width: 100%;
+}
+
+/* 竖版封面（如 3:4）：限制宽度并保持比例，避免侧栏被撑得过高 */
+.noteCoverPickerPreviewPortrait {
+  width: min(100%, 10rem);
 }
 
 .noteCoverPickerPreviewImg {
@@ -104,8 +126,7 @@
 .noteCoverPickerPlaceholder,
 .noteCoverPickerUploadZone {
   display: flex;
-  height: 100%;
-  min-height: 4.75rem;
+  min-height: 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -163,13 +184,12 @@
     padding: 0.625rem;
   }
 
-  .noteCoverPickerPreview {
-    max-height: 6rem;
+  .noteCoverPickerPreviewPortrait {
+    width: min(100%, 8.5rem);
   }
 
   .noteCoverPickerPlaceholder,
   .noteCoverPickerUploadZone {
-    min-height: 4.25rem;
     padding: 0.4375rem 0.5rem;
   }
 
@@ -180,4 +200,41 @@
 
 .noteCoverPickerHiddenInput {
   display: none;
+}
+
+/* 05）预览操作栏（noteCoverPickerPreviewActions，卡片内 footer，始终铺满卡片内容区） */
+.noteCoverPickerPreviewActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+/* 06）预览操作按钮（noteCoverPickerActionBtn） */
+.noteCoverPickerActionBtn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem;
+  padding: 0.3125rem 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--card-bg) 92%, var(--primary-text) 8%);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.noteCoverPickerActionBtn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary-text) 36%, var(--card-border));
+  background: color-mix(in srgb, var(--primary-text) 8%, var(--card-bg));
+}
+
+.noteCoverPickerActionBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

@@ -5,7 +5,6 @@ import { resolveNoteDetailHref as buildNoteDetailHref } from '@shared/lib/noteRo
 import {
   GridNoteCardAuthor,
   GridNoteCardFooter,
-  GridNoteCardMenuButton,
   type GridNoteCardNote,
 } from '../../components'
 import {
@@ -18,7 +17,19 @@ import './grid-video-note-card.css'
 
 export type GridVideoNoteCardNote = GridNoteCardNote
 
-function GridVideoNoteCard({ note, showAuthor = true }: { note: GridVideoNoteCardNote; showAuthor?: boolean }) {
+function GridVideoNoteCard({
+  note,
+  showAuthor = true,
+  showMoreMenu = false,
+  onNotInterestedInContent,
+  onNotInterestedInAuthor,
+}: {
+  note: GridVideoNoteCardNote
+  showAuthor?: boolean
+  showMoreMenu?: boolean
+  onNotInterestedInContent?: () => void
+  onNotInterestedInAuthor?: () => void
+}) {
   const noteDetailPath = buildNoteDetailHref({ uid: note.uid, title: note.title, contentType: note.contentType })
   const authorText = showAuthor ? resolveGridNoteAuthorText(note) : ''
   const authorFallback = showAuthor ? resolveGridNoteAuthorFallback(note.authorNickname) : ''
@@ -26,7 +37,6 @@ function GridVideoNoteCard({ note, showAuthor = true }: { note: GridVideoNoteCar
 
   return (
     <Link className="grid-note-card grid-note-card--link grid-video-note-card" to={noteDetailPath}>
-      <GridNoteCardMenuButton />
       <div className="grid-note-card__cover grid-video-note-card__media">
         <img className="grid-video-note-card__media-cover" src={note.cover} alt="" loading="lazy" decoding="async" />
         <span className="grid-video-note-card__media-overlay" aria-hidden="true" />
@@ -45,6 +55,9 @@ function GridVideoNoteCard({ note, showAuthor = true }: { note: GridVideoNoteCar
           views={note.views}
           publishTime={note.publishTime}
           updateTime={note.updateTime}
+          showMoreMenu={showMoreMenu}
+          onNotInterestedInContent={onNotInterestedInContent}
+          onNotInterestedInAuthor={onNotInterestedInAuthor}
         />
       </div>
     </Link>

@@ -1,6 +1,7 @@
 // 01）TopNavbar 滚动隐藏 Hook（useTopNavbarScrollHide）
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { TOP_NAVBAR_REQUEST_HIDE_EVENT, TOP_NAVBAR_FORCE_HIDE_FALLBACK_MS } from '@shared/lib/topNavbarScrollControl'
 import {
   isTopNavbarScrollHideEnabled,
   SCROLL_HIDE_ACTIVATE_OFFSET,
@@ -34,6 +35,25 @@ export function useTopNavbarScrollHide(): UseTopNavbarScrollHideResult {
   const [isNavbarVisible, setIsNavbarVisible] = useState(true)
   const lastScrollYRef = useRef(0)
   const scrollRafRef = useRef<number | null>(null)
+  /** 目录跳转等场景：抑制向上滚动触发的导航栏显示，直至滚动动画结束 */
+  const forceNavbarHiddenRef = useRef(false)
+  const forceHideFallbackTimerRef = useRef<number | null>(null)
+
+  const clearForceNavbarHidden = useCallback((): void => {
+    forceNavbarHiddenRef.current = false
+    if (forceHideFallbackTimerRef.current !== null) {
+      window.clearTimeout(forceHideFallbackTimerRef.current)
+      forceHideFallbackTimerRef.current = null
+    }
+  }, [])
+
+  const releaseForceNavbarHidden = useCallback((): void => {
+    if (!forceNavbarHiddenRef.current) {
+      return
+    }
+    clearForceNavbarHidden()
+    lastScrollYRef.current = window.scrollY
+  }, [clearForceNavbarHidden])
 
   useEffect(() => {
     if (!isScrollHideEnabled) {
@@ -54,7 +74,10 @@ export function useTopNavbarScrollHide(): UseTopNavbarScrollHideResult {
         const scrollDelta = currentScrollY - previousScrollY
 
         if (currentScrollY <= 0) {
+          releaseForceNavbarHidden()
           setIsNavbarVisible(true)
+        } else if (forceNavbarHiddenRef.current) {
+          setIsNavbarVisible(false)
         } else if (
           scrollDelta > SCROLL_HIDE_MIN_DELTA
           && currentScrollY > SCROLL_HIDE_ACTIVATE_OFFSET
@@ -79,7 +102,52 @@ export function useTopNavbarScrollHide(): UseTopNavbarScrollHideResult {
         scrollRafRef.current = null
       }
     }
-  }, [isScrollHideEnabled, pathname])
+  }, [isScrollHideEnabled, pathname, releaseForceNavbarHidden])
+
+  // 目录跳转等场景：无论滚动方向，立即隐藏导航栏
+  useEffect(() => {
+    if (!isScrollHideEnabled) {
+      return undefined
+    }
+
+    const handleRequestHide = (): void => {
+      forceNavbarHiddenRef.current = true
+      setIsNavbarVisible(false)
+      lastScrollYRef.current = window.scrollY
+      document.documentElement.classList.add('navbar-hidden')
+
+      if (forceHideFallbackTimerRef.current !== null) {
+        window.clearTimeout(forceHideFallbackTimerRef.current)
+      }
+      forceHideFallbackTimerRef.current = window.setTimeout(() => {
+        releaseForceNavbarHidden()
+      }, TOP_NAVBAR_FORCE_HIDE_FALLBACK_MS)
+    }
+
+    window.addEventListener(TOP_NAVBAR_REQUEST_HIDE_EVENT, handleRequestHide)
+
+    return () => {
+      window.removeEventListener(TOP_NAVBAR_REQUEST_HIDE_EVENT, handleRequestHide)
+      clearForceNavbarHidden()
+    }
+  }, [clearForceNavbarHidden, isScrollHideEnabled, releaseForceNavbarHidden])
+
+  // scrollend：目录 smooth scroll 结束后解除强制隐藏，恢复常规向上滚动显隐
+  useEffect(() => {
+    if (!isScrollHideEnabled) {
+      return undefined
+    }
+
+    const handleScrollEnd = (): void => {
+      releaseForceNavbarHidden()
+    }
+
+    window.addEventListener('scrollend', handleScrollEnd, { passive: true })
+
+    return () => {
+      window.removeEventListener('scrollend', handleScrollEnd)
+    }
+  }, [isScrollHideEnabled, releaseForceNavbarHidden])
 
   // 同步导航栏显隐到全局，供 sticky 侧栏动态 top 使用
   useEffect(() => {

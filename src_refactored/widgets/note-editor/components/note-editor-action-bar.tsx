@@ -1,4 +1,5 @@
 // 01）编辑操作栏（NoteEditorActionBar）
+import type { NoteEditorContentType } from '@features/note-editor'
 import type { NoteEditorSubmitPhase } from '../hooks/useNoteEditorForm'
 import styles from './note-editor-action-bar.module.css'
 
@@ -7,6 +8,7 @@ export interface NoteEditorActionBarProps {
   isSubmitting: boolean
   submitError: string | null
   submitPhase: NoteEditorSubmitPhase
+  contentType?: NoteEditorContentType
   onSaveDraft: () => void
   onPreview: () => void
   onPublish: () => void
@@ -27,20 +29,29 @@ export function NoteEditorActionBar({
   isSubmitting,
   submitError,
   submitPhase,
+  contentType = '图文',
   onSaveDraft,
   onPreview,
   onPublish,
 }: NoteEditorActionBarProps) {
+  const isVideo = contentType === '视频'
+
   const statusHint =
-    submitPhase === 'uploading-cover'
-      ? '正在上传封面…'
-      : submitPhase === 'saving-note'
-        ? '正在保存笔记…'
-        : '预览仅本地展示；保存草稿与发布将先上传封面，再写入服务端'
+    submitPhase === 'uploading-video'
+      ? '正在上传视频…'
+      : submitPhase === 'uploading-cover'
+        ? '正在上传封面…'
+        : submitPhase === 'saving-note'
+          ? '正在保存笔记…'
+          : isVideo
+            ? '预览仅本地展示；保存草稿与发布将先上传视频与封面，再写入服务端'
+            : '预览仅本地展示；保存草稿与发布将先上传封面，再写入服务端'
+
+  const busyUploadLabel = submitPhase === 'uploading-video' ? '上传视频…' : '上传封面…'
 
   const saveDraftLabel =
-    isSubmitting && submitPhase === 'uploading-cover'
-      ? '上传封面…'
+    isSubmitting && (submitPhase === 'uploading-cover' || submitPhase === 'uploading-video')
+      ? busyUploadLabel
       : isSubmitting && submitPhase === 'saving-note'
         ? '保存中…'
         : '保存草稿'
@@ -48,8 +59,8 @@ export function NoteEditorActionBar({
   const previewLabel = '预览'
 
   const publishLabel =
-    isSubmitting && submitPhase === 'uploading-cover'
-      ? '上传封面…'
+    isSubmitting && (submitPhase === 'uploading-cover' || submitPhase === 'uploading-video')
+      ? busyUploadLabel
       : isSubmitting && submitPhase === 'saving-note'
         ? '发布中…'
         : '发布笔记'

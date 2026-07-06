@@ -58,8 +58,35 @@
   transition: top 0.3s ease;
 }
 
+/* 07-b）左侧 TOC：卡片级 max-height + 内部列表滚动（避免 aside 裁切圆角边框） */
+.noteArticleTocScroll :global(.markdown-md-catalog-panel) {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  max-height: calc(
+    95vh - var(--sticky-aside-top, calc(var(--top-header-height, 60px) + var(--sticky-aside-gap, 1.5rem))) -
+      var(--sticky-aside-bottom-gap, 1rem)
+  );
+  overflow: hidden;
+}
+
+.noteArticleTocScroll :global(.markdown-md-catalog-panel__title) {
+  flex-shrink: 0;
+}
+
+.noteArticleTocScroll :global(.markdown-md-catalog-panel__widget),
+.noteArticleTocScroll :global(.md-editor-catalog) {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 /* 08）响应式：窄屏隐藏左栏 TOC */
 @media (max-width: 1279px) {
+
   .noteArticleTocAside,
   .noteArticleTocSpacer {
     display: none;

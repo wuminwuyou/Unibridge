@@ -19,6 +19,8 @@ export interface TagInputProps {
   suggestedTags?: string[]
   /** 最大标签数量，默认不限制 */
   maxTags?: number
+  /** 单个标签最大字数，默认不限制 */
+  maxTagLength?: number
   /** 是否禁用 */
   disabled?: boolean
   /** 根节点 className */
@@ -26,8 +28,12 @@ export interface TagInputProps {
 }
 
 // 03）规范化单个标签（normalizeTagValue）
-function normalizeTagValue(raw: string): string {
-  return raw.trim().replace(/^#+/, '')
+function normalizeTagValue(raw: string, maxTagLength?: number): string {
+  const trimmed = raw.trim().replace(/^#+/, '')
+  if (maxTagLength == null) {
+    return trimmed
+  }
+  return trimmed.slice(0, maxTagLength)
 }
 
 /**

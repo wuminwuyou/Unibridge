@@ -125,7 +125,7 @@ function dataUrlToFile(dataUrl: string, fileName: string): File {
 // 08）自动生成笔记封面 Data URL（autoGenerateNoteCoverDataUrl）
 /**
  * 函数名：autoGenerateNoteCoverDataUrl
- * 功能：基于笔记标题自动生成冷色系浅色调毛玻璃风格封面图。
+ * 功能：基于笔记标题自动生成冷色系浅色调毛玻璃风格封面图（3:4 竖版）。
  * 输入：
  * - title：笔记标题
  * 输出：
@@ -133,8 +133,8 @@ function dataUrlToFile(dataUrl: string, fileName: string): File {
  */
 export function autoGenerateNoteCoverDataUrl(title: string): string {
   const canvas = document.createElement('canvas')
-  canvas.width = 640
-  canvas.height = 360
+  canvas.width = 480
+  canvas.height = 640
   const context = canvas.getContext('2d')
 
   if (!context) {
@@ -154,8 +154,8 @@ export function autoGenerateNoteCoverDataUrl(title: string): string {
   context.fill()
 
   const displayTitle = title.trim() || '未命名笔记'
-  const maxWidth = canvas.width - 80
-  const fontSize = measureBestFontSize(context, displayTitle, 38, 22, maxWidth)
+  const maxWidth = canvas.width - 48
+  const fontSize = measureBestFontSize(context, displayTitle, 58, 34, maxWidth)
   context.font = `bold ${fontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`
   context.fillStyle = '#1e293b'
   context.textAlign = 'center'

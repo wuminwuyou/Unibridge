@@ -16,7 +16,8 @@ export type { UseSimilarNotesResult } from './model/useSimilarNotes'
 export { useSimilarNotes } from './model/useSimilarNotes'
 
 // API
-export { getNoteDetail, createNote, updateNote, NotesApiError } from './api/noteApi'
+export { getNoteDetail, createNote, updateNote, uploadNoteCover, uploadNoteVideo, NotesApiError } from './api/noteApi'
+export type { UploadNoteVideoOptions } from './api/noteApi'
 
 // Lib
 export {

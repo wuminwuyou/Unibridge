@@ -2,12 +2,13 @@
 import { useCallback } from 'react'
 import InfoPromptModal from '@shared/ui/InfoPromptModal'
 import { TagInput } from '@shared/ui/TagInput'
+import { NOTE_TAG_MAX_COUNT, NOTE_TAG_MAX_LENGTH } from '@features/note-editor'
 import { NoteCoverPicker } from '@features/note-editor-cover'
 import {
   NoteArticleEditorForm,
   NoteArticleEditorLayout,
   NoteEditorActionBar,
-  NoteVideoEditorPlaceholder,
+  NoteVideoEditorForm,
 } from './components'
 import { useNoteEditorForm } from './hooks/useNoteEditorForm'
 import styles from './note-editor-widget.module.css'
@@ -39,6 +40,9 @@ export function NoteEditorWidgetBody() {
         <NoteCoverPicker
           source={form.coverPicker.source}
           previewUrl={form.coverPicker.activePreviewUrl}
+          adjustSourceUrl={form.coverPicker.coverAdjustSourceUrl}
+          cropTransform={form.coverPicker.coverCropTransform}
+          aspect={form.coverAspect}
           isUploading={
             form.submitPhase === 'uploading-cover' && form.coverPicker.source === 'upload'
           }
@@ -46,17 +50,89 @@ export function NoteEditorWidgetBody() {
             form.submitPhase === 'uploading-cover' && form.coverPicker.source === 'auto'
           }
           disabled={form.isSubmitting}
+          showRegenerateAutoCover={form.draft.contentType === '图文'}
           onSourceChange={form.coverPicker.setSource}
-          onSelectFile={form.handleUploadCoverFile}
+          onSelectFile={(file) => { void form.handleUploadCoverFile(file) }}
           onRequestAutoGenerate={() => form.handleGenerateAutoCover()}
+          onApplyAdjustedCover={form.handleApplyAdjustedCover}
         />
       </div>
     ),
     [form],
   )
 
+  const renderModals = () => (
+    <>
+      <InfoPromptModal
+        open={form.leavePromptOpen}
+        message={form.leavePromptMessage}
+        title="温馨提示"
+        cancelText="继续编辑"
+        confirmText="确认退出"
+        onClose={form.cancelLeave}
+        onConfirm={form.confirmLeave}
+      />
+
+      <InfoPromptModal
+        open={form.coverGeneratePromptOpen}
+        message={form.coverGeneratePromptMessage}
+        title="温馨提示"
+        confirmText="我知道了"
+        onClose={form.closeCoverGeneratePrompt}
+        onConfirm={form.closeCoverGeneratePrompt}
+      />
+
+      <InfoPromptModal
+        open={form.submitResultModal.open}
+        message={form.submitResultModal.message}
+        title={form.submitResultModal.title}
+        confirmText={form.submitResultModal.isSuccess ? '回到首页' : '确认'}
+        onClose={form.submitResultModal.isSuccess ? form.confirmSubmitResultModal : form.closeSubmitResultModal}
+        onConfirm={form.submitResultModal.isSuccess ? form.confirmSubmitResultModal : form.closeSubmitResultModal}
+      />
+    </>
+  )
+
+  const renderActionBar = () => (
+    <NoteEditorActionBar
+      isSubmitting={form.isSubmitting}
+      submitError={form.submitError}
+      submitPhase={form.submitPhase}
+      contentType={form.draft.contentType}
+      onSaveDraft={form.onSaveDraft}
+      onPreview={form.onPreview}
+      onPublish={form.onPublish}
+    />
+  )
+
   if (form.type === 'video') {
-    return <NoteVideoEditorPlaceholder />
+    if (form.uid && form.editLoadState === 'loading') {
+      return (
+        <main className={styles.noteEditorWidgetStatus} aria-label="笔记加载中">
+          <h1 className={styles.noteEditorWidgetStatusTitle}>加载中…</h1>
+          <p className={styles.noteEditorWidgetStatusDesc}>正在从服务器获取笔记内容。</p>
+        </main>
+      )
+    }
+
+    if (form.uid && form.editLoadState === 'error') {
+      return (
+        <main className={styles.noteEditorWidgetStatus} aria-label="笔记加载失败">
+          <h1 className={styles.noteEditorWidgetStatusTitle}>加载失败</h1>
+          <p className={styles.noteEditorWidgetStatusDesc}>
+            {form.editLoadError ?? '无法获取笔记内容，请稍后重试。'}
+          </p>
+        </main>
+      )
+    }
+
+    return (
+      <div key={form.formResetKey}>
+        <NoteVideoEditorForm form={form} />
+        {renderActionBar()}
+        {renderModals()}
+      </div>
+    )
   }
 
   if (form.uid && form.editLoadState === 'loading') {
@@ -85,7 +161,8 @@ export function NoteEditorWidgetBody() {
       onChange={(tags) => form.updateField('tags', tags)}
       label="话题标签"
       required
-      maxTags={5}
+      maxTags={NOTE_TAG_MAX_COUNT}
+      maxTagLength={NOTE_TAG_MAX_LENGTH}
       suggestedTags={form.suggestedNoteTags}
       placeholder="输入后回车添加标签"
       disabled={form.isSubmitting}
@@ -101,42 +178,8 @@ export function NoteEditorWidgetBody() {
         />
       </NoteArticleEditorLayout>
 
-      <NoteEditorActionBar
-        isSubmitting={form.isSubmitting}
-        submitError={form.submitError}
-        submitPhase={form.submitPhase}
-        onSaveDraft={form.onSaveDraft}
-        onPreview={form.onPreview}
-        onPublish={form.onPublish}
-      />
-
-      <InfoPromptModal
-        open={form.leavePromptOpen}
-        message={form.leavePromptMessage}
-        title="温馨提示"
-        cancelText="继续编辑"
-        confirmText="确认退出"
-        onClose={form.cancelLeave}
-        onConfirm={form.confirmLeave}
-      />
-
-      <InfoPromptModal
-        open={form.coverGeneratePromptOpen}
-        message="请先填写笔记标题，再生成封面。"
-        title="温馨提示"
-        confirmText="我知道了"
-        onClose={form.closeCoverGeneratePrompt}
-        onConfirm={form.closeCoverGeneratePrompt}
-      />
-
-      <InfoPromptModal
-        open={form.submitResultModal.open}
-        message={form.submitResultModal.message}
-        title={form.submitResultModal.title}
-        confirmText={form.submitResultModal.isSuccess ? '回到首页' : '确认'}
-        onClose={form.submitResultModal.isSuccess ? form.confirmSubmitResultModal : form.closeSubmitResultModal}
-        onConfirm={form.submitResultModal.isSuccess ? form.confirmSubmitResultModal : form.closeSubmitResultModal}
-      />
+      {renderActionBar()}
+      {renderModals()}
     </div>
   )
 }

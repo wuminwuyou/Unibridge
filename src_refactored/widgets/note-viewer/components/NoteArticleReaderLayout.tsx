@@ -10,6 +10,7 @@ import { NoteAuthorCard, NotePublishStatusBadge, NoteTagList, NoteSummaryBox, No
 import type { NoteArticleDetailPayload } from '@entities/note'
 import { isUserResourceUid } from '@shared/api/resourceUid'
 import { buildPersonalSpacePath } from '@shared/lib/userRoutes'
+import { getStickyAsideTopPx } from '@entities/editor/lib/markdownCatalogScroll'
 import styles from './NoteArticleReaderLayout.module.css'
 
 // 01）图文阅读布局 Props（NoteArticleReaderLayoutProps）
@@ -18,8 +19,6 @@ interface NoteArticleReaderLayoutProps {
   isEditorialFlow?: boolean
 }
 
-const NAVBAR_HEIGHT = 60
-const STICKY_TOP_PX = NAVBAR_HEIGHT
 const SIDEBAR_PANEL_ANIMATION_MS = 350
 const EDITOR_MIN_EXPANDED_HEIGHT_PX = 280
 
@@ -62,7 +61,7 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
       const toc = tocRef.current
       if (!shell || !toc) { setTocSticky(true); return }
       const shellRect = shell.getBoundingClientRect()
-      setTocSticky(shellRect.top <= STICKY_TOP_PX)
+      setTocSticky(shellRect.top <= getStickyAsideTopPx())
     }
     handler()
     window.addEventListener('scroll', handler, { passive: true })
@@ -153,14 +152,13 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
           showMarkdownCatalog ? (
             <aside
               ref={tocRef}
-              className={`${layoutStyles.noteArticleTocAside} ${tocSticky ? layoutStyles.noteArticleStickyAside : ''}`.trim()}
+              className={`${layoutStyles.noteArticleTocAside} ${layoutStyles.noteArticleTocScroll} ${tocSticky ? layoutStyles.noteArticleStickyAside : ''}`.trim()}
               aria-label="文章目录"
             >
               <MarkdownMdCatalogPanel
                 editorId={markdownReaderId}
                 title="目录"
-                scrollElementOffsetTop={STICKY_TOP_PX}
-                offsetTop={STICKY_TOP_PX}
+                hideTopNavbarOnNavigate
               />
             </aside>
           ) : undefined
@@ -177,7 +175,7 @@ export function NoteArticleReaderLayout({ note, isEditorialFlow = false }: NoteA
               <NoteMetaRow publishTime={note.publishTime} updateTime={note.updateTime} />
             </header>
 
-            <div className="prose prose-zinc max-w-none dark:prose-invert prose-headings:scroll-mt-[var(--top-header-height,60px)] prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-p:max-w-3xl prose-p:mx-auto">
+            <div className="prose prose-zinc max-w-none dark:prose-invert prose-headings:scroll-mt-[var(--sticky-head-top,0px)] prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-p:max-w-3xl prose-p:mx-auto">
               <ContentReader
                 contentLongtext={{ editorType: 'MARKDOWN', longtext: note.body }}
                 className="markdown-md-reader"

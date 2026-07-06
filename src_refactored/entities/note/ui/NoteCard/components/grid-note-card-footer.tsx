@@ -2,18 +2,28 @@
 import { Eye } from 'lucide-react'
 import { formatMetricCount } from '@shared/lib'
 import { resolveGridNoteSmartUpdateTime } from '../lib/grid-note-card-utils'
+import { GridNoteCardMoreMenu } from './grid-note-card-more-menu'
 
-// 02）网格笔记卡片底部组件（GridNoteCardFooter）
+// 02）网格笔记卡片底部 Props（GridNoteCardFooterProps）
+export interface GridNoteCardFooterProps {
+  views: number
+  publishTime: string
+  updateTime: string
+  showMoreMenu?: boolean
+  onNotInterestedInContent?: () => void
+  onNotInterestedInAuthor?: () => void
+}
+
+// 03）网格笔记卡片底部组件（GridNoteCardFooter）
 /**
  * 函数名：GridNoteCardFooter
- * 功能：展示网格笔记卡片底部浏览量与智能更新时间。
+ * 功能：展示网格笔记卡片底部浏览量、智能更新时间，可选 Footer 更多菜单。
  * 实现方法：
- * - 仅保留浏览量指标，去掉收藏/点赞等低频噪音字段
- * - 有修改时展示「修改于 + 日期」，未修改则展示相对时效
+ * - 左侧浏览量；右侧时间 + 纵向三点更多菜单（非 ProfileSpace 场景）
  * 输入：
- * - views：浏览量
- * - publishTime：发布时间
- * - updateTime：最近更新时间
+ * - views / publishTime / updateTime：展示数据
+ * - showMoreMenu：是否展示更多菜单
+ * - onNotInterestedInContent / onNotInterestedInAuthor：菜单回调
  * 输出：
  * - 返回值：React 节点
  * - 副作用：无
@@ -22,11 +32,10 @@ export function GridNoteCardFooter({
   views,
   publishTime,
   updateTime,
-}: {
-  views: number
-  publishTime: string
-  updateTime: string
-}) {
+  showMoreMenu = false,
+  onNotInterestedInContent,
+  onNotInterestedInAuthor,
+}: GridNoteCardFooterProps) {
   const smartTime = resolveGridNoteSmartUpdateTime(publishTime, updateTime)
 
   return (
@@ -37,9 +46,17 @@ export function GridNoteCardFooter({
           {formatMetricCount(views)}
         </span>
       </div>
-      <span className="grid-note-card__time">
-        {smartTime.kind === 'modified' ? `修改于 · ${smartTime.dateLabel}` : smartTime.label}
-      </span>
+      <div className="grid-note-card__footer-trailing">
+        <span className="grid-note-card__time">
+          {smartTime.kind === 'modified' ? `修改于 · ${smartTime.dateLabel}` : smartTime.label}
+        </span>
+        {showMoreMenu ? (
+          <GridNoteCardMoreMenu
+            onNotInterestedInContent={onNotInterestedInContent}
+            onNotInterestedInAuthor={onNotInterestedInAuthor}
+          />
+        ) : null}
+      </div>
     </div>
   )
 }

@@ -10,4 +10,6 @@ export { NoteEditorActionBar } from './note-editor-action-bar'
 export type { NoteEditorActionBarProps } from './note-editor-action-bar'
 
 export { NoteEditorMissingTypeFallback } from './note-editor-missing-type-fallback'
-export { NoteVideoEditorPlaceholder } from './note-video-editor-placeholder'
+
+export { NoteVideoEditorForm } from './note-video-editor-form'
+export type { NoteVideoEditorFormProps } from './note-video-editor-form'

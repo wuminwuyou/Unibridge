@@ -18,16 +18,19 @@ import { executeNoteEditorLocalPreview } from '../lib/noteEditorLocalPreview'
 import {
   executeNoteEditorSubmit,
   type NoteEditorSubmitCoverState,
+  type NoteEditorSubmitVideoState,
 } from '../lib/noteEditorSubmitOrchestrator'
 import { validateNoteEditorPreSubmit } from '../lib/noteEditorValidation'
 import type { NoteEditorFormDraft } from '../services/noteEditorService'
 import type { UploadCoverBeforeSubmitInput } from '../lib/noteCoverUploadUtils'
+import type { UploadVideoBeforeSubmitInput, UploadVideoBeforeSubmitResult } from '../lib/noteVideoUploadUtils'
 
 // 02）提交上下文（NoteEditorSubmitContext）
 export interface NoteEditorSubmitContext {
   draft: NoteEditorFormDraft
   bodyContent: ContentLongtext
   cover: NoteEditorSubmitCoverState
+  video?: NoteEditorSubmitVideoState
   noteUid: NoteResourceUid | null
 }
 
@@ -42,6 +45,9 @@ export type NoteEditorSubmitResultCallback = (
 export interface UseNoteEditorSubmitOptions {
   routeType: NoteEditorRouteType | null
   uploadCoverBeforeSubmit: (input: UploadCoverBeforeSubmitInput) => Promise<string | null>
+  uploadVideoBeforeSubmit?: (
+    input: UploadVideoBeforeSubmitInput,
+  ) => Promise<UploadVideoBeforeSubmitResult | null>
   onNoteUidChange?: (noteUid: NoteResourceUid) => void
   onPersistSession?: (session: Pick<NoteEditorSession, 'draft' | 'noteUid' | 'keepForRestore'>) => void
   onAllowNavigation?: () => void
@@ -164,9 +170,11 @@ export function useNoteEditorSubmit(options: UseNoteEditorSubmitOptions): UseNot
         const result = await executeNoteEditorSubmit({
           draft: context.draft,
           cover: context.cover,
+          video: context.video,
           noteUid: context.noteUid,
           publishAction,
           uploadCoverBeforeSubmit: options.uploadCoverBeforeSubmit,
+          uploadVideoBeforeSubmit: options.uploadVideoBeforeSubmit,
         })
 
         persistAfterSubmit(result.submitDraft, result.noteUid)

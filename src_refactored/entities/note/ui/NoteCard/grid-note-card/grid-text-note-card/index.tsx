@@ -4,7 +4,6 @@ import { memo } from 'react'
 import { resolveNoteDetailHref as buildNoteDetailHref } from '@shared/lib/noteRoutes'
 import {
   GridNoteCardFooter,
-  GridNoteCardMenuButton,
   NoteCardTags,
   type GridNoteCardNote,
 } from '../../components'
@@ -17,14 +16,25 @@ import './grid-text-note-card.css'
 
 export type GridTextNoteCardNote = GridNoteCardNote
 
-function GridTextNoteCard({ note, showAuthor = true }: { note: GridTextNoteCardNote; showAuthor?: boolean }) {
+function GridTextNoteCard({
+  note,
+  showAuthor = true,
+  showMoreMenu = false,
+  onNotInterestedInContent,
+  onNotInterestedInAuthor,
+}: {
+  note: GridTextNoteCardNote
+  showAuthor?: boolean
+  showMoreMenu?: boolean
+  onNotInterestedInContent?: () => void
+  onNotInterestedInAuthor?: () => void
+}) {
   const noteDetailPath = buildNoteDetailHref({ uid: note.uid, title: note.title, contentType: note.contentType })
   const authorText = showAuthor ? resolveGridNoteAuthorText(note) : ''
   const authorFallback = showAuthor ? resolveGridNoteAuthorFallback(note.authorNickname) : ''
 
   return (
     <Link className="grid-note-card grid-note-card--link grid-text-note-card" to={noteDetailPath}>
-      <GridNoteCardMenuButton />
       <div className="grid-text-note-card__main">
         <div className="grid-text-note-card__content">
           <div className="grid-text-note-card__core">
@@ -52,6 +62,9 @@ function GridTextNoteCard({ note, showAuthor = true }: { note: GridTextNoteCardN
           views={note.views}
           publishTime={note.publishTime}
           updateTime={note.updateTime}
+          showMoreMenu={showMoreMenu}
+          onNotInterestedInContent={onNotInterestedInContent}
+          onNotInterestedInAuthor={onNotInterestedInAuthor}
         />
       </div>
     </Link>

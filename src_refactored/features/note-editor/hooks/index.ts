@@ -14,3 +14,12 @@ export type {
   UseNoteEditorSubmitOptions,
   UseNoteEditorSubmitResult,
 } from './useNoteEditorSubmit'
+
+export { useNoteVideoUpload } from './useNoteVideoUpload'
+export type {
+  UseNoteVideoUploadOptions,
+  UseNoteVideoUploadResult,
+  NoteVideoSourceMode,
+  UploadVideoBeforeSubmitInput,
+  UploadVideoBeforeSubmitResult,
+} from './useNoteVideoUpload'

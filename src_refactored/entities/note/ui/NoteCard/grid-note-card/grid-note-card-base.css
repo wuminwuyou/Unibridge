@@ -98,29 +98,6 @@
   min-width: 0;
 }
 
-.grid-note-card__menu {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 2;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--grid-note-card-bg) 88%, #64748b 12%);
-  color: var(--grid-note-card-muted);
-  font-size: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.grid-note-card__menu:hover {
-  color: var(--grid-note-card-text);
-  background: color-mix(in srgb, var(--grid-note-card-bg) 72%, #64748b 28%);
-}
-
 .grid-note-card__title {
   margin: 0;
   font-size: var(--grid-note-card-title-size);
@@ -189,6 +166,21 @@
   min-width: 0;
 }
 
+.grid-note-card__footer-trailing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.grid-note-card__footer-trailing .grid-note-card__time {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .grid-note-card__stats {
   display: inline-flex;
   align-items: center;
@@ -242,6 +234,16 @@
     gap: 4px;
     max-height: 1.2rem;
   }
+}
+
+/* 07）多列混排网格：同行等高（grid-note-card-grid--equal-rows） */
+.grid-note-card-grid--equal-rows {
+  align-items: stretch;
+}
+
+.grid-note-card-grid--equal-rows > .grid-note-card {
+  height: 100%;
+  align-self: stretch;
 }
 
 @media (max-width: 640px) {

@@ -5,6 +5,7 @@ import type { NotePublishAction } from '@entities/note/model/types'
 import { submitNote, type NoteEditorFormDraft } from '../services/noteEditorService'
 import { validateNoteEditorDraft } from './noteEditorValidation'
 import type { NoteCoverUploadSource, UploadCoverBeforeSubmitInput } from './noteCoverUploadUtils'
+import type { UploadVideoBeforeSubmitInput, UploadVideoBeforeSubmitResult } from './noteVideoUploadUtils'
 
 // 02）提交时封面状态（NoteEditorSubmitCoverState）
 export interface NoteEditorSubmitCoverState {
@@ -14,13 +15,23 @@ export interface NoteEditorSubmitCoverState {
   persistedCoverUrl: string | null
 }
 
+// 02b）提交时视频状态（NoteEditorSubmitVideoState）
+export interface NoteEditorSubmitVideoState {
+  selectedFile: File | null
+  persistedVideoUrl: string | null
+}
+
 // 03）提交输入（NoteEditorSubmitInput）
 export interface NoteEditorSubmitInput {
   draft: NoteEditorFormDraft
   cover: NoteEditorSubmitCoverState
+  video?: NoteEditorSubmitVideoState
   noteUid: NoteResourceUid | null
   publishAction: NotePublishAction
   uploadCoverBeforeSubmit: (input: UploadCoverBeforeSubmitInput) => Promise<string | null>
+  uploadVideoBeforeSubmit?: (
+    input: UploadVideoBeforeSubmitInput,
+  ) => Promise<UploadVideoBeforeSubmitResult | null>
 }
 
 // 04）提交结果（NoteEditorSubmitResult）
@@ -45,6 +56,28 @@ export interface NoteEditorSubmitResult {
 export async function executeNoteEditorSubmit(
   input: NoteEditorSubmitInput,
 ): Promise<NoteEditorSubmitResult> {
+  let submitDraft: NoteEditorFormDraft = { ...input.draft }
+
+  if (submitDraft.contentType === '视频' && input.uploadVideoBeforeSubmit) {
+    const videoResult = await input.uploadVideoBeforeSubmit({
+      draftVideoUrl: submitDraft.videoUrl,
+      selectedFile: input.video?.selectedFile ?? null,
+      persistedVideoUrl: input.video?.persistedVideoUrl ?? null,
+      draftVideoDuration: submitDraft.videoDuration,
+    })
+
+    if (!videoResult?.videoUrl?.trim()) {
+      throw new NotesApiError(400, '请上传视频文件')
+    }
+
+    submitDraft = {
+      ...submitDraft,
+      videoUrl: videoResult.videoUrl,
+      videoDuration: videoResult.videoDuration || submitDraft.videoDuration,
+      coverUrl: submitDraft.coverUrl.trim() || videoResult.coverUrl || submitDraft.coverUrl,
+    }
+  }
+
   const coverUrl = await input.uploadCoverBeforeSubmit({
     source: input.cover.source,
     activePreviewUrl: input.cover.activePreviewUrl,
@@ -56,8 +89,8 @@ export async function executeNoteEditorSubmit(
     throw new NotesApiError(400, '请配置笔记封面')
   }
 
-  const submitDraft: NoteEditorFormDraft = {
-    ...input.draft,
+  submitDraft = {
+    ...submitDraft,
     coverUrl,
   }
 

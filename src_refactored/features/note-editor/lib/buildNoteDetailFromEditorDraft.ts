@@ -1,6 +1,7 @@
 // 01）由编辑表单构建详情预览载荷（buildNoteDetailFromEditorDraft / buildNoteVideoDetailFromEditorDraft）
 import type { ContentLongtext } from '@entities/editor/lib/contentLongtext'
 import { resolvePublishNoteSummary } from '@shared/lib/publishSummary'
+import { sanitizePlainTextInput } from '@shared/lib/sanitizeUserInput'
 import type { NoteEditorFormDraft } from '../services/noteEditorService'
 import type { NoteDetailPublishStatus } from '@entities/note/model/noteDetailCommon'
 import type {
@@ -75,7 +76,7 @@ export function buildNoteVideoDetailFromEditorDraft(
   return {
     contentType: '视频',
     title: draft.title.trim() || '未命名笔记',
-    body: draft.videoDescription.trim(),
+    body: sanitizePlainTextInput(draft.videoDescription).trim(),
     summary:
       resolvePublishNoteSummary(
         draft.summary,

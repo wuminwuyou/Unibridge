@@ -1,10 +1,17 @@
 // 01）发布表单自动摘要最大长度（PUBLISH_AUTO_SUMMARY_MAX_LENGTH）
-export const PUBLISH_AUTO_SUMMARY_MAX_LENGTH = 50
+import { sanitizePlainTextInput } from './sanitizeUserInput'
 
-// 02）Markdown 转纯文本（stripMarkdownToPlainText）
+/** 与 @features/note-editor NOTE_SUMMARY_MAX_LENGTH 保持一致 */
+export const PUBLISH_AUTO_SUMMARY_MAX_LENGTH = 200
+
+// 02）视频笔记无描述时的简介兜底（NOTE_VIDEO_EMPTY_DESCRIPTION_SUMMARY）
+/** 视频描述为空且未填写简介时，提交 API 使用的 summary 占位文案 */
+export const NOTE_VIDEO_EMPTY_DESCRIPTION_SUMMARY = '作者暂未填写视频描述'
+
+// 03）Markdown 转纯文本（stripMarkdownToPlainText）
 /**
  * 函数名：stripMarkdownToPlainText
- * 功能：去除 Markdown 语法符号，保留可读纯文本，供自动摘要提取使用。
+ * 功能：去除 Markdown 语法符号，保留可读纯文本，供图文笔记自动摘要提取使用。
  * 实现方法：
  * - 依次处理代码块、链接/图片、标题、引用、列表等常见语法
  * - 去除 HTML 标签与残留 Markdown 符号
@@ -44,17 +51,17 @@ export function stripMarkdownToPlainText(markdown: string): string {
     .trim()
 }
 
-// 03）判断是否为句界字符（isSentenceBoundaryChar）
+// 04）判断是否为句界字符（isSentenceBoundaryChar）
 function isSentenceBoundaryChar(char: string): boolean {
   return char === '。' || char === '.' || char === '\n'
 }
 
-// 04）将纯文本拆分为完整句子（splitPlainTextIntoSentences）
+// 05）将纯文本拆分为完整句子（splitPlainTextIntoSentences）
 /**
  * 函数名：splitPlainTextIntoSentences
  * 功能：按中文句号、英文句号与换行将纯文本拆成完整句子片段。
  * 输入：
- * - plainText：已去 Markdown 的纯文本
+ * - plainText：纯文本
  * 输出：
  * - 返回值：句子数组
  * - 副作用：无
@@ -82,7 +89,7 @@ function splitPlainTextIntoSentences(plainText: string): string[] {
   return sentences
 }
 
-// 05）在句界处截断超长文本（truncateAtSentenceBoundary）
+// 06）在句界处截断超长文本（truncateAtSentenceBoundary）
 /**
  * 函数名：truncateAtSentenceBoundary
  * 功能：将文本限制在 maxLength 内，优先在句界字符处截断以保持完整句意。
@@ -115,26 +122,20 @@ function truncateAtSentenceBoundary(text: string, maxLength: number): string {
   return slice.trim()
 }
 
-// 06）从 Markdown 内容提取自动摘要（extractAutoSummaryFromMarkdown）
+// 07）从纯文本内容提取自动摘要（extractAutoSummaryFromPlainTextContent）
 /**
- * 函数名：extractAutoSummaryFromMarkdown
- * 功能：过滤 Markdown 后按句连续拼接简介，最多 maxLength 字，在句界处截断。
- * 实现方法：
- * - 先 stripMarkdownToPlainText 得到纯文本
- * - 按 `。`、`.`、换行拆句
- * - 逐句累加直至达到字数上限；单句超长时在句界内截断
+ * 函数名：extractAutoSummaryFromPlainTextContent
+ * 功能：在已是纯文本的前提下按句拼接简介，最多 maxLength 字。
  * 输入：
- * - content：Markdown 正文
- * - maxLength：最大字符数，默认 50
+ * - plainText：纯文本（已消毒、已 trim）
+ * - maxLength：最大字符数
  * 输出：
  * - 返回值：自动摘要；无有效文字时为 ''
- * - 副作用：无
  */
-export function extractAutoSummaryFromMarkdown(
-  content: string,
-  maxLength = PUBLISH_AUTO_SUMMARY_MAX_LENGTH,
+function extractAutoSummaryFromPlainTextContent(
+  plainText: string,
+  maxLength: number,
 ): string {
-  const plainText = stripMarkdownToPlainText(content)
   if (!plainText) {
     return ''
   }
@@ -170,7 +171,46 @@ export function extractAutoSummaryFromMarkdown(
   return truncateAtSentenceBoundary(plainText, maxLength)
 }
 
-// 07）解析发布项目/图文笔记简介（resolvePublishSummary）
+// 08）从纯文本输入提取自动摘要（extractAutoSummaryFromPlainText）
+/**
+ * 函数名：extractAutoSummaryFromPlainText
+ * 功能：对 textarea 等纯文本字段提取简介（不做 Markdown 转换），并走 XSS 消毒接口。
+ * 实现方法：
+ * - sanitizePlainTextInput 预留 XSS 防御
+ * - 归一化换行后按句拼接，最多 maxLength 字
+ * 输入：
+ * - content：纯文本（如视频描述）
+ * - maxLength：最大字符数，默认 50
+ * 输出：
+ * - 返回值：自动摘要；无有效文字时为 ''
+ */
+export function extractAutoSummaryFromPlainText(
+  content: string,
+  maxLength = PUBLISH_AUTO_SUMMARY_MAX_LENGTH,
+): string {
+  const plainText = sanitizePlainTextInput(content).replace(/\r\n/g, '\n').trim()
+  return extractAutoSummaryFromPlainTextContent(plainText, maxLength)
+}
+
+// 09）从 Markdown 内容提取自动摘要（extractAutoSummaryFromMarkdown）
+/**
+ * 函数名：extractAutoSummaryFromMarkdown
+ * 功能：过滤 Markdown 后按句连续拼接简介，最多 maxLength 字，在句界处截断。
+ * 输入：
+ * - content：Markdown 正文
+ * - maxLength：最大字符数，默认 50
+ * 输出：
+ * - 返回值：自动摘要；无有效文字时为 ''
+ */
+export function extractAutoSummaryFromMarkdown(
+  content: string,
+  maxLength = PUBLISH_AUTO_SUMMARY_MAX_LENGTH,
+): string {
+  const plainText = stripMarkdownToPlainText(content)
+  return extractAutoSummaryFromPlainTextContent(plainText, maxLength)
+}
+
+// 10）解析发布项目/图文笔记简介（resolvePublishSummary）
 /**
  * 函数名：resolvePublishSummary
  * 功能：优先使用用户填写的简介；为空时从 Markdown 正文按句自动提取（最多 50 字）。
@@ -179,10 +219,9 @@ export function extractAutoSummaryFromMarkdown(
  * - contentMarkdown：Markdown 正文（项目需求说明或图文笔记正文）
  * 输出：
  * - 返回值：最终简介字符串
- * - 副作用：无
  */
 export function resolvePublishSummary(manualSummary: string, contentMarkdown: string): string {
-  const trimmedSummary = manualSummary.trim()
+  const trimmedSummary = sanitizePlainTextInput(manualSummary).trim()
   if (trimmedSummary) {
     return trimmedSummary
   }
@@ -190,22 +229,21 @@ export function resolvePublishSummary(manualSummary: string, contentMarkdown: st
   return extractAutoSummaryFromMarkdown(contentMarkdown)
 }
 
-// 08）解析发布笔记简介（resolvePublishNoteSummary）
+// 11）解析发布笔记简介（resolvePublishNoteSummary）
 /**
  * 函数名：resolvePublishNoteSummary
- * 功能：解析笔记简介；图文笔记可从正文自动提取，视频笔记简介可选。
+ * 功能：解析笔记简介；图文从 Markdown 提取，视频从纯文本描述提取或使用兜底文案。
  * 实现方法：
- * - 已填写简介时直接使用
+ * - 已填写简介时直接使用（经 XSS 消毒）
  * - 图文笔记从 Markdown 正文按句提取
- * - 视频笔记仅从视频简介字段按句提取（不强制）
+ * - 视频笔记从纯文本视频描述按句提取；均为空时使用 NOTE_VIDEO_EMPTY_DESCRIPTION_SUMMARY
  * 输入：
  * - manualSummary：表单简介字段
  * - contentType：笔记内容类型
  * - bodyMarkdown：图文正文 Markdown
- * - videoDescription：视频简介文本
+ * - videoDescription：视频描述纯文本
  * 输出：
- * - 返回值：最终简介字符串（可为空）
- * - 副作用：无
+ * - 返回值：最终简介字符串（视频笔记在无描述时不为空）
  */
 export function resolvePublishNoteSummary(
   manualSummary: string,
@@ -213,13 +251,14 @@ export function resolvePublishNoteSummary(
   bodyMarkdown: string,
   videoDescription: string,
 ): string {
-  const trimmedSummary = manualSummary.trim()
+  const trimmedSummary = sanitizePlainTextInput(manualSummary).trim()
   if (trimmedSummary) {
     return trimmedSummary
   }
 
   if (contentType === '视频') {
-    return extractAutoSummaryFromMarkdown(videoDescription)
+    const fromVideoDescription = extractAutoSummaryFromPlainText(videoDescription)
+    return fromVideoDescription || NOTE_VIDEO_EMPTY_DESCRIPTION_SUMMARY
   }
 
   return extractAutoSummaryFromMarkdown(bodyMarkdown)

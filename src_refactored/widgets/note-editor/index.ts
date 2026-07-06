@@ -11,7 +11,7 @@ export {
   NoteArticleEditorForm,
   NoteEditorActionBar,
   NoteEditorMissingTypeFallback,
-  NoteVideoEditorPlaceholder,
+  NoteVideoEditorForm,
 } from './components'
 
 export { mapNoteDetailToEditorDraft } from './lib/mapNoteDetailToEditorDraft'

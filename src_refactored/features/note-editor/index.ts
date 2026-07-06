@@ -38,16 +38,27 @@ export {
 // Lib — 表单校验
 export { validateNoteEditorDraft, validateNoteEditorDraftForLocalPreview, validateNoteEditorPreSubmit } from './lib/noteEditorValidation'
 
+// Lib — 视频上传工具
+export { NOTE_VIDEO_ACCEPT } from './lib/noteVideoUploadUtils'
+
 // Lib — 返回编辑路径
 export { resolveNoteEditorReturnPath } from './lib/resolveNoteEditorReturnPath'
 
 // Constants
 export { suggestedNoteTags } from './constants/suggestedNoteTags'
+export {
+  NOTE_ARTICLE_BODY_MAX_LENGTH,
+  NOTE_SUMMARY_MAX_LENGTH,
+  NOTE_TAG_MAX_COUNT,
+  NOTE_TAG_MAX_LENGTH,
+  NOTE_TITLE_MAX_LENGTH,
+} from './constants/noteEditorFieldLimits'
 
 // Hooks — 封面上传 / 提交
 export {
   useNoteCoverUpload,
   useNoteEditorSubmit,
+  useNoteVideoUpload,
   isRemoteAssetUrl,
   resolvePreviewUrlBlob,
 } from './hooks'
@@ -59,4 +70,9 @@ export type {
   NoteEditorSubmitContext,
   UseNoteEditorSubmitOptions,
   UseNoteEditorSubmitResult,
+  UseNoteVideoUploadOptions,
+  UseNoteVideoUploadResult,
+  NoteVideoSourceMode,
+  UploadVideoBeforeSubmitInput,
+  UploadVideoBeforeSubmitResult,
 } from './hooks'

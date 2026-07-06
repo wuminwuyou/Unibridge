@@ -47,10 +47,12 @@ export function VideoPlayer({ videoUrl, posterUrl, className }: VideoPlayerProps
       return
     }
 
+    const trimmedPoster = posterUrl?.trim()
+
     const art = new Artplayer({
       container,
       url: trimmedUrl,
-      poster: posterUrl ?? undefined,
+      ...(trimmedPoster ? { poster: trimmedPoster } : {}),
       autoplay: false,
       autoSize: false,
       autoMini: false,
