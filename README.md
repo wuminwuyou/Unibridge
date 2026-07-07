@@ -2,7 +2,21 @@
 
 UniBridge（产学研合作平台）后端服务。基于 **Spring Boot 3.5.x + Java 21 + MyBatis Plus + MySQL 8.x**，提供管理端与用户/主体端的 RESTful API。
 
-> 接口契约：[`API.md`](./API.md)（主文档）、[`API-1.md`](./API-1.md)（增量变更）。
+> 接口契约：[`API.md`](./API.md)（主文档）、[`API-1.md`](./API-1.md)（增量变更：项目详情 `owner`、笔记卡片 Footer 等）。
+
+---
+
+## 近期更新（2026-07）
+
+| 类别 | 内容 |
+|------|------|
+| **Redis 接入** | 验证码 / Challenge / RefreshToken 存 Redis；Feed 缓存走 `RedissonSpringCacheManager`；笔记与项目计数热写 Redis（`FeedCounterService`）；Redisson 分布式锁用于 Token 刷新 |
+| **验证码限流** | `RateLimitService`：账户 / IP / 全局三层 Lua 滑动窗口；超限 HTTP **429**（`application.properties` 可配置） |
+| **认证状态** | `UserVerificationService` 统一三级状态（`unverified` / `identity_only` / `verified`）；项目正式发布须实名 + 机构审核通过 |
+| **项目详情** | `GET /projects/{uid}` 响应新增 `owner`（昵称、头像、`careerData`、机构、地区） |
+| **笔记卡片** | Feed / 空间列表统一返回 `updateTime` + `authorNickname`；卡片层不再序列化 `likes` / `comments` / `favorites` |
+| **表拆分** | 项目正文 `t_project_body`、计数 `t_project_counter`；笔记正文 `t_user_note_detail`、计数 `t_user_note_counter` |
+| **MyBatis-Plus** | `MybatisPlusConfig` 动态表名：`@TableName` 写裸表名，拦截器自动补 `t_` / 透传 `sys_` / `p_` |
 
 ---
 
@@ -77,8 +91,8 @@ src/main/java/com/unibridge/backend/
 | **机构空间** | 机构页壳、home、实验室/人员/分页 | `/api/v1/client/entity-profile/**` |
 | **Feed 推荐 feed** | 首页个性化推送；专区推送（项目/笔记分栏）；换一换（机制 A 分页缓存 / 机制 B `seed` 洗牌）；相似笔记；行为埋点加权 | `/api/v1/client/feed/**` |
 | **互动 interaction** | 点赞/收藏 toggle；播放/阅读计数同步；Feed 缓存失效 | `/api/v1/client/interactions/**` |
-| **公共能力** | 双 UID 解析；JWT 可选/必选解析；卡片组装（作者/发布主体） | 各 Service 内部 / `application/shared` |
-| **基础设施** | IP 属地（ip2region）；请求日志；本地文件上传；上传安全；Spring Cache | `/uploads/**`、`/api/v1/client/uploads/**` |
+| **公共能力** | 双 UID 解析；JWT 可选/必选解析；卡片组装（作者/发布主体）；三级认证状态；验证码 Redis 限流 | 各 Service / `application/shared` |
+| **基础设施** | IP 属地（ip2region）；请求日志；本地文件上传；上传安全；Redis 缓存 + 计数器 | `/uploads/**`、`/api/v1/client/uploads/**` |
 
 同步迁移至新架构、但**不在旧 client 包内**的模块：
 
@@ -255,6 +269,7 @@ http://localhost:8081
 | `Port 8081 was already in use` | 旧 Java 进程未退出 | `netstat -ano \| findstr :8081` → `Stop-Process -Id <PID> -Force` |
 | Maven `exit code: 1` | 重复启动或编译错误 | 检查编译日志，确认 `.\mvnw.cmd compile` 通过后再 `spring-boot:run` |
 | 数据库连接失败 | MySQL 未启动或密码/库名不符 | 检查 `application-dev.properties` |
+| Redis 连接失败 | Redis 未启动或密码不符 | 确认 `6379` 可访问；Docker 场景先 `docker compose up -d` |
 | `Unknown column 'xxx'` | 数据库 Schema 版本与代码不匹配 | 运行 `.\init-db.ps1` 重新初始化 |
 
 ---
@@ -266,10 +281,12 @@ http://localhost:8081
 | 语言 | Java | 21 |
 | 框架 | Spring Boot | 3.5.13 |
 | Web | spring-boot-starter-web | 跟随 Boot |
-| 缓存 | spring-boot-starter-cache（ConcurrentMap） | 跟随 Boot |
+| 缓存 | spring-boot-starter-cache + **Redisson** | Redisson **3.40.2** |
+| Redis | spring-boot-starter-data-redis（Lettuce + commons-pool2） | Redis **7.x** |
 | ORM | MyBatis Plus (Boot3 Starter) | 3.5.15 |
 | 数据库 | MySQL | 8.x（`mysql-connector-j`） |
 | 鉴权 | JJWT | 0.11.5 |
+| TOTP | dev.samstevens.totp | 1.7.1 |
 | HTML 安全 | Jsoup（XSS 清洗） | 1.22.2 |
 | ID 生成 | jnanoid | 2.0.0 |
 | IP 属地 | ip2region（离线 xdb） | 3.3.7 |
@@ -290,14 +307,17 @@ src/main/java/com/unibridge/backend/
 │   └── shared/
 │       ├── dto/
 │       │   ├── ProfileProjectItem.java         # 项目卡片 VO（跨域共用）
-│       │   └── ProfileNoteItem.java            # 笔记卡片 VO（跨域共用）
-│       └── ContentUidResolver.java             # UID ↔ 自增 ID 互转
+│       │   └── ProfileNoteItem.java            # 笔记卡片 VO（跨域共用；含 updateTime / authorNickname）
+│       ├── ContentUidResolver.java             # UID ↔ 自增 ID 互转
+│       ├── UserVerificationService.java        # 三级认证状态（verified / identity_only / unverified）
+│       ├── RateLimitService.java               # 验证码发放 Redis 三层限流
+│       └── CareerDataParser.java               # p_user_profile.career_data JSON 解析
 │
 ├── domain/                                     # 【领域层】按业务垂直切片
 │   │
 │   ├── auth/                                   # 用户端认证（/api/v1/client/auth）
 │   │   ├── AuthController.java
-│   │   ├── AuthService.java                    # 注册、多方式登录、OTP、Token 刷新
+│   │   ├── AuthService.java                    # 注册、多方式登录、OTP；验证码/Token 存 Redis
 │   │   ├── AccessService.java                  # JWT Bearer 解析
 │   │   ├── EntityAdminCredentialService.java   # 机构管理员凭证校验
 │   │   └── dto/
@@ -343,6 +363,7 @@ src/main/java/com/unibridge/backend/
 │   │   ├── FeedController.java
 │   │   ├── FeedRecommendationService.java      # 打分、shuffle、相似笔记
 │   │   ├── FeedShuffleCacheService.java
+│   │   ├── FeedCounterService.java             # 笔记/项目计数 Redis 热写 + MySQL 快照
 │   │   ├── FeedBehaviorService.java            # 行为埋点
 │   │   └── dto/
 │   │
@@ -366,9 +387,9 @@ src/main/java/com/unibridge/backend/
     │   ├── verification/                         # VerificationCode, ApprovalFlow
     │   ├── compliance/                           # PolicyConfig, PersonalInfoConsent
     │   ├── team/                                 # Team, TeamMember
-    │   ├── project/                              # Project, ProjectSecret
+    │   ├── project/                              # Project, ProjectSecret, ProjectBody, ProjectCounter
     │   ├── im/                                   # ProjectMilestone, ProjectTaskCard（依附于 IM 即时通讯系统）
-    │   ├── note/                                 # Note
+    │   ├── note/                                 # Note, NoteDetail, NoteCounter
     │   ├── interaction/                          # UserInterestTag, UserInteraction, Achievement
     │   └── infra/                                # DataEncryptionKey, CreditProfile, CreditLog, FileRecord
     │
@@ -379,8 +400,8 @@ src/main/java/com/unibridge/backend/
     │   └── ...
     │
     ├── media/                                    # 本地文件上传
-    ├── config/                                   # CORS、OpenAPI、Cache、Upload、IP 配置
-    ├── common/                                   # Result、BusinessException、GlobalExceptionHandler
+    ├── config/                                   # CORS、OpenAPI、Redis、MybatisPlus、Upload、IP 配置
+    ├── common/                                   # Result、BusinessException、GlobalExceptionHandler（含 429 限流）
     ├── security/                                 # XSS 清洗、上传安全
     └── util/                                     # JwtUtil、IpUtil、Uid 生成器
 ```
@@ -391,7 +412,8 @@ src/main/java/com/unibridge/backend/
 2. **禁止循环依赖**：通过 `@Lazy` 注入或 `application/shared` 公共层打破。
 3. **事务边界**：写操作使用 `@Transactional(rollbackFor = Exception.class)`。
 4. **缓存一致性**：note/project 发布时 `@CacheEvict` 清理 Feed cache；互动 toggle 同步失效。
-5. **安全响应**：底层异常对外统一模糊话术（`GlobalExceptionHandler`）。
+5. **安全响应**：底层异常对外统一模糊话术（`GlobalExceptionHandler`）；验证码限流返回 429。
+6. **表名规范**：Entity `@TableName` 使用裸表名（如 `project_body`），由 `MybatisPlusConfig` 动态补 `t_` 前缀。
 
 ---
 
@@ -452,6 +474,14 @@ mybatis-plus.global-config.db-config.id-type=auto
 springdoc.api-docs.path=/v3/api-docs
 springdoc.swagger-ui.path=/swagger-ui.html
 springdoc.packages-to-scan=com.unibridge.backend
+
+# 验证码发放限流（Redis Lua 滑动窗口）
+auth.ratelimit.account.max=5
+auth.ratelimit.account.window-sec=600
+auth.ratelimit.ip.max=10
+auth.ratelimit.ip.window-sec=600
+auth.ratelimit.global.max=100
+auth.ratelimit.global.window-sec=60
 ```
 
 ### 开发环境（`application-dev.properties`）
@@ -460,7 +490,23 @@ springdoc.packages-to-scan=com.unibridge.backend
 spring.datasource.url=jdbc:mysql://localhost:3306/project_cooperation_platform?...
 spring.datasource.username=root
 spring.datasource.password=111111
+
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+spring.data.redis.password=f31ae273df314d
+spring.data.redis.database=0
 ```
+
+### Redis 用途速查
+
+| Key 前缀 / Cache | 用途 |
+|------------------|------|
+| `auth:code:` | 短信/邮箱验证码（TTL 300s） |
+| `auth:code:retry:` | 验证码冷却期（60s） |
+| `auth:ratelimit:*` | 验证码发放三层限流计数 |
+| `auth:challenge:` / `auth:refresh:` / `auth:revoked:` | 机构登录 Challenge、Refresh Token、吊销列表 |
+| `home_feed` / `note_feed` / `project_feed` / `similar_notes` | Feed 推荐结果（Redisson Cache） |
+| `note:cnt:` / `proj:cnt:` | 笔记/项目浏览、点赞、收藏计数热写 |
 
 ### 生产环境（`application-prod.properties`）
 
@@ -493,13 +539,19 @@ file:
 
 ### 认证状态
 
-Menu API（`/client/user-profile/menu`）返回三级认证状态：
+由 `UserVerificationService` 统一判定，Menu API（`/client/user-profile/menu`）返回：
 
 | 状态 | 含义 |
 |------|------|
 | `unverified` | `t_user_identity.verified_at` 为空 |
 | `identity_only` | `verified_at` 非空但无 APPROVED 机构认证 |
-| `verified` | `verified_at` 非空 + `user_auth_link` 已审批且活跃 |
+| `verified` | `verified_at` 非空 + `t_user_organization_binding` 已审批且 `is_active=1` |
+
+**项目正式发布**（`publishAction=PUBLISH`）须达到 `verified`（实名 + 机构审核通过）；保存草稿不受此限。
+
+### 验证码限流
+
+`POST /auth/personal/sms/send` 触发三层 Redis 限流，超限返回 **429**。阈值见 `application.properties` 中 `auth.ratelimit.*`。
 
 ---
 
@@ -520,7 +572,9 @@ Menu API（`/client/user-profile/menu`）返回三级认证状态：
 | 文件 | 说明 |
 | --- | --- |
 | [`API.md`](./API.md) | 主接口契约 |
-| [`API-1.md`](./API-1.md) | 增量 API（TeamView、Feed 字段等） |
+| [`API-1.md`](./API-1.md) | 增量 API（项目详情 `owner`、笔记卡片 `updateTime` 等） |
+| [`TOFIX-ERROR.md`](./TOFIX-ERROR.md) | 已知问题与修复检查清单 |
+| [`TODO.md`](./TODO.md) | 待办跟踪 |
 | [`db.sql`](./db.sql) | 建表脚本（含安全/合规/金融/审计全表） |
 | [`db-security-improvement.sql`](./db-security-improvement.sql) | 安全模块独立 DDL（t_user_identity / sys_policy_config / sys_personal_info_consent / sys_data_encryption_keys） |
 | [`migrate-realname-and-idcard.sql`](./migrate-realname-and-idcard.sql) | 数据迁移脚本（user_profile.real_name → t_user_identity） |
@@ -531,28 +585,26 @@ Menu API（`/client/user-profile/menu`）返回三级认证状态：
 
 ---
 
-## 并发安全与数据库优化
+## 并发安全与 Redis
 
-### 已完成：应用层并发安全修复
+### 已完成
 
-| # | 文件 | 风险 | 修复方式 |
-|---|------|------|----------|
-| 1 | `AuthService.registerPersonal` | TOCTOU：重复注册 | `DuplicateKeyException` + `uk_user_phone` |
-| 2-8 | `AuthService` 多方法 | 冷却期竞态 / 验证码重放 / Token 竞态 / 内存无限增长 | `compute()` / `remove(key,value)` / `@Scheduled` 清理 |
-| 9 | `NoteService.incrementViewCount` | 丢失更新 | `SET view_count = COALESCE(view_count,0)+1` |
-| 10-13 | `InteractionService` 多方法 | 读-改-写丢失 / TOCTOU | 原子 SQL / `DuplicateKeyException` |
-| 14 | `FeedBehaviorService` | TOCTOU + 丢失更新 | 原子加法 + `uk_user_tag` |
-| 15-17 | Project / Admin / Team | TOCTOU / 全字段覆盖 | 唯一约束兜底 / 单字段更新 |
+| # | 模块 | 说明 |
+|---|------|------|
+| 1 | `AuthService` | 验证码 / Challenge / RefreshToken 迁移 Redis；Redisson 分布式锁刷新 Token |
+| 2 | `RateLimitService` | 验证码发放三层 Lua 限流（账户 / IP / 全局） |
+| 3 | `CacheConfig` + `RedisConfig` | Feed 缓存 `RedissonSpringCacheManager`；启动清 Feed 缓存池 |
+| 4 | `FeedCounterService` | 笔记/项目计数 Redis 热写，MySQL 定期快照 |
+| 5 | 注册 / 互动 / 行为 | 唯一约束兜底、原子 SQL、`DuplicateKeyException` 等（见历史修复表） |
 
 ### 待推进
 
 | # | 优化项 | 优先级 | 说明 |
 |---|--------|--------|------|
 | ARC-1 | JWT 密钥外部化 | 高 | 迁移至环境变量 / Vault |
-| ARC-2 | Spring Cache → Redis | 中 | `CacheConfig` 替换 Manager，domain 零改动 |
-| ARC-3 | 内存缓存 → Redis | 中 | 支持多实例部署 |
-| ARC-4 | 分布式锁 | 低 | `refreshAccessToken` 的 `synchronized` 仅保单实例 |
-| ARC-5 | 幂等 Token | 低 | 防网络重试重复操作 |
+| ARC-2 | 计数器定时落库 | 中 | Redis → MySQL 批量快照任务 |
+| ARC-3 | 数据库角色权限 | 中 | 生产环境避免统一 root |
+| ARC-4 | 上传安全联调验证 | 中 | 代码已有，待端到端验证 |
 
 ---
 
@@ -560,9 +612,13 @@ Menu API（`/client/user-profile/menu`）返回三级认证状态：
 
 - [x] `real_name` / `id_card_no` PII 迁移至 `t_user_identity`（2026-06）
 - [x] `current_entity_name` 移除，改用 `user_auth_link` 关联查询（2026-06）
+- [x] Redis 接入：验证码、Feed 缓存、计数器、分布式锁（2026-07）
+- [x] 验证码发放三层限流（2026-07）
+- [x] `UserVerificationService` 统一认证状态；项目发布权限校验（2026-07）
+- [x] 项目详情 `owner` 字段；笔记卡片 `updateTime` Footer 精简（2026-07）
 - [ ] 插入 `t_user_identity.verified_at` 测试数据以验证三级认证状态
 - [ ] 验证新架构稳定后删除 `com/example/demo/client` 快照目录
 - [ ] JWT 密钥外部化（环境变量 / Vault）
-- [ ] Spring Cache 迁移至 Redis
+- [ ] 计数器 Redis → MySQL 定时快照任务
 - [ ] 补充 Feed / Note / Project / TeamProfile 接口集成测试
-- [ ] 前端 TeamView 对接 `/team-profile/*`
+- [ ] 文件上传安全端到端验证

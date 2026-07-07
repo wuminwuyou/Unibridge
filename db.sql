@@ -40,6 +40,7 @@ DROP TABLE IF EXISTS laboratory;
 DROP TABLE IF EXISTS t_user_identity;
 DROP TABLE IF EXISTS t_user_identity;
 DROP TABLE IF EXISTS sys_data_encryption_keys;
+DROP TABLE IF EXISTS sys_asymmetric_keys;
 DROP TABLE IF EXISTS sys_policy_config;
 DROP TABLE IF EXISTS user_real_name;
 DROP TABLE IF EXISTS sys_personal_info_consent;
@@ -207,7 +208,7 @@ CREATE TABLE IF NOT EXISTS p_user_profile (
   nick_name VARCHAR(128) NULL COMMENT '用户昵称',
   -- real_name 已迁移至独立安全表 t_user_identity（实名信息独立加密存储，PIPL 合规）
   avatar_url VARCHAR(255) NULL COMMENT '头像访问 URL',
-  level VARCHAR(16) NULL COMMENT '用户等级：N | R | SR | SSR | UR',
+  level VARCHAR(16) NULL COMMENT '用户能力等级：S | A | B | C | D | E（从高到低）',
   bio_data JSON NULL COMMENT '技术栈/兴趣标签（JSON 格式：["Java", "React"]）',
   career_data JSON NULL COMMENT '职业/学籍背景数据结构',
   -- 学生学籍（role=STUDENT 时 graduation_year 必填，由应用层校验；导师/PM 可为 NULL）
@@ -586,12 +587,11 @@ CREATE TABLE t_project (
   title VARCHAR(255) NOT NULL COMMENT '项目名称',
   preview TEXT NOT NULL COMMENT '项目简略描述',
   editor_type VARCHAR(32) NOT NULL DEFAULT 'MARKDOWN' COMMENT '编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前前端统一 Milkdown）',
-  budget DECIMAL(18,2) NULL COMMENT '项目预算/赏金（公开字段，非敏感）',
+  budget VARCHAR(64) NULL COMMENT '项目预算/赏金区间（公开字段，如"10000 - 20000"或"面议"）',
   tags JSON NULL COMMENT '推荐与算法标签列表',
   duration VARCHAR(64) NULL COMMENT '预计周期',
-  team_size VARCHAR(64) NULL COMMENT '团队人数',
   deadline DATE NULL COMMENT '最大接受截止日期（项目招募最大容忍度，逼近或超过该日期则加急处理）',
-  level VARCHAR(16) NOT NULL DEFAULT 'N' COMMENT '难度评级：N | R | SR | SSR | UR',
+  level VARCHAR(16) NOT NULL DEFAULT 'E' COMMENT '项目难度评级：S | A | B | C | D | E（从高到低）',
   -- 基础状态：DRAFT(草稿) | OPEN(开放中/招募中) | ONGOING(进行中) | CLOSED(已关闭/已结项)
   status VARCHAR(16) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT | OPEN | ONGOING | CLOSED',
   published_at DATETIME NULL COMMENT '正式发布时间；草稿为 NULL',
@@ -605,6 +605,7 @@ CREATE TABLE t_project (
   KEY idx_project_team_uid (team_uid),
   KEY idx_project_published_at (published_at),
   KEY idx_project_status (status),
+  KEY idx_feed_flow (category, status, published_at DESC) COMMENT 'Feed 流极速翻页：WHERE category=? AND status=? ORDER BY published_at DESC',
   CONSTRAINT fk_project_owner FOREIGN KEY (owner_uid) REFERENCES t_user(user_uid)
     ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_project_team FOREIGN KEY (team_uid) REFERENCES t_team(team_uid)
@@ -613,7 +614,7 @@ CREATE TABLE t_project (
   CONSTRAINT chk_proj_uid CHECK (project_uid REGEXP '^PR[A-Za-z0-9]{11}$'),
   CONSTRAINT chk_proj_recruit_type CHECK (recruitment_type IN ('LAB_RECRUIT', 'TEAM_RECRUIT', 'CAMPUS_PRACTICE', 'PERSONAL_RECRUIT')),
   CONSTRAINT chk_proj_status CHECK (status IN ('DRAFT', 'OPEN', 'ONGOING', 'CLOSED')),
-  CONSTRAINT chk_proj_level CHECK (level IN ('N','R','SR','SSR','UR')),
+  CONSTRAINT chk_proj_level CHECK (level IN ('S','A','B','C','D','E')),
   CONSTRAINT chk_proj_editor_type CHECK (editor_type IN ('MARKDOWN', 'RICHTEXT'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -626,6 +627,9 @@ CREATE TABLE t_project_secret (
   project_uid CHAR(13) NOT NULL COMMENT '关联的主项目 UID（1:1 关联）',
   -- 核心敏感数据：托管金额
   total_budget DECIMAL(18,2) NOT NULL DEFAULT 0.00 COMMENT '托管总额（企业隐私，严禁泄露）',
+  -- 项目详情描述：非对称加密存储（RSA-2048-OAEP / EC-P256-ECDH），仅提供计算难度等级与审查时使用，不可解密查看
+  encrypted_description MEDIUMTEXT NULL COMMENT '项目详情描述密文（RSA-2048-OAEP 或 EC-P256-ECDH 加密，Base64编码。格式：iv:encrypted_symmetric_key:ciphertext:auth_tag。原文为 Markdown/纯文本，≤5000 字）',
+  description_key_id CHAR(36) NULL COMMENT '加密所用的非对称密钥 UUID（关联 sys_asymmetric_keys.key_id）。解密时根据此 ID 查找对应私钥',
   -- 商业专用高级状态机：主表 status='ONGOING' 时激活
   commercial_status VARCHAR(64) NOT NULL DEFAULT 'PENDING_START' 
     COMMENT '商业专用状态机：PENDING_START(待托管开工) | PROCESSING(研发进行中) | SUBMIT_REVIEW(验收审核中) | NEED_IMPROVEMENT(待改进) | APPROVED_SUCCESS(验收通过) | IN_DISPUTE(争议维权中) | ARBITRATED(平台仲裁结项)',
@@ -633,6 +637,7 @@ CREATE TABLE t_project_secret (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (project_uid),
   KEY idx_secret_commercial_status (commercial_status),
+  KEY idx_secret_description_key (description_key_id),
   CONSTRAINT fk_secret_project_uid FOREIGN KEY (project_uid) REFERENCES t_project(project_uid)
     ON DELETE CASCADE ON UPDATE CASCADE,  
   CONSTRAINT chk_psec_comm_status CHECK (
@@ -653,7 +658,7 @@ CREATE TABLE t_project_secret (
 CREATE TABLE t_project_body (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   project_uid CHAR(13) NOT NULL COMMENT '关联的主项目 UID（1:1 关联）',
-  description TEXT NULL COMMENT '项目详情正文（Markdown，前端 Milkdown 渲染，≤2000 字）',
+  description TEXT NULL COMMENT '项目需求详情正文（Markdown格式渲染，≤2000 字）',
   PRIMARY KEY (id),
   UNIQUE KEY uk_proj_body_uid (project_uid),
   CONSTRAINT fk_proj_body_uid FOREIGN KEY (project_uid) REFERENCES t_project(project_uid)
@@ -925,7 +930,99 @@ CREATE TABLE sys_data_encryption_keys (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
   COMMENT='数据加密密钥管理表（《密码法》+密评3级+分层信封加密+国密兼容+全生命周期审计）';
 
--- 11.2 用户信用档案（sys_credit_profiles + sys_credit_logs）
+-- 11.2 非对称密钥管理表（sys_asymmetric_keys：RSA/EC 公私钥对管理）
+-- 《密码法》第24条 + 商用密码应用安全性评估（密评3级） + GB/T 32918（SM2） / FIPS 186-5（ECDSA）
+-- + 《数据安全法》第27条（重要数据加密存储）
+--
+-- 设计目标：
+--   本表为平台非对称加密体系的核心密钥管理表，存储 RSA/EC 密钥对的公钥明文、
+--   私钥经 DEK 信封加密后的密文，以及完整的密钥生命周期状态机。
+--   与 sys_data_encryption_keys（对称 DEK 管理）形成互补，共同构建平台双密钥体系。
+--
+-- 使用场景：
+--   1. 商业项目敏感描述字段（t_project_secret.encrypted_description）：
+--      企业 PM 发布商业项目时，使用对应客户的 RSA 公钥加密详情描述；
+--      客户需使用其 RSA 私钥解密查看完整项目需求。
+--   2. 未来拓展：合同签署、报价单、私有通讯等敏感数据的端到端非对称加密。
+--
+-- 密钥层级：
+--   sys_asymmetric_keys（本表）
+--     ├── public_key（公钥明文，分发至加密方）
+--     └── encrypted_private_key（私钥密文，经 sys_data_encryption_keys DEK 信封加密）
+--          └── 解密路径：DEK UUID → sys_data_encryption_keys.encrypted_key
+--               → KMS/HSM 解包 DEK → 解密 private_key
+--
+-- 算法兼容性（通过 algorithm 字段实现多算法共存）：
+--   RSA-2048-OAEP（当前默认，FIPS 140-2 认证）
+--   RSA-4096-OAEP（高安全等级场景）
+--   EC-P256-ECDH（轻量级，移动端友好）
+--   SM2-ECIES（国密，《密码法》合规，密评强制要求）
+--
+-- 密钥生命周期状态机（严格单向不可逆）：
+--   INITIALIZED(已生成未激活、公钥已入库、私钥已加密) → ACTIVE(使用中、公钥可分发)
+--        → ROTATED(已过期、公钥不可再分发、私钥仅解密历史数据) → REVOKED(已吊销)
+--
+--   | 状态         | 公钥可见 | 私钥解密 | 加密新数据 | 是否可物理删除 |
+--   |-------------|---------|---------|-----------|---------------|
+--   | INITIALIZED  | YES     | NO      | NO        | YES（未使用）  |
+--   | ACTIVE       | YES     | YES     | YES       | 绝对禁止       |
+--   | ROTATED      | YES     | YES     | NO        | 绝对禁止       |
+--   | REVOKED      | NO      | NO      | NO        | 审计满3年后    |
+--
+-- 关键约束（应用层 enforce）：
+--   · 同 key_type 同时最多存在 1 个 ACTIVE 和 1 个 INITIALIZED
+--   · 仅 ACTIVE 态密钥的公钥可对外分发（t_project_secret.encrypted_description 加密）
+--   · ROTATED → REVOKED 变更前须确认全库无数据行仍引用此 key_id
+--   · REVOKED 密钥至少保留 3 年再物理清理（等保审计要求）
+--   · 私钥解密操作需写入审计日志（操作人、时间、项目、访问 IP 加盐哈希）
+CREATE TABLE sys_asymmetric_keys (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  -- 密钥标识
+  key_id CHAR(36) NOT NULL COMMENT '密钥全局唯一标识（UUID v7 格式，如 018f3a7e-9b3c-7412-a1b2-c3d4e5f6a7b8）。由应用层生成，内置时间戳保证全局有序+无碰撞',
+  key_version INT UNSIGNED NOT NULL DEFAULT 1 COMMENT '同 key_id 的密钥版本号（递增正整数，表示当前实例的代数）。轮转时 key_id 不变，key_version += 1',
+  key_type VARCHAR(32) NOT NULL COMMENT '密钥用途分类：PROJECT_DESCRIPTION（项目详情描述加密）、CONTRACT（合同签署）、PRIVATE_COMM（私有通讯）',
+  -- 算法协商
+  algorithm VARCHAR(32) NOT NULL DEFAULT 'RSA-2048-OAEP' COMMENT '非对称加密算法：RSA-2048-OAEP | RSA-4096-OAEP | EC-P256-ECDH | SM2-ECIES。应用层根据此字段自动选择对应 Cipher 实例',
+  -- 公钥（明文存储，可对外分发）
+  public_key TEXT NOT NULL COMMENT '公钥明文（PEM 格式：-----BEGIN PUBLIC KEY----- ... -----END PUBLIC KEY-----）。分发给加密方用于加密数据',
+  public_key_fingerprint CHAR(64) NOT NULL COMMENT '公钥 SHA-256 哈希（十六进制小写），用于公钥完整性校验与去重。加密方可校验收到的公钥指纹与系统记录一致',
+  -- 私钥（信封加密存储，双重保护）
+  encrypted_private_key MEDIUMTEXT NOT NULL COMMENT '经 DEK 信封加密后的私钥密文（Base64编码）。格式：BPK2::key_id_of_dek::iv::encrypted_private_key::auth_tag。其中 key_id_of_dek 为 sys_data_encryption_keys.key_id，iv 与 auth_tag 用于 AES-256-GCM AEAD 校验',
+  private_key_dek_id CHAR(36) NOT NULL COMMENT '保护本私钥的 DEK UUID（关联 sys_data_encryption_keys.key_id）。私钥解密时需先通过 KMS/HSM 解包此 DEK，再去解密 encrypted_private_key',
+  -- 密钥关联的实体（谁持有此密钥对）
+  holder_type VARCHAR(32) NULL COMMENT '密钥持有者类型：ENTITY（企业/学校主体）| USER（个人用户）| SYSTEM（系统默认密钥对）',
+  holder_key VARCHAR(64) NULL COMMENT '密钥持有者标识：entity_code（企业/学校）或 user_uid（US+11）或 NULL（SYSTEM 类型）',
+  -- 密钥状态与时间窗口
+  key_status VARCHAR(16) NOT NULL DEFAULT 'INITIALIZED' COMMENT '密钥状态（严格状态机）：INITIALIZED（已生成未激活、公钥已入库、私钥已加密）| ACTIVE（使用中、公钥可分发、私钥可解密）| ROTATED（已过期轮替、公钥不可再分发、仅解密历史数据）| REVOKED（全库已无存量密文引用此 key_id，等待审计期满后物理清除）',
+  activated_at DATETIME(3) NULL COMMENT '密钥激活时间（应用层调用激活时精确到毫秒）。INITIALIZED 状态时为 NULL',
+  rotation_at DATETIME(3) NULL COMMENT '计划轮转时间（通常 = activated_at + 180天）。到期后密钥自动切换为 ACTIVE→ROTATED',
+  revoked_at DATETIME(3) NULL COMMENT '吊销时间（全库确认无引用后的最后一步）。REVOKED 状态下必填',
+  auto_retire_on DATETIME(3) NULL COMMENT 'REVOKED 密钥的审计保留截止日（revoked_at + 3年）。到期后运维方可物理 DELETE 此条记录',
+  -- 审计溯源（GB/T 35273 §8.1 安全审计 + 等保2.0 问责要求）
+  created_by VARCHAR(64) NOT NULL COMMENT '密钥创建操作人：SYSTEM（自动化密钥管理服务）| user_uid（用户自主生成密钥对）| sys_admin.id（手动应急创建）',
+  rotated_by VARCHAR(64) NULL COMMENT '密钥轮转操作人标识。ACTIVE→ROTATED 时回填',
+  revoked_by VARCHAR(64) NULL COMMENT '密钥吊销操作人标识。ROTATED→REVOKED 时回填。三权分立：created/rotated/revoked 可能由不同角色执行',
+  -- 元数据时间戳
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- 约束与索引
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_asym_key_id_version (key_id, key_version),
+  UNIQUE KEY uk_asym_pubkey_fingerprint (public_key_fingerprint),
+  KEY idx_asym_key_type_status (key_type, key_status),
+  KEY idx_asym_active_alg (key_type, key_status, algorithm),
+  KEY idx_asym_holder (holder_type, holder_key),
+  KEY idx_asym_dek (private_key_dek_id),
+  KEY idx_asym_rotation_at (rotation_at),
+  KEY idx_asym_algorithm (algorithm),
+  KEY idx_asym_created_by (created_by),
+  CONSTRAINT chk_asym_algorithm CHECK (algorithm IN ('RSA-2048-OAEP', 'RSA-4096-OAEP', 'EC-P256-ECDH', 'SM2-ECIES')),
+  CONSTRAINT chk_asym_status CHECK (key_status IN ('INITIALIZED', 'ACTIVE', 'ROTATED', 'REVOKED')),
+  CONSTRAINT chk_asym_holder_type CHECK (holder_type IS NULL OR holder_type IN ('ENTITY', 'USER', 'SYSTEM'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='非对称密钥管理表（《密码法》+密评3级+RSA/EC/SM2多算法+公钥分发+私钥DEK双重保护+全生命周期审计）';
+
+-- 11.3 用户信用档案（sys_credit_profiles + sys_credit_logs）
 CREATE TABLE IF NOT EXISTS sys_credit_profiles (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_uid CHAR(13) NOT NULL COMMENT '用户 UID，与用户 1:1 信用主档',
@@ -983,7 +1080,7 @@ CREATE TABLE IF NOT EXISTS sys_credit_logs (
 --
 -- 流水查询：WHERE user_uid=? ORDER BY created_at DESC, id DESC
 
--- 11.3 文件资产表（t_file_record：MD5 去重秒传底稿）
+-- 11.4 文件资产表（t_file_record：MD5 去重秒传底稿）
 CREATE TABLE IF NOT EXISTS t_file_record (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   file_md5 CHAR(32) NOT NULL COMMENT '文件内容 MD5 十六进制指纹（去重终极防线）',
@@ -1016,6 +1113,7 @@ CREATE TABLE IF NOT EXISTS t_file_record (
 -- | sys_credit_profiles       | AUTO_INCREMENT | user_uid（1:1 主档，无独立对外 uid） |
 -- | sys_credit_logs           | AUTO_INCREMENT | 内部 id 流水，不对外暴露             |
 -- | t_project_secret | project_uid PK | 永不对外暴露                         |
+-- | sys_asymmetric_keys | AUTO_INCREMENT | key_id (UUID v7 格式)                  |
 -- | t_user_interaction  | target_uid     | API 传 targetUid，库内直接存 uid     |
 -- 跨表关联：用户→user_uid | 主体→entity_code | 团队→team_uid | 项目→project_uid
 
@@ -1051,6 +1149,8 @@ CREATE TABLE IF NOT EXISTS t_file_record (
 -- | t_project             | owner_uid          | t_user(user_uid)          |
 -- | t_project             | team_uid           | t_team(team_uid)          |
 -- | t_project_secret | project_uid  | t_project(project_uid)    |
+-- | t_project_secret       | description_key_id | sys_asymmetric_keys(key_id)（应用层关联，不设 FK，分库友好） |
+-- | sys_asymmetric_keys    | private_key_dek_id | sys_data_encryption_keys(key_id)（应用层关联，不设 FK，分库友好） |
 -- | t_project_milestone           | project_uid        | t_project(project_uid)    |
 -- | t_project_task_card           | assignee_uid       | t_user(user_uid)          |
 -- | t_project_achievement | user_uid           | t_user(user_uid)          |

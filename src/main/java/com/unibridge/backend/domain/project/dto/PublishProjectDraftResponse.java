@@ -23,7 +23,6 @@ public class PublishProjectDraftResponse {
     private String amount;
     private String level;
     private String duration;
-    private String teamSize;
     private List<String> skillTags;
     private String deadline;
     private String descriptionEditorType;

@@ -71,7 +71,7 @@ public class TeamProfileService {
     private static final Pattern TEAM_UID_PATTERN = Pattern.compile("^(LB|ST)[A-Za-z0-9]{11}$");
     private static final Pattern USER_UID_PATTERN = Pattern.compile("^US[A-Za-z0-9]{11}$");
     private static final Set<String> ADDITION_ROLES = Set.of("MENTOR", "MEMBER");
-    private static final Set<String> VALID_LEVELS = Set.of("N", "R", "SR", "SSR", "UR");
+    private static final Set<String> VALID_LEVELS = Set.of("S", "A", "B", "C", "D", "E");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy.MM.dd");
     private static final DateTimeFormatter ACHIEVEMENT_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -93,11 +93,12 @@ public class TeamProfileService {
     };
 
     private static final Map<String, Integer> LEVEL_ORDER = Map.of(
-            "UR", 5,
-            "SSR", 4,
-            "SR", 3,
-            "R", 2,
-            "N", 1
+            "S", 6,
+            "A", 5,
+            "B", 4,
+            "C", 3,
+            "D", 2,
+            "E", 1
     );
 
     @Autowired

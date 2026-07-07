@@ -13,7 +13,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -68,9 +67,9 @@ public class ProjectFeedRecommendationService {
     private static final Set<String> FEED_PROJECT_STATUSES = Set.of("OPEN", "ONGOING");
     private static final String ANONYMOUS_USER = "anonymous";
 
-    /** 等级序值：UR(5) > SSR(4) > SR(3) > R(2) > N(1) */
+    /** 等级序值：S(6) > A(5) > B(4) > C(3) > D(2) > E(1) */
     static final Map<String, Integer> LEVEL_ORDER = Map.of(
-            "UR", 5, "SSR", 4, "SR", 3, "R", 2, "N", 1
+            "S", 6, "A", 5, "B", 4, "C", 3, "D", 2, "E", 1
     );
     static final double LEVEL_MATCH_SAME = 1.0;
     static final double LEVEL_MATCH_ADJACENT = 0.8;
@@ -176,9 +175,21 @@ public class ProjectFeedRecommendationService {
         return GAMMA * viewCount / (double) (chatUnique + 1);
     }
 
-    static double budgetNormalize(BigDecimal budget) {
-        double value = budget != null ? Math.max(0.0, budget.doubleValue()) : 0.0;
+    static double budgetNormalize(String budget) {
+        double value = extractBudgetLowerBound(budget);
         return Math.log1p(value) / Math.log1p(BUDGET_BASE);
+    }
+
+    /** 从预算区间字符串 "10000 - 20000" 中提取下限值用于归一化。 */
+    private static double extractBudgetLowerBound(String budget) {
+        if (budget == null || budget.isBlank()) return 0.0;
+        String[] parts = budget.split("-", 2);
+        if (parts.length == 0) return 0.0;
+        try {
+            return Math.max(0.0, Double.parseDouble(parts[0].trim()));
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
     }
 
     // ============================================================================

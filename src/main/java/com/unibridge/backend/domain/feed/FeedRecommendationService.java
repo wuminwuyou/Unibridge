@@ -119,9 +119,9 @@ public class FeedRecommendationService {
     private static final double FISSION_TAG_INHERIT = 0.7;
 
     // ── 能力等级排序 ──
-    /** 等级序值：UR(5) > SSR(4) > SR(3) > R(2) > N(1) */
+    /** 等级序值：S(6) > A(5) > B(4) > C(3) > D(2) > E(1) */
     private static final Map<String, Integer> LEVEL_ORDER = Map.of(
-            "UR", 5, "SSR", 4, "SR", 3, "R", 2, "N", 1
+            "S", 6, "A", 5, "B", 4, "C", 3, "D", 2, "E", 1
     );
     /** 项目等级匹配系数：同等级=1.0，差1级=0.8，差≥2级=0.0（不推荐） */
     private static final double LEVEL_MATCH_SAME = 1.0;
@@ -721,7 +721,7 @@ public class FeedRecommendationService {
         return result;
     }
 
-    /** 解析等级到序值：UR=5, SSR=4, SR=3, R=2, N=1。未知等级=0（匿名/冷启动）。 */
+    /** 解析等级到序值：S=6, A=5, B=4, C=3, D=2, E=1。未知等级=0（匿名/冷启动）。 */
     static int resolveLevelOrder(String level) {
         if (level == null || level.isBlank()) return 0;
         return LEVEL_ORDER.getOrDefault(level.trim().toUpperCase(), 0);

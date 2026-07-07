@@ -54,7 +54,7 @@ public class ProjectService {
     private static final String EDITOR_TYPE_MARKDOWN = "MARKDOWN";
     private static final String COMMERCIAL_STATUS_PENDING = "PENDING_START";
 
-    private static final Set<String> VALID_LEVELS = Set.of("N", "R", "SR", "SSR", "UR");
+    private static final Set<String> VALID_LEVELS = Set.of("S", "A", "B", "C", "D", "E");
     private static final Set<String> VALID_RECRUITMENT_TYPES = Set.of(
             "LAB_RECRUIT", "TEAM_RECRUIT", "CAMPUS_PRACTICE", "PERSONAL_RECRUIT"
     );
@@ -153,7 +153,6 @@ public class ProjectService {
                 .amount(formatAmount(secret == null ? null : secret.getTotalBudget()))
                 .level(project.getLevel())
                 .duration(project.getDuration())
-                .teamSize(project.getTeamSize())
                 .skillTags(parseJsonStringList(project.getTags()))
                 .deadline(project.getDeadline() == null ? null : project.getDeadline().toString())
                 .descriptionEditorType(defaultEditorType(project.getEditorType()))
@@ -201,7 +200,6 @@ public class ProjectService {
                 .amount(amount)
                 .level(project.getLevel())
                 .duration(project.getDuration())
-                .teamSize(project.getTeamSize())
                 .skillTags(parseJsonStringList(project.getTags()))
                 .deadline(project.getDeadline() == null ? null : project.getDeadline().toString())
                 .status(project.getStatus())
@@ -347,10 +345,9 @@ public class ProjectService {
         project.setPreview(StringUtils.hasText(request.getSummary()) ? request.getSummary().trim() : "");
         project.setEditorType(EDITOR_TYPE_MARKDOWN);
         project.setTags(toJsonStringList(request.getSkillTags()));
-        project.setBudget(parseAmount(request.getAmount()));
+        project.setBudget(trimToNull(request.getAmount()));
         project.setLevel(request.getLevel().trim());
         project.setDuration(trimToNull(request.getDuration()));
-        project.setTeamSize(trimToNull(request.getTeamSize()));
         project.setDeadline(StringUtils.hasText(request.getDeadline()) ? LocalDate.parse(request.getDeadline()) : null);
 
         if (PUBLISH_ACTION_DRAFT.equals(request.getPublishAction())) {

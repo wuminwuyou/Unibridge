@@ -33,7 +33,6 @@ public class ProfileProjectItem {
     private String logoSvgUrl;
     private String publishTime;
     private String level;
-    private String teamSize;
     private String duration;
     /** DRAFT | OPEN | ONGOING | CLOSED */
     private String status;

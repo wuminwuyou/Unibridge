@@ -50,15 +50,15 @@ INSERT INTO t_user (id, user_uid, phone, email, password_hash, account_status, l
 (3, 'US00000000003', '13800001003', 'wangpm@tencent.com',  @pwd_entity, 'ACTIVE', '2026-05-21 09:00:00');
 
 INSERT INTO p_user_profile (id, user_uid, nick_name, avatar_url, level, bio_data, career_data, graduation_year, education_history, intro, announcement) VALUES
-(1, 'US00000000001', '用户#1001', 'https://api.dicebear.com/9.x/initials/svg?seed=ZM', 'SR',
+(1, 'US00000000001', '用户#1001', 'https://api.dicebear.com/9.x/initials/svg?seed=ZM', 'B',
  JSON_ARRAY('Java', 'Spring Boot', 'MySQL'),
  JSON_OBJECT('school', '深圳大学', 'major', '软件工程', 'grade', '2022级'),
  2026, JSON_ARRAY(), '全栈方向在读学生', '正在寻找暑期实习项目'),
-(2, 'US00000000002', '用户#1002', 'https://api.dicebear.com/9.x/initials/svg?seed=LM', 'UR',
+(2, 'US00000000002', '用户#1002', 'https://api.dicebear.com/9.x/initials/svg?seed=LM', 'S',
  JSON_ARRAY('人工智能', '机器学习', 'Python'),
  JSON_OBJECT('title', '副教授', 'department', '计算机学院'),
  NULL, NULL, 'AI 实验室负责人', '实验室开放 2 个本科科研名额'),
-(3, 'US00000000003', '用户#1003', 'https://api.dicebear.com/9.x/initials/svg?seed=WM', 'SSR',
+(3, 'US00000000003', '用户#1003', 'https://api.dicebear.com/9.x/initials/svg?seed=WM', 'A',
  JSON_ARRAY('项目管理', '产品设计', '敏捷开发'),
  JSON_OBJECT('title', '高级项目经理', 'department', 'CSIG'),
  NULL, NULL, '负责校企合作项目对接', '欢迎高校团队投递方案');
@@ -109,18 +109,18 @@ INSERT INTO t_team_member (id, team_uid, user_uid, role, lab_user_uid, career, i
 (3, 'ST00000000001', 'US00000000001', 'LEADER', NULL, '后端开发', 1, NULL),
 (4, 'LB00000000002', 'US00000000002', 'MENTOR', NULL, '软件工程 · 云原生', 1, NULL);
 
-INSERT INTO t_project (id, project_uid, extended_uid, category, recruitment_type, owner_uid, team_uid, title, preview, editor_type, tags, duration, team_size, deadline, level, status, published_at) VALUES
+INSERT INTO t_project (id, project_uid, extended_uid, category, recruitment_type, owner_uid, team_uid, title, preview, editor_type, tags, duration, deadline, level, status, published_at) VALUES
 (1, 'PR20212345678', '91440300708461136T', 'COMMERCIAL', NULL, 'US00000000003', NULL, '智能客服系统研发',
  '面向客服场景的多轮对话与工单联动系统', 'MARKDOWN',
- JSON_ARRAY('NLP', '客服', 'SaaS'), '8 周', '3-5 人', '2026-08-31', 'SR', 'OPEN',
+ JSON_ARRAY('NLP', '客服', 'SaaS'), '8 周', '2026-08-31', 'B', 'OPEN',
  '2026-04-01 10:00:00'),
 (2, 'PRnews1234567', 'LB00000000001', 'COMMERCIAL', NULL, 'US00000000003', 'LB00000000001', '实验室数据管理平台',
  '为高校实验室提供项目、成员与成果一体化管理', 'MARKDOWN',
- JSON_ARRAY('数据平台', 'B端', '高校'), '12 周', '5-8 人', '2026-09-15', 'SSR', 'ONGOING',
+ JSON_ARRAY('数据平台', 'B端', '高校'), '12 周', '2026-09-15', 'A', 'ONGOING',
  '2026-04-15 14:00:00'),
 (3, 'PR1T1w2K4x6O8', 'ST00000000001', 'COMMERCIAL', NULL, 'US00000000003', 'ST00000000001', '校园社交 App 外包',
  '面向校园场景的轻量社交与活动发布应用', 'MARKDOWN',
- JSON_ARRAY('移动端', '社交', '外包'), '6 周', '2-4 人', '2026-07-01', 'R', 'OPEN',
+ JSON_ARRAY('移动端', '社交', '外包'), '6 周', '2026-07-01', 'C', 'OPEN',
  '2026-05-01 09:30:00');
 
 INSERT INTO t_project_secret (project_uid, total_budget, commercial_status) VALUES

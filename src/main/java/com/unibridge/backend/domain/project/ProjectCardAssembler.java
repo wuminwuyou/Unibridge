@@ -52,7 +52,6 @@ public class ProjectCardAssembler {
                 .ownerOrganization(publisher.ownerOrganization())
                 .projectTags(toTagLabels(project.getTags()))
                 .level(project.getLevel())
-                .teamSize(trimToNull(project.getTeamSize()))
                 .duration(trimToNull(project.getDuration()))
                 .views(0)
                 .likes(0)
@@ -78,7 +77,6 @@ public class ProjectCardAssembler {
                 .logoSvgUrl(publisher.logoSvgUrl())
                 .publishTime(formatProfilePublishTime(publishTime))
                 .level(nullToEmpty(project.getLevel()))
-                .teamSize(trimToNull(project.getTeamSize()))
                 .duration(trimToNull(project.getDuration()))
                 .status(project.getStatus())
                 .build();

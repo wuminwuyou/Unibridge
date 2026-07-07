@@ -43,8 +43,6 @@ public class ContentVO {
     private String recruitmentType;
     /** 项目：难度等级 */
     private String level;
-    /** 项目：团队规模 */
-    private String teamSize;
     /** 项目：预计周期 */
     private String duration;
     /** NOTE：string[] 标签，序列化为 "tags"。PROJECT 时此字段为空。 */

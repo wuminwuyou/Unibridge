@@ -59,7 +59,7 @@ public class ProfileSpaceResponse {
         private String position;
         /** 个人/机构一句话简介（对应 user_profile.intro） */
         private String bio;
-        /** 能力/企业等级：N / R / SR / SSR / UR */
+        /** 能力/企业等级：S / A / B / C / D / E（从高到低） */
         private String level;
     }
 

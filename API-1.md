@@ -1,123 +1,124 @@
-## 3) 笔记卡片 Footer 精简 — 列表接口补充 `updateTime`
+## 2) `GET /projects/evaluate/public-key` — 获取项目难度评估公钥
 
-> **消费方**：`GridNoteCard` / `RowNoteCard`（首页侧栏、笔记专区、档案空间、相似推荐等）  
-> **变更类型**：已有列表接口增量 + 字段裁剪说明  
-> **前端状态**：UI 已改为仅展示 **浏览量 + 智能更新时间**；收藏/点赞/评论指标已从卡片 Footer 移除
+> **消费方**：`ProjectPublishForm` / 发布页"提交难度评估"按钮  
+> **变更类型**：新增接口，返回 RSA-2048 OAEP SHA-256 公钥（PEM 格式），前端用其对项目内容详细描述加密后再提交评估。
 
-### 背景
+### 端点
 
-新版笔记卡片 Footer 遵循「无情做减法，时效放第一」：
+```
+GET /api/v1/client/projects/evaluate/public-key
+```
 
-| 保留 | 移除（卡片层不再消费） |
-|------|------------------------|
-| `views` 浏览量 | `likes` / `comments` 点赞量 |
-| `publishTime` + `updateTime` 融合为单字段时效 | `favorites` 收藏量 |
+### 鉴权
 
-**智能更新时间展示规则（前端 `resolveGridNoteSmartUpdateTime`）**
+- Bearer Token（Header: `Authorization: Bearer <accessToken>`）
 
-| 条件 | 卡片展示 |
-|------|----------|
-| `updateTime` 与 `publishTime` 不一致（精确到分钟） | `修改于 yyyy-MM-DD` |
-| 仅有 `updateTime`、无 `publishTime`（如草稿） | `修改于 yyyy-MM-DD` |
-| 未修改 | 相对时效：`刚刚` / `N 分钟前` / `N 小时前` / `yyyy-MM-DD` |
-
-### 受影响接口
-
-以下接口的笔记列表项须返回 **`updateTime`**（最近更新时间）；`publishTime` 保持现有语义。
-
-| 接口 | 当前 `updateTime` | 说明 |
-|------|-------------------|------|
-| `GET /user-profile/notes` | ✅ 已有 | 档案空间笔记 Tab，无需改动 |
-| `GET /user-profile/home` → `notes[]` | ⚠️ 待确认 | 主页预览区笔记卡片 |
-| `GET /team-profile/notes` | ⚠️ 待确认 | 团队空间笔记 Tab |
-| `GET /entity-profile/notes` | ⚠️ 待确认 | 机构空间笔记 Tab |
-| `GET /feed/home` → `notes[]` | ❌ 缺失 | 首页侧栏笔记推荐 |
-| `GET /feed/notes` | ❌ 缺失 | 笔记专区列表 |
-| `GET /feed/notes/shuffle` | ❌ 缺失 | 笔记专区「换一换」 |
-| `GET /feed/notes/{uid}/similar` | ❌ 缺失 | 阅读器相似推荐 |
-
-### 新增 / 统一字段约定
-
-在每个笔记列表项（`ProfileNoteItem` / Feed `ContentVO` NOTE 类型）中，除 Footer 时效字段外，**作者信息为卡片主体展示的必要字段**（`GridNoteCard` 在 `showAuthor=true` 时渲染作者行；`RowNoteCard` 始终展示作者昵称）：
+### Response
 
 ```json
 {
-  "uid": "TXa8f2K9w3N7p",
-  "title": "Spring Boot 实战笔记",
-  "summary": "实践经验总结",
-  "coverUrl": "https://cdn.example.com/covers/xxx.jpg",
-  "tags": ["Spring Boot", "后端"],
-  "contentType": "图文",
-  "views": 128,
-  "publishTime": "2026-05-10 14:20",
-  "updateTime": "2026-05-12 09:30",
-  "authorNickname": "代码小能手",
-  "authorAvatar": "https://cdn.example.com/avatars/user.jpg"
+  "code": 200,
+  "message": null,
+  "data": {
+    "keyId": "018f3a7e-9b3c-7412-a1b2-c3d4e5f6a7b8",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----"
+  }
 }
 ```
 
-#### Footer 时效字段
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `keyId` | string | 密钥全局唯一标识（对应 sys_asymmetric_keys.key_id），提交评估时必须回传以定位解密私钥 |
+| `publicKey` | string | PEM 格式的 RSA-2048 公钥 |
 
-| 字段 | 类型 | 必填 | 说明 | 数据库来源 |
-|------|------|------|------|------------|
-| `views` | number | 是 | 浏览量；卡片 Footer 唯一保留的互动指标 | `t_user_note_detail.views` 或等价统计 |
-| `publishTime` | string | 否 | 展示用发布时间；未发布可为空字符串 | `COALESCE(published_at, created_at)` |
-| `updateTime` | string | 是 | 最近更新时间；与 `publishTime` 相同时前端走相对时效 | `t_user_note_detail.updated_at` |
+### 业务规则
 
-#### 作者信息字段
+- `keyId` 作为密钥对的唯一标识，前端须在后续 `POST /projects/evaluate` 中回传
+- 前端首次请求公钥后须缓存 `{ keyId, publicKey }`，后续重复提交评估时直接复用缓存，**不再请求 GET /public-key**，以降低后端数据库写入压力
+- 发布项目成功或离开发布页面时，前端须清除公钥缓存
+- 公钥仅用于 `POST /projects/evaluate` 请求中对 `contentDetail` 的加密
 
-| 字段 | 类型 | 必填 | 说明 | 数据库来源 |
-|------|------|------|------|------------|
-| `authorNickname` | string | 是 | 作者昵称；**禁止**返回实名 `name`；空时前端回退「匿名用户」 | `p_user_profile.nick_name` |
-| `authorAvatar` | string \| null | 否 | 作者头像 URL；空时前端以昵称首字作占位 | `p_user_profile.avatar_url` |
+---
 
-> **命名兼容**：空间类接口历史字段为 `authorNickName`（驼峰 `Name`），Feed 类为 `authorNickname`；前端 `resolveNoteAuthorNickname` 已兼容两者，后端新接口建议统一为 `authorNickname`。
+## 3) `POST /projects/evaluate` — 提交项目难度评估
 
-#### 作者字段覆盖情况
+> **消费方**：`ProjectPublishForm` / 发布页"提交难度评估"按钮  
+> **变更类型**：新增接口，接收公开的 `description` + 加密后的 `encryptedContentDetail`，返回模型评估的难度等级及修改建议。
 
-| 接口 | `authorNickname` | `authorAvatar` |
-|------|------------------|----------------|
-| `GET /feed/home` → `notes[]` | ✅ 已有 | ✅ 已有 |
-| `GET /feed/notes` | ✅ 已有 | ⚠️ 待确认 |
-| `GET /feed/notes/{uid}/similar` | ⚠️ 待确认 | ❌ 待补充 |
-| `GET /user-profile/notes` | ✅（`authorNickName`） | ✅ 已有 |
-| `GET /user-profile/home` → `notes[]` | ⚠️ 待确认 | ⚠️ 待确认 |
-| `GET /team-profile/notes` | ⚠️ 待确认 | ⚠️ 待确认 |
-| `GET /entity-profile/notes` | ⚠️ 待确认 | ⚠️ 待确认 |
+### 端点
 
-**展示策略（前端，非接口裁剪）**
+```
+POST /api/v1/client/projects/evaluate
+```
 
-- 首页侧栏 / 笔记专区 Feed：`showAuthor=true`，须保证 `authorNickname` + `authorAvatar` 可用
-- 档案空间笔记 Tab：`showAuthor=false`，作者字段可返回但网格卡不渲染；`RowNoteCard` 布局仍展示 `authorNickname`
+### 鉴权
 
-**格式化**：ISO 8601 或 `yyyy-MM-dd HH:mm` 均可，前端统一归一化；日期精度建议至少到分钟。
+- Bearer Token（Header: `Authorization: Bearer <accessToken>`）
 
-**兜底**：若 `updateTime` 暂不可用，后端应回退 `publishTime`；两者皆空时前端隐藏时间字段。
+### 请求体
 
-### 可裁剪字段（卡片列表层）
+```json
+{
+  "keyId": "018f3a7e-9b3c-7412-a1b2-c3d4e5f6a7b8",
+  "description": "# 项目需求说明\n\n开发一个电商平台...",
+  "encryptedContentDetail": "dGhpcyBpcyBhIGJhc2U2NCBlbmNvZGVk..."
+}
+```
 
-以下字段在 **笔记卡片列表** 响应中可标记为 **可选 / 后续废弃**（详情页、互动接口仍保留）：
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyId` | string | 是 | 密钥标识（来自 GET /public-key 响应），后端据此定位正确的解密私钥 |
+| `description` | string | 是 | 需求详情原文（公开项，不加密），Markdown 格式 |
+| `encryptedContentDetail` | string | 是 | 项目内容详细描述，经 GET /projects/evaluate/public-key 获取的公钥，使用 RSA-OAEP with SHA-256 加密后的 base64 密文 |
 
-| 字段 | 说明 |
-|------|------|
-| `likes` | 点赞数；Feed 排序算法仍可使用，但卡片 UI 不再展示 |
-| `comments` | 评论数；同上 |
-| `favorites` | 收藏数；同上 |
-| `authorOrganization` | 作者机构；卡片 UI 已移除，列表层可不再返回 |
+### 响应
 
-> Feed 热度排序公式（`likes × 5 + collects × 10 + comments × 8`）**不受影响**，仅列表响应面向卡片 UI 的字段需求发生变化。
+#### 评估通过（内容详尽、无需修改）
 
-### 前端接入说明
+```json
+{
+  "code": 200,
+  "message": null,
+  "data": {
+    "level": "B",
+    "explanation": "该项目涉及多模块分布式架构设计、高并发数据一致性保障、以及跨团队的 DevOps 流程整合，技术复杂度与协调难度均较高，综合评定为复杂工程级（B）。",
+    "suggestions": null
+  }
+}
+```
 
-- `noteFeedMappers.mapFeedNoteToProfileNoteItem` 已读取 `updateTime`，缺省时回退 `publishTime`
-- 档案空间 `GET /user-profile/notes` 已具备 `updateTime`，修改后可正确展示「修改于 …」
-- Feed 类接口在后端补齐 `updateTime` 前，卡片时间将退化为仅基于 `publishTime` 的相对时效
+#### 评估未通过（内容不够详尽，返回修改建议）
+
+```json
+{
+  "code": 200,
+  "message": null,
+  "data": {
+    "level": "D",
+    "explanation": "根据已提供的描述，该项目属于常见 CRUD 应用范畴，技术难度较低。但由于内容中缺少核心模块、用户规模等关键信息，当前等级为初步评估，可能偏低。",
+    "suggestions": "项目内容描述缺少以下细节：\n1. 目标用户的身份与数量\n2. 核心功能模块的详细说明\n3. 技术栈与工具链要求\n请补充后再试。"
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `level` | string | 评估出的项目难度等级代号（S / A / B / C / D / E），对应研究突破级 → 入门操作级 |
+| `explanation` | string | 评估结果说明，解释为什么给出该等级（始终返回，无论是否通过） |
+| `suggestions` | string \| null | 当内容不够详尽时返回具体的修改指导；为 null 时表示评估通过 |
+
+### 业务规则
+
+- `level` 返回值必须是 S / A / B / C / D / E 之一，不可返回其他值
+- `explanation` 必须返回，简明扼要说明等级评定依据（2-5 句）
+- 当 `suggestions` 不为 null 时，前端展示修改建议卡片引导用户补充内容
+- 当 `suggestions` 为 null 时，前端自动将 `level` 写入项目发布表单的"能力等级"字段
+- 后端解密失败时返回 `400 (DECRYPT_FAILED)`，并附带 `"message": "解密失败，请重新获取公钥再试"`
 
 ### 验收要点
 
-- [ ] `GET /feed/home`、`/feed/notes`、`/feed/notes/{uid}/similar` 的 NOTE 项均含 `updateTime`
-- [ ] 上述 Feed 接口在需要展示作者的场景下均含 `authorNickname` + `authorAvatar`
-- [ ] 用户编辑已发布笔记后，卡片 Footer 显示 `修改于 yyyy-MM-DD`（`updateTime` > `publishTime`）
-- [ ] 未修改笔记显示相对时间（如 `3 小时前`），而非冗余绝对日期
-- [ ] 列表响应不返回 `likes` / `favorites` / `comments`，前端卡片功能不受影响
-- [ ] `authorNickname` 为空时接口仍返回字段（空字符串），前端回退「匿名用户」；禁止用实名 `name` 顶替
+- [ ] 内容详尽时返回 `suggestions: null` 并给出合理等级与解释
+- [ ] 内容简略/缺失关键信息时返回非空的 `suggestions`
+- [ ] `explanation` 始终非空，与 `level` 逻辑一致
+- [ ] `level` 始终为 S/A/B/C/D/E 合法值
+- [ ] 解密失败时返回 400 错误

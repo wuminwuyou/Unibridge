@@ -386,44 +386,39 @@ public class NoteService {
             throw BusinessException.badRequest("VALIDATION_FAILED");
         }
 
+        // always required（DRAFT / PUBLISH 均强制）
         if (!StringUtils.hasText(request.getTitle())) {
-            throw BusinessException.badRequest("VALIDATION_FAILED");
+            throw BusinessException.badRequest("TITLE_REQUIRED");
         }
-
+        if (!StringUtils.hasText(request.getSummary())) {
+            throw BusinessException.badRequest("SUMMARY_REQUIRED");
+        }
         if (!StringUtils.hasText(request.getCoverUrl())) {
             throw BusinessException.badRequest("COVER_REQUIRED");
         }
 
         String contentType = normalizeRequired(request.getContentType(), "contentType");
         if (!CONTENT_TYPE_IMAGE_TEXT.equals(contentType) && !CONTENT_TYPE_VIDEO.equals(contentType)) {
-            throw BusinessException.badRequest("VALIDATION_FAILED");
+            throw BusinessException.badRequest("CONTENT_TYPE_INVALID");
         }
 
-        if (request.getTags() == null) {
-            throw BusinessException.badRequest("VALIDATION_FAILED");
+        if (request.getTags() == null || request.getTags().isEmpty()) {
+            throw BusinessException.badRequest("TAGS_REQUIRED");
         }
 
-        if (PUBLISH_ACTION_PUBLISH.equals(publishAction)) {
-            if (!StringUtils.hasText(request.getSummary())) {
-                throw BusinessException.badRequest("VALIDATION_FAILED");
+        if (CONTENT_TYPE_IMAGE_TEXT.equals(contentType)) {
+            if (!StringUtils.hasText(request.getContent())) {
+                throw BusinessException.badRequest("CONTENT_REQUIRED");
             }
-            if (request.getTags().isEmpty()) {
-                throw BusinessException.badRequest("VALIDATION_FAILED");
+            // 字数限制：便捷子笔记 10000 字，独立图文笔记 20000 字
+            int maxLen = StringUtils.hasText(request.getParentContentTypeCode())
+                    ? MAX_CONTENT_LENGTH_CHILD_NOTE : MAX_CONTENT_LENGTH_IMAGE_TEXT;
+            int codePoints = request.getContent().codePointCount(0, request.getContent().length());
+            if (codePoints > maxLen) {
+                throw BusinessException.badRequest("CONTENT_TOO_LONG");
             }
-            if (CONTENT_TYPE_IMAGE_TEXT.equals(contentType)) {
-                if (!StringUtils.hasText(request.getContent())) {
-                    throw BusinessException.badRequest("CONTENT_REQUIRED");
-                }
-                // 字数限制：便捷子笔记 10000 字，独立图文笔记 20000 字
-                int maxLen = StringUtils.hasText(request.getParentContentTypeCode())
-                        ? MAX_CONTENT_LENGTH_CHILD_NOTE : MAX_CONTENT_LENGTH_IMAGE_TEXT;
-                int codePoints = request.getContent().codePointCount(0, request.getContent().length());
-                if (codePoints > maxLen) {
-                    throw BusinessException.badRequest("CONTENT_TOO_LONG");
-                }
-            } else if (!StringUtils.hasText(request.getVideoUrl())) {
-                throw BusinessException.badRequest("VIDEO_REQUIRED");
-            }
+        } else if (!StringUtils.hasText(request.getVideoUrl())) {
+            throw BusinessException.badRequest("VIDEO_REQUIRED");
         }
     }
 
@@ -436,7 +431,7 @@ public class NoteService {
 
     private void applyRequestToNote(Note note, PublishNoteRequest request, String existingContentTypeCode) {
         note.setTitle(request.getTitle().trim());
-        note.setSummary(StringUtils.hasText(request.getSummary()) ? request.getSummary().trim() : "");
+        note.setSummary(request.getSummary().trim());
         note.setTags(toJsonStringList(request.getTags()));
         note.setCoverUrl(request.getCoverUrl().trim());
         note.setVisibility(normalizeVisibility(request.getVisibility()));

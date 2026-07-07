@@ -1,5 +1,6 @@
 package com.unibridge.backend.domain.project;
 
+import com.unibridge.backend.domain.project.dto.ProjectEvaluateRequest;
 import com.unibridge.backend.domain.project.dto.PublishProjectRequest;
 import com.unibridge.backend.infrastructure.common.Result;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,9 +24,12 @@ import static com.unibridge.backend.infrastructure.config.OpenApiConfig.BEARER_A
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final ProjectEvaluateService projectEvaluateService;
 
-    public ProjectController(ProjectService projectService) {
+    public ProjectController(ProjectService projectService,
+                             ProjectEvaluateService projectEvaluateService) {
         this.projectService = projectService;
+        this.projectEvaluateService = projectEvaluateService;
     }
 
     @Operation(summary = "创建项目", security = @SecurityRequirement(name = BEARER_AUTH))
@@ -60,5 +64,19 @@ public class ProjectController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable String uid) {
         return Result.success(projectService.getProjectDraft(authorization, uid));
+    }
+
+    @Operation(summary = "获取项目难度评估公钥", security = @SecurityRequirement(name = BEARER_AUTH))
+    @GetMapping("/evaluate/public-key")
+    public Result getPublicKey() {
+        return Result.success(projectEvaluateService.generatePublicKey());
+    }
+
+    @Operation(summary = "提交项目难度评估", security = @SecurityRequirement(name = BEARER_AUTH))
+    @PostMapping("/evaluate")
+    public Result evaluate(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody ProjectEvaluateRequest request) {
+        return Result.success(projectEvaluateService.evaluate(request));
     }
 }

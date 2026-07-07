@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -29,12 +28,10 @@ public class Project {
     private String preview;
     @TableField("editor_type")
     private String editorType;
-    /** 项目预算/赏金（公开字段） */
-    private BigDecimal budget;
+    /** 项目预算/赏金区间（如 "10000 - 20000" 或 "面议"） */
+    private String budget;
     private String tags;
     private String duration;
-    @TableField("team_size")
-    private String teamSize;
     private LocalDate deadline;
     private String level;
     private String status;

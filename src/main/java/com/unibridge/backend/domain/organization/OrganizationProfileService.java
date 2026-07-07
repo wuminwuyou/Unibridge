@@ -72,7 +72,7 @@ public class OrganizationProfileService {
     private static final Pattern ENTITY_CODE_PATTERN = Pattern.compile("^[0-9A-Za-z]{1,32}$");
     private static final Pattern UNIVERSITY_ENTITY_CODE_PATTERN = Pattern.compile("^\\d{5}$");
     private static final Set<String> MEMBER_ROLES = Set.of("PM", "MENTOR", "COUNSELOR");
-    private static final Set<String> VALID_LEVELS = Set.of("N", "R", "SR", "SSR", "UR");
+    private static final Set<String> VALID_LEVELS = Set.of("S", "A", "B", "C", "D", "E");
 
     private static final String NOTE_STATUS_PUBLISHED = "PUBLISHED";
     private static final String PROJECT_STATUS_DRAFT = "DRAFT";

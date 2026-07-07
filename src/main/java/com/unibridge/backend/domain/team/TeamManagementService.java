@@ -53,7 +53,7 @@ public class TeamManagementService {
     private static final Pattern TEAM_UID_PATTERN = Pattern.compile("^(LB|ST)[A-Za-z0-9]{11}$");
     private static final Pattern USER_UID_PATTERN = Pattern.compile("^US[A-Za-z0-9]{11}$");
     private static final Set<String> ADDITION_ROLES = Set.of("MENTOR", "MEMBER");
-    private static final Set<String> VALID_LEVELS = Set.of("N", "R", "SR", "SSR", "UR");
+    private static final Set<String> VALID_LEVELS = Set.of("S", "A", "B", "C", "D", "E");
 
     @Autowired
     private AccessService accessService;
@@ -304,7 +304,7 @@ public class TeamManagementService {
 
     private int levelOrder(UserProfile profile) {
         String l = resolveLevel(profile);
-        return l == null ? 0 : java.util.Map.of("UR", 5, "SSR", 4, "SR", 3, "R", 2, "N", 1).getOrDefault(l, 0);
+        return l == null ? 0 : java.util.Map.of("S", 6, "A", 5, "B", 4, "C", 3, "D", 2, "E", 1).getOrDefault(l, 0);
     }
 
     private List<TeamMemberItem> buildMemberItems(Team team, List<TeamMember> orderedSlice, boolean showRealName) {

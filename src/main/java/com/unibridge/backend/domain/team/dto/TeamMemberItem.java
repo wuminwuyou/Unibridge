@@ -27,7 +27,7 @@ public class TeamMemberItem {
     @Schema(description = "邀请/审批加入人 user_uid；owner 为 null", example = "US00000000002")
     private String invitedByUid;
     private String avatarUrl;
-    @Schema(description = "能力等级 N/R/SR/SSR/UR，无效时 null")
+    @Schema(description = "能力等级 S/A/B/C/D/E，无效时 null")
     private String level;
 }
 
