@@ -10,6 +10,7 @@ import {
   resolveProjectLogoSvgUrl,
   resolveProjectStatusBadgeModifier,
   resolveProjectStatusLabel,
+  formatBudgetRange,
 } from './projectCardUtils'
 import './ProjectCard.css'
 
@@ -17,14 +18,18 @@ import './ProjectCard.css'
 export interface ProjectCardProps {
   project: ProjectItem
   showStatus?: boolean
+  /** 卡片样式变体：default（首页/搜索等）| compact（ProfileSpace 保留旧布局但去掉"看看细节"） */
+  variant?: 'default' | 'compact'
   /** 槽位：卡片点击跳转回调，由上层注入；不传则默认渲染 <Link> */
   onClick?: (uid: string, title: string) => void
 }
 
-function ProjectCard({ project, showStatus = false, onClick }: ProjectCardProps) {
+// 03）项目卡片组件（ProjectCard）
+function ProjectCard({ project, showStatus = false, variant = 'default', onClick }: ProjectCardProps) {
   const detailPath = resolveProjectDetailHref(project)
   const typeBadgeLabel = resolveProjectCardTypeBadge(project)
   const metaText = resolveProjectCardMetaText(project)
+  const budgetText = formatBudgetRange(project.amountMin, project.amountMax)
   const logoSvgUrl = resolveProjectLogoSvgUrl(project)
   const logoFallbackText = resolveProjectLogoFallbackText(project.ownerOrganization)
   const [logoLoadFailed, setLogoLoadFailed] = useState(false)
@@ -32,9 +37,10 @@ function ProjectCard({ project, showStatus = false, onClick }: ProjectCardProps)
   const shouldShowStatusBadge = showStatus && project.status != null
   const statusBadgeLabel = project.status ? resolveProjectStatusLabel(project.status) : ''
   const statusBadgeModifier = project.status ? resolveProjectStatusBadgeModifier(project.status) : ''
+  const isCompact = variant === 'compact'
 
   const inner = (
-    <div className="project-card__inner">
+    <div className={`project-card__inner${isCompact ? ' project-card__inner--compact' : ''}`}>
       <div className="project-card__logo">
         {shouldShowStatusBadge ? (
           <span className={`project-card__status-badge ${statusBadgeModifier}`}>{statusBadgeLabel}</span>
@@ -59,8 +65,11 @@ function ProjectCard({ project, showStatus = false, onClick }: ProjectCardProps)
         {metaText ? <p className="project-card__meta">{metaText}</p> : null}
       </div>
       <div className="project-card__aside">
-        <LevelBadge level={project.level} variant="pill" className="project-card__level" />
-        <span className="project-card__cta" aria-hidden="true">看看细节</span>
+        <LevelBadge level={project.level} variant="pill" className="project-card__level" showBackground={false} />
+        {/* default 变体在等级下方显示预算区间 */}
+        {!isCompact && budgetText !== '—' ? (
+          <span className="project-card__budget">{budgetText}</span>
+        ) : null}
       </div>
     </div>
   )

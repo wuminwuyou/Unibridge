@@ -31,7 +31,7 @@ export interface DescriptionEditorProps {
 const LENGTH_LIMIT_MODAL_MESSAGE = '内容将超过字数限制，是否继续执行？继续后将自动截断至上限字数。'
 
 // 02）需求说明编辑器（DescriptionEditor）
-export function DescriptionEditor({ value, onChange, maxLength = 2000, toolbarsExcludeExtra }: DescriptionEditorProps) {
+export function DescriptionEditor({ value, onChange, maxLength = 5000, toolbarsExcludeExtra }: DescriptionEditorProps) {
   const [limitModalOpen, setLimitModalOpen] = useState(false)
   const pendingConfirmRef = useRef<((confirmed: boolean) => void) | null>(null)
 

@@ -4,7 +4,6 @@ export type { PublishProjectFormDraft, CampusRecruitOption, PublishChannelOption
 export {
   campusRecruitOptions,
   publishChannelOptions,
-  publishLevelOptions,
   suggestedSkillTags,
   publishChecklistItems,
   resolvePublishPreviewBadge,
@@ -66,3 +65,12 @@ export {
 export { navigateToProjectDetail } from './lib/navigateToProjectDetail'
 
 export { submitPublishProject, validatePublishProjectSubmit, ProjectsApiError } from './services/submitPublishProject'
+
+export { evaluateProject, clearKeyPairCache } from './services/evaluateProjectService'
+export type { EvaluateProjectInput, EvaluateProjectOutput } from './services/evaluateProjectService'
+
+export type {
+  PublicKeyResponse,
+  EvaluateProjectRequest,
+  EvaluateProjectResponse,
+} from './api/evaluateProjectApi'

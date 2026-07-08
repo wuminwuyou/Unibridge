@@ -23,6 +23,7 @@ export function FormDateInput({
   placeholder,
   disabled = false,
   className,
+  min,
 }: FormDateInputProps) {
   return (
     <label className={styles.label}>
@@ -33,6 +34,7 @@ export function FormDateInput({
       <input
         type="date"
         value={value}
+        min={min}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         disabled={disabled}

@@ -28,7 +28,7 @@ export function useHomeFeedWidget(): UseHomeFeedWidgetResult {
         if (cancelled) return
         const pItems = (data as any).projects ?? []
         const nItems = (data as any).notes ?? []
-        setProjects(Array.isArray(pItems) ? pItems.map((p: any) => ({ uid: p.uid, title: p.title ?? '', preview: p.preview ?? p.summary ?? '', tags: p.tags ?? [], category: p.projectCategory ?? 'COMMERCIAL', ownerOrganization: p.ownerOrganization ?? '', publishTime: p.publishTime ?? '', level: p.level ?? 'N', logoSvgUrl: p.logoSvgUrl ?? null, duration: p.duration ?? null })) : [])
+        setProjects(Array.isArray(pItems) ? pItems.map((p: any) => ({ uid: p.uid, title: p.title ?? '', preview: p.preview ?? p.summary ?? '', tags: p.tags ?? [], category: p.projectCategory ?? 'COMMERCIAL', ownerOrganization: p.ownerOrganization ?? '', publishTime: p.publishTime ?? '', level: p.level ?? 'C', logoSvgUrl: p.logoSvgUrl ?? null, duration: p.duration ?? null })) : [])
         setNotes(Array.isArray(nItems) ? nItems.map(mapFeedNoteToProfileNoteItem) : [])
         setLoadState('ready')
       } catch (e) {

@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { useNavigate } from 'react-router-dom'
 import { usePublishLeaveGuard } from '@shared/hooks/usePublishLeaveGuard'
 import { resolvePublishSummary } from '@shared/lib/publishSummary'
+import type { LevelCode } from '@shared/types/level'
 import {
   createDefaultContentLongtext,
   createContentLongtext,
@@ -36,6 +37,9 @@ import {
   resolvePublishPreviewBadge,
 } from '@features/project-publish'
 import type { PublishProjectFormDraft } from '@features/project-publish'
+import { evaluateProject, clearKeyPairCache } from '@features/project-publish/services/evaluateProjectService'
+import type { EvaluateProjectOutput } from '@features/project-publish/services/evaluateProjectService'
+import type { EvaluateProjectResponse } from '@features/project-publish/api/evaluateProjectApi'
 import type { CampusRecruitType } from '@shared/types/project'
 import { buildProjectDetailPath } from '@shared/lib/projectRoutes'
 
@@ -54,7 +58,6 @@ export type ProjectPublishWidgetModel = ReturnType<typeof useProjectPublishWidge
 export function useProjectPublishWidget() {
   const navigate = useNavigate()
   const initialSessionRef = useRef(loadPublishProjectSession())
-  const skipClearSessionRef = useRef(false)
   const editRevisionRef = useRef(0)
   const [savedRevision, setSavedRevision] = useState(0)
   const [revisionTick, setRevisionTick] = useState(0)
@@ -74,6 +77,11 @@ export function useProjectPublishWidget() {
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  // 06）项目难度评估状态（evaluateResult / isEvaluating / evaluateError）
+  const [evaluateResult, setEvaluateResult] = useState<EvaluateProjectResponse | null>(null)
+  const [isEvaluating, setIsEvaluating] = useState(false)
+  const [evaluateError, setEvaluateError] = useState<string | null>(null)
 
   const markEdited = useCallback((): void => {
     editRevisionRef.current += 1
@@ -101,9 +109,8 @@ export function useProjectPublishWidget() {
 
   useEffect(() => {
     return () => {
-      if (skipClearSessionRef.current) return
-      const session = loadPublishProjectSession()
-      if (session?.keepForRestore) return
+      // 页面卸载时清除公钥缓存与填写内容
+      clearKeyPairCache()
       clearPublishProjectSession()
     }
   }, [])
@@ -203,8 +210,10 @@ export function useProjectPublishWidget() {
       setProjectUid(result.projectUid)
       markSaved()
 
+      // 发布成功后清除公钥缓存（不再需要评估）
+      clearKeyPairCache()
+
       if (successMode === 'preview') {
-        skipClearSessionRef.current = true
         persistSessionSnapshot()
         leaveGuard.allowNextNavigation()
         navigateToProjectDetail(
@@ -219,7 +228,6 @@ export function useProjectPublishWidget() {
       }
 
       clearProjectDetailPreview()
-      skipClearSessionRef.current = true
       persistSessionSnapshot()
       leaveGuard.allowNextNavigation()
       navigate(buildProjectDetailPath(result.projectUid))
@@ -231,9 +239,40 @@ export function useProjectPublishWidget() {
     } finally { setIsSubmitting(false) }
   }
 
+  // 07）提交项目难度评估（handleEvaluate）
+  const handleEvaluate = useCallback(async (): Promise<void> => {
+    if (!descriptionContent.longtext.trim()) {
+      setEvaluateError('请先填写项目需求详情')
+      return
+    }
+    if (!contentDetailContent.longtext.trim()) {
+      setEvaluateError('请先填写项目内容详细描述')
+      return
+    }
+    setEvaluateError(null)
+    setEvaluateResult(null)
+    setIsEvaluating(true)
+    try {
+      const output: EvaluateProjectOutput = await evaluateProject({
+        description: descriptionContent.longtext,
+        contentDetail: contentDetailContent.longtext,
+      })
+      setEvaluateResult(output.response)
+      // 自动将评估等级写入草稿
+      const normalizedLevel = output.response.level.trim().toUpperCase()
+      if (normalizedLevel) {
+        setDraft((prev) => ({ ...prev, level: normalizedLevel as LevelCode }))
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '项目评估失败，请稍后重试'
+      setEvaluateError(message)
+    } finally { setIsEvaluating(false) }
+  }, [contentDetailContent.longtext, descriptionContent.longtext])
+
   return {
     draft, displaySummary, descriptionContent, contentDetailContent, tagInput, completionPercent, projectUid,
     isSubmitting, submitError,
+    evaluateResult, isEvaluating, evaluateError,
     leavePromptOpen: leaveGuard.leavePromptOpen,
     leavePromptMessage: leaveGuard.leavePromptMessage,
     confirmLeave: leaveGuard.confirmLeave, cancelLeave: leaveGuard.cancelLeave,
@@ -243,6 +282,7 @@ export function useProjectPublishWidget() {
     handleSaveDraft: () => { void submitProject('DRAFT', 'detail') },
     handlePreview: () => { void submitProject('DRAFT', 'preview') },
     handlePublish: () => { void submitProject('PUBLISH', 'detail') },
+    handleEvaluate,
     suggestedSkillTags, publishChecklistItems, resolvePublishPreviewBadge,
   }
 }

@@ -238,39 +238,30 @@
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
-	justify-content: space-between;
-	gap: 12px;
+	justify-content: flex-start;
+	gap: 8px;
 }
 
-.project-card__level {
-	font-size: 14px;
+.project-card__level.level-badge--pill {
+	font-size: 26px;
 	font-weight: 700;
 	line-height: 1;
-	border-radius: 999px;
 	padding: 4px 10px;
+	border-radius: 999px;
 }
 
-.project-card__cta {
-	min-width: 88px;
-	height: 36px;
-	border-radius: 12px;
-	background: var(--project-card-cta-bg);
-	color: var(--project-card-cta-text);
+.project-card__budget {
 	font-size: 13px;
 	font-weight: 600;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
+	color: var(--project-card-muted);
+	text-align: right;
 	white-space: nowrap;
-	box-shadow: 0 2px 8px rgba(56, 189, 248, 0.28);
-	transition: filter 0.2s ease;
 }
 
-.project-card:hover .project-card__cta {
-	filter: brightness(1.05);
+/* ======== 10）Compact 变体（ProfileSpace：无 CTA，meta 和 logo 保持不变） ======== */
+.project-card__inner--compact .project-card__aside {
+	justify-content: flex-start;
 }
-
-/* ======== 10）响应式 — 平板 ======== */
 @media (max-width: 768px) {
 	.project-card__inner {
 		grid-template-columns: max-content 1fr;

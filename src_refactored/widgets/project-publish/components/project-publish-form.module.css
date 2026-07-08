@@ -3,3 +3,36 @@
 .root > * + * {
   margin-top: 1.5rem;
 }
+
+/* 02）评估错误提示 */
+.evaluateError {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: #ef4444;
+}
+
+/* 03）评估提交按钮（与发布按钮同色） */
+.evaluateButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: var(--publish-btn-bg);
+  color: var(--publish-btn-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.evaluateButton:hover:not(:disabled) {
+  background: var(--publish-btn-bg-hover);
+}
+
+.evaluateButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

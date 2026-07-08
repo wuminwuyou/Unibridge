@@ -1,5 +1,5 @@
 // 01）发布项目页常量数据
-import type { LevelCode } from '@shared/types/level'
+import { DEFAULT_PROJECT_LEVEL } from '@shared/lib/levelConstants'
 import type { CampusRecruitOption, PublishChannelOption, PublishProjectFormDraft } from '../model/types'
 
 // 02）高校招募子类型列表（campusRecruitOptions）
@@ -15,10 +15,7 @@ export const publishChannelOptions: PublishChannelOption[] = [
   { value: 'campus', label: '高校招募', description: '实验室 / 课题组招募' },
 ]
 
-// 04）能力等级选项（publishLevelOptions）
-export const publishLevelOptions: LevelCode[] = ['N', 'R', 'SR', 'SSR', 'UR']
-
-// 05）技能标签建议（suggestedSkillTags）
+// 04）技能标签建议（suggestedSkillTags）
 export const suggestedSkillTags: string[] = [
   'Vue3',
   'React',
@@ -30,7 +27,7 @@ export const suggestedSkillTags: string[] = [
   '大模型',
 ]
 
-// 06）发布检查清单（publishChecklistItems）
+// 05）发布检查清单（publishChecklistItems）
 export const publishChecklistItems: string[] = [
   '标题能概括项目核心价值',
   '摘要控制在 80 字以内便于卡片展示',
@@ -38,7 +35,7 @@ export const publishChecklistItems: string[] = [
   '技能标签覆盖主要技术栈',
 ]
 
-// 07）解析卡片预览频道角标（resolvePublishPreviewBadge）
+// 06）解析卡片预览频道角标（resolvePublishPreviewBadge）
 export function resolvePublishPreviewBadge(draft: PublishProjectFormDraft): string {
   if (draft.channel !== 'campus') {
     return publishChannelOptions.find((item) => item.value === draft.channel)?.label ?? '企业实战'
@@ -51,7 +48,7 @@ export function resolvePublishPreviewBadge(draft: PublishProjectFormDraft): stri
   return '高校招募'
 }
 
-// 08）默认表单草稿（createDefaultPublishProjectDraft）
+// 07）默认表单草稿（createDefaultPublishProjectDraft）
 export function createDefaultPublishProjectDraft(): PublishProjectFormDraft {
   return {
     title: '',
@@ -61,7 +58,7 @@ export function createDefaultPublishProjectDraft(): PublishProjectFormDraft {
     description: '',
     amountMin: '',
     amountMax: '',
-    level: 'R',
+    level: DEFAULT_PROJECT_LEVEL,
     duration: '',
     skillTags: [],
     deadline: '',

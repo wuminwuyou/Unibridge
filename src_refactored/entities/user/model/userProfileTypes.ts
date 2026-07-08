@@ -69,6 +69,9 @@ export interface UserProfileProjectDto {
   level: string
   budget?: string | null
   amount?: string
+  amountMin?: string | null
+  amountMax?: string | null
+  publisherName?: string | null
   logoSvgUrl?: string | null
   teamSize?: string | null
   duration?: string | null

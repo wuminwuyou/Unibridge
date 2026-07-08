@@ -7,8 +7,8 @@ import {
   ProjectLevelField,
   ProjectDurationField,
   ProjectDeadlineField,
-  publishLevelOptions,
 } from '@features/project-publish'
+import { LEVEL_OPTIONS } from '@shared/lib/levelConstants'
 import styles from './project-publish-preview.module.css'
 
 export interface ProjectRightCooperationCardProps {
@@ -36,7 +36,7 @@ export function ProjectRightCooperationCard({
   onDurationChange,
   onDeadlineChange,
 }: ProjectRightCooperationCardProps) {
-  const levelOptions = publishLevelOptions.map((lv) => ({ value: lv, label: lv }))
+  const levelOptions = LEVEL_OPTIONS
 
   return (
     <FormSectionCard

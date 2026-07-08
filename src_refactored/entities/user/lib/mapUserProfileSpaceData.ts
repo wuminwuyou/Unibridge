@@ -1,6 +1,7 @@
 // 01）个人空间页壳视图模型与映射工具（mapUserProfileSpaceData）
 import { normalizeUserResourceUid, type UserResourceUid } from '@shared/api/resourceUid'
 import type { LevelCode } from '@shared/types/level'
+import { normalizeLevel } from '@shared/lib/levelConstants'
 import type {
   UserProfileSpaceAssociatedTeam, UserProfileSpaceData,
 } from '../model/userProfileTypes'
@@ -35,12 +36,9 @@ export interface UserProfileSpaceViewModel {
   honors: unknown[]
 }
 
-// 05）归一化能力等级（normalizeLevelCode）
+// 05）归一化能力等级（normalizeLevelCode）— 委托 shared 统一实现
 function normalizeLevelCode(level: string | null | undefined): LevelCode | null {
-  const normalized = (level ?? '').trim().toUpperCase()
-  if (!normalized || normalized === 'NULL' || normalized === 'UNDEFINED') return null
-  const whitelist: LevelCode[] = ['N', 'R', 'SR', 'SSR', 'UR']
-  return whitelist.includes(normalized as LevelCode) ? (normalized as LevelCode) : null
+  return normalizeLevel(level, null)
 }
 
 // 06）头像占位地址（buildAvatarFallbackUrl）

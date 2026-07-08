@@ -97,6 +97,7 @@ export function ProjectsList({
               key={project.uid ?? `${project.title}-${project.publishTime}`}
               project={project}
               showStatus
+              variant="compact"
             />
           ))}
         </div>

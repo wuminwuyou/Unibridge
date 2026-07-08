@@ -27,7 +27,6 @@ export interface ChannelPickerProps {
 export function ChannelPicker({ channel, campusRecruitType, onChannelChange, onCampusRecruitTypeChange }: ChannelPickerProps) {
   return (
     <fieldset>
-      <legend className={styles.label}>发布频道</legend>
       <div className={styles.channelGrid}>
         {publishChannelOptions.map((option) => (
           <ChannelOptionCard

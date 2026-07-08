@@ -1,20 +1,19 @@
 // 01）DTO → ViewModel 映射（mapProjectDetailToPayload）
 import type { ProjectDetailDto } from '../model/types'
-import type { LevelCode } from '@shared/types/level'
 import type { CampusRecruitType } from '@shared/types/project'
 import type { ProjectDetailPayload, ProjectDetailPublishStatus, ProjectOwnerInfo } from '../model/projectDetailViewModel'
 import { resolveProjectChannelLabel } from './resolveProjectChannelLabel'
+import { normalizeLevel, DEFAULT_PROJECT_LEVEL } from '@shared/lib/levelConstants'
+import type { LevelCode } from '@shared/types/level'
 
 // 02）映射项目发布状态（mapProjectDetailPublishStatus）
 function mapProjectDetailPublishStatus(status: ProjectDetailDto['status']): ProjectDetailPublishStatus {
   return status === 'DRAFT' ? 'DRAFT' : 'PUBLISHED'
 }
 
-// 03）归一化项目等级（normalizeProjectLevel）
+// 03）归一化项目等级（normalizeProjectLevel）— 委托 shared 统一实现
 function normalizeProjectLevel(level: string): LevelCode {
-  const normalizedLevel = level.trim().toUpperCase()
-  const levelWhitelist: LevelCode[] = ['N', 'R', 'SR', 'SSR', 'UR']
-  return levelWhitelist.includes(normalizedLevel as LevelCode) ? (normalizedLevel as LevelCode) : 'N'
+  return normalizeLevel(level, DEFAULT_PROJECT_LEVEL) as LevelCode
 }
 
 // 04）将项目详情 DTO 转为页面载荷（mapProjectDetailToPayload）

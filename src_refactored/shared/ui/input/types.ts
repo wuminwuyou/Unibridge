@@ -52,4 +52,6 @@ export interface FormDateInputProps extends FormInputBaseProps {
   disabled?: boolean
   /** 附加 className */
   className?: string
+  /** 可选的最小日期（YYYY-MM-DD），早于此日期的选项将被禁用 */
+  min?: string
 }

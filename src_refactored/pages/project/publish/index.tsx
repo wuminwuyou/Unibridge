@@ -38,6 +38,10 @@ function PublishProjectPageContent() {
     handleSaveDraft,
     handlePreview,
     handlePublish,
+    handleEvaluate,
+    evaluateResult,
+    isEvaluating,
+    evaluateError,
   } = useProjectPublishWidget()
 
   return (
@@ -52,6 +56,10 @@ function PublishProjectPageContent() {
           onCampusRecruitTypeChange={setCampusRecruitType}
           onDescriptionChange={handleDescriptionChange}
           onContentDetailChange={handleContentDetailChange}
+          evaluateResult={evaluateResult}
+          isEvaluating={isEvaluating}
+          evaluateError={evaluateError}
+          onEvaluate={handleEvaluate}
         />
       }
       right={

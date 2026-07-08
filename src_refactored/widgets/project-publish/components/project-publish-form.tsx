@@ -1,11 +1,13 @@
 // 01）发布项目左栏表单（ProjectPublishForm）
-// 组装三个独立卡片：频道选择 + 需求详情 + 项目内容详细描述
-import { FolderKanban, Layers3, FileDigit } from 'lucide-react'
+// 组装三个独立卡片：频道选择 + 需求详情 + 项目内容详细描述（含评估按钮 + 结果卡片）
+import { FolderKanban, Layers3, FileDigit, Sparkles } from 'lucide-react'
 import { FormSectionCard } from '@shared/ui/FormSectionCard'
 import {
   ChannelPicker,
   DescriptionEditor,
 } from '@features/project-publish'
+import type { EvaluateProjectResponse } from '@features/project-publish/api/evaluateProjectApi'
+import { ProjectEvaluateCard } from '@features/project-publish/components/ProjectEvaluateCard'
 import type { CampusRecruitType } from '@shared/types/project'
 import styles from './project-publish-form.module.css'
 
@@ -21,9 +23,14 @@ export interface ProjectPublishFormProps {
   /** Markdown 需求详情（必填——对外展示的招募需求） */
   descriptionValue: string
   onDescriptionChange: (v: string) => void
-  /** Markdown 项目内容详细描述（非必填——加密后用于项目难度评估） */
+  /** Markdown 项目内容详细描述（与需求详情同为评估必填项——加密后用于项目难度评估） */
   contentDetailValue: string
   onContentDetailChange: (v: string) => void
+  /** 难度评估状态 */
+  evaluateResult: EvaluateProjectResponse | null
+  isEvaluating: boolean
+  evaluateError: string | null
+  onEvaluate: () => void
 }
 
 export function ProjectPublishForm({
@@ -35,6 +42,10 @@ export function ProjectPublishForm({
   onCampusRecruitTypeChange,
   onDescriptionChange,
   onContentDetailChange,
+  evaluateResult,
+  isEvaluating,
+  evaluateError,
+  onEvaluate,
 }: ProjectPublishFormProps) {
   return (
     <main className={styles.root}>
@@ -72,9 +83,28 @@ export function ProjectPublishForm({
         <DescriptionEditor
           value={contentDetailValue}
           onChange={onContentDetailChange}
-          maxLength={3000}
+          maxLength={5000}
           toolbarsExcludeExtra={PROJECT_PUBLISH_EXCLUDED_TOOLBARS}
         />
+
+        {/* 评估错误信息 */}
+        {evaluateError && (
+          <p className={styles.evaluateError}>{evaluateError}</p>
+        )}
+
+        {/* 评估按钮 */}
+        <button
+          type="button"
+          className={styles.evaluateButton}
+          disabled={isEvaluating || !descriptionValue.trim() || !contentDetailValue.trim()}
+          onClick={onEvaluate}
+        >
+          <Sparkles className="h-4 w-4" />
+          {isEvaluating ? '评估中...' : '提交难度评估'}
+        </button>
+
+        {/* 评估结果卡片 */}
+        {evaluateResult && <ProjectEvaluateCard result={evaluateResult} />}
       </FormSectionCard>
     </main>
   )

@@ -1,6 +1,7 @@
 // 01）机构空间页壳视图模型与映射工具（mapEntityProfileSpaceData）
 import { normalizeUserResourceUid, type EntityCode } from '@shared/api/resourceUid'
 import type { LevelCode } from '@shared/types/level'
+import { normalizeLevel } from '@shared/lib/levelConstants'
 import { normalizeOrgPublicMemberRole } from '@entities/member/lib/orgMemberCardUtils'
 import type { ProfileOrgMemberItem } from '@entities/member/model'
 import type {
@@ -68,12 +69,9 @@ function normalizeEntityProfileType(type: string | undefined): 'ENTERPRISE' | 'U
   return type?.trim().toUpperCase() === 'UNIVERSITY' ? 'UNIVERSITY' : 'ENTERPRISE'
 }
 
-// 09）归一化能力等级（normalizeLevelCode）
+// 09）归一化能力等级（normalizeLevelCode）— 委托 shared 统一实现
 function normalizeLevelCode(level: string | null | undefined): LevelCode | null {
-  const normalized = (level ?? '').trim().toUpperCase()
-  if (!normalized || normalized === 'NULL' || normalized === 'UNDEFINED') return null
-  const whitelist: LevelCode[] = ['N', 'R', 'SR', 'SSR', 'UR']
-  return whitelist.includes(normalized as LevelCode) ? (normalized as LevelCode) : null
+  return normalizeLevel(level, null)
 }
 
 // 10）映射机构人员 DTO 单项（mapEntityProfileMember）

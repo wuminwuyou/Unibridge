@@ -40,10 +40,16 @@ export interface ProjectItem {
   recruitmentType?: ProjectRecruitmentType | null
   /** 发布主体：企业名 / 实验室或团队名（owner 所属主体或 team） */
   ownerOrganization: string
+  /** 发布人名称（项目发布者的显示名），卡片 meta 行展示 */
+  publisherName?: string | null
   /** 卡片底部时间展示（published_at 格式化或相对时间）；当前 ProjectCard 不展示 */
   publishTime: string
   level: LevelCode
-  /** 商业项目托管预算；列表卡片不展示，可选保留于 mock / 类型兼容 */
+  /** 预算区间最小值（数字字符串或纯数字），卡片右上角展示 */
+  amountMin?: string | null
+  /** 预算区间最大值（数字字符串或纯数字），卡片右上角展示 */
+  amountMax?: string | null
+  /** 商业项目托管预算（已废弃，保留兼容） */
   budget?: string | null
   /** 发布主体 Logo SVG 地址，对应 entity_profile.logo_url */
   logoSvgUrl?: string | null

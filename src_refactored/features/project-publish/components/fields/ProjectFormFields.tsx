@@ -49,7 +49,7 @@ export function ProjectAmountField({ value, onChange, disabled }: { value: strin
 export function ProjectLevelField({ value, options, onChange, disabled }: { value: string; options: { value: string; label: string }[]; onChange: (v: string) => void; disabled?: boolean }) {
   return (
     <FormSelectInput
-      label="能力等级"
+      label="项目难度"
       value={value}
       options={options}
       onChange={onChange}

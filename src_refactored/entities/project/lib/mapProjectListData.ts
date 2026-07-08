@@ -2,14 +2,13 @@
 import type {
   ProjectItem, ProjectCategory, ProjectRecruitmentType, ProjectStatus,
 } from '@shared/types/project'
+import { normalizeLevel, DEFAULT_PROJECT_LEVEL } from '@shared/lib/levelConstants'
 import type { LevelCode } from '@shared/types/level'
 import type { UserProfileProjectDto } from '@entities/user/model/userProfileTypes'
 
-// 02）归一化项目等级（normalizeProjectLevel）
+// 02）归一化项目等级（normalizeProjectLevel）— 委托 shared 统一实现
 function normalizeProjectLevel(level: string): LevelCode {
-  const normalized = level.trim().toUpperCase()
-  const whitelist: LevelCode[] = ['N', 'R', 'SR', 'SSR', 'UR']
-  return whitelist.includes(normalized as LevelCode) ? (normalized as LevelCode) : 'N'
+  return normalizeLevel(level, DEFAULT_PROJECT_LEVEL) as LevelCode
 }
 
 // 03）归一化项目分类（normalizeProjectCategory）
@@ -66,8 +65,11 @@ export function mapApiProjects(projects: UserProfileProjectDto[]): ProjectItem[]
       category,
       recruitmentType,
       ownerOrganization: project.ownerOrganization?.trim() || project.company?.trim() || '',
+      publisherName: project.publisherName?.trim() || null,
       publishTime: project.publishTime,
       level: normalizeProjectLevel(project.level),
+      amountMin: project.amountMin ?? null,
+      amountMax: project.amountMax ?? null,
       logoSvgUrl: project.logoSvgUrl?.trim() || null,
       duration: project.duration?.trim() || null,
       status: normalizeProjectStatus(project.status),

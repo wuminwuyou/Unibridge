@@ -12,6 +12,8 @@ import { useUserAvatarData } from '@shared/hooks/useUserAvatarData'
 import { getMenuCache, getUserUid } from '@shared/lib/tokenStorage'
 import { isOrganizationAdminRole } from '@shared/lib/organizationSession'
 import LevelBadge from '@shared/ui/LevelBadge'
+import { normalizeLevel, DEFAULT_PROJECT_LEVEL } from '@shared/lib/levelConstants'
+import type { LevelCode } from '@shared/types/level'
 import UserAvatar from '@shared/ui/UserAvatar'
 import { useUserMenuData } from '../hooks/useUserMenuData'
 
@@ -44,7 +46,7 @@ export function TopNavbarUserProfileMenu({ onLogout }: TopNavbarUserProfileMenuP
     menuData?.nickname?.trim()
     || localCache?.nickname?.trim()
     || (isOrgAccount ? (userProfile?.entityName ?? '机构') : (userProfile?.uid ?? '用户'))
-  const displayLevel = menuData?.level ?? localCache?.level ?? 'N'
+  const displayLevel = menuData?.level ?? localCache?.level ?? 'C'
   const userId = userProfile?.uid ?? getUserUid()
   const profilePath = userId ? `/profile?uid=${encodeURIComponent(userId)}` : '/profile'
   const avatarHref =
@@ -52,10 +54,7 @@ export function TopNavbarUserProfileMenu({ onLogout }: TopNavbarUserProfileMenuP
       ? `/org?uid=${encodeURIComponent(userProfile.entityCode)}`
       : profilePath
 
-  const levelWhitelist = ['N', 'R', 'SR', 'SSR', 'UR']
-  const normalizedLevel = (
-    levelWhitelist.includes(displayLevel?.toUpperCase() ?? '') ? displayLevel?.toUpperCase() : 'N'
-  ) as 'N' | 'R' | 'SR' | 'SSR' | 'UR'
+  const normalizedLevel = normalizeLevel(displayLevel, DEFAULT_PROJECT_LEVEL) as LevelCode
   const stats = useMemo(() => buildDefaultStats(), [])
   const isOrg = channel === 'organization'
   const menuItems = useMemo(() => {

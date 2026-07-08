@@ -1,6 +1,7 @@
 // 01）Title 回退占位载荷（buildFallbackProjectDetail）
 // 与旧版 buildFallbackFromSearch 字段级 1:1，返回完整 ProjectDetailPayload
 import type { ProjectDetailPayload } from '../model/projectDetailViewModel'
+import { DEFAULT_PROJECT_LEVEL } from '@shared/lib/levelConstants'
 
 // 02）由 title 构建回退载荷（buildFallbackProjectDetail）
 /**
@@ -26,7 +27,7 @@ export function buildFallbackProjectDetail(title: string | null): ProjectDetailP
     descriptionEditorType: 'MARKDOWN',
     amountMin: '—',
     amountMax: '—',
-    level: 'R',
+    level: DEFAULT_PROJECT_LEVEL,
     duration: '—',
     skillTags: [],
     deadline: '—',
