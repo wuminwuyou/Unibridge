@@ -5,7 +5,7 @@
 -- 主体根密码：SHA256("123456")
 -- 
 -- 2026-06-26 更新：
---   - t_user_note 移除 editor_type / content / view_count / like_count / collect_count / comment_count
+--   - t_user_note 前缀 UID 统一为 NU+11（如 NUaB3cD4eF5gH）
 --   - 新增 t_user_note_detail（content + parent_content_type_code）和 t_user_note_counter（计数）数据
 --   - t_user_note 新增 visibility 字段
 -- =========================================================================
@@ -109,17 +109,17 @@ INSERT INTO t_team_member (id, team_uid, user_uid, role, lab_user_uid, career, i
 (3, 'ST00000000001', 'US00000000001', 'LEADER', NULL, '后端开发', 1, NULL),
 (4, 'LB00000000002', 'US00000000002', 'MENTOR', NULL, '软件工程 · 云原生', 1, NULL);
 
-INSERT INTO t_project (id, project_uid, extended_uid, category, recruitment_type, owner_uid, team_uid, title, preview, editor_type, tags, duration, deadline, level, status, published_at) VALUES
+INSERT INTO t_project (id, project_uid, extended_uid, category, recruitment_type, owner_uid, team_uid, title, preview, tags, duration, deadline, level, status, published_at) VALUES
 (1, 'PR20212345678', '91440300708461136T', 'COMMERCIAL', NULL, 'US00000000003', NULL, '智能客服系统研发',
- '面向客服场景的多轮对话与工单联动系统', 'MARKDOWN',
+ '面向客服场景的多轮对话与工单联动系统',
  JSON_ARRAY('NLP', '客服', 'SaaS'), '8 周', '2026-08-31', 'B', 'OPEN',
  '2026-04-01 10:00:00'),
 (2, 'PRnews1234567', 'LB00000000001', 'COMMERCIAL', NULL, 'US00000000003', 'LB00000000001', '实验室数据管理平台',
- '为高校实验室提供项目、成员与成果一体化管理', 'MARKDOWN',
+ '为高校实验室提供项目、成员与成果一体化管理',
  JSON_ARRAY('数据平台', 'B端', '高校'), '12 周', '2026-09-15', 'A', 'ONGOING',
  '2026-04-15 14:00:00'),
 (3, 'PR1T1w2K4x6O8', 'ST00000000001', 'COMMERCIAL', NULL, 'US00000000003', 'ST00000000001', '校园社交 App 外包',
- '面向校园场景的轻量社交与活动发布应用', 'MARKDOWN',
+ '面向校园场景的轻量社交与活动发布应用',
  JSON_ARRAY('移动端', '社交', '外包'), '6 周', '2026-07-01', 'C', 'OPEN',
  '2026-05-01 09:30:00');
 
@@ -135,7 +135,7 @@ INSERT INTO t_project_body (project_uid, description) VALUES
 ('PR1T1w2K4x6O8', '# 产品概述\n\n面向校园场景的轻量社交 App。');
 
 -- =========================================================================
--- 笔记核心表：移除 editor_type / content / 计数器字段，新增 visibility
+-- 笔记核心表：前缀 UID 统一为 NU+11，新增 visibility
 -- =========================================================================
 INSERT INTO t_user_note (
   id, user_uid, content_type_code, extended_uid, title, summary, cover_url,

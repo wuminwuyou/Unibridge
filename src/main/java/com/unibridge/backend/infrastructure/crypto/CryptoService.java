@@ -243,7 +243,11 @@ public class CryptoService {
     /**
      * Direct RSA-OAEP decryption using the OAEP hash derived from the DB
      * {@code algorithm} field (e.g. {@code "RSA-2048-OAEP"} → SHA-256).
+     *
+     * @deprecated 前端已改为混合加密方案，请使用 {@link #decryptHybridRsaOaep(String, String)}。
+     *             保留此方法仅向后兼容旧版前端。
      */
+    @Deprecated
     public String decryptRsaOaep(String base64Ciphertext, String keyId) {
         requireText(base64Ciphertext, "ciphertext");
         AsymmetricKey ak = loadActiveAsymmetricKey(keyId);
@@ -260,6 +264,88 @@ public class CryptoService {
             log.error("RSA-OAEP decryption failed for keyId={} algorithm={}: {}",
                     keyId, ak.getAlgorithm(), e.getMessage());
             throw new CryptoException("RSA-OAEP decryption failed", e);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Public API — Hybrid RSA-OAEP + AES-256-GCM (前端混合加密方案)
+    // ========================================================================
+
+    /**
+     * 前端混合加密方案解密。
+     *
+     * <h3>密文格式（由前端拼接）</h3>
+     * <pre>{@code
+     * base64(wrappedKey) + "." + base64(iv) + "." + base64(aesGcmCiphertext)
+     * }</pre>
+     *
+     * <h3>解密流程</h3>
+     * <ol>
+     *   <li>按 "." 分割得到三段 base64</li>
+     *   <li>Base64 解码 → wrappedKey (~256B RSA-OAEP 包裹的 AES-256 原始密钥)、
+     *       iv (12B)、aesGcmCiphertext（末尾 16B 为 auth tag）</li>
+     *   <li>根据 keyId 查找 RSA-2048 私钥</li>
+     *   <li>RSA-OAEP 私钥解密 wrappedKey → AES-256 原始密钥 (32B)</li>
+     *   <li>AES-256-GCM + IV 解密 aesGcmCiphertext（验证 auth tag）</li>
+     *   <li>UTF-8 解码 → 原文</li>
+     * </ol>
+     *
+     * @param hybridCiphertext 三段式混合密文，格式: "base64(wrappedKey).base64(iv).base64(ciphertext)"
+     * @param keyId            前端请求中的 keyId，用于定位解密私钥
+     * @return 解密后的原文（UTF-8）
+     * @throws CryptoException 解密任一环节失败（密钥不匹配、auth tag 无效、格式错误）
+     */
+    public String decryptHybridRsaOaep(String hybridCiphertext, String keyId) {
+        requireText(hybridCiphertext, "hybridCiphertext");
+
+        // Step 1: 按 "." 分割三段 base64
+        String[] parts = hybridCiphertext.split("\\.", 3);
+        if (parts.length != 3) {
+            throw new CryptoException(
+                    "Invalid hybrid ciphertext format: expected 3 dot-separated parts, got " + parts.length);
+        }
+
+        byte[] wrappedKey;
+        byte[] iv;
+        byte[] aesGcmCiphertext;
+        try {
+            wrappedKey       = Base64.getDecoder().decode(parts[0]);
+            iv               = Base64.getDecoder().decode(parts[1]);
+            aesGcmCiphertext = Base64.getDecoder().decode(parts[2]);
+        } catch (IllegalArgumentException e) {
+            throw new CryptoException("Invalid base64 in hybrid ciphertext", e);
+        }
+
+        // Step 2: 加载 RSA 私钥
+        AsymmetricKey ak = loadActiveAsymmetricKey(keyId);
+        PrivateKey privateKey = parseAndDecryptPrivateKey(ak);
+
+        // Step 3: RSA-OAEP 解密 wrappedKey → AES-256 原始密钥
+        byte[] aesKeyBytes;
+        try {
+            aesKeyBytes = rsaDecrypt(wrappedKey, privateKey,
+                    CryptoAlgorithm.fromDbName(ak.getAlgorithm()).transformation());
+        } catch (Exception e) {
+            log.error("RSA-OAEP unwrap failed for keyId={} algorithm={}: {}",
+                    keyId, ak.getAlgorithm(), e.getMessage());
+            throw new CryptoException("RSA-OAEP unwrap of AES session key failed", e);
+        }
+
+        // Step 4: AES-256-GCM 解密
+        try {
+            SecretKey aesKey = new SecretKeySpec(aesKeyBytes, "AES");
+            Cipher aesCipher = Cipher.getInstance("AES/GCM/NoPadding");
+            aesCipher.init(Cipher.DECRYPT_MODE, aesKey,
+                    new GCMParameterSpec(AES_GCM_TAG_BITS, iv));
+            byte[] plaintext = aesCipher.doFinal(aesGcmCiphertext);
+            return new String(plaintext, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (javax.crypto.AEADBadTagException e) {
+            log.error("AES-GCM auth tag verification failed for keyId={}", keyId);
+            throw new CryptoException("AES-GCM auth tag verification failed: "
+                    + "the ciphertext may have been tampered with or the key is incorrect", e);
+        } catch (Exception e) {
+            log.error("AES-GCM decryption failed for keyId={}: {}", keyId, e.getMessage());
+            throw new CryptoException("AES-GCM decryption failed", e);
         }
     }
 

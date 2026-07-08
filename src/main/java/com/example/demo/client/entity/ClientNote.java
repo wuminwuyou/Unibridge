@@ -21,9 +21,6 @@ public class ClientNote {
     private String contentTypeCode;
     private String title;
     private String summary;
-    /** 编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前默认 MARKDOWN） */
-    @TableField("editor_type")
-    private String editorType;
     /** 图文笔记 Markdown 正文；视频笔记为 null */
     private String content;
     @TableField("cover_url")

@@ -566,7 +566,8 @@ CREATE TABLE t_team_member (
 
 
 -- =========================================================================
--- 第 8 章：项目 (Project)
+-- =========================================================================
+-- 第 8 章：项目表 (Project)
 -- =========================================================================
 
 -- 8.1 统一项目主表（t_project）
@@ -586,8 +587,10 @@ CREATE TABLE t_project (
   team_uid CHAR(13) NULL COMMENT '关联/承接的团队或实验室 UID (可选)',
   title VARCHAR(255) NOT NULL COMMENT '项目名称',
   preview TEXT NOT NULL COMMENT '项目简略描述',
-  editor_type VARCHAR(32) NOT NULL DEFAULT 'MARKDOWN' COMMENT '编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前前端统一 Milkdown）',
-  budget VARCHAR(64) NULL COMMENT '项目预算/赏金区间（公开字段，如"10000 - 20000"或"面议"）',
+  -- 公开预算区间：仅作卡片展示与筛选模糊匹配，严禁填入精确托管金额。
+  -- 应用层写入时须确保此值 ≠ t_project_secret.total_budget 的直译明文，
+  -- 避免模糊搜索时撞到精确字面值导致间接泄露托管额。
+  budget VARCHAR(64) NULL COMMENT '项目预算/赏金区间（公开字段，如"10000 - 20000"、"面议"或"30万以上"。禁止填入精确托管金额）',
   tags JSON NULL COMMENT '推荐与算法标签列表',
   duration VARCHAR(64) NULL COMMENT '预计周期',
   deadline DATE NULL COMMENT '最大接受截止日期（项目招募最大容忍度，逼近或超过该日期则加急处理）',
@@ -609,25 +612,40 @@ CREATE TABLE t_project (
   CONSTRAINT fk_project_owner FOREIGN KEY (owner_uid) REFERENCES t_user(user_uid)
     ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_project_team FOREIGN KEY (team_uid) REFERENCES t_team(team_uid)
-    ON DELETE SET NULL ON UPDATE CASCADE, 
+    ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT chk_proj_category CHECK (category IN ('COMMERCIAL', 'RECRUITMENT')),
   CONSTRAINT chk_proj_uid CHECK (project_uid REGEXP '^PR[A-Za-z0-9]{11}$'),
   CONSTRAINT chk_proj_recruit_type CHECK (recruitment_type IN ('LAB_RECRUIT', 'TEAM_RECRUIT', 'CAMPUS_PRACTICE', 'PERSONAL_RECRUIT')),
   CONSTRAINT chk_proj_status CHECK (status IN ('DRAFT', 'OPEN', 'ONGOING', 'CLOSED')),
-  CONSTRAINT chk_proj_level CHECK (level IN ('S','A','B','C','D','E')),
-  CONSTRAINT chk_proj_editor_type CHECK (editor_type IN ('MARKDOWN', 'RICHTEXT'))
+  CONSTRAINT chk_proj_level CHECK (level IN ('S','A','B','C','D','E','?'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- project.extended_uid：多态代发 Key（不设 FK；值为 entity_code 或 team_uid）
 -- 企业/学校代发 → entity_code；实验室/学生团队招募 → team_uid (LB/ST+11)
 
+-- =========================================================================
 -- 8.2 商业项目敏感与隐私扩展表（t_project_secret）
--- 🔒 双 ID 安全：本表仅通过 project_uid 关联；API 禁止暴露自增 id
+--
+-- 🔒 适用范围：仅 t_project.category = 'COMMERCIAL' 时才允许在
+--    本表中建立记录。RECRUITMENT（招募与实践项目）不应存在对应行。
+--
+-- 🔒 应用层强校验（不可写 DB CHECK，因跨表 FK 不能引用普通列的值）：
+--    插入/更新 t_project_secret 前必须：
+--      SELECT category FROM t_project WHERE project_uid = ? FOR UPDATE
+--    仅当 category = 'COMMERCIAL' 时继续写入；否则抛出
+--    BusinessException(400, "SECRET_ONLY_FOR_COMMERCIAL")。
+--    删除同理：若 t_project.category 被 UPDATE 为 'RECRUITMENT'，
+--    必须在同一事务内 DELETE FROM t_project_secret 对应行。
+--
+-- 🔒 预算隔离：total_budget（精确托管额）永不出现在任何 API 响应中。
+--    主表 budget 为公开区间展示字段，两者语义正交，应用层不得
+--    将 total_budget 格式化为字符串写入主表 budget。
+-- =========================================================================
 CREATE TABLE t_project_secret (
-  project_uid CHAR(13) NOT NULL COMMENT '关联的主项目 UID（1:1 关联）',
+  project_uid CHAR(13) NOT NULL COMMENT '关联的主项目 UID（1:1 关联；对应 t_project 行须 category = COMMERCIAL）',
   -- 核心敏感数据：托管金额
-  total_budget DECIMAL(18,2) NOT NULL DEFAULT 0.00 COMMENT '托管总额（企业隐私，严禁泄露）',
-  -- 项目详情描述：非对称加密存储（RSA-2048-OAEP / EC-P256-ECDH），仅提供计算难度等级与审查时使用，不可解密查看
+  total_budget DECIMAL(18,2) NOT NULL DEFAULT 0.00 COMMENT '托管总额（企业隐私，严禁泄露；仅 category=COMMERCIAL 时有值）',
+  -- 项目详情描述：非对称加密存储（RSA-2048-OAEP / EC-P256-ECDH），仅项目 PM 可私钥解密查看
   encrypted_description MEDIUMTEXT NULL COMMENT '项目详情描述密文（RSA-2048-OAEP 或 EC-P256-ECDH 加密，Base64编码。格式：iv:encrypted_symmetric_key:ciphertext:auth_tag。原文为 Markdown/纯文本，≤5000 字）',
   description_key_id CHAR(36) NULL COMMENT '加密所用的非对称密钥 UUID（关联 sys_asymmetric_keys.key_id）。解密时根据此 ID 查找对应私钥',
   -- 商业专用高级状态机：主表 status='ONGOING' 时激活
@@ -653,8 +671,9 @@ CREATE TABLE t_project_secret (
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- =========================================================================
 -- 8.2.1 项目正文大文本拆分表（t_project_body：垂直拆分，热冷分离）
--- 仅存 description 大文本，避免频繁拉取主表长字段
+-- =========================================================================
 CREATE TABLE t_project_body (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   project_uid CHAR(13) NOT NULL COMMENT '关联的主项目 UID（1:1 关联）',
@@ -665,60 +684,97 @@ CREATE TABLE t_project_body (
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- =========================================================================
 -- 8.2.2 项目计数统计表（t_project_counter：热写分离，避免频繁更新主表行锁竞争）
--- TODO: 前端 IM 即时通讯私聊功能尚未实现，chat_count 当前仅作快照预留；collect_count 对应前端「感兴趣」按钮
--- 计数写入走 Redis 缓存（feed:proj:cnt:{projectUid}:{field}），MySQL 表为定期快照落库
+-- =========================================================================
 CREATE TABLE t_project_counter (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   project_uid CHAR(13) NOT NULL COMMENT '对应 t_project.project_uid（应用层关联）',
   view_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '浏览量',
   collect_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '收藏数（前端「感兴趣」按钮）',
-  chat_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '私聊人数（快照，精确值见 Redis HyperLogLog；TODO: IM 私聊后端待接入）',
+  chat_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '私聊人数（快照，精确值见 Redis HyperLogLog）',
   PRIMARY KEY (id),
   UNIQUE KEY uk_proj_counter_uid (project_uid),
   CONSTRAINT fk_proj_counter_uid FOREIGN KEY (project_uid) REFERENCES t_project(project_uid)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 8.3 里程碑（t_project_milestone：project 1:N t_project_milestones）
--- 注：t_project_milestone 依附于 IM 系统（Instant Message），作为项目即时通讯中的里程碑管理功能
-CREATE TABLE t_project_milestone (
+-- =========================================================================
+-- 8.3 项目难度评估与审计（t_project_level_audit）
+-- =========================================================================
+CREATE TABLE t_project_level_audit (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  project_uid CHAR(13) NOT NULL,
-  title VARCHAR(255) NOT NULL COMMENT '里程碑标题',
-  payment_pct DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT '拨款占比',
-  status VARCHAR(32) NOT NULL COMMENT '协商状态（项目PM与学生PM协商）',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_t_project_milestone_project_uid (project_uid),
-  CONSTRAINT fk_t_project_milestone_project FOREIGN KEY (project_uid) REFERENCES t_project(project_uid)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT chk_pmil_payment_pct CHECK (payment_pct >= 0 AND payment_pct <= 100)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  evaluation_uid CHAR(36) NOT NULL COMMENT '评估记录唯一标识（UUID v4，与 sys_asymmetric_keys.key_id 同机制）',
+  project_uid CHAR(13) NULL COMMENT '关联的主项目 UID（评估时为空，项目创建/发布后回填）',
+  user_uid CHAR(13) NOT NULL COMMENT '触发评估的用户 UID',
+  key_id VARCHAR(36) NOT NULL COMMENT '加密公钥标识（关联 sys_asymmetric_keys.key_id），评估时前端传入',
+  evaluator_type VARCHAR(16) NOT NULL DEFAULT 'AI' COMMENT '评估主体：AI(自动模型) | EXPERT(人工专家复核) | SYSTEM(系统默认)',
 
--- 8.4 任务卡片（t_project_task_card：t_project_milestone 1:N task cards）
--- 注：t_project_task_card 依附于 IM 系统（Instant Message），作为项目即时通讯中的任务卡片管理功能
-CREATE TABLE t_project_task_card (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  milestone_id BIGINT UNSIGNED NOT NULL,
-  assignee_uid CHAR(13) NULL COMMENT '执行人(学生) UID',
-  title VARCHAR(255) NOT NULL,
-  content TEXT NULL COMMENT '原始需求描述',
-  status VARCHAR(16) NOT NULL COMMENT 'DONE | TODO',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_task_card_milestone_id (milestone_id),
-  KEY idx_task_card_assignee_uid (assignee_uid),
-  KEY idx_task_card_status (status),
-  CONSTRAINT fk_task_card_milestone FOREIGN KEY (milestone_id) REFERENCES t_project_milestone(id)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_task_card_assignee FOREIGN KEY (assignee_uid) REFERENCES t_user(user_uid)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT chk_ptask_status CHECK (status IN ('DONE','TODO'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  -- ── 评估输入快照（用于后续模型与提示词调优）──
+  description_plaintext TEXT NOT NULL COMMENT '项目招募需求原文（Markdown 格式，明文字段）',
+  content_detail_ciphertext MEDIUMTEXT NOT NULL COMMENT '项目内容描述密文（前端加密后传入的 Base64 字符串，不解密直接存储，供审计追溯）',
 
+  -- ── 预检结果（precheck） ──
+  precheck_status VARCHAR(16) NOT NULL COMMENT '预检状态：pass(通过) | partial(部分不足) | insufficient(信息不充分)',
+  logic_check_failed TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑一致性检查是否未通过：0=通过 1=存在问题',
+
+  -- ── 六个特征维度等级（S/A/B/C/D/E）──
+  -- 工程复杂度维度 (S1/S2/S3)
+  feat_scale CHAR(1) NOT NULL COMMENT 'S1: 项目规模与系统体量 S|A|B|C|D|E|?（?=信息不足）',
+  feat_scale_reason VARCHAR(1024) NULL COMMENT 'S1 判定理由（模型输出的 reason）',
+  feat_scale_evidence TEXT NULL COMMENT 'S1 引用原文（模型输出的 evidence：描述原文中相关语句，若无则写未提及）',
+  feat_integration CHAR(1) NOT NULL COMMENT 'S2: 跨技术集成度与技术深度 S|A|B|C|D|E|?（?=信息不足）',
+  feat_integration_reason VARCHAR(1024) NULL COMMENT 'S2 判定理由（模型输出的 reason）',
+  feat_integration_evidence TEXT NULL COMMENT 'S2 引用原文（模型输出的 evidence：描述原文中相关语句，若无则写未提及）',
+  feat_constraints CHAR(1) NOT NULL COMMENT 'S3: 工业标准与运行约束 S|A|B|C|D|E|?（?=信息不足）',
+  feat_constraints_reason VARCHAR(1024) NULL COMMENT 'S3 判定理由（模型输出的 reason）',
+  feat_constraints_evidence TEXT NULL COMMENT 'S3 引用原文（模型输出的 evidence：描述原文中相关语句，若无则写未提及）',
+
+  -- 创新程度维度 (S4/S5/S6)
+  feat_availability CHAR(1) NOT NULL COMMENT 'S4: 参考方案可获取性 S|A|B|C|D|E|?（?=信息不足）',
+  feat_availability_reason VARCHAR(1024) NULL COMMENT 'S4 判定理由（模型输出的 reason）',
+  feat_availability_evidence TEXT NULL COMMENT 'S4 引用原文（模型输出的 evidence：描述原文中相关语句，若无则写未提及）',
+  feat_threshold CHAR(1) NOT NULL COMMENT 'S5: 理论门槛与前置常识 S|A|B|C|D|E|?（?=信息不足）',
+  feat_threshold_reason VARCHAR(1024) NULL COMMENT 'S5 判定理由（模型输出的 reason）',
+  feat_threshold_evidence TEXT NULL COMMENT 'S5 引用原文（模型输出的 evidence：描述原文中相关语句，若无则写未提及）',
+  feat_domain_span CHAR(1) NOT NULL COMMENT 'S6: 跨领域知识跨度 S|A|B|C|D|E|?（?=信息不足）',
+  feat_domain_span_reason VARCHAR(1024) NULL COMMENT 'S6 判定理由（模型输出的 reason）',
+  feat_domain_span_evidence TEXT NULL COMMENT 'S6 引用原文（模型输出的 evidence：描述原文中相关语句，若无则写未提及）',
+
+  -- ── 汇总等级 ──
+  engineering_level CHAR(1) NOT NULL COMMENT '工程侧综合等级 (E_eng) S|A|B|C|D|E|?（?=信息不足）',
+  engineering_based_on VARCHAR(128) NOT NULL COMMENT '汇总依据（如"S1=E, S2=D, S3=E，取多数共识为E"）',
+  innovation_level CHAR(1) NOT NULL COMMENT '创新侧综合等级 (E_inno) S|A|B|C|D|E|?（?=信息不足）',
+  innovation_based_on VARCHAR(128) NOT NULL COMMENT '汇总依据（如"S4=E, S5=E, S6=E，三者一致为E"）',
+
+  -- ── 最终综合等级 ──
+  final_level CHAR(3) NOT NULL COMMENT '最终综合等级：S|A|B|C|D|E|?|N/A（?=信息不足 N/A=逻辑检查未通过）',
+  final_reason VARCHAR(1024) NOT NULL COMMENT '最终等级判定理由',
+
+  -- ── 模型原始输出快照（完整 JSON）──
+  raw_model_output JSON NOT NULL COMMENT '模型原始输出快照（precheck + 6 个特征 reason/evidence + thinking tokens + 模型版本等）',
+
+  -- ── 审计辅助 ──
+  evaluation_request LONGTEXT NULL COMMENT '发送给模型的完整请求内容（system prompt + user message），用于调优 prompt 时参考',
+  model_name VARCHAR(64) NULL COMMENT '使用的模型名称（如 deepseek-v4-flash）',
+  prompt_tokens INT UNSIGNED NULL COMMENT '模型调用消耗的输入 token 数（prompt_tokens）',
+  completion_tokens INT UNSIGNED NULL COMMENT '模型调用消耗的输出 token 数（completion_tokens，不含 reasoning）',
+  token_usage INT UNSIGNED NULL COMMENT '模型调用消耗的总 token 数（total_tokens）',
+  thinking_tokens INT UNSIGNED NULL COMMENT '思考模式消耗的推理 token 数（reasoning_tokens，仅 thinking mode 启用时有值）',
+  operator_uid CHAR(13) NULL COMMENT '操作员 USER_UID（人工复核时记录，AI评估时为触发评估的用户）',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_evaluation_uid (evaluation_uid),
+  KEY idx_audit_key_id (key_id),
+  KEY idx_audit_project_uid (project_uid),
+  KEY idx_audit_user_uid (user_uid),
+  KEY idx_audit_eval_type (evaluator_type),
+  KEY idx_audit_precheck (precheck_status),
+  KEY idx_audit_final_level (final_level),
+  KEY idx_audit_created (created_at),
+  CONSTRAINT fk_audit_key_id FOREIGN KEY (key_id) REFERENCES sys_asymmetric_keys(key_id)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='项目难度评估明细与审计日志表';
 
 -- =========================================================================
 -- 第 9 章：笔记与内容 (Note)

@@ -23,5 +23,4 @@ public class PublishNoteDraftResponse {
     private String coverUrl;
     private String videoUrl;
     private Integer videoDuration;
-    private String editorType;
 }

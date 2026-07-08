@@ -25,5 +25,4 @@ public class PublishProjectDraftResponse {
     private String duration;
     private List<String> skillTags;
     private String deadline;
-    private String descriptionEditorType;
 }

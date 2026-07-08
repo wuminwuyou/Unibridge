@@ -20,7 +20,6 @@ public class ProjectDetailResponse {
     private String channel;
     private String campusRecruitType;
     private String description;
-    private String descriptionEditorType;
     private String amount;
     private String level;
     private String duration;

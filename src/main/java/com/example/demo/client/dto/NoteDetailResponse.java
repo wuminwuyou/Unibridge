@@ -19,7 +19,6 @@ public class NoteDetailResponse {
     private String title;
     private String summary;
     private String body;
-    private String editorType;
     private List<String> tags;
     private String coverUrl;
     private String videoUrl;

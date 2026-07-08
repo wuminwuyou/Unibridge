@@ -201,9 +201,6 @@ public class ClientProjectService {
         }
     }
 
-    private String defaultEditorType(String editorType) {
-        return StringUtils.hasText(editorType) ? editorType : EDITOR_TYPE_MARKDOWN;
-    }
 
     private ClientProject requireOwnedProject(String projectUid, Long userId) {
         ClientProject project = contentUidResolver.requireProjectByUid(projectUid);

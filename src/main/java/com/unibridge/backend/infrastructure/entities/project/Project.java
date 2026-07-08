@@ -26,8 +26,6 @@ public class Project {
     private String teamUid;
     private String title;
     private String preview;
-    @TableField("editor_type")
-    private String editorType;
     /** 项目预算/赏金区间（如 "10000 - 20000" 或 "面议"） */
     private String budget;
     private String tags;

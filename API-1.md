@@ -1,7 +1,7 @@
 ## 2) `GET /projects/evaluate/public-key` — 获取项目难度评估公钥
 
 > **消费方**：`ProjectPublishForm` / 发布页"提交难度评估"按钮  
-> **变更类型**：新增接口，返回 RSA-2048 OAEP SHA-256 公钥（PEM 格式），前端用其对项目内容详细描述加密后再提交评估。
+> **变更类型**：新增接口，返回 RSA-2048 OAEP SHA-256 公钥（PEM 格式），前端用于混合加密方案中包裹 AES-256-GCM 会话密钥。
 
 ### 端点
 
@@ -21,7 +21,7 @@ GET /api/v1/client/projects/evaluate/public-key
   "message": null,
   "data": {
     "keyId": "018f3a7e-9b3c-7412-a1b2-c3d4e5f6a7b8",
-    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----"
+    "publicKey": "RSA-2048-OAEP\n-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----"
   }
 }
 ```
@@ -29,21 +29,21 @@ GET /api/v1/client/projects/evaluate/public-key
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `keyId` | string | 密钥全局唯一标识（对应 sys_asymmetric_keys.key_id），提交评估时必须回传以定位解密私钥 |
-| `publicKey` | string | PEM 格式的 RSA-2048 公钥 |
+| `publicKey` | string | 带算法头的 PEM 公钥，格式：`RSA-2048-OAEP\n-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----`。前端解析算法头后按对应密钥长度选择 SHA-256/384 摘要 |
 
 ### 业务规则
 
 - `keyId` 作为密钥对的唯一标识，前端须在后续 `POST /projects/evaluate` 中回传
 - 前端首次请求公钥后须缓存 `{ keyId, publicKey }`，后续重复提交评估时直接复用缓存，**不再请求 GET /public-key**，以降低后端数据库写入压力
 - 发布项目成功或离开发布页面时，前端须清除公钥缓存
-- 公钥仅用于 `POST /projects/evaluate` 请求中对 `contentDetail` 的加密
+- 公钥仅用于混合加密方案：RSA-OAEP 包裹 AES-256-GCM 会话密钥（`wrappedKey`），**不对长文本直接做 RSA 加密**
 
 ---
 
 ## 3) `POST /projects/evaluate` — 提交项目难度评估
 
 > **消费方**：`ProjectPublishForm` / 发布页"提交难度评估"按钮  
-> **变更类型**：新增接口，接收公开的 `description` + 加密后的 `encryptedContentDetail`，返回模型评估的难度等级及修改建议。
+> **变更类型**：新增接口，接收公开的 `description` + 混合加密后的 `encryptedContentDetail`，返回模型评估的难度等级及修改建议。
 
 ### 端点
 
@@ -61,7 +61,7 @@ POST /api/v1/client/projects/evaluate
 {
   "keyId": "018f3a7e-9b3c-7412-a1b2-c3d4e5f6a7b8",
   "description": "# 项目需求说明\n\n开发一个电商平台...",
-  "encryptedContentDetail": "dGhpcyBpcyBhIGJhc2U2NCBlbmNvZGVk..."
+  "encryptedContentDetail": "base64(rsaEncryptedAesKey).base64(iv).base64(aesGcmCiphertext)"
 }
 ```
 
@@ -69,7 +69,32 @@ POST /api/v1/client/projects/evaluate
 |------|------|------|------|
 | `keyId` | string | 是 | 密钥标识（来自 GET /public-key 响应），后端据此定位正确的解密私钥 |
 | `description` | string | 是 | 需求详情原文（公开项，不加密），Markdown 格式 |
-| `encryptedContentDetail` | string | 是 | 项目内容详细描述，经 GET /projects/evaluate/public-key 获取的公钥，使用 RSA-OAEP with SHA-256 加密后的 base64 密文 |
+| `encryptedContentDetail` | string | 是 | **混合加密密文**，由三段 base64 字符串以 `.` 连接（详见下方"加密流程"） |
+
+### encryptedContentDetail 加密流程（前端）
+
+```
+1. 解析 publicKey 中的算法头（"RSA-2048-OAEP" → SHA-256）
+2. 导入 RSA 公钥（SPKI）
+3. 生成一次性 AES-256-GCM 会话密钥
+4. 用 AES-256-GCM 加密「项目内容详细描述」明文
+   → 产生 12B IV + 密文（末尾 16B 为 auth tag）
+5. 导出 AES 原始密钥（32B raw），用 RSA-OAEP 包裹
+   → 产生 ~256B wrapped key
+6. 拼接最终密文：
+   base64(wrappedKey) + "." + base64(iv) + "." + base64(aesGcmCiphertext)
+```
+
+### encryptedContentDetail 解密流程（后端）
+
+```
+1. 按 "." 分割得到三段 base64
+2. base64 解码三段 → wrappedKey (256B), iv (12B), aesGcmCiphertext
+3. 根据请求中的 keyId 查询 sys_asymmetric_keys，获取对应 RSA-2048 私钥
+4. 用 RSA-OAEP 私钥解密 wrappedKey → AES-256 原始密钥（32B）
+5. 用 AES-256-GCM + IV 解密 aesGcmCiphertext（需验证末尾 16B auth tag）
+6. UTF-8 解码 → 原文
+```
 
 ### 响应
 
@@ -113,7 +138,8 @@ POST /api/v1/client/projects/evaluate
 - `explanation` 必须返回，简明扼要说明等级评定依据（2-5 句）
 - 当 `suggestions` 不为 null 时，前端展示修改建议卡片引导用户补充内容
 - 当 `suggestions` 为 null 时，前端自动将 `level` 写入项目发布表单的"能力等级"字段
-- 后端解密失败时返回 `400 (DECRYPT_FAILED)`，并附带 `"message": "解密失败，请重新获取公钥再试"`
+- 后端解密失败（解密三段式混合密文任一环节失败）时返回 `400 (DECRYPT_FAILED)`，并附带 `"message": "解密失败，请重新获取公钥再试"`
+- auth tag 验证失败时同样返回 `400 (DECRYPT_FAILED)`
 
 ### 验收要点
 
@@ -121,4 +147,5 @@ POST /api/v1/client/projects/evaluate
 - [ ] 内容简略/缺失关键信息时返回非空的 `suggestions`
 - [ ] `explanation` 始终非空，与 `level` 逻辑一致
 - [ ] `level` 始终为 S/A/B/C/D/E 合法值
-- [ ] 解密失败时返回 400 错误
+- [ ] 解密失败（密钥不匹配、auth tag 无效、格式错误）时返回 400
+- [ ] 任意长度原文（含中文 Unicode 超过 190B）可正确加解密

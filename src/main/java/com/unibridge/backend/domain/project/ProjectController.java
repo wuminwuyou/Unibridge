@@ -77,6 +77,6 @@ public class ProjectController {
     public Result evaluate(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody ProjectEvaluateRequest request) {
-        return Result.success(projectEvaluateService.evaluate(request));
+        return Result.success(projectEvaluateService.evaluate(request, authorization));
     }
 }

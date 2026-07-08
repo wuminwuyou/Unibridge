@@ -26,9 +26,6 @@ public class ClientProject {
     private Long teamId;
     private String title;
     private String preview;
-    /** 编辑器类型：MARKDOWN | RICHTEXT（暂保留，当前默认 MARKDOWN） */
-    @TableField("editor_type")
-    private String editorType;
     /** 项目详情正文（Markdown） */
     private String description;
     private String tags;

@@ -42,8 +42,6 @@ public class ClientNoteService {
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_PUBLISHED = "PUBLISHED";
     private static final String STATUS_BANNED = "BANNED";
-    private static final String EDITOR_TYPE_MARKDOWN = "MARKDOWN";
-
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
     };
@@ -115,7 +113,6 @@ public class ClientNoteService {
                 .coverUrl(note.getCoverUrl())
                 .videoUrl(note.getVideoUrl())
                 .videoDuration(note.getVideoDuration())
-                .editorType(defaultEditorType(note.getEditorType()))
                 .build();
     }
 
@@ -154,7 +151,6 @@ public class ClientNoteService {
                 .title(note.getTitle())
                 .summary(note.getSummary())
                 .body(note.getContent())
-                .editorType(defaultEditorType(note.getEditorType()))
                 .tags(parseJsonStringList(note.getTags()))
                 .coverUrl(note.getCoverUrl())
                 .videoUrl(note.getVideoUrl())
@@ -259,9 +255,6 @@ public class ClientNoteService {
         return publishedAt != null ? publishedAt : createdAt;
     }
 
-    private String defaultEditorType(String editorType) {
-        return StringUtils.hasText(editorType) ? editorType : EDITOR_TYPE_MARKDOWN;
-    }
 
     private ClientNote requireOwnedNote(String noteUid, Long userId) {
         ClientNote note = contentUidResolver.requireNoteByUid(noteUid);

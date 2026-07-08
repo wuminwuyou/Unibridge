@@ -2,11 +2,11 @@ SET NAMES utf8mb4;
 DELETE FROM note;
 
 INSERT INTO note (
-  id, user_id, content_type_code, title, summary, editor_type, content, cover_url,
+  id, user_id, content_type_code, title, summary, content, cover_url,
   video_url, video_duration, tags,
   view_count, like_count, collect_count, comment_count, status, published_at, created_at
 ) VALUES
-(1, 1, 'TX20212345678', 'Spring Boot 产学研项目实战笔记',
+(1, 1, 'Spring Boot 产学研项目实战笔记',
  '记录在平台后端开发中使用 Spring Boot + MyBatis-Plus 的实践经验与踩坑总结。',
  'MARKDOWN',
  '## 项目结构\n\n采用 controller / service / mapper 分层。',

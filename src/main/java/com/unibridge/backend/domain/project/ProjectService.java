@@ -51,7 +51,6 @@ public class ProjectService {
     private static final String CATEGORY_RECRUITMENT = "RECRUITMENT";
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_OPEN = "OPEN";
-    private static final String EDITOR_TYPE_MARKDOWN = "MARKDOWN";
     private static final String COMMERCIAL_STATUS_PENDING = "PENDING_START";
 
     private static final Set<String> VALID_LEVELS = Set.of("S", "A", "B", "C", "D", "E");
@@ -155,7 +154,6 @@ public class ProjectService {
                 .duration(project.getDuration())
                 .skillTags(parseJsonStringList(project.getTags()))
                 .deadline(project.getDeadline() == null ? null : project.getDeadline().toString())
-                .descriptionEditorType(defaultEditorType(project.getEditorType()))
                 .build();
     }
 
@@ -196,7 +194,6 @@ public class ProjectService {
                 .channel(channel)
                 .campusRecruitType(project.getRecruitmentType())
                 .description(loadProjectBody(project.getProjectUid()))
-                .descriptionEditorType(defaultEditorType(project.getEditorType()))
                 .amount(amount)
                 .level(project.getLevel())
                 .duration(project.getDuration())
@@ -228,9 +225,6 @@ public class ProjectService {
         }
     }
 
-    private String defaultEditorType(String editorType) {
-        return StringUtils.hasText(editorType) ? editorType : EDITOR_TYPE_MARKDOWN;
-    }
 
     private Project requireOwnedProject(String projectUid, String userUid) {
         Project project = contentUidResolver.requireProjectByUid(projectUid);
@@ -343,7 +337,6 @@ public class ProjectService {
         project.setRecruitmentType(CHANNEL_CAMPUS.equals(channel) ? request.getCampusRecruitType().trim() : null);
         project.setTitle(request.getTitle().trim());
         project.setPreview(StringUtils.hasText(request.getSummary()) ? request.getSummary().trim() : "");
-        project.setEditorType(EDITOR_TYPE_MARKDOWN);
         project.setTags(toJsonStringList(request.getSkillTags()));
         project.setBudget(trimToNull(request.getAmount()));
         project.setLevel(request.getLevel().trim());
