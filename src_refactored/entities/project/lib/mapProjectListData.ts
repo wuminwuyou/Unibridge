@@ -66,6 +66,7 @@ export function mapApiProjects(projects: UserProfileProjectDto[]): ProjectItem[]
       recruitmentType,
       ownerOrganization: project.ownerOrganization?.trim() || project.company?.trim() || '',
       publisherName: project.publisherName?.trim() || null,
+      publisherAvatar: project.publisherAvatar?.trim() || null,
       publishTime: project.publishTime,
       level: normalizeProjectLevel(project.level),
       amountMin: project.amountMin ?? null,

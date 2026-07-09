@@ -125,14 +125,17 @@
 	background: #fef3c7;
 	color: #92400e;
 }
+
 .project-card__status-badge--open {
 	background: #dbeafe;
 	color: #1d4ed8;
 }
+
 .project-card__status-badge--ongoing {
 	background: #dcfce7;
 	color: #166534;
 }
+
 .project-card__status-badge--closed {
 	background: #e2e8f0;
 	color: #475569;
@@ -142,14 +145,17 @@
 	background: #78350f;
 	color: #fde68a;
 }
+
 :root[data-theme="dark"] .project-card__status-badge--open {
 	background: #1e3a8a;
 	color: #bfdbfe;
 }
+
 :root[data-theme="dark"] .project-card__status-badge--ongoing {
 	background: #14532d;
 	color: #bbf7d0;
 }
+
 :root[data-theme="dark"] .project-card__status-badge--closed {
 	background: #334155;
 	color: #cbd5e1;
@@ -229,6 +235,17 @@
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.project-card__publisher-avatar {
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	object-fit: cover;
 }
 
 /* ======== 09）右侧操作区 ======== */
@@ -251,7 +268,7 @@
 }
 
 .project-card__budget {
-	font-size: 13px;
+	font-size: 20px;
 	font-weight: 600;
 	color: var(--project-card-muted);
 	text-align: right;
@@ -262,17 +279,21 @@
 .project-card__inner--compact .project-card__aside {
 	justify-content: flex-start;
 }
+
 @media (max-width: 768px) {
 	.project-card__inner {
 		grid-template-columns: max-content 1fr;
 		grid-template-areas: "logo main" "aside aside";
 	}
+
 	.project-card__logo {
 		grid-area: logo;
 	}
+
 	.project-card__main {
 		grid-area: main;
 	}
+
 	.project-card__aside {
 		grid-area: aside;
 		width: 100%;
@@ -289,13 +310,16 @@
 		padding: 18px;
 		min-height: 132px;
 	}
+
 	.project-card__logo-image {
 		max-width: 56px;
 		max-height: 56px;
 	}
+
 	.project-card__title {
 		font-size: 16px;
 	}
+
 	.project-card__preview {
 		font-size: 12px;
 	}

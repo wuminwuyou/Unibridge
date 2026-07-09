@@ -25,6 +25,7 @@ export function ProjectEvaluateCard({ result }: ProjectEvaluateCardProps) {
     <div className={styles.card}>
       <div className={styles.header}>
         <span className={styles.title}>项目难度评估结果</span>
+        <span className={styles.disclaimer}>仅供参考</span>
         {!hasSuggestions && (
           <span className={styles.passTag}>评估通过</span>
         )}

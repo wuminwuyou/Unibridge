@@ -62,7 +62,14 @@ function ProjectCard({ project, showStatus = false, variant = 'default', onClick
             ))}
           </div>
         ) : null}
-        {metaText ? <p className="project-card__meta">{metaText}</p> : null}
+        {metaText ? (
+          <p className="project-card__meta">
+            {project.publisherAvatar ? (
+              <img className="project-card__publisher-avatar" src={project.publisherAvatar} alt="" loading="lazy" />
+            ) : null}
+            {metaText}
+          </p>
+        ) : null}
       </div>
       <div className="project-card__aside">
         <LevelBadge level={project.level} variant="pill" className="project-card__level" showBackground={false} />

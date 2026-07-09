@@ -228,7 +228,108 @@ POST /api/v1/client/projects/evaluate
 
 ---
 
-## 4) 项目卡片数据模型增量 — 多端点 `projects` 响应新增字段
+---
+
+## 4) `POST /projects` 与 `PUT /projects/{uid}` — 项目写操作请求体更新
+
+> **消费方**：`submitPublishProject` → `createProject` / `updateProject`  
+> **变更类型**：已有接口的请求体字段增量更新（旧 `API.md` §02.1/02.2 已过期，以本文为准）
+
+### 端点
+
+```
+POST   /api/v1/client/projects          # 新建项目（草稿/发布）
+PUT    /api/v1/client/projects/{uid}    # 更新已有项目（uid = PR + 11 位）
+```
+
+### 鉴权
+
+- Bearer Token（Header: `Authorization: Bearer <accessToken>`）
+
+### 请求体
+
+```json
+{
+  "publishAction": "PUBLISH",
+  "title": "分布式电商平台开发",
+  "summary": "构建支持千万级并发的电商系统。",
+  "channel": "enterprise",
+  "campusRecruitType": null,
+  "description": "# 项目背景\n\n## 交付物\n...",
+  "contentDetail": "# 技术方案详细说明\n\n## 架构设计\n...",
+  "amountMin": "80000",
+  "amountMax": "120000",
+  "level": "B",
+  "duration": "60 天",
+  "skillTags": ["Java", "微服务", "分布式"],
+  "deadline": "2026-08-15"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `publishAction` | string | 是 | `DRAFT` \| `PUBLISH` |
+| `title` | string | 是 | 项目标题 |
+| `summary` | string | 是 | 一句话摘要（≤80 字），`PUBLISH` 时必填 |
+| `channel` | string | 是 | `enterprise`（企业实战）\| `campus`（高校招募） |
+| `campusRecruitType` | string \| null | 条件 | `channel=campus` 时必填：`LAB_RECRUIT` \| `TEAM_RECRUIT` \| `PERSONAL_RECRUIT`；商业项目传 `null` |
+| `description` | string | 条件 | 项目需求详情 Markdown 正文，`PUBLISH` 时必填 |
+| `contentDetail` | string | 否 | 项目内容详细描述 Markdown，加密后用于项目难度评估，选填 |
+| `amountMin` | string | 条件 | 预算最小值（纯数字字符串），`PUBLISH` 时必填 |
+| `amountMax` | string | 条件 | 预算最大值（纯数字字符串），`PUBLISH` 时必填 |
+| `level` | string | 是 | 项目难度等级：`S` \| `A` \| `B` \| `C` \| `D` \| `E` |
+| `duration` | string | 否 | 预计周期（如 `"60 天"`、`"3 个月"`） |
+| `skillTags` | string[] | 条件 | 技能标签数组，`PUBLISH` 时至少 1 个 |
+| `deadline` | string | 否 | 报名截止日期 `YYYY-MM-DD`，至少为明天 |
+
+### 与旧 `API.md` 的字段差异
+
+| 旧字段 | 新字段 | 说明 |
+|--------|--------|------|
+| `amount` (string，单值预算) | `amountMin` + `amountMax` (string，预算区间) | 预算改为区间展示 |
+| `teamSize` (string) | **已删除** | 团队人数字段已从数据库移除 |
+| `level` (N/R/SR/SSR/UR) | `level` (S/A/B/C/D/E) | 难度等级体系已全面更换 |
+| — | `contentDetail` (string，新增) | 项目内容详细描述，评估用 |
+| `projectId` (number) | `uid` (string, PR+11位) | 响应体字段名变更 |
+
+### 响应体
+
+```json
+{
+  "code": 200,
+  "message": null,
+  "data": {
+    "uid": "PRa1b2c3d4e5f",
+    "publishAction": "PUBLISH",
+    "status": "OPEN",
+    "category": "COMMERCIAL",
+    "recruitmentType": null,
+    "publishedAt": "2026-07-01T10:00:00+08:00",
+    "createdAt": "2026-07-01T09:55:00+08:00",
+    "updatedAt": "2026-07-01T10:00:00+08:00"
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `uid` | string | 项目唯一标识（`PR` + 11 位） |
+| `status` | string | `DRAFT` \| `OPEN` \| `ONGOING` \| `CLOSED` |
+| `category` | string | `COMMERCIAL` \| `RECRUITMENT` |
+| `recruitmentType` | string \| null | 招募子类型，商业项目为 `null` |
+| `publishedAt` | string \| null | 正式发布时间，草稿为 `null` |
+| `createdAt` | string | 创建时间 |
+| `updatedAt` | string | 最后更新时间 |
+
+### 常见错误码
+
+- `UNAUTHORIZED` / `ACCESS_TOKEN_EXPIRED`
+- `VALIDATION_FAILED`（标题/摘要/描述/标签/金额校验失败）
+- `PROJECT_PUBLISH_FORBIDDEN`（无发布权限）
+
+---
+
+## 5) 项目卡片数据模型增量 — 多端点 `projects` 响应新增字段
 
 > **消费方**：`ProjectCard`（所有渲染场景：首页 Feed、个人/团队/机构空间项目列表）  
 > **变更类型**：以下端点返回的 `projects` 数组中每个项目对象新增三个可选字段，供 ProjectCard 展示发布人名称与预算区间。
@@ -251,6 +352,7 @@ POST /api/v1/client/projects/evaluate
 ```json
 {
   "publisherName": "张三",
+  "publisherAvatar": "https://cdn.example.com/avatars/user_001.jpg",
   "amountMin": "5000",
   "amountMax": "20000"
 }
@@ -258,7 +360,8 @@ POST /api/v1/client/projects/evaluate
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `publisherName` | string \| null | 否 | 项目发布人的显示名称（如 user_profile.displayName），卡片 meta 行展示在 `ownerOrganization` 与 `duration` 之间。缺失/null 时卡片仅展示「公司 · 周期」 |
+| `publisherName` | string \| null | 否 | 项目发布人的显示名称（如 user_profile.displayName），卡片 meta 行**首位**展示，带圆形头像。缺失/null 时隐藏头像，不展示名称 |
+| `publisherAvatar` | string \| null | 否 | 发布人头像 URL，卡片 meta 行左侧 18×18 圆形展示。缺失时仅展示文字 |
 | `amountMin` | string \| null | 否 | 预算区间最小值（纯数字字符串，如 `"5000"`），卡片右上角等级下方展示。缺失或两端均 null 时不展示预算行 |
 | `amountMax` | string \| null | 否 | 预算区间最大值（同上），前端通过 `formatBudgetRange()` 将数字格式化为短字符串（如 `"5k–20k"` / `"1.2M"`） |
 
@@ -289,11 +392,12 @@ POST /api/v1/client/projects/evaluate
         "category": "COMMERCIAL",
         "ownerOrganization": "字节跳动",
         "publisherName": "张三",
+        "publisherAvatar": "https://cdn.example.com/avatars/user_001.jpg",
         "publishTime": "2026-07-01T10:00:00Z",
         "level": "B",
         "amountMin": "80000",
         "amountMax": "120000",
-        "duration": "60 天",
+        "duration": "16 周",
         "logoSvgUrl": "https://cdn.example.com/logo.svg",
         "status": "OPEN"
       }
@@ -304,14 +408,15 @@ POST /api/v1/client/projects/evaluate
 
 ### 业务规则
 
-- 三个字段均为**可选**：后端未实现时前端自动回退（publisherName 缺省时 meta 行仅展示「公司 · 周期」，amountMin/amountMax 缺省时不渲染预算行）
+- 三个字段均为**可选**：后端未实现时前端自动回退（publisherName 缺省时 meta 行不展示发布人，amountMin/amountMax 缺省时不渲染预算行）
 - `amountMin` / `amountMax` 为纯数字字符串，不含千分位逗号、单位或小数点
 - `publisherName` 为空字符串时按 null 处理
 - 不影响现有字段（`uid` / `title` / `preview` / `tags` / `category` / `ownerOrganization` / `publishTime` / `level` / `duration` / `logoSvgUrl` / `status` 保持原样）
+- meta 行顺序：发布人姓名 · 机构名称 · 周期
 
 ### 验收要点
 
-- [ ] 首页 Feed 卡片正确展示发布人名称和预算区间
+- [ ] 首页 Feed 卡片正确展示发布人头像、名称和预算区间
 - [ ] 个人/团队/机构空间项目列表卡片正确展示
 - [ ] `publisherName` 缺失时卡片仅展示「公司 · 周期」
 - [ ] `amountMin` / `amountMax` 双 null 时卡片不展示预算行

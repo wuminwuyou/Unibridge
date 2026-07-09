@@ -25,12 +25,12 @@ export interface LevelDefinition {
 // D: 基础实践级 — 在指导下完成独立功能点，掌握基本工具链与流程
 // E: 入门操作级 — 学习基本概念，完成简单任务以熟悉领域环境
 export const LEVEL_DEFINITIONS: Record<LevelCode, LevelDefinition> = {
-  S: { code: 'S', label: '研究突破级', description: '探索未知领域，产出原创性方案或论文级成果', color: '#e6a817', background: 'rgba(230, 168, 23, 0.15)' },
-  A: { code: 'A', label: '专业应用级', description: '运用深度专业知识，解决复杂的真实世界问题', color: '#e05555', background: 'rgba(224, 85, 85, 0.15)' },
-  B: { code: 'B', label: '复杂工程级', description: '多模块协作，需独立完成架构设计与关键技术选型', color: '#a44ad3', background: 'rgba(164, 74, 211, 0.15)' },
-  C: { code: 'C', label: '标准工程级', description: '遵循规范完成中等规模功能模块的完整开发周期', color: '#3a8edb', background: 'rgba(58, 142, 219, 0.15)' },
-  D: { code: 'D', label: '基础实践级', description: '在指导下完成独立功能点，掌握基本工具链与流程', color: '#46b357', background: 'rgba(70, 179, 87, 0.15)' },
-  E: { code: 'E', label: '入门操作级', description: '学习基本概念，完成简单任务以熟悉领域环境', color: '#8b97a8', background: 'rgba(139, 151, 168, 0.15)' },
+  S: { code: 'S', label: '研究突破级', description: '探索未知领域，产出原创性方案或论文级成果', color: '#D32F2F', background: 'rgba(230, 168, 23, 0.15)' },
+  A: { code: 'A', label: '专业应用级', description: '运用深度专业知识，解决复杂的真实世界问题', color: '#E64A19', background: 'rgba(224, 85, 85, 0.15)' },
+  B: { code: 'B', label: '复杂工程级', description: '多模块协作，需独立完成架构设计与关键技术选型', color: '#F57C00', background: 'rgba(164, 74, 211, 0.15)' },
+  C: { code: 'C', label: '标准工程级', description: '遵循规范完成中等规模功能模块的完整开发周期', color: '#FBC02D', background: 'rgba(58, 142, 219, 0.15)' },
+  D: { code: 'D', label: '基础实践级', description: '在指导下完成独立功能点，掌握基本工具链与流程', color: '#388E3C', background: 'rgba(70, 179, 87, 0.15)' },
+  E: { code: 'E', label: '入门操作级', description: '学习基本概念，完成简单任务以熟悉领域环境', color: '#757575', background: 'rgba(139, 151, 168, 0.15)' },
 }
 
 // 04）等级代码列表（LEVEL_CODES）— 按 S→E 排列，用于白名单校验

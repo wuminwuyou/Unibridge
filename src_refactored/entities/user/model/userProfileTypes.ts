@@ -72,6 +72,8 @@ export interface UserProfileProjectDto {
   amountMin?: string | null
   amountMax?: string | null
   publisherName?: string | null
+  /** 发布人头像 */
+  publisherAvatar?: string | null
   logoSvgUrl?: string | null
   teamSize?: string | null
   duration?: string | null

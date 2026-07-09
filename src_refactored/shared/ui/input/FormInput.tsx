@@ -26,6 +26,7 @@ export function FormInput({
   disabled = false,
   className,
   onChangeEvent,
+  onBlur,
 }: FormInputProps) {
   return (
     <label className={styles.label}>
@@ -37,6 +38,7 @@ export function FormInput({
         type={type}
         value={value}
         onChange={onChangeEvent ?? ((event) => onChange(event.target.value))}
+        onBlur={onBlur}
         placeholder={placeholder}
         disabled={disabled}
         className={`${styles.input} ${className ?? ''}`.trim()}

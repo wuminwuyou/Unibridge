@@ -12,6 +12,8 @@ export interface FeedContentVo {
   noteType?: 'IMAGE_TEXT' | 'VIDEO'; projectCategory?: 'COMMERCIAL' | 'RECRUITMENT'
   recruitmentType?: string | null; title: string; preview?: string; summary?: string
   tags?: Array<{ label: string }> | string[]; ownerOrganization?: string
+  publisherName?: string | null; publisherAvatar?: string | null
+  amountMin?: string | null; amountMax?: string | null
   logoSvgUrl?: string | null; level?: string; duration?: string | null
   coverUrl?: string | null; authorNickname?: string; authorName?: string
   authorAvatar?: string | null

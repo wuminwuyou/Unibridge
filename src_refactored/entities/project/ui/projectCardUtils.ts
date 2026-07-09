@@ -50,7 +50,7 @@ export function formatBudgetRange(amountMin?: string | null, amountMax?: string 
   const min = fmt(amountMin)
   const max = fmt(amountMax)
   if (!min && !max) return '—'
-  if (min && max) return `${min}–${max}`
+  if (min && max) return `${min} – ${max}`
   return min || max
 }
 
@@ -67,10 +67,11 @@ export function formatBudgetRange(amountMin?: string | null, amountMax?: string 
 export function resolveProjectCardMetaText(
   p: Pick<ProjectItem, 'ownerOrganization' | 'duration'> & { publisherName?: string | null },
 ): string {
-  const parts = [p.ownerOrganization?.trim()]
+  const parts: string[] = []
   if (p.publisherName?.trim()) parts.push(p.publisherName.trim())
+  if (p.ownerOrganization?.trim()) parts.push(p.ownerOrganization.trim())
   if (p.duration?.trim()) parts.push(p.duration.trim())
-  return parts.filter(Boolean).join(' · ')
+  return parts.join(' · ')
 }
 
 export function resolveProjectStatusLabel(status: ProjectStatus): string {

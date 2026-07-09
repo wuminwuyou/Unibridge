@@ -24,6 +24,8 @@ export interface FormInputProps extends FormInputBaseProps {
   className?: string
   /** 自定义 onChange 事件包装（默认 event.target.value） */
   onChangeEvent?: (event: ChangeEvent<HTMLInputElement>) => void
+  /** 失焦回调（用于输入完成后的校验等） */
+  onBlur?: () => void
 }
 
 // 03）带图标输入框 Props（FormIconInputProps）

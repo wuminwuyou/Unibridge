@@ -85,6 +85,7 @@ export function usePublishLeaveGuard(options: UsePublishLeaveGuardOptions) {
     setLeavePromptOpen(false)
     onConfirmLeave?.()
     if (blocker.state === 'blocked') {
+      allowNextNavigationRef.current = true
       blocker.proceed()
     }
   }, [blocker, onConfirmLeave])

@@ -42,6 +42,8 @@ export interface ProjectItem {
   ownerOrganization: string
   /** 发布人名称（项目发布者的显示名），卡片 meta 行展示 */
   publisherName?: string | null
+  /** 发布人头像 URL */
+  publisherAvatar?: string | null
   /** 卡片底部时间展示（published_at 格式化或相对时间）；当前 ProjectCard 不展示 */
   publishTime: string
   level: LevelCode

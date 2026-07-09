@@ -22,6 +22,13 @@ export function validatePublishProjectSubmit(
   const resolvedSummary = resolvePublishSummary(draft.summary, descriptionContent.longtext)
   if (!resolvedSummary) return '请填写项目摘要，或确保需求说明含有可提取的文字内容'
   if (!draft.amountMin.trim()) return '请填写项目预算最小值'
+  if (draft.amountMin.trim() && draft.amountMax.trim()) {
+    const min = parseInt(draft.amountMin, 10)
+    const max = parseInt(draft.amountMax, 10)
+    if (Number.isNaN(min) || min <= 0) return '预算最小值必须大于 0'
+    if (Number.isNaN(max) || max <= 0) return '预算最大值必须大于 0'
+    if (min >= max) return '预算最小值必须小于最大值'
+  }
   if (draft.skillTags.length === 0) return '请至少添加 1 个技能标签'
   return null
 }
