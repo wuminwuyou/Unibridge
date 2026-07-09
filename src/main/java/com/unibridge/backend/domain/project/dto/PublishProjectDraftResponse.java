@@ -20,7 +20,10 @@ public class PublishProjectDraftResponse {
     private String channel;
     private String campusRecruitType;
     private String description;
-    private String amount;
+    /** 商业项目加密描述密文（仅 category=COMMERCIAL） */
+    private String contentDetail;
+    private String amountMin;
+    private String amountMax;
     private String level;
     private String duration;
     private List<String> skillTags;

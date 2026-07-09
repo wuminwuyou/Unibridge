@@ -29,6 +29,8 @@ public class ClientProject {
     /** 项目详情正文（Markdown） */
     private String description;
     private String tags;
+    /** 预算区间字符串（如 "10000-20000"） */
+    private String budget;
     private String duration;
     @TableField("team_size")
     private String teamSize;

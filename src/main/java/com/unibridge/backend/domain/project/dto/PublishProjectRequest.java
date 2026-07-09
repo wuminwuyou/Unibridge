@@ -20,7 +20,12 @@ public class PublishProjectRequest {
     /** Markdown/HTML 详情；反序列化时自动 XSS 清洗 */
     @XssClean
     private String description;
-    private String amount;
+    /** 预算区间最小值（纯数字字符串，如 "80000"） */
+    private String amountMin;
+    /** 预算区间最大值（纯数字字符串，如 "120000"） */
+    private String amountMax;
+    /** 商业项目详情描述密文（非对称加密，仅 category=COMMERCIAL 时有值） */
+    private String contentDetail;
     private String level;
     private String duration;
     private List<String> skillTags;

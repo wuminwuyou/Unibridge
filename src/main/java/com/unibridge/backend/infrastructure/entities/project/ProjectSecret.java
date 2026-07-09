@@ -15,6 +15,10 @@ public class ProjectSecret {
     private String projectUid;
     @TableField("total_budget")
     private BigDecimal totalBudget;
+    @TableField("encrypted_description")
+    private String encryptedDescription;
+    @TableField("description_key_id")
+    private String descriptionKeyId;
     @TableField("commercial_status")
     private String commercialStatus;
     @TableField("created_at")

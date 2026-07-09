@@ -40,10 +40,16 @@ public class ContentVO {
     private String recruitmentType;
     /** 项目：难度等级 */
     private String level;
-    /** 项目：团队规模 */
-    private String teamSize;
     /** 项目：预计周期 */
     private String duration;
+    /** 项目：发布人名称（卡片展示，取自 user_profile.nickName 或脱敏实名） */
+    private String publisherName;
+    /** 项目：发布人头像 URL（取自 user_profile.avatarUrl） */
+    private String publisherAvatar;
+    /** 项目：预算区间最小值（纯数字字符串，如 "5000"） */
+    private String amountMin;
+    /** 项目：预算区间最大值（纯数字字符串，如 "20000"） */
+    private String amountMax;
     /** NOTE：string[] 标签 */
     @JsonIgnore
     private List<String> noteTags;

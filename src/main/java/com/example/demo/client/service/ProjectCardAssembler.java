@@ -6,6 +6,7 @@ import com.example.demo.client.dto.ProfileProjectItem;
 import com.example.demo.client.entity.ClientProject;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.unibridge.backend.domain.project.BudgetRangeParser;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -30,15 +31,19 @@ public class ProjectCardAssembler {
     };
 
     private final ProjectPublisherEntityResolver publisherEntityResolver;
+    private final BudgetRangeParser budgetRangeParser;
 
-    public ProjectCardAssembler(ProjectPublisherEntityResolver publisherEntityResolver) {
+    public ProjectCardAssembler(ProjectPublisherEntityResolver publisherEntityResolver,
+                                BudgetRangeParser budgetRangeParser) {
         this.publisherEntityResolver = publisherEntityResolver;
+        this.budgetRangeParser = budgetRangeParser;
     }
 
     public ContentVO toFeedProjectVo(ClientProject project, double score) {
         ProjectPublisherEntityResolver.PublisherEntityContext publisher =
                 publisherEntityResolver.resolve(project.getOwnerId());
         LocalDateTime publishTime = resolvePublishTime(project.getPublishedAt(), project.getCreatedAt());
+        BudgetRangeParser.BudgetRange budgetRange = budgetRangeParser.parse(project.getBudget());
 
         return ContentVO.builder()
                 .contentType("PROJECT")
@@ -50,10 +55,13 @@ public class ProjectCardAssembler {
                 .coverUrl(publisher.coverUrl())
                 .logoSvgUrl(publisher.logoSvgUrl())
                 .ownerOrganization(publisher.ownerOrganization())
+                .publisherName(publisher.publisherName())
+                .publisherAvatar(publisher.publisherAvatar())
                 .projectTags(toTagLabels(project.getTags()))
                 .level(project.getLevel())
-                .teamSize(trimToNull(project.getTeamSize()))
                 .duration(trimToNull(project.getDuration()))
+                .amountMin(budgetRange.min())
+                .amountMax(budgetRange.max())
                 .views(0)
                 .likes(0)
                 .publishTime(formatFeedPublishTime(publishTime))
@@ -65,6 +73,7 @@ public class ProjectCardAssembler {
         ProjectPublisherEntityResolver.PublisherEntityContext publisher =
                 publisherEntityResolver.resolve(project.getOwnerId());
         LocalDateTime publishTime = resolvePublishTime(project.getPublishedAt(), project.getCreatedAt());
+        BudgetRangeParser.BudgetRange budgetRange = budgetRangeParser.parse(project.getBudget());
 
         return ProfileProjectItem.builder()
                 .uid(project.getProjectUid())
@@ -78,8 +87,12 @@ public class ProjectCardAssembler {
                 .logoSvgUrl(publisher.logoSvgUrl())
                 .publishTime(formatProfilePublishTime(publishTime))
                 .level(nullToEmpty(project.getLevel()))
-                .teamSize(trimToNull(project.getTeamSize()))
                 .duration(trimToNull(project.getDuration()))
+                .publisherName(publisher.publisherName())
+                .publisherAvatar(publisher.publisherAvatar())
+                .amountMin(budgetRange.min())
+                .amountMax(budgetRange.max())
+                .status(project.getStatus())
                 .build();
     }
 

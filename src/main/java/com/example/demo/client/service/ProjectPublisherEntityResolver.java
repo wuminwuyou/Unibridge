@@ -39,6 +39,10 @@ public class ProjectPublisherEntityResolver {
             return PublisherEntityContext.empty();
         }
 
+        ClientUserProfile profile = loadUserProfile(ownerId);
+        String publisherName = resolvePublisherName(profile);
+        String publisherAvatar = resolvePublisherAvatar(profile);
+
         UserAuthLink authLink = loadActiveAuthLink(ownerId);
         if (authLink != null && authLink.getEntityId() != null) {
             ClientEntityProfile entityProfile = loadEntityProfile(authLink.getEntityId());
@@ -47,11 +51,25 @@ public class ProjectPublisherEntityResolver {
                 String orgName = StringUtils.hasText(entityProfile.getName())
                         ? entityProfile.getName().trim()
                         : fallbackOrganizationName(ownerId);
-                return new PublisherEntityContext(orgName, logoUrl, logoUrl);
+                return new PublisherEntityContext(orgName, logoUrl, logoUrl, publisherName, publisherAvatar);
             }
         }
 
-        return new PublisherEntityContext(fallbackOrganizationName(ownerId), null, null);
+        return new PublisherEntityContext(fallbackOrganizationName(ownerId), null, null, publisherName, publisherAvatar);
+    }
+
+    private String resolvePublisherName(ClientUserProfile profile) {
+        if (profile != null && StringUtils.hasText(profile.getNickName())) {
+            return profile.getNickName().trim();
+        }
+        return null;
+    }
+
+    private String resolvePublisherAvatar(ClientUserProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        return trimToNull(profile.getAvatarUrl());
     }
 
     private UserAuthLink loadActiveAuthLink(Long userId) {
@@ -94,10 +112,13 @@ public class ProjectPublisherEntityResolver {
      * @param ownerOrganization 发布主体名称
      * @param coverUrl          项目卡片封面（= 主体 {@code logo_url}）
      * @param logoSvgUrl        主体 Logo（= 主体 {@code logo_url}，与 coverUrl 同源）
+     * @param publisherName     发布人展示名称（nick_name > null）
+     * @param publisherAvatar   发布人头像 URL
      */
-    public record PublisherEntityContext(String ownerOrganization, String coverUrl, String logoSvgUrl) {
+    public record PublisherEntityContext(String ownerOrganization, String coverUrl, String logoSvgUrl,
+                                          String publisherName, String publisherAvatar) {
         static PublisherEntityContext empty() {
-            return new PublisherEntityContext("", null, null);
+            return new PublisherEntityContext("", null, null, null, null);
         }
     }
 }

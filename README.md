@@ -17,6 +17,9 @@ UniBridge（产学研合作平台）后端服务。基于 **Spring Boot 3.5.x + 
 | **笔记卡片** | Feed / 空间列表统一返回 `updateTime` + `authorNickname`；卡片层不再序列化 `likes` / `comments` / `favorites` |
 | **表拆分** | 项目正文 `t_project_body`、计数 `t_project_counter`；笔记正文 `t_user_note_detail`、计数 `t_user_note_counter` |
 | **MyBatis-Plus** | `MybatisPlusConfig` 动态表名：`@TableName` 写裸表名，拦截器自动补 `t_` / 透传 `sys_` / `p_` |
+| **AI 等级评估** | 项目难度智能评估（DeepSeek v4）+ 前端混合加密公钥体系 + 六维特征审计；`ProjectEvaluateService` + `LevelEvaluationService` + `CryptoService` |
+| **加密基础设施** | `CryptoService` 统一加密入口：DEK 信封加密（AES-256-GCM / SM4-GCM）、RSA-2048-OAEP 混合加密、EC-P256-ECDH、SM2-ECIES 国密兼容 |
+| **加密密钥体系** | `sys_asymmetric_keys` 非对称密钥生命周期管理（INITIALIZED → ACTIVE）；`MasterKeyProvider` / `DevFixedMasterKeyProvider` KEK 分层；`DevDekInitializer` 开发环境自举 |
 
 ---
 
@@ -290,6 +293,8 @@ http://localhost:8081
 | HTML 安全 | Jsoup（XSS 清洗） | 1.22.2 |
 | ID 生成 | jnanoid | 2.0.0 |
 | IP 属地 | ip2region（离线 xdb） | 3.3.7 |
+| AI 评估 | DeepSeek v4 Flash（OpenAI 兼容 API） | — |
+| 加密 | JCA（AES-256-GCM / RSA-2048-OAEP / EC-P256-ECDH）+ SM4/SM2 国密 | — |
 | API 文档 | springdoc-openapi-starter-webmvc-ui | 2.8.6 |
 | 构建 | Maven + Wrapper（`mvnw`） | — |
 | 增强 | Lombok | 跟随 Boot |
@@ -338,9 +343,17 @@ src/main/java/com/unibridge/backend/
 │   ├── project/                                # 项目生命周期（/api/v1/client/projects）
 │   │   ├── ProjectController.java
 │   │   ├── ProjectService.java
+│   │   ├── ProjectEvaluateService.java          # 等级评估流程：密钥发放 → 混合解密 → AI 调用 → 审计入库
 │   │   ├── ProjectCardAssembler.java
 │   │   ├── ProjectPublisherEntityResolver.java
 │   │   └── dto/
+│   │       ├── PublishProjectRequest.java       # 创建/更新项目请求体
+│   │       ├── PublishProjectResponse.java      # 创建/更新项目响应体
+│   │       ├── PublishProjectDraftResponse.java # 草稿读取响应体
+│   │       ├── ProjectDetailResponse.java       # 详情响应体（含 owner）
+│   │       ├── ProjectEvaluateRequest.java      # 评估请求（含加密内容）
+│   │       ├── ProjectEvaluateResponse.java     # 评估结果（level + explanation + suggestions）
+│   │       └── ProjectEvaluatePublicKeyResponse.java # 评估公钥响应（keyId + publicKey）
 │   │
 │   ├── user/                                   # 用户个人空间（/api/v1/client/user-profile）
 │   │   ├── UserProfileController.java
@@ -387,17 +400,32 @@ src/main/java/com/unibridge/backend/
     │   ├── verification/                         # VerificationCode, ApprovalFlow
     │   ├── compliance/                           # PolicyConfig, PersonalInfoConsent
     │   ├── team/                                 # Team, TeamMember
-    │   ├── project/                              # Project, ProjectSecret, ProjectBody, ProjectCounter
+    │   ├── project/                              # Project, ProjectSecret, ProjectBody, ProjectCounter, ProjectLevelAudit
     │   ├── im/                                   # ProjectMilestone, ProjectTaskCard（依附于 IM 即时通讯系统）
     │   ├── note/                                 # Note, NoteDetail, NoteCounter
     │   ├── interaction/                          # UserInterestTag, UserInteraction, Achievement
-    │   └── infra/                                # DataEncryptionKey, CreditProfile, CreditLog, FileRecord
+    │   └── infra/                                # DataEncryptionKey, AsymmetricKey, CreditProfile, CreditLog, FileRecord
     │
     ├── persistence/mapper/                       # MyBatis Plus Mapper（与 entities 子文件夹一一对应）
     │   ├── auth/     # UserMapper, TenantOrganizationMapper 等
     │   ├── profile/  # UserProfileMapper, TenantOrgProfileMapper 等
     │   ├── verification/, compliance/, team/, project/, im/, note/, interaction/, infra/
     │   └── ...
+    │
+    ├── crypto/                                    # 【加密基础设施】统一加解密入口
+    │   ├── CryptoService.java                     # 对称 / 非对称 / 混合加解密；密钥生成与持久化
+    │   ├── CryptoAlgorithm.java                   # AES-256-GCM / SM4-GCM / RSA-2048-OAEP / EC-P256-ECDH / SM2-ECIES
+    │   ├── CryptoException.java                   # 加密异常封装
+    │   ├── MasterKeyProvider.java                 # KEK 主密钥抽象接口（生产 KMS / HSM 对接）
+    │   ├── DevFixedMasterKeyProvider.java         # 开发环境固定 KEK 实现
+    │   └── DevDekInitializer.java                 # 开发环境自动初始化 DEK + 非对称密钥
+    │
+    ├── client/                                    # 【外部 AI 服务调用】DeepSeek 项目难度评估
+    │   ├── LevelEvaluationService.java            # DeepSeek API 调用、JSON 解析、审计组装
+    │   ├── LevelEvalPromptProvider.java           # 等级评估提示词（六维度 + 预检 + 汇总）
+    │   └── dto/
+    │       ├── LevelEvalApiResponse.java          # AI Chat Completions 响应结构体
+    │       └── LevelEvalResult.java               # 模型评估输出 JSON DTO（六维度细则）
     │
     ├── media/                                    # 本地文件上传
     ├── config/                                   # CORS、OpenAPI、Redis、MybatisPlus、Upload、IP 配置
@@ -414,6 +442,160 @@ src/main/java/com/unibridge/backend/
 4. **缓存一致性**：note/project 发布时 `@CacheEvict` 清理 Feed cache；互动 toggle 同步失效。
 5. **安全响应**：底层异常对外统一模糊话术（`GlobalExceptionHandler`）；验证码限流返回 429。
 6. **表名规范**：Entity `@TableName` 使用裸表名（如 `project_body`），由 `MybatisPlusConfig` 动态补 `t_` 前缀。
+
+---
+
+## 项目难度 AI 评估
+
+### 概述
+
+`/api/v1/client/projects/evaluate` 集成 **DeepSeek v4 Flash** 大模型，对项目内容进行全面维度评估，给出 **S / A / B / C / D / E** 六档难度等级。
+
+### 评估流程
+
+```
+前端                         后端                          DeepSeek API
+  │                            │                              │
+  ├─ GET /projects/evaluate/public-key ──────────────────────►│
+  │◄── {keyId, publicKey} ───┤                              │
+  │                            │                              │
+  ├─ POST /projects/evaluate ─┤                              │
+  │   {keyId, description,     │                              │
+  │    encryptedContentDetail} │                              │
+  │                            ├─ RSA-OAEP 解密 session key ──┤
+  │                            ├─ AES-256-GCM 解密 content ───┤
+  │                            ├─ 构建提示词 ──────────────────►
+  │                            │◄─ JSON 评估结果 ─────────────┤
+  │                            ├─ 反序列化 LevelEvalResult ────┤
+  │                            ├─ 落审计 t_project_level_audit ┤
+  │◄── {level, explanation, ──┤                              │
+  │     suggestions}           │                              │
+```
+
+### 六维特征评估体系
+
+| 特征 | 维度 | 说明 |
+|------|------|------|
+| **S1** | 项目规模与系统体量 | 功能模块数量、零件数、节点数等可量化指标 |
+| **S2** | 跨技术集成度与技术深度 | API 调佣 / 开源库二次开发 / 自研算法 / 底层突破 |
+| **S3** | 工业标准与运行约束 | 安全等级、行业认证、环境约束 |
+| **S4** | 参考方案可获取性 | 公开方案 / 论文 / 开源 / 教程、自研比例 |
+| **S5** | 理论门槛与前置常识 | 即学即用 / 本科课程 / 研究生级 / 顶会前沿 |
+| **S6** | 跨领域知识跨度 | 单一领域 / 多方向 / 跨学科交叉 |
+
+### 汇总规则
+
+1. **描述质量预检**：检查各维度信息是否充分，不足的维度标记 `?`（非 E！）
+2. **逻辑一致性检查**：检测技术术语搭配是否合理，不合理则 `overall_level` = `"N/A"`
+3. **分侧汇总**：S1/S2/S3 → 工程侧综合等级（E_eng）；S4/S5/S6 → 创新侧综合等级（E_inno）
+4. **最终等级**：以 E_eng 为基准，E_inno 高 1 档则上调 1 档；E_inno ≥ E_eng + 2 且 E_eng ≥ B 则最多上调 1 档
+5. **信息不足处理**：任一汇总侧为 `?` 则整体为 `?`，返回 `guidance_summary` 引导用户补充信息
+
+### 加密安全体系
+
+项目详细内容（`contentDetail`）先在前端使用 **RSA-2048-OAEP + AES-256-GCM 混合加密**，服务端解密后送入 AI 模型。审计表中仅存储**原始密文**（`contentDetailCiphertext`），绝不落明文字段。
+
+> 详细加密体系见下方 [加密基础设施](#加密基础设施)。
+
+### API 端点
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/v1/client/projects/evaluate/public-key` | 获取一次性 RSA-2048 公钥（keyId + PEM） |
+| `POST` | `/api/v1/client/projects/evaluate` | 提交评估请求（keyId + description + encryptedContentDetail） |
+
+### 配置
+
+```properties
+# API Key 通过环境变量 DEEPSEEK_API_KEY 注入
+level-eval.api-key=${DEEPSEEK_API_KEY:}
+level-eval.api.url=https://api.deepseek.com/v1/chat/completions
+level-eval.api.model=deepseek-v4-flash
+```
+
+模型参数：`temperature=0.3`、`max_tokens=65536`、`thinking=enabled`（思考模式）、`response_format=json_object`。
+
+### 提示词管理
+
+提示词独立在 `LevelEvalPromptProvider.java`，按以下结构组织：
+
+- **角色与核心原则**：严格基于原文、区分"使用"与"自研"、禁止虚构数据
+- **六特征判定标准**：每维度含 S/A/B/C/D/E/? 七档，含 evidence / reason / guidance
+- **汇总规则**：预检 → 工程侧 → 创新侧 → 综合等级
+- **输出格式**：强制 JSON，`precheck` / `features` / `engineering_level` / `innovation_level` / `overall_level`
+
+修改提示词后重新部署即可生效，无需改动 Java 评估逻辑。
+
+---
+
+## 加密基础设施
+
+### 架构概览
+
+```
+MasterKeyProvider (KEK 主密钥)
+  ├── DevFixedMasterKeyProvider  (开发环境：固定 AES-256 KEK)
+  └── (生产环境对接 KMS / HSM)
+        │
+        └── unwrapDek() ──► DEK (sys_data_encryption_keys)
+                              │
+                              ├── encryptWithDek()  ──► PII 字段加密（AES-256-GCM）
+                              │
+                              └── encrypt private key ──► AsymmetricKey.encrypted_private_key
+                                                            │
+                                                            └── RSA-2048 私钥
+                                                                  │
+                                                                  ├── encryptAsymmetric() ──► 前端混合加密
+                                                                  └── decryptAsymmetric() ──► 服务端解密
+```
+
+### 支持算法
+
+| 算法 | 类型 | 密钥长度 | 用途 |
+|------|------|---------|------|
+| `AES-256-GCM` | 对称 | 256-bit | DEK 数据加解密、PII 字段保护（推荐） |
+| `AES-256-CBC` | 对称 | 256-bit | 遗留兼容 |
+| `SM4-GCM` | 对称（国密） | 128-bit | 国产密码合规场景 |
+| `SM4-CBC` | 对称（国密） | 128-bit | 国产密码合规（遗留） |
+| `RSA-2048-OAEP` | 非对称 | 2048-bit | 前端混合加密公钥（推荐） |
+| `RSA-4096-OAEP` | 非对称 | 4096-bit | 高安全场景 |
+| `EC-P256-ECDH` | 非对称 | 256-bit | 移动端友好密钥交换 |
+| `SM2-ECIES` | 非对称（国密） | 256-bit | 国产密码合规（需 BouncyCastle） |
+
+### CryptoService 统一 API
+
+```java
+// A. 对称加密（DEK 信封加密，用于 PII 字段如 real_name）
+cryptoService.encryptWithDek(plaintext, dekKeyId);
+cryptoService.decryptWithDek(ciphertext, dekKeyId);
+
+// B. 非对称混合加密（前端 → 服务端，如 project description）
+cryptoService.decryptHybridRsaOaep(hybridCiphertext, keyId); // 三段式 "wrappedKey.iv.ciphertext"
+cryptoService.generateAndPersistKeyPair(algorithm, keyType, createdBy); // 生成并持久化密钥对
+
+// C. 原始密钥加解密（无 DB 依赖）
+cryptoService.encryptSymmetric(plaintext, secretKey, algorithm);
+cryptoService.decryptSymmetric(ciphertext, secretKey, algorithm);
+```
+
+### 密钥生命周期
+
+`sys_asymmetric_keys` 状态机：
+
+```
+INITIALIZED  ──►  ACTIVE  ──►  ROTATED  ──►  REVOKED
+  (刚生成)        (可用)       (已轮转)      (已吊销)
+```
+
+- 开发环境由 `DevDekInitializer` 自动初始化 DEK
+- `DevFixedMasterKeyProvider` 提供固定 KEK（开发/测试用）
+- 生产环境应替换为 `MasterKeyProvider` 的真实 KMS/HSM 实现
+
+### 密文输出格式
+
+- 对称：`Base64(iv || ciphertext || auth_tag)`
+- 非对称混合（服务端）：`Base64(len4 || enc_session_key || iv || ciphertext || auth_tag)`
+- 非对称混合（前端三段式）：`Base64(wrappedKey).Base64(iv).Base64(ciphertext)`
 
 ---
 
@@ -596,6 +778,8 @@ file:
 | 3 | `CacheConfig` + `RedisConfig` | Feed 缓存 `RedissonSpringCacheManager`；启动清 Feed 缓存池 |
 | 4 | `FeedCounterService` | 笔记/项目计数 Redis 热写，MySQL 定期快照 |
 | 5 | 注册 / 互动 / 行为 | 唯一约束兜底、原子 SQL、`DuplicateKeyException` 等（见历史修复表） |
+| 6 | `CryptoService` | 异步密钥生命周期管理；DEK 信封加密；混合同步/异步解密 |
+| 7 | `ProjectEvaluateService` | RSA-2048 公钥发放 → 混合解密 → AI 评估 → 审计入库，全流程事务一致 |
 
 ### 待推进
 
@@ -616,9 +800,12 @@ file:
 - [x] 验证码发放三层限流（2026-07）
 - [x] `UserVerificationService` 统一认证状态；项目发布权限校验（2026-07）
 - [x] 项目详情 `owner` 字段；笔记卡片 `updateTime` Footer 精简（2026-07）
+- [x] AI 等级评估：DeepSeek v4 六维特征评估 + 前端混合加密公钥体系（2026-07）
+- [x] 加密基础设施：CryptoService 统一加解密、密钥生命周期管理、国密兼容（2026-07）
 - [ ] 插入 `t_user_identity.verified_at` 测试数据以验证三级认证状态
 - [ ] 验证新架构稳定后删除 `com/example/demo/client` 快照目录
 - [ ] JWT 密钥外部化（环境变量 / Vault）
 - [ ] 计数器 Redis → MySQL 定时快照任务
 - [ ] 补充 Feed / Note / Project / TeamProfile 接口集成测试
 - [ ] 文件上传安全端到端验证
+- [ ] 等级评估：支持批量评估、评估结果缓存、人工复核流程

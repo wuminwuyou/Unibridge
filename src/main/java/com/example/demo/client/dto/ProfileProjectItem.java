@@ -33,8 +33,17 @@ public class ProfileProjectItem {
     private String logoSvgUrl;
     private String publishTime;
     private String level;
-    private String teamSize;
     private String duration;
+    /** 发布人名称（卡片展示，取自 user_profile.nickName 或脱敏实名） */
+    private String publisherName;
+    /** 发布人头像 URL（取自 user_profile.avatarUrl） */
+    private String publisherAvatar;
+    /** 预算区间最小值（纯数字字符串，如 "5000"） */
+    private String amountMin;
+    /** 预算区间最大值（纯数字字符串，如 "20000"） */
+    private String amountMax;
+    /** DRAFT | OPEN | ONGOING | CLOSED */
+    private String status;
 
     @Data
     @NoArgsConstructor

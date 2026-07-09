@@ -1,7 +1,6 @@
 package com.unibridge.backend.domain.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.unibridge.backend.application.shared.ContentUidResolver;
 import com.unibridge.backend.application.shared.UserVerificationService;
 import com.unibridge.backend.domain.auth.AccessService;
@@ -12,9 +11,9 @@ import com.unibridge.backend.domain.project.dto.PublishProjectResponse;
 import com.unibridge.backend.infrastructure.entities.project.Project;
 import com.unibridge.backend.infrastructure.entities.project.ProjectBody;
 import com.unibridge.backend.infrastructure.entities.project.ProjectSecret;
-import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectSecretMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectBodyMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.project.ProjectSecretMapper;
 import com.unibridge.backend.infrastructure.common.BusinessException;
 import com.unibridge.backend.infrastructure.util.ProjectUidGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -105,8 +104,8 @@ public class ProjectService {
         projectMapper.insert(project);
 
         saveProjectBody(project.getProjectUid(), request.getDescription());
-
         syncCommercialSecret(project.getProjectUid(), request);
+
         Project persisted = projectMapper.selectById(project.getId());
         return buildResponse(persisted, request.getPublishAction());
     }
@@ -130,8 +129,8 @@ public class ProjectService {
         projectMapper.updateById(project);
 
         saveProjectBody(project.getProjectUid(), request.getDescription());
-
         syncCommercialSecret(project.getProjectUid(), request);
+
         Project persisted = projectMapper.selectById(project.getId());
         return buildResponse(persisted, request.getPublishAction());
     }
@@ -139,7 +138,14 @@ public class ProjectService {
     public PublishProjectDraftResponse getProjectDraft(String authorization, String projectUid) {
         String userUid = clientAccessService.requireCurrentUserUid(authorization);
         Project project = requireOwnedProject(projectUid, userUid);
-        ProjectSecret secret = loadCommercialSecret(project.getProjectUid());
+
+        String contentDetail = null;
+        if (CATEGORY_COMMERCIAL.equals(project.getCategory())) {
+            ProjectSecret secret = projectSecretMapper.selectById(projectUid);
+            if (secret != null) {
+                contentDetail = secret.getEncryptedDescription();
+            }
+        }
 
         return PublishProjectDraftResponse.builder()
                 .uid(project.getProjectUid())
@@ -149,7 +155,9 @@ public class ProjectService {
                 .channel(mapCategoryToChannel(project.getCategory()))
                 .campusRecruitType(project.getRecruitmentType())
                 .description(loadProjectBody(project.getProjectUid()))
-                .amount(formatAmount(secret == null ? null : secret.getTotalBudget()))
+                .contentDetail(contentDetail)
+                .amountMin(extractBudgetMin(project.getBudget()))
+                .amountMax(extractBudgetMax(project.getBudget()))
                 .level(project.getLevel())
                 .duration(project.getDuration())
                 .skillTags(parseJsonStringList(project.getTags()))
@@ -170,19 +178,12 @@ public class ProjectService {
         String currentUserUid = clientAccessService.requireCurrentUserUid(authorization);
         assertProjectReadable(project, currentUserUid);
 
-        ProjectSecret secret = loadCommercialSecret(project.getProjectUid());
-        return buildProjectDetailResponse(project, secret, currentUserUid);
+        return buildProjectDetailResponse(project, currentUserUid);
     }
 
     private ProjectDetailResponse buildProjectDetailResponse(Project project,
-                                                             ProjectSecret secret,
                                                              String currentUserUid) {
         String channel = mapCategoryToChannel(project.getCategory());
-        String amount = null;
-        boolean isOwner = currentUserUid != null && currentUserUid.equals(project.getOwnerUid());
-        if (CATEGORY_COMMERCIAL.equals(project.getCategory()) && secret != null && isOwner) {
-            amount = formatAmount(secret.getTotalBudget());
-        }
 
         ProjectPublisherEntityResolver.OwnerContext ownerContext =
                 projectPublisherEntityResolver.resolveOwner(project.getOwnerUid());
@@ -194,7 +195,8 @@ public class ProjectService {
                 .channel(channel)
                 .campusRecruitType(project.getRecruitmentType())
                 .description(loadProjectBody(project.getProjectUid()))
-                .amount(amount)
+                .amountMin(extractBudgetMin(project.getBudget()))
+                .amountMax(extractBudgetMax(project.getBudget()))
                 .level(project.getLevel())
                 .duration(project.getDuration())
                 .skillTags(parseJsonStringList(project.getTags()))
@@ -301,8 +303,8 @@ public class ProjectService {
             }
         }
 
-        if (CHANNEL_ENTERPRISE.equals(channel) && StringUtils.hasText(request.getAmount())) {
-            parseAmount(request.getAmount());
+        if (CHANNEL_ENTERPRISE.equals(channel) && StringUtils.hasText(request.getAmountMax())) {
+            parseAmount(request.getAmountMax());
         }
     }
 
@@ -338,7 +340,7 @@ public class ProjectService {
         project.setTitle(request.getTitle().trim());
         project.setPreview(StringUtils.hasText(request.getSummary()) ? request.getSummary().trim() : "");
         project.setTags(toJsonStringList(request.getSkillTags()));
-        project.setBudget(trimToNull(request.getAmount()));
+        project.setBudget(buildBudgetRange(request));
         project.setLevel(request.getLevel().trim());
         project.setDuration(trimToNull(request.getDuration()));
         project.setDeadline(StringUtils.hasText(request.getDeadline()) ? LocalDate.parse(request.getDeadline()) : null);
@@ -352,43 +354,65 @@ public class ProjectService {
         }
     }
 
+    /**
+     * 将前端的 amountMin / amountMax 拼接为数据库 budget 区间字符串。
+     * <ul>
+     *   <li>两端均有值 → {@code "80000-120000"}</li>
+     *   <li>仅 min 有值 → {@code "80000"}</li>
+     *   <li>均无值 → null</li>
+     * </ul>
+     */
+    private String buildBudgetRange(PublishProjectRequest request) {
+        String min = trimToNull(request.getAmountMin());
+        String max = trimToNull(request.getAmountMax());
+        if (min == null && max == null) {
+            return null;
+        }
+        if (max == null) {
+            return min;
+        }
+        if (min == null) {
+            return max;
+        }
+        return min + "-" + max;
+    }
+
+    /**
+     * 商业项目发布时同步敏感数据到 t_project_secret。
+     * 仅 channel=enterprise 时写入；recruitment 项目不产生秘密表记录。
+     */
     private void syncCommercialSecret(String projectUid, PublishProjectRequest request) {
         if (CHANNEL_CAMPUS.equals(request.getChannel())) {
-            projectSecretMapper.deleteById(projectUid);
             return;
         }
 
-        BigDecimal budget = parseAmount(request.getAmount());
+        String encryptedDesc = trimToNull(request.getContentDetail());
+
         ProjectSecret existing = projectSecretMapper.selectById(projectUid);
         if (existing == null) {
             ProjectSecret secret = new ProjectSecret();
             secret.setProjectUid(projectUid);
-            secret.setTotalBudget(budget);
+            secret.setTotalBudget(BigDecimal.ZERO);
+            secret.setEncryptedDescription(encryptedDesc);
             secret.setCommercialStatus(COMMERCIAL_STATUS_PENDING);
-            // 并发场景下，若两个请求同时 delete→insert，数据库主键/唯一约束会拒绝
             try {
                 projectSecretMapper.insert(secret);
             } catch (org.springframework.dao.DuplicateKeyException e) {
                 existing = projectSecretMapper.selectById(projectUid);
                 if (existing != null) {
-                    existing.setTotalBudget(budget);
+                    if (encryptedDesc != null) {
+                        existing.setEncryptedDescription(encryptedDesc);
+                    }
                     projectSecretMapper.updateById(existing);
                 }
             }
             return;
         }
 
-        // 仅更新 totalBudget，避免全字段覆盖
-        ProjectSecret patch = new ProjectSecret();
-        patch.setProjectUid(projectUid);
-        patch.setTotalBudget(budget);
-        LambdaUpdateWrapper<ProjectSecret> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ProjectSecret::getProjectUid, projectUid);
-        projectSecretMapper.update(patch, wrapper);
-    }
-
-    private ProjectSecret loadCommercialSecret(String projectUid) {
-        return projectSecretMapper.selectById(projectUid);
+        if (encryptedDesc != null) {
+            existing.setEncryptedDescription(encryptedDesc);
+            projectSecretMapper.updateById(existing);
+        }
     }
 
     private BigDecimal parseAmount(String amountText) {
@@ -404,13 +428,6 @@ public class ProjectService {
         } catch (NumberFormatException ex) {
             throw BusinessException.badRequest("AMOUNT_PARSE_FAILED");
         }
-    }
-
-    private String formatAmount(BigDecimal amount) {
-        if (amount == null) {
-            return "0";
-        }
-        return amount.stripTrailingZeros().toPlainString();
     }
 
     private PublishProjectResponse buildResponse(Project project, String publishAction) {
@@ -445,6 +462,30 @@ public class ProjectService {
             return null;
         }
         return value.trim();
+    }
+
+    private String extractBudgetMin(String budget) {
+        if (!StringUtils.hasText(budget)) {
+            return null;
+        }
+        String trimmed = budget.trim();
+        int idx = trimmed.indexOf('-');
+        if (idx < 0) {
+            return trimmed;
+        }
+        return trimmed.substring(0, idx).trim();
+    }
+
+    private String extractBudgetMax(String budget) {
+        if (!StringUtils.hasText(budget)) {
+            return null;
+        }
+        String trimmed = budget.trim();
+        int idx = trimmed.indexOf('-');
+        if (idx < 0) {
+            return null;
+        }
+        return trimmed.substring(idx + 1).trim();
     }
 
     private String toJsonStringList(List<String> values) {

@@ -5,9 +5,11 @@ import com.unibridge.backend.application.shared.CareerDataParser;
 import com.unibridge.backend.infrastructure.entities.profile.TenantOrgProfile;
 import com.unibridge.backend.infrastructure.entities.profile.UserProfile;
 import com.unibridge.backend.infrastructure.entities.profile.UserOrganizationBinding;
+import com.unibridge.backend.infrastructure.entities.profile.UserIdentity;
 import com.unibridge.backend.infrastructure.persistence.mapper.profile.TenantOrgProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserProfileMapper;
 import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserOrganizationBindingMapper;
+import com.unibridge.backend.infrastructure.persistence.mapper.profile.UserIdentityMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -22,19 +24,26 @@ public class ProjectPublisherEntityResolver {
     private final UserOrganizationBindingMapper userOrganizationBindingMapper;
     private final TenantOrgProfileMapper tenantOrgProfileMapper;
     private final UserProfileMapper userProfileMapper;
+    private final UserIdentityMapper userIdentityMapper;
 
     public ProjectPublisherEntityResolver(UserOrganizationBindingMapper userOrganizationBindingMapper,
                                           TenantOrgProfileMapper tenantOrgProfileMapper,
-                                          UserProfileMapper userProfileMapper) {
+                                          UserProfileMapper userProfileMapper,
+                                          UserIdentityMapper userIdentityMapper) {
         this.userOrganizationBindingMapper = userOrganizationBindingMapper;
         this.tenantOrgProfileMapper = tenantOrgProfileMapper;
         this.userProfileMapper = userProfileMapper;
+        this.userIdentityMapper = userIdentityMapper;
     }
 
     public PublisherEntityContext resolve(String ownerUid) {
         if (ownerUid == null || ownerUid.isBlank()) {
             return PublisherEntityContext.empty();
         }
+
+        UserProfile profile = loadUserProfile(ownerUid);
+        String publisherName = resolvePublisherName(profile, ownerUid);
+        String publisherAvatar = resolvePublisherAvatar(profile);
 
         UserOrganizationBinding authLink = loadActiveAuthLink(ownerUid);
         if (authLink != null && authLink.getEntityCode() != null) {
@@ -44,11 +53,11 @@ public class ProjectPublisherEntityResolver {
                 String orgName = StringUtils.hasText(entityProfile.getName())
                         ? entityProfile.getName().trim()
                         : fallbackOrganizationName(ownerUid);
-                return new PublisherEntityContext(orgName, logoUrl, logoUrl);
+                return new PublisherEntityContext(orgName, logoUrl, logoUrl, publisherName, publisherAvatar);
             }
         }
 
-        return new PublisherEntityContext(fallbackOrganizationName(ownerUid), null, null);
+        return new PublisherEntityContext(fallbackOrganizationName(ownerUid), null, null, publisherName, publisherAvatar);
     }
 
     /**
@@ -86,6 +95,37 @@ public class ProjectPublisherEntityResolver {
         return new OwnerContext(ownerUid.trim(), name, avatarUrl, careerData, organization, location);
     }
 
+    /**
+     * 解析发布人展示名称（nick_name > real_name_mask > null）。
+     * 卡片场景禁止返回实名原文，优先展示昵称，其次展示脱敏实名。
+     */
+    private String resolvePublisherName(UserProfile profile, String ownerUid) {
+        if (profile != null && StringUtils.hasText(profile.getNickName())) {
+            return profile.getNickName().trim();
+        }
+        UserIdentity identity = loadUserIdentity(ownerUid);
+        if (identity != null && StringUtils.hasText(identity.getRealNameMask())) {
+            return identity.getRealNameMask().trim();
+        }
+        return null;
+    }
+
+    /**
+     * 解析发布人头像 URL。
+     */
+    private String resolvePublisherAvatar(UserProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        return trimToNull(profile.getAvatarUrl());
+    }
+
+    private UserIdentity loadUserIdentity(String userUid) {
+        LambdaQueryWrapper<UserIdentity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserIdentity::getUserUid, userUid).last("LIMIT 1");
+        return userIdentityMapper.selectOne(wrapper);
+    }
+
     private UserOrganizationBinding loadActiveAuthLink(String userUid) {
         LambdaQueryWrapper<UserOrganizationBinding> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserOrganizationBinding::getUserUid, userUid)
@@ -118,9 +158,10 @@ public class ProjectPublisherEntityResolver {
         return value.trim();
     }
 
-    public record PublisherEntityContext(String ownerOrganization, String coverUrl, String logoSvgUrl) {
+    public record PublisherEntityContext(String ownerOrganization, String coverUrl, String logoSvgUrl,
+                                          String publisherName, String publisherAvatar) {
         static PublisherEntityContext empty() {
-            return new PublisherEntityContext("", null, null);
+            return new PublisherEntityContext("", null, null, null, null);
         }
     }
 

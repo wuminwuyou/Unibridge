@@ -1,6 +1,7 @@
 package com.unibridge.backend.domain.feed.dto;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -45,12 +46,31 @@ public class ContentVO {
     private String level;
     /** 项目：预计周期 */
     private String duration;
-    /** NOTE：string[] 标签，序列化为 "tags"。PROJECT 时此字段为空。 */
-    @JsonProperty("tags")
+    /** 项目：发布人名称（卡片展示，取自 user_profile.nickName 或脱敏实名） */
+    private String publisherName;
+    /** 项目：发布人头像 URL（取自 user_profile.avatarUrl） */
+    private String publisherAvatar;
+    /** 项目：预算区间最小值（纯数字字符串，如 "5000"；null 时不展示预算行） */
+    private String amountMin;
+    /** 项目：预算区间最大值（纯数字字符串，如 "20000"；null 时不展示预算行） */
+    private String amountMax;
+    /** NOTE：string[] 标签 */
+    @JsonIgnore
     private List<String> noteTags;
     /** PROJECT：{ label }[] 标签 */
     @JsonIgnore
     private List<ContentTagLabel> projectTags;
+
+    @JsonGetter("tags")
+    public List<?> getTagsForResponse() {
+        if ("NOTE".equals(contentType)) {
+            return noteTags;
+        }
+        if ("PROJECT".equals(contentType)) {
+            return projectTags;
+        }
+        return null;
+    }
     /** 笔记：发布者昵称（卡片展示；禁止返回实名） */
     @JsonProperty("authorNickname")
     @JsonAlias("authorNickName")
