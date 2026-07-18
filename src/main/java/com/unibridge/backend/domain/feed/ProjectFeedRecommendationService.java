@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,14 +29,23 @@ import java.util.stream.Collectors;
 /**
  * 项目 Feed 推荐流 Service（方案 B）。
  *
- * <h2>核心公式</h2>
+ * <h2>核心公式（沟通热度 + 沟通率惩罚 + 冷启动）</h2>
  * <pre>
- *   finalScore = baseScore + urgencyBoost − conversionPenalty
+ *   沟通率 = (chatUnique + collectCount×0.5) / (viewCount + 1)
+ *   热度分 = log1p(chatUnique + collectCount×0.5) × 10
+ *   时效系数 = 1 / pow(hoursSincePublish + 1, 0.8)
+ *   惩罚系数 = 沟通率 &lt; 0.05 ? 0.5 : 1.0
+ *   Deadline加分 = daysLeft &gt; 0 ? 50 / pow(daysLeft + 1, 1.5) : 50
  *
- *   baseScore       = budgetNormalized × 100 / (hoursSincePublish + 1)^0.8
- *   urgencyBoost    = beta / (deadlineDaysLeft + 1)^1.5
- *   conversionPenalty = gamma × (viewCount / (chatUniqueUsers + 1))
+ *   最终分 = 热度分 × 时效系数 × 惩罚系数 + Deadline加分
  * </pre>
+ *
+ * <h2>冷启动机制</h2>
+ * <ul>
+ *   <li>触发条件：发布 &lt; 24h 且 浏览量 &lt; 10</li>
+ *   <li>实现：随机插入到推荐列表第 3-8 位</li>
+ *   <li>曝光配额：Redis 计数器 cold_start:{projectUid}:{date}，TTL 24h，上限 50 次/天</li>
+ * </ul>
  *
  * <h2>计数器来源：FeedCounterService（Redis 优先）</h2>
  * <ul>
@@ -53,13 +63,26 @@ public class ProjectFeedRecommendationService {
     // ── Redis Keys ──
     private static final String PROJ_CHAT_KEY = "proj:chat:";
     private static final String FEED_ZSET_KEY = "feed:proj:";
+    private static final String COLD_START_KEY = "cold_start:";
     private static final Duration ZSET_TTL = Duration.ofMinutes(30);
 
     // ── 公式参数 ──
-    private static final double BUDGET_BASE = 1000.0;
     static final double BETA = 50.0;
-    static final double GAMMA = 30.0;
     static final double BASE_TIME_EXPONENT = 0.8;
+
+    // ── 热度分 ──
+    private static final double HEAT_FACTOR = 10.0;
+
+    // ── 沟通率惩罚 ──
+    private static final double CONVERSION_THRESHOLD = 0.05;
+    private static final double CONVERSION_PENALTY_FACTOR = 0.5;
+
+    // ── 冷启动 ──
+    private static final long COLD_START_HOURS = 24;
+    private static final int COLD_START_MAX_VIEWS = 10;
+    private static final int COLD_START_MIN_POSITION = 3;
+    private static final int COLD_START_MAX_POSITION = 8;
+    private static final int COLD_START_DAILY_QUOTA = 50;
 
     private static final int MAX_CANDIDATES = 2000;
     private static final int MAX_PAGE_SIZE = 50;
@@ -97,7 +120,7 @@ public class ProjectFeedRecommendationService {
     // ============================================================================
 
     /**
-     * 获取项目推荐流分页。
+     * 获取项目推荐流分页（含冷启动注入）。
      */
     public List<ContentVO> getProjectFeed(String userUid, String category, int limit) {
         String effectiveUserUid = normalizeUserUid(userUid);
@@ -110,7 +133,15 @@ public class ProjectFeedRecommendationService {
             rebuildProjectZSet(effectiveUserUid, effectiveCategory);
         }
 
-        return getProjectFeedFromZSet(effectiveUserUid, effectiveCategory, 1, safeLimit);
+        List<ContentVO> sortedItems = getProjectFeedFromZSet(effectiveUserUid, effectiveCategory, 1, safeLimit);
+
+        // 冷启动注入（仅第一页）
+        List<Project> coldCandidates = collectColdStartCandidates(category);
+        if (!coldCandidates.isEmpty()) {
+            sortedItems = injectColdStartItems(sortedItems, coldCandidates, new HashMap<>());
+        }
+
+        return sortedItems;
     }
 
     // ============================================================================
@@ -131,8 +162,9 @@ public class ProjectFeedRecommendationService {
                 continue;
             }
             int viewCount = feedCounterService.getProjectViewCount(project.getProjectUid());
+            int collectCount = feedCounterService.getProjectCollectCount(project.getProjectUid());
             long chatUnique = feedCounterService.getProjectChatUniqueCount(project.getProjectUid());
-            double score = computeFinalScore(project, viewCount, chatUnique);
+            double score = computeFinalScore(project, viewCount, collectCount, chatUnique);
             stringRedisTemplate.opsForZSet().add(zsetKey, project.getProjectUid(), score);
         }
 
@@ -146,50 +178,151 @@ public class ProjectFeedRecommendationService {
     //  核心得分公式
     // ============================================================================
 
-    static double computeFinalScore(Project project, int viewCount, long chatUnique) {
-        double baseScore = computeBaseScore(project);
+    /**
+     * 综合评分公式：
+     * <pre>
+     *   沟通率 = (chatUnique + collectCount×0.5) / (viewCount + 1)
+     *   热度分 = log1p(chatUnique + collectCount×0.5) × 10
+     *   时效系数 = 1 / pow(hoursSincePublish + 1, 0.8)
+     *   惩罚系数 = 沟通率 &lt; 0.05 ? 0.5 : 1.0
+     *   Deadline加分 = daysLeft &gt; 0 ? 50 / pow(daysLeft + 1, 1.5) : 50
+     *
+     *   最终分 = 热度分 × 时效系数 × 惩罚系数 + Deadline加分
+     * </pre>
+     */
+    static double computeFinalScore(Project project, int viewCount, int collectCount, long chatUnique) {
+        double heatScore = computeHeatScore(chatUnique, collectCount);
+        double timeDecay = computeTimeDecay(project);
+        double conversionRate = computeConversionRate(viewCount, collectCount, chatUnique);
+        double penaltyFactor = computeConversionPenalty(conversionRate);
         double urgencyBoost = computeUrgencyBoost(project);
-        double conversionPenalty = computeConversionPenalty(viewCount, chatUnique);
-        return baseScore + urgencyBoost - conversionPenalty;
+        return heatScore * timeDecay * penaltyFactor + urgencyBoost;
     }
 
-    private static double computeBaseScore(Project project) {
-        double budgetNormalized = budgetNormalize(project.getBudget());
+    /** 热度分 = log1p(chatUnique + collectCount×0.5) × 10 */
+    static double computeHeatScore(long chatUnique, int collectCount) {
+        return Math.log1p(chatUnique + collectCount * 0.5) * HEAT_FACTOR;
+    }
+
+    /** 时效系数 = 1 / pow(hoursSincePublish + 1, 0.8) */
+    static double computeTimeDecay(Project project) {
         LocalDateTime publishTime = project.getPublishedAt() != null
                 ? project.getPublishedAt() : project.getCreatedAt();
         if (publishTime == null) publishTime = LocalDateTime.now();
         long hours = Math.max(0, ChronoUnit.HOURS.between(publishTime, LocalDateTime.now()));
-        double timeDecay = 1.0 / Math.pow(hours + 1.0, BASE_TIME_EXPONENT);
-        return budgetNormalized * 100.0 * timeDecay;
+        return 1.0 / Math.pow(hours + 1.0, BASE_TIME_EXPONENT);
+    }
+
+    /** 沟通率 = (chatUnique + collectCount×0.5) / (viewCount + 1) */
+    static double computeConversionRate(int viewCount, int collectCount, long chatUnique) {
+        double numerator = chatUnique + collectCount * 0.5;
+        return numerator / (viewCount + 1.0);
+    }
+
+    /** 沟通率惩罚：沟通率 &lt; 5% 时 ×0.5，否则 ×1.0 */
+    static double computeConversionPenalty(double conversionRate) {
+        return conversionRate < CONVERSION_THRESHOLD ? CONVERSION_PENALTY_FACTOR : 1.0;
     }
 
     static double computeUrgencyBoost(Project project) {
         LocalDate deadline = project.getDeadline();
         if (deadline == null) return 0.0;
         long daysLeft = Math.max(0, ChronoUnit.DAYS.between(LocalDate.now(), deadline));
+        if (daysLeft == 0) {
+            return BETA; // deadline 当天或已过期，给满额加分
+        }
         return BETA / Math.pow(daysLeft + 1.0, 1.5);
     }
 
-    static double computeConversionPenalty(int viewCount, long chatUnique) {
-        if (viewCount == 0) return 0.0;
-        return GAMMA * viewCount / (double) (chatUnique + 1);
-    }
+    // ============================================================================
+    //  冷启动机制
+    // ============================================================================
 
-    static double budgetNormalize(String budget) {
-        double value = extractBudgetLowerBound(budget);
-        return Math.log1p(value) / Math.log1p(BUDGET_BASE);
-    }
-
-    /** 从预算区间字符串 "10000 - 20000" 中提取下限值用于归一化。 */
-    private static double extractBudgetLowerBound(String budget) {
-        if (budget == null || budget.isBlank()) return 0.0;
-        String[] parts = budget.split("-", 2);
-        if (parts.length == 0) return 0.0;
-        try {
-            return Math.max(0.0, Double.parseDouble(parts[0].trim()));
-        } catch (NumberFormatException e) {
-            return 0.0;
+    /**
+     * 判断项目是否处于冷启动期：发布 &lt; 24h 且 浏览量 &lt; 10。
+     */
+    static boolean isColdStartCandidate(Project project, int viewCount) {
+        if (viewCount >= COLD_START_MAX_VIEWS) {
+            return false;
         }
+        LocalDateTime publishTime = project.getPublishedAt() != null
+                ? project.getPublishedAt() : project.getCreatedAt();
+        if (publishTime == null) {
+            return false;
+        }
+        long hoursSincePublish = ChronoUnit.HOURS.between(publishTime, LocalDateTime.now());
+        return hoursSincePublish >= 0 && hoursSincePublish < COLD_START_HOURS;
+    }
+
+    /**
+     * 检查冷启动曝光配额是否已用完（Redis 计数器，每天最多 50 次）。
+     * Key: cold_start:{projectUid}:{yyyy-MM-dd}，TTL 24h。
+     */
+    private boolean checkColdStartQuota(String projectUid) {
+        String today = LocalDate.now().toString();
+        String key = COLD_START_KEY + projectUid + ":" + today;
+        Long count = stringRedisTemplate.opsForValue().increment(key);
+        if (count == null) {
+            return false;
+        }
+        if (count == 1) {
+            stringRedisTemplate.expire(key, Duration.ofHours(24));
+        }
+        return count <= COLD_START_DAILY_QUOTA;
+    }
+
+    /**
+     * 从数据库收集所有满足冷启动条件的项目。
+     */
+    private List<Project> collectColdStartCandidates(String category) {
+        List<Project> candidates = loadFeedProjects(MAX_CANDIDATES, category);
+        List<Project> coldCandidates = new ArrayList<>();
+        for (Project project : candidates) {
+            int viewCount = feedCounterService.getProjectViewCount(project.getProjectUid());
+            if (isColdStartCandidate(project, viewCount)) {
+                coldCandidates.add(project);
+            }
+        }
+        log.info("Cold start candidates collected: category={}, count={}", category, coldCandidates.size());
+        return coldCandidates;
+    }
+
+    /** 将冷启动项目随机插入到推荐列表的第 3-8 位。 */
+    private List<ContentVO> injectColdStartItems(List<ContentVO> sortedItems,
+                                                  List<Project> coldStartCandidates,
+                                                  Map<String, Integer> collectCounts) {
+        if (coldStartCandidates.isEmpty() || sortedItems.size() < COLD_START_MIN_POSITION) {
+            return sortedItems;
+        }
+
+        java.util.Random random = new java.util.Random();
+        List<ContentVO> result = new ArrayList<>(sortedItems);
+
+        for (Project candidate : coldStartCandidates) {
+            if (!checkColdStartQuota(candidate.getProjectUid())) {
+                continue;
+            }
+            // 避免重复插入
+            boolean alreadyInList = result.stream()
+                    .anyMatch(vo -> candidate.getProjectUid().equals(vo.getUid()));
+            if (alreadyInList) {
+                continue;
+            }
+
+            int insertPos = COLD_START_MIN_POSITION + random.nextInt(
+                    COLD_START_MAX_POSITION - COLD_START_MIN_POSITION + 1);
+            // 确保插入位置不超出列表范围
+            insertPos = Math.min(insertPos, result.size());
+            Integer collectCnt = collectCounts.getOrDefault(candidate.getProjectUid(), 0);
+            ContentVO vo = projectCardAssembler.toFeedProjectVo(candidate, 0.0);
+            result.add(insertPos, vo);
+
+            log.info("Cold start injected: projectUid={}, insertPos={}, views={}, collect={}",
+                    candidate.getProjectUid(), insertPos,
+                    feedCounterService.getProjectViewCount(candidate.getProjectUid()), collectCnt);
+        }
+
+        return result;
     }
 
     // ============================================================================
